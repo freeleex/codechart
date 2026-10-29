@@ -188,7 +188,7 @@ Notes:
 - The without arm got cheaper with warm-up: summary $0.043 (first run) to $0.014, because first-run medians included cold prompt-cache writes. Deltas against the first without column are therefore not comparable; the table above compares like with like (warm both arms for without, warm for with). The with arm in the first round was also cold, so part of its improvement is warm-up, not trims.
 - Intermediate quality regression: the first final run (`bench-final`, with arm) had a summary reply containing an edited key line and a split map header, a plan run that drew no diagram, and first-render errors from edge kinds (the enum lists had been trimmed from the skill). Root causes (task the quality fix): lost paste rule, `{}` check output misread, dropped enums. Fixed in f4dbef6/066abe6/5120e99; `bench-final2` is 3/3 on every check. The `bench-final` with-arm token numbers are not used above for those three scenarios.
 - N=3: medians move by tens of thousands of tokens run to run (summary with arm: 124k to 129k final, 130k to 164k first run; plan max 221k). Differences under about 20% are not distinguishable. Single-call `check` for summary and plan: 3/3 in summary, n/a in plan (there is no diff to read).
-- Still more expensive than without in every non-trivial scenario; the gap is turns (skill load, reading anchors, render, longer reply). Further cuts are deferred: lazy skill sections, shorter replies.
+- Still more expensive than without in every non-trivial scenario; the gap is turns (skill load, reading anchors, render, longer reply).
 
 ## In a real session (estimate)
 
