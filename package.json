@@ -1,8 +1,21 @@
 {
   "name": "codechart",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Agent skill + CLI: maps and flowcharts of code changes for AI coding agents, in terminal, chat and HTML",
-  "keywords": ["agent-skills", "ai-coding-agent", "claude-code", "codex", "gemini-cli", "cursor", "diagram", "code-review", "change-map", "flowchart", "ai-agent", "cli"],
+  "keywords": [
+    "agent-skills",
+    "ai-coding-agent",
+    "claude-code",
+    "codex",
+    "gemini-cli",
+    "cursor",
+    "diagram",
+    "code-review",
+    "change-map",
+    "flowchart",
+    "ai-agent",
+    "cli"
+  ],
   "type": "module",
   "license": "MIT",
   "author": "freeleex",

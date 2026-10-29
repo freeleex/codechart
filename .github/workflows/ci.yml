@@ -40,6 +40,8 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      # Node 22's bundled npm 10 can't verify attestations signed with newer registry keys.
+      - run: npm install -g npm@11.21.1
       - run: npm ci --ignore-scripts
       - run: npm audit --omit=dev --audit-level=low
       - run: npm audit signatures
