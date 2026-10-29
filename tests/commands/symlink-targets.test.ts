@@ -57,13 +57,13 @@ describe('init / install-skill never write through a symlink (S-9)', () => {
     expect(readFileSync(target, 'utf8')).toBe(template);
   });
 
-  it('install-skill: dangling SKILL.md symlink -> refused, nothing written', async () => {
+  it('install-skill: dangling SKILL.md symlink -> skipped, nothing written', async () => {
     const dir = join(home, '.claude', 'skills', 'codechart');
     mkdirSync(dir, { recursive: true });
     symlinkSync(victim, join(dir, 'SKILL.md'));
-    const { err, code } = await run(['install-skill']);
-    expect(code).toBe(1);
-    expect(err).toBe(`codechart: ${join(dir, 'SKILL.md')}: is a symlink (use --force to replace it)\n`);
+    const { out, code } = await run(['install-skill']);
+    expect(code).toBeUndefined();
+    expect(out).toContain(`already installed for Claude Code: ${dir} (--force to update)\n`);
     expect(existsSync(victim)).toBe(false);
     expect(existsSync(join(dir, 'example.md'))).toBe(false);
   });

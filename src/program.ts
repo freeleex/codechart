@@ -15,6 +15,7 @@ export interface ProgramOptions {
   stderr?: (s: string) => void;
   isTTY?: boolean;
   stdin?: () => Promise<string>;
+  choose?: (title: string, items: { label: string; hint: string }[]) => Promise<number[] | undefined>;
   now?: () => Date;
   open?: (path: string) => void;
 }
