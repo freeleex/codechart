@@ -66,6 +66,14 @@
         "maxAgeDays": {
           "type": "number",
           "minimum": 0
+        },
+        "open": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "always",
+            "never"
+          ]
         }
       },
       "additionalProperties": false

@@ -10,7 +10,7 @@ const MAX_BYTES = 1024 * 1024;
 export const BUILTIN_DEFAULTS: Readonly<Config['defaults']> = { output: 'auto', context: 'short', flows: 'auto', terminalMaxNodes: 15 };
 
 // A cloned repo must not choose where HTML lands or what gets pruned.
-export const GLOBAL_ONLY = ['web.outDir', 'web.keep', 'web.maxAgeDays'] as const;
+export const GLOBAL_ONLY = ['web.outDir', 'web.keep', 'web.maxAgeDays', 'web.open'] as const;
 
 interface LoadOptions {
   cwd: string;
@@ -60,8 +60,8 @@ function readConfigFile(file: string, root?: string): ConfigFile | undefined {
 
 function dropGlobalOnly(file: ConfigFile | undefined, path: string, warn?: (line: string) => void): ConfigFile | undefined {
   if (!file?.web) return file;
-  const { outDir, keep, maxAgeDays, ...web } = file.web;
-  const ignored = Object.entries({ outDir, keep, maxAgeDays }).filter(([, v]) => v !== undefined);
+  const { outDir, keep, maxAgeDays, open, ...web } = file.web;
+  const ignored = Object.entries({ outDir, keep, maxAgeDays, open }).filter(([, v]) => v !== undefined);
   if (ignored.length) warn?.(`${path}: ${ignored.map(([k]) => `web.${k}`).join(', ')} are global-only; ignored`);
   return { ...file, web };
 }
@@ -107,6 +107,7 @@ export function loadConfigWithSources(opts: LoadOptions): ConfigWithSources {
     minNodes: 8,
     keep: 20,
     maxAgeDays: 7,
+    open: 'auto',
   };
   const sources: Record<string, string> = {};
   for (const key of Object.keys(defaults)) sources[`defaults.${key}`] = BUILTIN;

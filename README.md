@@ -177,7 +177,7 @@ Repo `.codechart.yaml` and global `~/.config/codechart/config.yaml`. Editor sche
 | `useBuiltinRules` | built-in migration/model path rules, `related-files`, `behaviour-flow` | `true` |
 | `rules` | your own, run before the built-ins | none |
 
-Global only: `web.outDir` (`~/.cache/codechart`), `web.keep` (`20`), `web.maxAgeDays` (`7`).
+Global only: `web.outDir` (`~/.cache/codechart`), `web.keep` (`20`), `web.maxAgeDays` (`7`), `web.open` (`auto`: new pages open in your browser when running inside a VS Code-based editor; `always`, `never`).
 
 Rules have a `name` plus exactly one of `paths` (globs: `*`, `**`, `?`, `[..]`; no braces) or `when` (a sentence the agent judges). Optional: `output`, `context` (map rules), `diagram: map|flow`. Per diagram type and file, the first matching path rule wins. `output: none` excludes files.
 
@@ -210,6 +210,9 @@ Not because of codechart. It makes no network calls. The diagram is built from w
 
 **Where do the HTML pages go?**
 `~/.cache/codechart`. It keeps the newest 20 per repo, plus anything under 7 days old.
+
+**I use VS Code, Cursor, Windsurf or Antigravity, and "Open full map" shows HTML source.**
+Those editors open file links as text. codechart detects them and opens new pages in your browser instead. Turn it off with `web.open: never` in `~/.config/codechart/config.yaml`.
 
 ## License
 

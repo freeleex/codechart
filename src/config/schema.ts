@@ -4,12 +4,14 @@ import { oneLine } from '../spec/shared.js';
 export const OUTPUTS = ['auto', 'cli', 'web', 'both', 'none'] as const;
 export const CONTEXT_MODES = ['short', 'full'] as const;
 export const THEMES = ['auto', 'light', 'dark'] as const;
+export const OPEN_MODES = ['auto', 'always', 'never'] as const;
 export const DIAGRAMS = ['map', 'flow'] as const;
 export const FLOWS = ['auto', 'always', 'request'] as const;
 
 export type Output = (typeof OUTPUTS)[number];
 export type ContextMode = (typeof CONTEXT_MODES)[number];
 export type Theme = (typeof THEMES)[number];
+export type OpenMode = (typeof OPEN_MODES)[number];
 export type Diagram = (typeof DIAGRAMS)[number];
 export type Flows = (typeof FLOWS)[number];
 
@@ -24,7 +26,7 @@ export interface Rule {
 
 export interface Config {
   defaults: { output: Output; context: ContextMode; flows: Flows; terminalMaxNodes: number };
-  web: { outDir: string; theme: Theme; minNodes: number; keep: number; maxAgeDays: number };
+  web: { outDir: string; theme: Theme; minNodes: number; keep: number; maxAgeDays: number; open: OpenMode };
   useBuiltinRules: boolean;
   rules: Rule[];
 }
@@ -77,6 +79,7 @@ const configFileSchema = z.strictObject({
       minNodes: z.number().int().positive().optional(),
       keep: z.number().int().positive().optional(),
       maxAgeDays: z.number().nonnegative().optional(),
+      open: z.enum(OPEN_MODES).optional(),
     })
     .optional(),
   useBuiltinRules: z.boolean().optional(),

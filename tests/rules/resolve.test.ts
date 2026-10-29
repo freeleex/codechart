@@ -4,7 +4,7 @@ import { normalizePath, resolveRules, unionOutputs } from '../../src/rules/resol
 
 const config: Config = {
   defaults: { output: 'both', context: 'short', flows: 'auto', terminalMaxNodes: 15 },
-  web: { outDir: '/tmp/codechart', theme: 'auto', minNodes: 8, keep: 20, maxAgeDays: 7 },
+  web: { outDir: '/tmp/codechart', theme: 'auto', minNodes: 8, keep: 20, maxAgeDays: 7, open: 'auto' },
   useBuiltinRules: false,
   rules: [
     { name: 'typeorm', paths: ['src/entities/**'], output: 'none' },
