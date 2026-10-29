@@ -43,7 +43,7 @@ A second diagram type, the **flow map**:
   - In a **plan** spec (`kind: "plan"`), only `existing` and `planned` are allowed (`new` and `changed` are rejected).
     - `planned` marks anything the plan adds or alters, including a planned change to an existing step.
     - `existing` is only for steps the plan builds on unchanged, and they keep their anchors.
-    - *Claude's call:* this errs towards never showing intent as fact.
+    - *design call:* this errs towards never showing intent as fact.
   - **Links:** a link is planned when either endpoint is planned or it sets `planned: true`. An example of the latter is an existing decision gaining a new branch to an existing step. Planned links need no anchor and are drawn like planned steps.
 - **Anchors:** every step that is not `planned`, and every branch leaving a decision that is not `planned`, must have an anchor: `source` as `path:line` or `path:start-end`, or a **content anchor**: `source` as the path alone plus `match`, a piece of the line's text.
   - `match` is a plain substring (no regex), 1-200 characters, one line (a newline fails with `quote a single line`), no control or invisible characters except tabs, trimmed before validation and search. In JSON an inner tab must be written `\t` (a literal tab is a JSON parse error); leading indentation can simply be left out. It must occur on exactly one line of the file: not found is an error, and text on several lines is an error that lists the line numbers and asks for a more distinctive piece or the `path:line` form (owner decision, 2026-10-28; first-hit would anchor `return;` anywhere). The resolved line becomes the anchor (`path:line` in the snippet panel).
@@ -52,7 +52,7 @@ A second diagram type, the **flow map**:
 - **Anchors are checked at render time:**
   - the file must exist, relative to the repo root, or failing that relative to the process cwd (retry-fixes round: agents run from a subdirectory and write cwd-relative paths); a cwd-relative hit is normalised to the repo-root path in snippets and HTML, and goes through exactly the same sandbox checks (real path inside the repo, not under `.git`, regular file, size caps). A path that exists in neither fails naming the repo root and, when exactly one tracked file ends with that path, `did you mean <path>`. With `--at` the same fallback applies to the commit's tree. The line range must be inside the file (or `match` must be on exactly one line of it);
   - the file is read through the same sandbox either way: its real path inside the repo root, not under `.git`, a regular file of at most 5 MB;
-  - the repo root is the git root of the current directory, or the current directory outside git, the same as for `check` (*Claude's call*);
+  - the repo root is the git root of the current directory, or the current directory outside git, the same as for `check` (*design call*);
   - a broken anchor is a validation error, not a warning.
   - `render --at <rev>` checks anchors against the files at that commit instead of the working tree, for summarising a commit or branch that isn't checked out (cost round, 2026-10-28). The revision gets the same validation as `check`'s git flags and is resolved to a commit. Files are read with `git ls-tree` + `git cat-file` (argument array, `--literal-pathspecs`), after the same lexical outside-repo and `.git` checks; symlinks, directories and blobs over 5 MB are refused, and a file missing at that commit is "does not exist at <sha>" (same cwd fallback and hint, from `git ls-tree`). Map specs ignore it.
 
@@ -98,7 +98,7 @@ A second diagram type, the **flow map**:
 ## 8. When a flow is made
 
 - **On request.** The user asks for it in their own words ("show me the flow", "I can't grasp the edge cases", "map how this works"). The skill tells the agent to write a flow spec and render it, with no rules involved.
-- **Rules gain a `diagram` field** (`map` | `flow`, default `map`). *Claude's call:* each diagram type resolves separately.
+- **Rules gain a `diagram` field** (`map` | `flow`, default `map`). *design call:* each diagram type resolves separately.
   - Rule matching works as today (first path match wins per file, `none` excludes its files), but **within one diagram type**.
   - So a map rule claiming a file never hides a flow rule on that file, and a map `none` rule doesn't stop flow judging.
   - `check`'s `final` becomes one entry per diagram type: `final: { map: { draw, output, context, rules }, flow: { draw, output, rules } }`.
@@ -111,7 +111,7 @@ A second diagram type, the **flow map**:
   - **`request`:** the built-in flow rule is off, so flows appear only when the user asks.
 
   Users who want finer control turn off the built-in rule and write their own.
-- **`useBuiltinRules: false`** removes `behaviour-flow` like every other built-in rule (*Claude's call*).
+- **`useBuiltinRules: false`** removes `behaviour-flow` like every other built-in rule (*design call*).
   - `defaults.flows` only adjusts that built-in rule, so it then has no effect.
   - Flows still come from the user's own rules or on request.
   - `codechart config` reports `defaults.flows` as "inactive (built-in rules off)".
@@ -184,18 +184,18 @@ read file or stdin → validate spec → load config
 | Output follows the map rules (terminal if it fits, preview plus link, link only) | User |
 | Terminal format: indented decision tree with `◇` decisions and `⤷` shared steps (option B) | User |
 | An invented branch is the worst failure; an unnecessary tree is acceptable | User |
-| Anchors required for every non-planned step and branch, checked against the files at render time | Claude's call |
+| Anchors required for every non-planned step and branch, checked against the files at render time | design call |
 | Content anchors (`source` path + `match`) alongside `path:line`; a `match` on more than one line is an error, never first-hit | User (2026-10-28) |
-| Map specs get no `match`: map nodes carry a file `path`, never a line anchor | Claude's call |
-| `render --at <rev>` (anchors read from a commit via git) instead of a skill rule to re-anchor on current files: keeps a commit summary's anchors true to that commit | Claude's call (cost review fix) |
-| `planned` status for plan specs; dashed in the web view, `?` in the terminal | Claude's call |
-| Unverified branches go to `gaps`, never drawn | Claude's call |
-| Separate flow spec shape (`diagram: "flow"`), one behaviour per spec | Claude's call |
-| `auto` implemented as a built-in plain-language rule; `defaults.flows` adjusts its bar | Claude's call |
-| Code snippet in the web panel, read from the anchor at render time | Claude's call |
+| Map specs get no `match`: map nodes carry a file `path`, never a line anchor | design call |
+| `render --at <rev>` (anchors read from a commit via git) instead of a skill rule to re-anchor on current files: keeps a commit summary's anchors true to that commit | design call (cost review fix) |
+| `planned` status for plan specs; dashed in the web view, `?` in the terminal | design call |
+| Unverified branches go to `gaps`, never drawn | design call |
+| Separate flow spec shape (`diagram: "flow"`), one behaviour per spec | design call |
+| `auto` implemented as a built-in plain-language rule; `defaults.flows` adjusts its bar | design call |
+| Code snippet in the web panel, read from the anchor at render time | design call |
 | ~~Built after v1 ships~~ → built **before** the v1 release | User (2026-10-28) |
-| Each diagram type resolves its rules separately; `final` has one entry per type | Claude's call |
-| Plan specs allow only `existing` and `planned`; links can be planned | Claude's call |
+| Each diagram type resolves its rules separately; `final` has one entry per type | design call |
+| Plan specs allow only `existing` and `planned`; links can be planned | design call |
 
 ## 12. Open risks
 

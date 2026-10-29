@@ -63,7 +63,7 @@ Result: 21 findings after dedup. 0 Critical, 0 High, 3 Medium, 15 Low, 3 Info. F
 - Output name: slug `[a-z0-9-]`, <= 40 chars; folder `basename(root)-<hash>`, no separator, no traversal.
 - Prune: symlink named like the pattern removes the link only; a directory with the pattern name untouched; `.HTML` and names with `\n` not matched; only `outDir/<repo>-<hash>/` listed.
 - `outDir` `~` writes only `~/<repo>-<hash>/`; `/` errors with nothing written.
-- `install-skill` refuses existing files without `--force`; target under the user's home.
+- `install-skill` refuses existing files without `--force`; targets are agent skills folders under the user's home, or a `--dir` the user passes.
 
 ### Area 4: subprocesses
 - Only two child processes exist: `git status` and the `--open` opener. Both use argument arrays, no shell.

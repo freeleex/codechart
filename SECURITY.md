@@ -29,7 +29,7 @@ Details: `docs/security-review.md`.
 ## Out of scope
 
 - An agent running `git diff` or `git show` itself in an untrusted repo: that repo's `.git/config` can set `diff.external` or textconv drivers, which run commands. codechart's own git calls disable them; open untrusted repos (e.g. unpacked archives) with care.
-- An attacker with write access to `~/.claude` or `~/.config/codechart`.
+- An attacker with write access to your agents' skills folders or `~/.config/codechart`.
 - Vulnerabilities in a dev-only dependency that is not shipped in the npm tarball.
 
 ## Cache

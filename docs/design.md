@@ -19,7 +19,7 @@ Two pieces:
 1. **`codechart` CLI** (npm package, TypeScript). It takes a graph spec (JSON) written by the agent, validates it, and renders it:
    - **terminal view**: a compact ASCII/Unicode map the agent pastes into its reply;
    - **web view**: a self-contained HTML file with the full interactive graph, linked from the terminal view.
-2. **Agent instructions**: a Claude Code skill (and later a plain instruction file for other agents) telling the agent *when* to make a map and *how* to write the spec.
+2. **Agent instructions**: an Agent Skill (`SKILL.md`) any compatible agent loads telling the agent *when* to make a map and *how* to write the spec.
 
 The agent decides what goes in the diagram. The CLI owns layout and drawing. The agent never draws boxes or arrows itself, because LLMs misalign hand-drawn ASCII.
 
@@ -130,7 +130,7 @@ Rule resolution stays in the CLI, so the agent never merges rule outputs by hand
    - `pathMatches`: the rule, its `diagram`, its files and its `output` (plus `context` for map rules);
    - `excludedFiles`: `{ map, flow }`, files claimed by a `none` rule of that type;
    - `remainingFiles`: `{ map, flow }`, everything else, per type. Printed only with `excludedFiles`; otherwise it is the input list;
-   - `toJudge`: the plain-language rules with their `diagram`, `when` text, and the `output` (plus `context` for map rules) they would contribute if judged true. Left out when it is exactly the built-in set as the skill lists it (`related-files` and `behaviour-flow` with no-config `when`, `output` and `context`), since the skill already states those; any difference (a repo rule, a reworded or overridden built-in, `defaults.flows`, `defaults.output` or `defaults.context` changed, built-ins off) keeps it, and so does `unknownMatched`. When left out and there is no `final`, `judgeBuiltins` lists the built-in names instead, so the default output is never `{}`, which agents read as "nothing to draw" (2026-10-28). *Claude's call:* the comparison is against the no-config built-ins, not `builtinRules` for the effective `defaults.flows`, because `flows: always` or `request` changes what the agent must judge while the skill text stays the same.
+   - `toJudge`: the plain-language rules with their `diagram`, `when` text, and the `output` (plus `context` for map rules) they would contribute if judged true. Left out when it is exactly the built-in set as the skill lists it (`related-files` and `behaviour-flow` with no-config `when`, `output` and `context`), since the skill already states those; any difference (a repo rule, a reworded or overridden built-in, `defaults.flows`, `defaults.output` or `defaults.context` changed, built-ins off) keeps it, and so does `unknownMatched`. When left out and there is no `final`, `judgeBuiltins` lists the built-in names instead, so the default output is never `{}`, which agents read as "nothing to draw" (2026-10-28). *design call:* the comparison is against the no-config built-ins, not `builtinRules` for the effective `defaults.flows`, because `flows: always` or `request` changes what the agent must judge while the skill text stays the same.
 
    The agent judges each `toJudge` rule against `remainingFiles` of its diagram type only, so excluded files never trigger a plain-language rule.
 2. **`codechart check … --matched <rule,rule>`** reruns with the plain-language rules the agent judged true. It returns `final: { map: { draw, output, context, rules }, flow: { draw, output, rules } }`, plus everything step 1 prints.
@@ -248,13 +248,12 @@ Validation errors (unknown edge endpoints, duplicate ids, bad enums) are printed
 
 ## 10. Agent integration
 
-- **Claude Code skill** (`skills/codechart/SKILL.md`). Plugin packaging comes after v1. It tells Claude to:
+- **Agent skill** (`skills/codechart/SKILL.md`). It tells the agent to:
   1. before delivering a plan or a change summary, run `codechart check` once (`--files` for plans; `--git`, `--commit`, `--since` for changes), in the same tool call as its first read of the change;
   2. judge the plain-language rules (the built-ins are listed in the skill; `toJudge` shows them when the repo changed them) against `remainingFiles` of their diagram type, and decide draw and context from the per-rule `output`/`context` ("Deciding without `final`", §6);
   3. write the map and/or flow spec(s), naming the drawing rules in `rules`, and pipe each into `codechart render --md -` (a quoted heredoc, no temp file; `--at '<sha>'` when the commit or branch isn't checked out, so flow anchors resolve against it); a `no map/flow drawn` notice on stderr means skip that diagram;
   4. reply with one line saying what the plan or change is, then the `render --md` output verbatim where the "what changed" list would go, then prose (test results, CI status and so on).
-- `codechart install-skill` copies the skill into `~/.claude/skills/codechart/`.
-- Other agents: a generic `AGENTS.md` snippet with the same instructions (later).
+- `codechart install-skill` copies the skill into each detected agent's skills folder (`--agent`, `--dir` to choose).
 
 ## 11. Decisions
 
@@ -266,23 +265,23 @@ Validation errors (unknown edge endpoints, duplicate ids, bad enums) are printed
 | Context modes `short` / `full` | User |
 | Name: `codechart` (free on npm as of 2026-10-27) | User |
 | TypeScript, Node, distributed via npm | User (on recommendation) |
-| Agent writes a JSON spec and the CLI does all layout; no hand-drawn ASCII | Claude's call, user agreed |
+| Agent writes a JSON spec and the CLI does all layout; no hand-drawn ASCII | design call, user agreed |
 | ~~Terminal: `beautiful-mermaid`~~ → ~~Terminal: `ascii-dag` unboxed LR (Rust→WASM shipped in the npm package), clusters of ~3 connected nodes, remaining edges as text lines~~ → grouped link list; web: `elkjs` | User |
-| Rejected: mermaid-ascii (Go binary), d2, Kroki (separate installs or Docker) | Claude's call |
-| Config: YAML, global + per-repo file, repo rules first, first path match wins | Claude's call |
-| HTML output in `~/.cache/codechart/`, not in the repo | Claude's call |
-| Terminal cap of 15 nodes, then collapse to an edge list | Claude's call |
+| Rejected: mermaid-ascii (Go binary), d2, Kroki (separate installs or Docker) | design call |
+| Config: YAML, global + per-repo file, repo rules first, first path match wins | design call |
+| HTML output in `~/.cache/codechart/`, not in the repo | design call |
+| Terminal cap of 15 nodes, then collapse to an edge list | design call |
 | Terminal map is one grouped link list per layer (no ascii-dag drawings, no legend, no text section); HTML is the diagram | User (after dogfooding) |
 | Reply shows a bold **Map** label, and the `full map` link goes outside the code block as a clickable markdown link | User (after dogfooding) |
 | `render --md` prints that whole reply block, because agents didn't follow the layout reliably | User (after dogfooding round 2) |
 | Emoji status markers (`defaults.icons`) removed: too cluttered; markers are always `+ - ~ · ◆` | User (after dogfooding round 2) |
 | Blank line between layers in the terminal map, so they don't run together | User (after dogfooding round 2) |
-| `codechart check` returns JSON; the agent passes planned paths for plans | Claude's call |
-| ~~Two-step `check` (`--matched`) so the CLI, not the agent, merges rule outputs~~ Superseded for the skill by "Deciding without `final`" (§6, cost round): one `check`, the agent decides from per-rule fields, `render` enforces | Claude's call; amended by user (2026-10-28) |
-| `none` rules also exclude their files from plain-language judging | Claude's call |
-| `render` reads config; output comes from the spec's `rules`, with `--output` overriding | Claude's call |
-| Built-in rule set on by default; `codechart init` writes a starter config | Claude's call |
-| v1 ships `install-skill`; Claude Code plugin packaging comes later | Claude's call |
+| `codechart check` returns JSON; the agent passes planned paths for plans | design call |
+| ~~Two-step `check` (`--matched`) so the CLI, not the agent, merges rule outputs~~ Superseded for the skill by "Deciding without `final`" (§6, cost round): one `check`, the agent decides from per-rule fields, `render` enforces | design call; amended by user (2026-10-28) |
+| `none` rules also exclude their files from plain-language judging | design call |
+| `render` reads config; output comes from the spec's `rules`, with `--output` overriding | design call |
+| Built-in rule set on by default; `codechart init` writes a starter config | design call |
+| v1 ships `install-skill` with presets for agents that load Agent Skills | design call |
 | Default output `auto`: HTML only when the terminal map hides nodes or cuts text, or the spec has ≥ 8 nodes | User (on recommendation) |
 | HTML cleanup on every render: keep the newest 20 per repo and anything younger than 7 days; same slug replaces the earlier file | User (on recommendation) |
 | Config discoverability: fully commented `init` template, `$schema` line for editors, `codechart config` showing the effective config and value sources | User (on recommendation) |
