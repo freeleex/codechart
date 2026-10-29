@@ -59,6 +59,13 @@ describe('skill command examples (S-1)', () => {
   });
 });
 
+describe('codechart --version', () => {
+  it('matches package.json, so a release bump updates both', () => {
+    const pkg = JSON.parse(readFileSync(join(import.meta.dirname, '..', '..', 'package.json'), 'utf8')) as { version: string };
+    expect(buildProgram().version()).toBe(pkg.version);
+  });
+});
+
 describe('SKILL.md frontmatter (Agent Skills spec)', () => {
   // Strict parsers (OpenCode and others) drop a skill whose frontmatter isn't valid YAML.
   it('is strict YAML with a name matching the folder and a description of at most 1024 chars', () => {
