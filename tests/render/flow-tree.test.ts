@@ -339,7 +339,7 @@ describe('renderFlowTree', () => {
     expect(lines.slice(1, 4)).toEqual(['```text', 'codechart render', '────────────────']);
     expect(text).not.toContain(FLOW_KEY + '\n');
     expect(text).not.toContain('full map →');
-    expect(text.endsWith(`\`\`\`\n\n[Open full map](${pathToFileURL(resolve(htmlPath)).href.replace('(', '%28').replace(')', '%29')})\n`)).toBe(true);
+    expect(text.endsWith(`\`\`\`\n\n[Open full map](${pathToFileURL(resolve(htmlPath)).href.replace(/\(/g, '%28').replace(/\)/g, '%29')})\n`)).toBe(true);
   });
 
   it('keeps the --md title inside the fence so it cannot add links or images', () => {

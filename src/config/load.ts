@@ -1,7 +1,8 @@
-import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs';
+import { existsSync, realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { parse } from 'yaml';
+import { readRegularFile } from '../read-regular.js';
 import { builtinRules } from './builtin-rules.js';
 import { parseConfigFile, type Config, type ConfigFile, type Rule } from './schema.js';
 
@@ -31,18 +32,25 @@ export function findRepoRoot(cwd: string): string | undefined {
 
 /** `root`: the file must resolve inside it (a repo can commit a symlink). */
 function readConfigFile(file: string, root?: string): ConfigFile | undefined {
-  if (!existsSync(file)) return undefined;
-  const real = realpathSync(file);
+  let real: string;
+  try {
+    real = realpathSync(file);
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
+    throw e;
+  }
   if (root !== undefined) {
     const rel = relative(realpathSync(root), real);
     if (rel === '..' || rel.startsWith(`..${sep}`) || isAbsolute(rel)) throw new Error(`${file}: resolves outside the repo`);
   }
-  const st = statSync(real);
-  if (!st.isFile()) throw new Error(`${file}: not a regular file`);
-  if (st.size > MAX_BYTES) throw new Error(`${file}: too large (over 1 MB)`);
+  const text = readRegularFile(real, (st) => {
+    if (!st.isFile()) throw new Error(`${file}: not a regular file`);
+    if (st.size > MAX_BYTES) throw new Error(`${file}: too large (over 1 MB)`);
+    return true;
+  })!;
   let raw: unknown;
   try {
-    raw = parse(readFileSync(real, 'utf8'));
+    raw = parse(text);
   } catch (e) {
     throw new Error(`${file}: ${(e as Error).message.split('\n')[0]}`);
   }

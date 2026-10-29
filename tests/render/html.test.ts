@@ -77,7 +77,7 @@ describe('renderHtml', () => {
 
   describe('card panel', () => {
     const cardPanel = (out: string, id: string): string => {
-      const m = out.match(new RegExp(`<template class="card-panel" data-for="${id.replace(/\./g, '\\.')}">([\\s\\S]*?)</template>`));
+      const m = out.match(new RegExp(`<template class="card-panel" data-for="${id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}">([\\s\\S]*?)</template>`));
       if (!m) throw new Error(`no card panel for ${id}`);
       return m[1]!;
     };

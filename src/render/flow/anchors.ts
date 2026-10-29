@@ -1,5 +1,6 @@
-import { readFileSync, realpathSync, statSync } from 'node:fs';
+import { realpathSync } from 'node:fs';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
+import { readRegularFile } from '../../read-regular.js';
 import { gitFileAt, gitListFiles } from '../../rules/git-files.js';
 import type { FlowSpec } from '../../spec/flow.js';
 import { hasHiddenChars } from '../strip.js';
@@ -69,12 +70,15 @@ function readLines(path: string, root: string, realRoot: string, budget: Budget)
   if (inGit(rel)) return { error: `${path} is inside .git` };
   try {
     // A FIFO or device would block or never end; a huge file would be read whole.
-    const st = statSync(real);
-    if (!st.isFile()) return { error: `${path} is not a regular file` };
-    if (st.size > MAX_BYTES) return { error: `${path} is too large (over 5 MB)` };
-    if (st.size > budget.left) return overBudget(path);
-    budget.left -= st.size;
-    return toLines(readFileSync(real, 'utf8'));
+    let refused: Read | undefined;
+    const text = readRegularFile(real, (st) => {
+      if (!st.isFile()) refused = { error: `${path} is not a regular file` };
+      else if (st.size > MAX_BYTES) refused = { error: `${path} is too large (over 5 MB)` };
+      else if (st.size > budget.left) refused = overBudget(path);
+      else budget.left -= st.size;
+      return refused === undefined;
+    });
+    return refused ?? toLines(text!);
   } catch (e) {
     return { error: `${path} cannot be read (${(e as NodeJS.ErrnoException).code})` };
   }

@@ -25,9 +25,12 @@ describe('S-17 CSP', () => {
     const html = (await pages()).find(([k]) => k === kind)![1];
     const csp = html.match(/<meta http-equiv="Content-Security-Policy" content="([^"]*)">/)?.[1];
     expect(csp).toBeDefined();
-    const inline = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)];
+    // Every script tag, any case; JSON data blocks never run, so only the rest need the CSP hash.
+    const scripts = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi)];
+    const inline = scripts.filter((m) => !/type="application\/json"/i.test(m[1]!));
+    expect(scripts.length - inline.length).toBe(1);
     expect(inline).toHaveLength(1);
-    const hash = createHash('sha256').update(inline[0]![1]!).digest('base64');
+    const hash = createHash('sha256').update(inline[0]![2]!).digest('base64');
     expect(csp).toBe(
       `default-src 'none'; style-src 'unsafe-inline'; script-src 'sha256-${hash}'; img-src data:; base-uri 'none'; form-action 'none'`,
     );

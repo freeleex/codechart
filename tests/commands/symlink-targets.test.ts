@@ -53,8 +53,8 @@ describe('init / install-skill never write through a symlink (S-9)', () => {
     const { code } = await run(['init', '--force']);
     expect(code).toBeUndefined();
     expect(readFileSync(victim, 'utf8')).toBe('precious');
-    expect(lstatSync(target).isSymbolicLink()).toBe(false);
     expect(readFileSync(target, 'utf8')).toBe(template);
+    expect(lstatSync(target).isSymbolicLink()).toBe(false);
   });
 
   it('install-skill: dangling SKILL.md symlink -> skipped, nothing written', async () => {
