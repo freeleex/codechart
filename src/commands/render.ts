@@ -5,7 +5,7 @@ import { findRepoRoot, loadConfig } from '../config/load.js';
 import { THEMES, type Config, type Diagram, type Output, type Theme } from '../config/schema.js';
 import type { CommandOptions } from '../program.js';
 import { checkFlowAnchors, type FlowSnippets } from '../render/flow/anchors.js';
-import { markdownBlock } from '../render/markdown.js';
+import { markdownBlock, openBlockedNote } from '../render/markdown.js';
 import { fileSlug, htmlOutputPath, needsWeb, repoFolder } from '../render/output-path.js';
 import { pruneHtml } from '../render/prune.js';
 import { defaultWidth, fullMapLine, KEY, renderTerminalDetailed } from '../render/terminal/render.js';
@@ -138,6 +138,8 @@ export function renderCommand(opts: CommandOptions): Command {
         // A blank line after --md output keeps two renders in one Bash call from gluing together.
         const print = (text: string) => opts.stdout(o.md ? `${text}\n` : text);
         const slug = fileSlug(spec.title, diagram);
+        let blocked: string | undefined;
+        const printBlocked = () => blocked && print(openBlockedNote(blocked, o.md === true));
         const writeHtml = async (build: (meta: HtmlMeta) => Promise<string>): Promise<string> => {
           const now = opts.now?.() ?? new Date();
           const file = htmlOutputPath(config, repoFolder(root), slug, now);
@@ -150,13 +152,20 @@ export function renderCommand(opts: CommandOptions): Command {
           writeFileSync(file, html, { mode: 0o600 });
           pruneHtml(dirname(file), { ...config.web, now, replaceSlug: slug });
           const mode = config.web.open;
-          if (o.open || mode === 'always' || (mode === 'auto' && inCodeEditor(opts.env ?? process.env))) (opts.open ?? openInBrowser)(file);
+          if (o.open || mode === 'always' || (mode === 'auto' && inCodeEditor(opts.env ?? process.env))) {
+            const failed = (opts.open ?? openInBrowser)(file);
+            if (failed) {
+              opts.stderr(`codechart: could not open the browser (${failed})\n`);
+              blocked = file;
+            }
+          }
           return file;
         };
 
         if (spec.diagram === 'flow') {
           const tree = { maxNodes, width, color, md: o.md };
           print(await renderFlow(spec, snippets!, { output, minNodes: config.web.minNodes, tree, writeHtml }));
+          printBlocked();
           return;
         }
 
@@ -179,6 +188,7 @@ export function renderCommand(opts: CommandOptions): Command {
         const map = output === 'web' ? undefined : (terminal ?? renderTerminalDetailed(spec, { ...termOpts, htmlPath })).text;
         if (o.md) print(markdown(map, htmlPath));
         else print(map ?? `${fullMapLine(htmlPath!)}\n`);
+        printBlocked();
       } catch (e) {
         const message = e instanceof Error ? e.message : String(e);
         const lines = e instanceof InvalidSpec ? e.errors : message.split('\n').map((l) => `codechart: ${l}`);

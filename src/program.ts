@@ -17,7 +17,7 @@ export interface ProgramOptions {
   stdin?: () => Promise<string>;
   choose?: (title: string, items: { label: string; hint: string }[]) => Promise<number[] | undefined>;
   now?: () => Date;
-  open?: (path: string) => void;
+  open?: (path: string) => string | void;
 }
 
 export type CommandOptions = Required<Pick<ProgramOptions, 'stdout' | 'stderr'>> & ProgramOptions;
@@ -26,7 +26,7 @@ export function buildProgram(opts: ProgramOptions = {}): Command {
   const stdout = opts.stdout ?? ((s: string) => process.stdout.write(s));
   const rawStderr = opts.stderr ?? ((s: string) => process.stderr.write(s));
   const stderr = (s: string) => rawStderr(sanitizeText(s));
-  const program = new Command().name('codechart').version('0.1.1');
+  const program = new Command().name('codechart').version('0.1.2');
   const cmdOpts = { ...opts, stdout, stderr };
   program.addCommand(checkCommand(cmdOpts));
   program.addCommand(renderCommand(cmdOpts));

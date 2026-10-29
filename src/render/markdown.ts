@@ -16,3 +16,10 @@ export function markdownBlock(header: string, body: string | undefined, htmlPath
   }
   return `${lines.join('\n')}\n`;
 }
+
+// Sandboxed editors (e.g. Antigravity) may not let codechart launch a browser; give the address to paste instead.
+export function openBlockedNote(htmlPath: string, md: boolean): string {
+  const href = pathToFileURL(resolve(htmlPath)).href;
+  const say = "Your editor didn't let codechart open the page. Paste this into your browser's address bar:";
+  return md ? `${say}\n\n\`\`\`text\n${href}\n\`\`\`\n` : `${say}\n  ${href}\n`;
+}

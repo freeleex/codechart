@@ -8,7 +8,7 @@
 <p align="center">
   <a href="https://www.npmjs.com/package/codechart"><img alt="npm" src="https://img.shields.io/npm/v/codechart"></a>
   <a href="https://github.com/freeleex/codechart/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/freeleex/codechart/actions/workflows/ci.yml/badge.svg"></a>
-  <img alt="Node >= 22.12" src="https://img.shields.io/badge/node-%3E%3D22.12-339933">
+  <img alt="Node 22.12+" src="https://img.shields.io/badge/node-%3E%3D22.12-339933">
   <a href="LICENSE"><img alt="MIT" src="https://img.shields.io/badge/license-MIT-blue"></a>
 </p>
 
@@ -63,6 +63,33 @@ New things are `+`, changed ones `~`, existing ones `·`, config `◆`. Layers a
 
 ![Full map: clicking the orders table shows its file and changed fields](docs/images/map.png)
 
+Ask how something works and you get a **flow** instead. Every step points at the code that implements it:
+
+```text
+Flow (key: + new  ~ changed  ? planned  ◇ decision  ⤷ shared step)
+
+Accept a team invite
+────────────────────
++look up invite by token
+◇ +invite found?
+├─ no  → +404 invite not found
+└─ yes → ◇ +expired?
+         ├─ yes → +410 invite expired
+         └─ no  → ◇ +already a member?
+                  ├─ yes → +return already a member
+                  └─ no  → +save membership → +return joined
+
+9 steps · 9 new · 0 changed · 0 planned
+gaps: did not check what happens when two requests accept the same invite at
+      once
+
+Open full map
+```
+
+Its full page shows the exact code behind each step. Click any step:
+
+![Full flow: clicking a decision shows its source lines](docs/images/flow.png)
+
 You don't need to ask for it. The skill fires when the agent summarizes changes, writes a plan, or explains how code behaves, and stays quiet for typo fixes.
 
 ## Install
@@ -91,32 +118,7 @@ Tables, columns, enums, models, endpoints, components, config and env vars, grou
 
 ### Flows: what the code actually does
 
-Decisions, edge cases and outcomes, each pointing at the source lines that implement it.
-
-```text
-Flow (key: + new  ~ changed  ? planned  ◇ decision  ⤷ shared step)
-
-Accept a team invite
-────────────────────
-+look up invite by token
-◇ +invite found?
-├─ no  → +404 invite not found
-└─ yes → ◇ +expired?
-         ├─ yes → +410 invite expired
-         └─ no  → ◇ +already a member?
-                  ├─ yes → +return already a member
-                  └─ no  → +save membership → +return joined
-
-9 steps · 9 new · 0 changed · 0 planned
-gaps: did not check what happens when two requests accept the same invite at
-      once
-
-Open full map
-```
-
-Its full page shows each step's exact code:
-
-![Full flow: clicking a decision shows its source lines](docs/images/flow.png)
+Decisions, edge cases and outcomes, each pointing at the source lines that implement it. Branches the agent didn't verify go under `gaps` instead of being drawn.
 
 ### Terminal first, page when it helps
 
@@ -212,7 +214,7 @@ Not because of codechart. It makes no network calls. The diagram is built from w
 `~/.cache/codechart`. It keeps the newest 20 per repo, plus anything under 7 days old.
 
 **I use VS Code, Cursor, Windsurf or Antigravity, and "Open full map" shows HTML source.**
-Those editors open file links as text. codechart detects them and opens new pages in your browser instead. Turn it off with `web.open: never` in `~/.config/codechart/config.yaml`.
+Those editors open file links as text. codechart detects them and opens new pages in your browser instead. Where the editor doesn't allow that (Antigravity sandboxes agent commands), the reply includes the page's address to paste into your browser. Turn auto-open off with `web.open: never` in `~/.config/codechart/config.yaml`.
 
 ## License
 

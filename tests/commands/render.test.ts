@@ -66,7 +66,9 @@ async function run(args: string[], opts: Partial<ProgramOptions> = {}) {
     stderr: (s) => (stderr += s),
     now: () => now,
     isTTY: false,
-    open: (p) => opened.push(p),
+    open: (p) => {
+      opened.push(p);
+    },
     ...opts,
   });
   await runProgram(program, args, 'user');
@@ -313,6 +315,19 @@ describe('codechart render', () => {
     expect((await run(['render', specFile(spec(2)), '--output', 'cli'], { env: { VSCODE_PID: '42' } })).opened).toEqual([]);
   });
 
+  it('a blocked browser open adds a paste-into-your-browser note (map, plain and --md)', async () => {
+    const fail = { open: () => 'open exited with 1: error -54' };
+    const href = pathToFileURL(expectedFile()).href;
+    const say = "Your editor didn't let codechart open the page. Paste this into your browser's address bar:";
+    const plain = await run(['render', specFile(spec(2)), '--output', 'web', '--open'], fail);
+    expect(plain.err).toBe('codechart: could not open the browser (open exited with 1: error -54)\n');
+    expect(plain.out).toBe(`full map → ${href}\n${say}\n  ${href}\n`);
+    const md = await run(['render', specFile(spec(2)), '--output', 'both', '--md'], { ...fail, env: { VSCODE_PID: '1' } });
+    expect(md.out.endsWith(`[Open full map](${href})\n\n${say}\n\n\`\`\`text\n${href}\n\`\`\`\n\n`)).toBe(true);
+    const ok = await run(['render', specFile(spec(2)), '--output', 'both', '--md'], { env: { VSCODE_PID: '1' } });
+    expect(ok.out).not.toContain(say);
+  });
+
   it('web.open never / always in the global config; ignored in a repo config', async () => {
     const globalOpen = (mode: string) => {
       mkdirSync(join(home, '.config', 'codechart'), { recursive: true });
@@ -510,6 +525,12 @@ describe('codechart render (flow)', () => {
   it('--md with output web: header, title block and link', async () => {
     const r = await run(['render', specFile(sampleFlow()), '--output', 'web', '--md']);
     expect(r.out).toBe(`**Flow** _(${FLOW_KEY})_\n\`\`\`text\nrender flow\n───────────\n\`\`\`\n\n[Open full map](${pathToFileURL(flowFile()).href})\n\n`);
+  });
+
+  it('a blocked browser open adds the note after a flow too', async () => {
+    const r = await run(['render', specFile(sampleFlow()), '--output', 'web', '--md'], { open: () => 'denied', env: { VSCODE_PID: '1' } });
+    expect(r.out).toContain("Your editor didn't let codechart open the page.");
+    expect(r.out).toMatch(/```text\nfile:\/\/\S+\.flow\.html\n```\n/);
   });
 
   it('output web without --md prints only the link; --open gets the path', async () => {
