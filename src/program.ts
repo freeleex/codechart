@@ -26,7 +26,7 @@ export function buildProgram(opts: ProgramOptions = {}): Command {
   const stdout = opts.stdout ?? ((s: string) => process.stdout.write(s));
   const rawStderr = opts.stderr ?? ((s: string) => process.stderr.write(s));
   const stderr = (s: string) => rawStderr(sanitizeText(s));
-  const program = new Command().name('codechart').version('0.1.1');
+  const program = new Command().name('codechart').version('0.1.2');
   const cmdOpts = { ...opts, stdout, stderr };
   program.addCommand(checkCommand(cmdOpts));
   program.addCommand(renderCommand(cmdOpts));
