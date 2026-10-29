@@ -8,7 +8,7 @@
 <p align="center">
   <a href="https://www.npmjs.com/package/codechart"><img alt="npm" src="https://img.shields.io/npm/v/codechart"></a>
   <a href="https://github.com/freeleex/codechart/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/freeleex/codechart/actions/workflows/ci.yml/badge.svg"></a>
-  <img alt="Node >= 22.12" src="https://img.shields.io/badge/node-%3E%3D22.12-339933">
+  <img alt="Node 22.12+" src="https://img.shields.io/badge/node-%3E%3D22.12-339933">
   <a href="LICENSE"><img alt="MIT" src="https://img.shields.io/badge/license-MIT-blue"></a>
 </p>
 
