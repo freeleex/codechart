@@ -1,0 +1,31 @@
+# yaml-language-server: $schema=https://unpkg.com/codechart/config.schema.json
+# codechart repo config. Every option shows its default; uncomment what you want to change.
+# `codechart config` prints the config in effect and where each value comes from.
+
+# defaults:
+#   output: auto           # auto | cli | web | both | none. auto: terminal map, plus HTML only when the map is too big
+#   context: short         # short: agent maps only what it already read | full: may also read referenced definitions
+#   flows: auto            # built-in behaviour-flow rule: auto (2+ decisions or edge cases) | always (any decision) | request (only when asked)
+#   terminalMaxNodes: 15   # most nodes in the terminal map; the rest go to the HTML map
+
+# web:
+#   theme: auto                # auto | light | dark
+#   minNodes: 8                # auto output: write HTML from this many nodes on, or when the map cuts text
+# Only in ~/.config/codechart/config.yaml (ignored here): web: outDir: ~/.cache/codechart (relative to home), keep: 20, maxAgeDays: 7 (HTML cleanup)
+
+# useBuiltinRules: true   # common migration and model paths, "more than 2 changed files depend on each other", and behaviour-flow
+
+# Rules run top-down, before the built-in ones; per diagram type, for each file the first matching path rule wins.
+# name: up to 64 lowercase letters, digits or hyphens. A rule sets exactly one of paths (globs)
+# or when (a one-line sentence of up to 300 characters the agent judges).
+# Globs support * ** ? and [..]; braces {a,b} and extglobs are rejected, list each pattern separately.
+# rules:
+#   - name: models                # example: replace the placeholder path with your own
+#     paths: ["your/models/**"]
+#     output: both                # overrides defaults.output for this rule; none excludes its files
+#     context: full               # overrides defaults.context for this rule (map rules only)
+#   - name: frontend-models
+#     when: "a frontend data model, store, or shared API type changed"
+#   - name: api-flows
+#     diagram: flow               # map | flow (default map); a none rule only excludes files for its own type; overriding behaviour-flow needs diagram: flow
+#     paths: ["your/api/**"]

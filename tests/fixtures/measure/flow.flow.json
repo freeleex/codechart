@@ -1,0 +1,94 @@
+{
+  "diagram": "flow",
+  "kind": "summary",
+  "title": "Accept a team invite",
+  "rules": [
+    "behaviour-flow"
+  ],
+  "start": "lookup",
+  "steps": [
+    {
+      "id": "lookup",
+      "label": "look up invite by token",
+      "type": "step",
+      "status": "new",
+      "source": "anchors.txt:1"
+    },
+    {
+      "id": "found",
+      "label": "invite found?",
+      "type": "decision",
+      "status": "new",
+      "source": "anchors.txt:2"
+    },
+    {
+      "id": "404",
+      "label": "404 invite not found",
+      "type": "end",
+      "status": "new",
+      "source": "anchors.txt:3"
+    },
+    {
+      "id": "expired",
+      "label": "expired?",
+      "type": "decision",
+      "status": "new",
+      "source": "anchors.txt:4"
+    },
+    {
+      "id": "410",
+      "label": "410 invite expired",
+      "type": "end",
+      "status": "new",
+      "source": "anchors.txt:5"
+    },
+    {
+      "id": "join",
+      "label": "save membership",
+      "type": "step",
+      "status": "new",
+      "source": "anchors.txt:6-7"
+    },
+    {
+      "id": "joined",
+      "label": "return joined",
+      "type": "end",
+      "status": "new",
+      "source": "anchors.txt:8"
+    }
+  ],
+  "links": [
+    {
+      "from": "lookup",
+      "to": "found"
+    },
+    {
+      "from": "found",
+      "to": "404",
+      "label": "no",
+      "source": "anchors.txt:3"
+    },
+    {
+      "from": "found",
+      "to": "expired",
+      "label": "yes",
+      "source": "anchors.txt:4"
+    },
+    {
+      "from": "expired",
+      "to": "410",
+      "label": "yes",
+      "source": "anchors.txt:5"
+    },
+    {
+      "from": "expired",
+      "to": "join",
+      "label": "no",
+      "source": "anchors.txt:6"
+    },
+    {
+      "from": "join",
+      "to": "joined"
+    }
+  ]
+}

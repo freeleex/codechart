@@ -1,0 +1,63 @@
+{
+  "name": "codechart",
+  "version": "0.1.0",
+  "description": "Claude Code skill + CLI: maps and flowcharts of code changes in terminal, chat and HTML",
+  "keywords": ["claude-code", "claude-code-skill", "diagram", "code-review", "change-map", "flowchart", "ai-agent", "cli"],
+  "type": "module",
+  "license": "MIT",
+  "author": "freeleex",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/freeleex/codechart.git"
+  },
+  "bugs": {
+    "url": "https://github.com/freeleex/codechart/issues"
+  },
+  "homepage": "https://github.com/freeleex/codechart#readme",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "bin": {
+    "codechart": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "skills",
+    "templates",
+    "config.schema.json",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "build": "tsup",
+    "prepack": "npm run build",
+    "typecheck": "tsc --noEmit",
+    "test": "tsc --noEmit && vitest run",
+    "lint": "eslint .",
+    "measure": "tsx scripts/measure.ts",
+    "bench:tokens": "tsx scripts/token-bench.ts",
+    "gen:config-schema": "tsx scripts/gen-config-schema.ts"
+  },
+  "dependencies": {
+    "commander": "15.0.0",
+    "elkjs": "0.12.0",
+    "picomatch": "4.0.7",
+    "yaml": "2.9.1",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "@types/picomatch": "^4.0.3",
+    "eslint": "^10.13.0",
+    "fast-check": "4.10.2",
+    "happy-dom": "21.0.4",
+    "tsup": "^9.0.0",
+    "tsx": "4.23.15",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.72.1",
+    "vitest": "^5.0.5"
+  }
+}

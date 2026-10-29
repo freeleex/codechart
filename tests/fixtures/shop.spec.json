@@ -1,0 +1,244 @@
+{
+  "title": "Invoices for paid orders",
+  "kind": "summary",
+  "rules": [
+    "orm-schema"
+  ],
+  "nodes": [
+    {
+      "id": "tbl.orders",
+      "label": "orders",
+      "kind": "table",
+      "status": "changed",
+      "layer": "database",
+      "summary": "Orders get a refund state and a coupon",
+      "path": "shop/models/order.py",
+      "fieldsComplete": false,
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "note": "PK"
+        },
+        {
+          "name": "coupon_code",
+          "type": "text",
+          "change": "added"
+        },
+        {
+          "name": "status",
+          "type": "order_status",
+          "change": "modified"
+        }
+      ]
+    },
+    {
+      "id": "tbl.invoices",
+      "label": "invoices",
+      "kind": "table",
+      "status": "new",
+      "layer": "database",
+      "summary": "One invoice per paid order",
+      "path": "shop/models/invoice.py",
+      "fieldsComplete": true,
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "note": "PK"
+        },
+        {
+          "name": "order_id",
+          "type": "uuid",
+          "note": "FK orders.id",
+          "change": "added"
+        },
+        {
+          "name": "number",
+          "type": "text",
+          "change": "added"
+        }
+      ],
+      "notes": [
+        "Numbers are INVOICE_PREFIX plus a running counter"
+      ]
+    },
+    {
+      "id": "tbl.customers",
+      "label": "customers",
+      "kind": "table",
+      "status": "context",
+      "layer": "database",
+      "summary": "Buyer accounts, referenced by orders",
+      "path": "shop/models/customer.py"
+    },
+    {
+      "id": "enum.order_status",
+      "label": "order_status",
+      "kind": "enum",
+      "status": "changed",
+      "layer": "database",
+      "summary": "Postgres enum for the order lifecycle; adds refunded",
+      "fieldsComplete": false,
+      "fields": [
+        {
+          "name": "refunded",
+          "change": "added"
+        }
+      ]
+    },
+    {
+      "id": "enum.payment_method",
+      "label": "payment_method",
+      "kind": "enum",
+      "status": "changed",
+      "layer": "database",
+      "summary": "Postgres enum for payment types; adds bank_transfer",
+      "fieldsComplete": false,
+      "fields": [
+        {
+          "name": "bank_transfer",
+          "change": "added"
+        }
+      ]
+    },
+    {
+      "id": "py.OrderStatus",
+      "label": "OrderStatus",
+      "kind": "model",
+      "status": "changed",
+      "layer": "backend",
+      "summary": "Python OrderStatus enum mirrors order_status",
+      "path": "shop/models/order_status.py"
+    },
+    {
+      "id": "py.Invoice",
+      "label": "Invoice",
+      "kind": "model",
+      "status": "new",
+      "layer": "backend",
+      "summary": "ORM model for the invoices table",
+      "path": "shop/models/invoice.py"
+    },
+    {
+      "id": "api.refund",
+      "label": "POST /orders/{id}/refund",
+      "kind": "endpoint",
+      "status": "new",
+      "layer": "backend",
+      "summary": "Marks a paid order refunded",
+      "path": "shop/api/refunds.py"
+    },
+    {
+      "id": "py.PaymentMethod",
+      "label": "PaymentMethod",
+      "kind": "model",
+      "status": "changed",
+      "layer": "backend",
+      "summary": "Python enum mirrors payment_method",
+      "path": "shop/models/payment.py"
+    },
+    {
+      "id": "mig.0042",
+      "label": "migration: backfill invoices for paid orders",
+      "kind": "file",
+      "status": "new",
+      "layer": "config",
+      "summary": "Alembic migration: creates invoices, one row per paid order",
+      "path": "db/migrations/0042_invoices.py"
+    },
+    {
+      "id": "cfg.INVOICE_PREFIX",
+      "label": "INVOICE_PREFIX",
+      "kind": "config",
+      "status": "config",
+      "layer": "config",
+      "summary": "Env var prefixed to every invoice number",
+      "path": "shop/settings.py"
+    },
+    {
+      "id": "flag.refunds_enabled",
+      "label": "feature flag refundsEnabled",
+      "kind": "config",
+      "status": "config",
+      "layer": "config",
+      "summary": "Flag that switches the refund endpoint on",
+      "path": "config/flags.yaml"
+    }
+  ],
+  "edges": [
+    {
+      "from": "tbl.orders",
+      "to": "tbl.customers",
+      "label": "customer_id",
+      "kind": "fk"
+    },
+    {
+      "from": "tbl.invoices",
+      "to": "tbl.orders",
+      "label": "order_id",
+      "kind": "fk"
+    },
+    {
+      "from": "tbl.orders",
+      "to": "enum.order_status",
+      "label": "status",
+      "kind": "fk"
+    },
+    {
+      "from": "tbl.invoices",
+      "to": "enum.payment_method",
+      "label": "method",
+      "kind": "fk"
+    },
+    {
+      "from": "py.Invoice",
+      "to": "tbl.invoices",
+      "label": "maps",
+      "kind": "other"
+    },
+    {
+      "from": "py.OrderStatus",
+      "to": "enum.order_status",
+      "label": "mirrors",
+      "kind": "other"
+    },
+    {
+      "from": "py.PaymentMethod",
+      "to": "enum.payment_method",
+      "label": "mirrors",
+      "kind": "other"
+    },
+    {
+      "from": "api.refund",
+      "to": "py.OrderStatus",
+      "label": "sets refunded",
+      "kind": "writes"
+    },
+    {
+      "from": "flag.refunds_enabled",
+      "to": "api.refund",
+      "label": "gates",
+      "kind": "configures"
+    },
+    {
+      "from": "cfg.INVOICE_PREFIX",
+      "to": "mig.0042",
+      "label": "read by",
+      "kind": "reads"
+    },
+    {
+      "from": "mig.0042",
+      "to": "tbl.invoices",
+      "label": "backfills",
+      "kind": "writes"
+    }
+  ],
+  "gaps": [
+    "customers: columns besides id not read"
+  ],
+  "omitted": [
+    "tests: test_invoice_backfill.py",
+    "docs: CHANGELOG.md, .env.example"
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "title": "Users can belong to teams",
+  "kind": "summary",
+  "rules": [
+    "related-files"
+  ],
+  "nodes": [
+    {
+      "id": "teams",
+      "label": "teams",
+      "kind": "table",
+      "status": "new",
+      "layer": "database",
+      "fieldsComplete": true,
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid PK"
+        },
+        {
+          "name": "name",
+          "type": "text unique"
+        }
+      ]
+    },
+    {
+      "id": "users",
+      "label": "users",
+      "kind": "table",
+      "status": "context",
+      "layer": "database"
+    },
+    {
+      "id": "list-teams",
+      "label": "GET /users/{id}/teams",
+      "kind": "endpoint",
+      "status": "new",
+      "layer": "backend",
+      "path": "anchors.txt"
+    }
+  ],
+  "edges": [
+    {
+      "from": "list-teams",
+      "to": "teams",
+      "label": "reads",
+      "kind": "calls"
+    },
+    {
+      "from": "teams",
+      "to": "users",
+      "label": "owner_id",
+      "kind": "fk"
+    }
+  ]
+}

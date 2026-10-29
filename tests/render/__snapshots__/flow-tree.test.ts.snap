@@ -1,0 +1,78 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`renderFlowTree > draws the render flow from flow-design §9 1`] = `
+"read file or stdin → validate spec → load config
+◇ ~output mode?
+├─ none     → exit, no output
+├─ cli      → print terminal map
+├─ auto     → ◇ +hidden nodes or ≥ 8 nodes?
+│             ├─ no  → print terminal map
+│             └─ yes → ⤷ ~write HTML
+└─ web|both → ⤷ ~write HTML
+
+⤷ ~write HTML → prune old HTML
+◇ --open?
+├─ yes → open browser → ⤷ print map or link
+└─ no  → ⤷ print map or link
+
+⤷ print map or link
+
+13 steps · 1 new · 2 changed · 0 planned
+key: + new  ~ changed  ? planned  ◇ decision  ⤷ shared step
+gaps: did not check behaviour when stdin is a TTY
+"
+`;
+
+exports[`renderFlowTree > fits every line in 40 columns, cutting with … 1`] = `
+"read file or stdin → validate spec
+  → load config
+◇ ~output mode?
+├─ none     → exit, no output
+├─ cli      → print terminal map
+├─ auto     → ◇ +hidden nodes or ≥ 8 no…
+│             ├─ no  → print terminal m…
+│             └─ yes → ⤷ ~write HTML
+└─ web|both → ⤷ ~write HTML
+
+⤷ ~write HTML → prune old HTML
+◇ --open?
+├─ yes → open browser
+│          → ⤷ print map or link
+└─ no  → ⤷ print map or link
+
+⤷ print map or link
+
+13 steps · 1 new · 2 changed · 0 planned
+key: + new  ~ changed  ? planned  ◇ dec…
+gaps: did not check behaviour when stdin
+      is a TTY
+"
+`;
+
+exports[`renderFlowTree > previews at a budget of 5, counting cut steps 1`] = `
+"read file or stdin → validate spec → load config
+◇ ~output mode?
+├─ none     → exit, no output
+├─ cli      → … (+1 steps in web view)
+├─ auto     → … (+7 steps in web view)
+└─ web|both → …
+
+13 steps · 1 new · 2 changed · 0 planned
+key: + new  ~ changed  ? planned  ◇ decision  ⤷ shared step
+gaps: did not check behaviour when stdin is a TTY
+full map → file:///tmp/x/render.html
+"
+`;
+
+exports[`renderFlowTree > titles a plan with planned steps and marks planned steps and branches 1`] = `
+"planned flow
+read spec
+◇ diagram?
+├─ map   → render map
+├─ ?flow → ?render flow tree → ?print
+└─ ?none → skip
+
+6 steps · 0 new · 0 changed · 2 planned
+key: + new  ~ changed  ? planned  ◇ decision  ⤷ shared step
+"
+`;

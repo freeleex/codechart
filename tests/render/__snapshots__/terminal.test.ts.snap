@@ -1,0 +1,95 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`renderTerminal > shop grouped list 1`] = `
+"database
+  ~orders ─customer_id─▶ ·customers
+          ─status──────▶ ~enum order_status
+  +invoices ─order_id─▶ ~orders
+            ─method───▶ ~enum payment_method
+
+backend
+  ~OrderStatus ─mirrors─▶ ~enum order_status
+  +Invoice ─maps─▶ +invoices
+  +POST /orders/{id}/refund ─sets refunded─▶ ~model OrderStatus
+  ~PaymentMethod ─mirrors─▶ ~enum payment_method
+
+config
+  +migration: backfill invoices fo… ─backfills─▶ +invoices
+  ◆INVOICE_PREFIX ─read by─▶ +migration: backfill invoices for paid orders
+  ◆feature flag refundsEnabled ─gates─▶ +endpoint POST /orders/{id}/refund
+
+fields:
+~orders          +coupon_code text · ~status order_status
++invoices        id uuid · +order_id uuid · +number text
+~order_status    +refunded
+~payment_method  +bank_transfer
+
+12 nodes · 4 new · 5 changed · 2 config
+key: + new  - removed  ~ changed  · context  ◆ config
+gaps: customers: columns besides id not read
+not on map: tests: test_invoice_backfill.py · docs: CHANGELOG.md, .env.example
+"
+`;
+
+exports[`renderTerminal > shop plain at width 80 1`] = `
+"database
+  ~orders ─customer_id─▶ ·customers
+          ─status──────▶ ~enum order_status
+  +invoices ─order_id─▶ ~orders
+            ─method───▶ ~enum payment_method
+
+backend
+  ~OrderStatus ─mirrors─▶ ~enum order_status
+  +Invoice ─maps─▶ +invoices
+  +POST /orders/{id}/refund ─sets refunded─▶ ~model OrderStatus
+  ~PaymentMethod ─mirrors─▶ ~enum payment_method
+
+config
+  +migration: backfill invo… ─backfills─▶ +invoices
+  ◆INVOICE_PREFIX ─read by─▶ +migration: backfill invoices for paid orders
+  ◆feature flag refundsEnab… ─gates─▶ +endpoint POST /orders/{id}/refund
+
+fields:
+~orders          +coupon_code text · ~status order_status
++invoices        id uuid · +order_id uuid · +number text
+~order_status    +refunded
+~payment_method  +bank_transfer
+
+12 nodes · 4 new · 5 changed · 2 config
+key: + new  - removed  ~ changed  · context  ◆ config
+gaps: customers: columns besides id not read
+not on map: tests: test_invoice_backfill.py · docs: CHANGELOG.md, .env.example
+"
+`;
+
+exports[`renderTerminal > width 60 → every line ≤ 60 1`] = `
+"database
+  ~orders ─customer_id─▶ ·customers
+          ─status──────▶ ~enum order_status
+  +invoices ─order_id─▶ ~orders
+            ─method───▶ ~enum payment_method
+
+backend
+  ~OrderStatus ─mirrors─▶ ~enum order_status
+  +Invoice ─maps─▶ +invoices
+  +POST /orders/{id}/… ─sets refunded─▶ ~model OrderStatus
+  ~PaymentMethod ─mirrors─▶ ~enum payment_method
+
+config
+  +migration: backfil… ─backfills─▶ +invoices
+  ◆INVOICE_PREFIX ─read by─▶ +migration: backfill invoices …
+  ◆feature flag refun… ─gates─▶ +endpoint POST /orders/{id}…
+
+fields:
+~orders          +coupon_code text · ~status order_status
++invoices        id uuid · +order_id uuid · +number text
+~order_status    +refunded
+~payment_method  +bank_transfer
+
+12 nodes · 4 new · 5 changed · 2 config
+key: + new  - removed  ~ changed  · context  ◆ config
+gaps: customers: columns besides id not read
+not on map: tests: test_invoice_backfill.py
+            docs: CHANGELOG.md, .env.example
+"
+`;

@@ -1,0 +1,2105 @@
+{
+  "title": "Large synthetic change",
+  "kind": "summary",
+  "rules": [
+    "related-files"
+  ],
+  "nodes": [
+    {
+      "id": "n0",
+      "label": "node 0",
+      "kind": "table",
+      "status": "new",
+      "layer": "database",
+      "summary": "Synthetic node number 0",
+      "fieldsComplete": true,
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid PK"
+        },
+        {
+          "name": "ref",
+          "type": "uuid FK"
+        }
+      ]
+    },
+    {
+      "id": "n1",
+      "label": "node 1",
+      "kind": "model",
+      "status": "changed",
+      "layer": "backend",
+      "summary": "Synthetic node number 1",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n2",
+      "label": "node 2",
+      "kind": "endpoint",
+      "status": "context",
+      "layer": "frontend",
+      "summary": "Synthetic node number 2",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n3",
+      "label": "node 3",
+      "kind": "service",
+      "status": "new",
+      "layer": "database",
+      "summary": "Synthetic node number 3",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n4",
+      "label": "node 4",
+      "kind": "table",
+      "status": "changed",
+      "layer": "backend",
+      "summary": "Synthetic node number 4",
+      "fieldsComplete": true,
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid PK"
+        },
+        {
+          "name": "ref",
+          "type": "uuid FK"
+        }
+      ]
+    },
+    {
+      "id": "n5",
+      "label": "node 5",
+      "kind": "model",
+      "status": "context",
+      "layer": "frontend",
+      "summary": "Synthetic node number 5",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n6",
+      "label": "node 6",
+      "kind": "endpoint",
+      "status": "new",
+      "layer": "database",
+      "summary": "Synthetic node number 6",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n7",
+      "label": "node 7",
+      "kind": "service",
+      "status": "changed",
+      "layer": "backend",
+      "summary": "Synthetic node number 7",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n8",
+      "label": "node 8",
+      "kind": "table",
+      "status": "context",
+      "layer": "frontend",
+      "summary": "Synthetic node number 8",
+      "fieldsComplete": true,
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid PK"
+        },
+        {
+          "name": "ref",
+          "type": "uuid FK"
+        }
+      ]
+    },
+    {
+      "id": "n9",
+      "label": "node 9",
+      "kind": "model",
+      "status": "new",
+      "layer": "database",
+      "summary": "Synthetic node number 9",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n10",
+      "label": "node 10",
+      "kind": "endpoint",
+      "status": "changed",
+      "layer": "backend",
+      "summary": "Synthetic node number 10",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n11",
+      "label": "node 11",
+      "kind": "service",
+      "status": "context",
+      "layer": "frontend",
+      "summary": "Synthetic node number 11",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n12",
+      "label": "node 12",
+      "kind": "table",
+      "status": "new",
+      "layer": "database",
+      "summary": "Synthetic node number 12",
+      "fieldsComplete": true,
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid PK"
+        },
+        {
+          "name": "ref",
+          "type": "uuid FK"
+        }
+      ]
+    },
+    {
+      "id": "n13",
+      "label": "node 13",
+      "kind": "model",
+      "status": "changed",
+      "layer": "backend",
+      "summary": "Synthetic node number 13",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n14",
+      "label": "node 14",
+      "kind": "endpoint",
+      "status": "context",
+      "layer": "frontend",
+      "summary": "Synthetic node number 14",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n15",
+      "label": "node 15",
+      "kind": "service",
+      "status": "new",
+      "layer": "database",
+      "summary": "Synthetic node number 15",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n16",
+      "label": "node 16",
+      "kind": "table",
+      "status": "changed",
+      "layer": "backend",
+      "summary": "Synthetic node number 16",
+      "fieldsComplete": true,
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid PK"
+        },
+        {
+          "name": "ref",
+          "type": "uuid FK"
+        }
+      ]
+    },
+    {
+      "id": "n17",
+      "label": "node 17",
+      "kind": "model",
+      "status": "context",
+      "layer": "frontend",
+      "summary": "Synthetic node number 17",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n18",
+      "label": "node 18",
+      "kind": "endpoint",
+      "status": "new",
+      "layer": "database",
+      "summary": "Synthetic node number 18",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n19",
+      "label": "node 19",
+      "kind": "service",
+      "status": "changed",
+      "layer": "backend",
+      "summary": "Synthetic node number 19",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n20",
+      "label": "node 20",
+      "kind": "table",
+      "status": "context",
+      "layer": "frontend",
+      "summary": "Synthetic node number 20",
+      "fieldsComplete": true,
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid PK"
+        },
+        {
+          "name": "ref",
+          "type": "uuid FK"
+        }
+      ]
+    },
+    {
+      "id": "n21",
+      "label": "node 21",
+      "kind": "model",
+      "status": "new",
+      "layer": "database",
+      "summary": "Synthetic node number 21",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n22",
+      "label": "node 22",
+      "kind": "endpoint",
+      "status": "changed",
+      "layer": "backend",
+      "summary": "Synthetic node number 22",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n23",
+      "label": "node 23",
+      "kind": "service",
+      "status": "context",
+      "layer": "frontend",
+      "summary": "Synthetic node number 23",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n24",
+      "label": "node 24",
+      "kind": "table",
+      "status": "new",
+      "layer": "database",
+      "summary": "Synthetic node number 24",
+      "fieldsComplete": true,
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid PK"
+        },
+        {
+          "name": "ref",
+          "type": "uuid FK"
+        }
+      ]
+    },
+    {
+      "id": "n25",
+      "label": "node 25",
+      "kind": "model",
+      "status": "changed",
+      "layer": "backend",
+      "summary": "Synthetic node number 25",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n26",
+      "label": "node 26",
+      "kind": "endpoint",
+      "status": "context",
+      "layer": "frontend",
+      "summary": "Synthetic node number 26",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n27",
+      "label": "node 27",
+      "kind": "service",
+      "status": "new",
+      "layer": "database",
+      "summary": "Synthetic node number 27",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n28",
+      "label": "node 28",
+      "kind": "table",
+      "status": "changed",
+      "layer": "backend",
+      "summary": "Synthetic node number 28",
+      "fieldsComplete": true,
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid PK"
+        },
+        {
+          "name": "ref",
+          "type": "uuid FK"
+        }
+      ]
+    },
+    {
+      "id": "n29",
+      "label": "node 29",
+      "kind": "model",
+      "status": "context",
+      "layer": "frontend",
+      "summary": "Synthetic node number 29",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n30",
+      "label": "node 30",
+      "kind": "endpoint",
+      "status": "new",
+      "layer": "database",
+      "summary": "Synthetic node number 30",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n31",
+      "label": "node 31",
+      "kind": "service",
+      "status": "changed",
+      "layer": "backend",
+      "summary": "Synthetic node number 31",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n32",
+      "label": "node 32",
+      "kind": "table",
+      "status": "context",
+      "layer": "frontend",
+      "summary": "Synthetic node number 32",
+      "fieldsComplete": true,
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid PK"
+        },
+        {
+          "name": "ref",
+          "type": "uuid FK"
+        }
+      ]
+    },
+    {
+      "id": "n33",
+      "label": "node 33",
+      "kind": "model",
+      "status": "new",
+      "layer": "database",
+      "summary": "Synthetic node number 33",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n34",
+      "label": "node 34",
+      "kind": "endpoint",
+      "status": "changed",
+      "layer": "backend",
+      "summary": "Synthetic node number 34",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n35",
+      "label": "node 35",
+      "kind": "service",
+      "status": "context",
+      "layer": "frontend",
+      "summary": "Synthetic node number 35",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n36",
+      "label": "node 36",
+      "kind": "table",
+      "status": "new",
+      "layer": "database",
+      "summary": "Synthetic node number 36",
+      "fieldsComplete": true,
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid PK"
+        },
+        {
+          "name": "ref",
+          "type": "uuid FK"
+        }
+      ]
+    },
+    {
+      "id": "n37",
+      "label": "node 37",
+      "kind": "model",
+      "status": "changed",
+      "layer": "backend",
+      "summary": "Synthetic node number 37",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n38",
+      "label": "node 38",
+      "kind": "endpoint",
+      "status": "context",
+      "layer": "frontend",
+      "summary": "Synthetic node number 38",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n39",
+      "label": "node 39",
+      "kind": "service",
+      "status": "new",
+      "layer": "database",
+      "summary": "Synthetic node number 39",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n40",
+      "label": "node 40",
+      "kind": "table",
+      "status": "changed",
+      "layer": "backend",
+      "summary": "Synthetic node number 40",
+      "fieldsComplete": true,
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid PK"
+        },
+        {
+          "name": "ref",
+          "type": "uuid FK"
+        }
+      ]
+    },
+    {
+      "id": "n41",
+      "label": "node 41",
+      "kind": "model",
+      "status": "context",
+      "layer": "frontend",
+      "summary": "Synthetic node number 41",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n42",
+      "label": "node 42",
+      "kind": "endpoint",
+      "status": "new",
+      "layer": "database",
+      "summary": "Synthetic node number 42",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n43",
+      "label": "node 43",
+      "kind": "service",
+      "status": "changed",
+      "layer": "backend",
+      "summary": "Synthetic node number 43",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n44",
+      "label": "node 44",
+      "kind": "table",
+      "status": "context",
+      "layer": "frontend",
+      "summary": "Synthetic node number 44",
+      "fieldsComplete": true,
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid PK"
+        },
+        {
+          "name": "ref",
+          "type": "uuid FK"
+        }
+      ]
+    },
+    {
+      "id": "n45",
+      "label": "node 45",
+      "kind": "model",
+      "status": "new",
+      "layer": "database",
+      "summary": "Synthetic node number 45",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n46",
+      "label": "node 46",
+      "kind": "endpoint",
+      "status": "changed",
+      "layer": "backend",
+      "summary": "Synthetic node number 46",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n47",
+      "label": "node 47",
+      "kind": "service",
+      "status": "context",
+      "layer": "frontend",
+      "summary": "Synthetic node number 47",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n48",
+      "label": "node 48",
+      "kind": "table",
+      "status": "new",
+      "layer": "database",
+      "summary": "Synthetic node number 48",
+      "fieldsComplete": true,
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid PK"
+        },
+        {
+          "name": "ref",
+          "type": "uuid FK"
+        }
+      ]
+    },
+    {
+      "id": "n49",
+      "label": "node 49",
+      "kind": "model",
+      "status": "changed",
+      "layer": "backend",
+      "summary": "Synthetic node number 49",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n50",
+      "label": "node 50",
+      "kind": "endpoint",
+      "status": "context",
+      "layer": "frontend",
+      "summary": "Synthetic node number 50",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n51",
+      "label": "node 51",
+      "kind": "service",
+      "status": "new",
+      "layer": "database",
+      "summary": "Synthetic node number 51",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n52",
+      "label": "node 52",
+      "kind": "table",
+      "status": "changed",
+      "layer": "backend",
+      "summary": "Synthetic node number 52",
+      "fieldsComplete": true,
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid PK"
+        },
+        {
+          "name": "ref",
+          "type": "uuid FK"
+        }
+      ]
+    },
+    {
+      "id": "n53",
+      "label": "node 53",
+      "kind": "model",
+      "status": "context",
+      "layer": "frontend",
+      "summary": "Synthetic node number 53",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n54",
+      "label": "node 54",
+      "kind": "endpoint",
+      "status": "new",
+      "layer": "database",
+      "summary": "Synthetic node number 54",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n55",
+      "label": "node 55",
+      "kind": "service",
+      "status": "changed",
+      "layer": "backend",
+      "summary": "Synthetic node number 55",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n56",
+      "label": "node 56",
+      "kind": "table",
+      "status": "context",
+      "layer": "frontend",
+      "summary": "Synthetic node number 56",
+      "fieldsComplete": true,
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid PK"
+        },
+        {
+          "name": "ref",
+          "type": "uuid FK"
+        }
+      ]
+    },
+    {
+      "id": "n57",
+      "label": "node 57",
+      "kind": "model",
+      "status": "new",
+      "layer": "database",
+      "summary": "Synthetic node number 57",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n58",
+      "label": "node 58",
+      "kind": "endpoint",
+      "status": "changed",
+      "layer": "backend",
+      "summary": "Synthetic node number 58",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n59",
+      "label": "node 59",
+      "kind": "service",
+      "status": "context",
+      "layer": "frontend",
+      "summary": "Synthetic node number 59",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n60",
+      "label": "node 60",
+      "kind": "table",
+      "status": "new",
+      "layer": "database",
+      "summary": "Synthetic node number 60",
+      "fieldsComplete": true,
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid PK"
+        },
+        {
+          "name": "ref",
+          "type": "uuid FK"
+        }
+      ]
+    },
+    {
+      "id": "n61",
+      "label": "node 61",
+      "kind": "model",
+      "status": "changed",
+      "layer": "backend",
+      "summary": "Synthetic node number 61",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n62",
+      "label": "node 62",
+      "kind": "endpoint",
+      "status": "context",
+      "layer": "frontend",
+      "summary": "Synthetic node number 62",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n63",
+      "label": "node 63",
+      "kind": "service",
+      "status": "new",
+      "layer": "database",
+      "summary": "Synthetic node number 63",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n64",
+      "label": "node 64",
+      "kind": "table",
+      "status": "changed",
+      "layer": "backend",
+      "summary": "Synthetic node number 64",
+      "fieldsComplete": true,
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid PK"
+        },
+        {
+          "name": "ref",
+          "type": "uuid FK"
+        }
+      ]
+    },
+    {
+      "id": "n65",
+      "label": "node 65",
+      "kind": "model",
+      "status": "context",
+      "layer": "frontend",
+      "summary": "Synthetic node number 65",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n66",
+      "label": "node 66",
+      "kind": "endpoint",
+      "status": "new",
+      "layer": "database",
+      "summary": "Synthetic node number 66",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n67",
+      "label": "node 67",
+      "kind": "service",
+      "status": "changed",
+      "layer": "backend",
+      "summary": "Synthetic node number 67",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n68",
+      "label": "node 68",
+      "kind": "table",
+      "status": "context",
+      "layer": "frontend",
+      "summary": "Synthetic node number 68",
+      "fieldsComplete": true,
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid PK"
+        },
+        {
+          "name": "ref",
+          "type": "uuid FK"
+        }
+      ]
+    },
+    {
+      "id": "n69",
+      "label": "node 69",
+      "kind": "model",
+      "status": "new",
+      "layer": "database",
+      "summary": "Synthetic node number 69",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n70",
+      "label": "node 70",
+      "kind": "endpoint",
+      "status": "changed",
+      "layer": "backend",
+      "summary": "Synthetic node number 70",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n71",
+      "label": "node 71",
+      "kind": "service",
+      "status": "context",
+      "layer": "frontend",
+      "summary": "Synthetic node number 71",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n72",
+      "label": "node 72",
+      "kind": "table",
+      "status": "new",
+      "layer": "database",
+      "summary": "Synthetic node number 72",
+      "fieldsComplete": true,
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid PK"
+        },
+        {
+          "name": "ref",
+          "type": "uuid FK"
+        }
+      ]
+    },
+    {
+      "id": "n73",
+      "label": "node 73",
+      "kind": "model",
+      "status": "changed",
+      "layer": "backend",
+      "summary": "Synthetic node number 73",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n74",
+      "label": "node 74",
+      "kind": "endpoint",
+      "status": "context",
+      "layer": "frontend",
+      "summary": "Synthetic node number 74",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n75",
+      "label": "node 75",
+      "kind": "service",
+      "status": "new",
+      "layer": "database",
+      "summary": "Synthetic node number 75",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n76",
+      "label": "node 76",
+      "kind": "table",
+      "status": "changed",
+      "layer": "backend",
+      "summary": "Synthetic node number 76",
+      "fieldsComplete": true,
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid PK"
+        },
+        {
+          "name": "ref",
+          "type": "uuid FK"
+        }
+      ]
+    },
+    {
+      "id": "n77",
+      "label": "node 77",
+      "kind": "model",
+      "status": "context",
+      "layer": "frontend",
+      "summary": "Synthetic node number 77",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n78",
+      "label": "node 78",
+      "kind": "endpoint",
+      "status": "new",
+      "layer": "database",
+      "summary": "Synthetic node number 78",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n79",
+      "label": "node 79",
+      "kind": "service",
+      "status": "changed",
+      "layer": "backend",
+      "summary": "Synthetic node number 79",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n80",
+      "label": "node 80",
+      "kind": "table",
+      "status": "context",
+      "layer": "frontend",
+      "summary": "Synthetic node number 80",
+      "fieldsComplete": true,
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid PK"
+        },
+        {
+          "name": "ref",
+          "type": "uuid FK"
+        }
+      ]
+    },
+    {
+      "id": "n81",
+      "label": "node 81",
+      "kind": "model",
+      "status": "new",
+      "layer": "database",
+      "summary": "Synthetic node number 81",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n82",
+      "label": "node 82",
+      "kind": "endpoint",
+      "status": "changed",
+      "layer": "backend",
+      "summary": "Synthetic node number 82",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n83",
+      "label": "node 83",
+      "kind": "service",
+      "status": "context",
+      "layer": "frontend",
+      "summary": "Synthetic node number 83",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n84",
+      "label": "node 84",
+      "kind": "table",
+      "status": "new",
+      "layer": "database",
+      "summary": "Synthetic node number 84",
+      "fieldsComplete": true,
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid PK"
+        },
+        {
+          "name": "ref",
+          "type": "uuid FK"
+        }
+      ]
+    },
+    {
+      "id": "n85",
+      "label": "node 85",
+      "kind": "model",
+      "status": "changed",
+      "layer": "backend",
+      "summary": "Synthetic node number 85",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n86",
+      "label": "node 86",
+      "kind": "endpoint",
+      "status": "context",
+      "layer": "frontend",
+      "summary": "Synthetic node number 86",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n87",
+      "label": "node 87",
+      "kind": "service",
+      "status": "new",
+      "layer": "database",
+      "summary": "Synthetic node number 87",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n88",
+      "label": "node 88",
+      "kind": "table",
+      "status": "changed",
+      "layer": "backend",
+      "summary": "Synthetic node number 88",
+      "fieldsComplete": true,
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid PK"
+        },
+        {
+          "name": "ref",
+          "type": "uuid FK"
+        }
+      ]
+    },
+    {
+      "id": "n89",
+      "label": "node 89",
+      "kind": "model",
+      "status": "context",
+      "layer": "frontend",
+      "summary": "Synthetic node number 89",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n90",
+      "label": "node 90",
+      "kind": "endpoint",
+      "status": "new",
+      "layer": "database",
+      "summary": "Synthetic node number 90",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n91",
+      "label": "node 91",
+      "kind": "service",
+      "status": "changed",
+      "layer": "backend",
+      "summary": "Synthetic node number 91",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n92",
+      "label": "node 92",
+      "kind": "table",
+      "status": "context",
+      "layer": "frontend",
+      "summary": "Synthetic node number 92",
+      "fieldsComplete": true,
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid PK"
+        },
+        {
+          "name": "ref",
+          "type": "uuid FK"
+        }
+      ]
+    },
+    {
+      "id": "n93",
+      "label": "node 93",
+      "kind": "model",
+      "status": "new",
+      "layer": "database",
+      "summary": "Synthetic node number 93",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n94",
+      "label": "node 94",
+      "kind": "endpoint",
+      "status": "changed",
+      "layer": "backend",
+      "summary": "Synthetic node number 94",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n95",
+      "label": "node 95",
+      "kind": "service",
+      "status": "context",
+      "layer": "frontend",
+      "summary": "Synthetic node number 95",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n96",
+      "label": "node 96",
+      "kind": "table",
+      "status": "new",
+      "layer": "database",
+      "summary": "Synthetic node number 96",
+      "fieldsComplete": true,
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid PK"
+        },
+        {
+          "name": "ref",
+          "type": "uuid FK"
+        }
+      ]
+    },
+    {
+      "id": "n97",
+      "label": "node 97",
+      "kind": "model",
+      "status": "changed",
+      "layer": "backend",
+      "summary": "Synthetic node number 97",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n98",
+      "label": "node 98",
+      "kind": "endpoint",
+      "status": "context",
+      "layer": "frontend",
+      "summary": "Synthetic node number 98",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n99",
+      "label": "node 99",
+      "kind": "service",
+      "status": "new",
+      "layer": "database",
+      "summary": "Synthetic node number 99",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n100",
+      "label": "node 100",
+      "kind": "table",
+      "status": "changed",
+      "layer": "backend",
+      "summary": "Synthetic node number 100",
+      "fieldsComplete": true,
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid PK"
+        },
+        {
+          "name": "ref",
+          "type": "uuid FK"
+        }
+      ]
+    },
+    {
+      "id": "n101",
+      "label": "node 101",
+      "kind": "model",
+      "status": "context",
+      "layer": "frontend",
+      "summary": "Synthetic node number 101",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n102",
+      "label": "node 102",
+      "kind": "endpoint",
+      "status": "new",
+      "layer": "database",
+      "summary": "Synthetic node number 102",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n103",
+      "label": "node 103",
+      "kind": "service",
+      "status": "changed",
+      "layer": "backend",
+      "summary": "Synthetic node number 103",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n104",
+      "label": "node 104",
+      "kind": "table",
+      "status": "context",
+      "layer": "frontend",
+      "summary": "Synthetic node number 104",
+      "fieldsComplete": true,
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid PK"
+        },
+        {
+          "name": "ref",
+          "type": "uuid FK"
+        }
+      ]
+    },
+    {
+      "id": "n105",
+      "label": "node 105",
+      "kind": "model",
+      "status": "new",
+      "layer": "database",
+      "summary": "Synthetic node number 105",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n106",
+      "label": "node 106",
+      "kind": "endpoint",
+      "status": "changed",
+      "layer": "backend",
+      "summary": "Synthetic node number 106",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n107",
+      "label": "node 107",
+      "kind": "service",
+      "status": "context",
+      "layer": "frontend",
+      "summary": "Synthetic node number 107",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n108",
+      "label": "node 108",
+      "kind": "table",
+      "status": "new",
+      "layer": "database",
+      "summary": "Synthetic node number 108",
+      "fieldsComplete": true,
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid PK"
+        },
+        {
+          "name": "ref",
+          "type": "uuid FK"
+        }
+      ]
+    },
+    {
+      "id": "n109",
+      "label": "node 109",
+      "kind": "model",
+      "status": "changed",
+      "layer": "backend",
+      "summary": "Synthetic node number 109",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n110",
+      "label": "node 110",
+      "kind": "endpoint",
+      "status": "context",
+      "layer": "frontend",
+      "summary": "Synthetic node number 110",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n111",
+      "label": "node 111",
+      "kind": "service",
+      "status": "new",
+      "layer": "database",
+      "summary": "Synthetic node number 111",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n112",
+      "label": "node 112",
+      "kind": "table",
+      "status": "changed",
+      "layer": "backend",
+      "summary": "Synthetic node number 112",
+      "fieldsComplete": true,
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid PK"
+        },
+        {
+          "name": "ref",
+          "type": "uuid FK"
+        }
+      ]
+    },
+    {
+      "id": "n113",
+      "label": "node 113",
+      "kind": "model",
+      "status": "context",
+      "layer": "frontend",
+      "summary": "Synthetic node number 113",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n114",
+      "label": "node 114",
+      "kind": "endpoint",
+      "status": "new",
+      "layer": "database",
+      "summary": "Synthetic node number 114",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n115",
+      "label": "node 115",
+      "kind": "service",
+      "status": "changed",
+      "layer": "backend",
+      "summary": "Synthetic node number 115",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n116",
+      "label": "node 116",
+      "kind": "table",
+      "status": "context",
+      "layer": "frontend",
+      "summary": "Synthetic node number 116",
+      "fieldsComplete": true,
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid PK"
+        },
+        {
+          "name": "ref",
+          "type": "uuid FK"
+        }
+      ]
+    },
+    {
+      "id": "n117",
+      "label": "node 117",
+      "kind": "model",
+      "status": "new",
+      "layer": "database",
+      "summary": "Synthetic node number 117",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n118",
+      "label": "node 118",
+      "kind": "endpoint",
+      "status": "changed",
+      "layer": "backend",
+      "summary": "Synthetic node number 118",
+      "path": "anchors.txt"
+    },
+    {
+      "id": "n119",
+      "label": "node 119",
+      "kind": "service",
+      "status": "context",
+      "layer": "frontend",
+      "summary": "Synthetic node number 119",
+      "path": "anchors.txt"
+    }
+  ],
+  "edges": [
+    {
+      "from": "n1",
+      "to": "n0",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n2",
+      "to": "n0",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n3",
+      "to": "n1",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n4",
+      "to": "n1",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n5",
+      "to": "n2",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n6",
+      "to": "n2",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n7",
+      "to": "n3",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n8",
+      "to": "n3",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n9",
+      "to": "n4",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n10",
+      "to": "n4",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n11",
+      "to": "n5",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n12",
+      "to": "n5",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n13",
+      "to": "n6",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n14",
+      "to": "n6",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n15",
+      "to": "n7",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n16",
+      "to": "n7",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n17",
+      "to": "n8",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n18",
+      "to": "n8",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n19",
+      "to": "n9",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n20",
+      "to": "n9",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n21",
+      "to": "n10",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n22",
+      "to": "n10",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n23",
+      "to": "n11",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n24",
+      "to": "n11",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n25",
+      "to": "n12",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n26",
+      "to": "n12",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n27",
+      "to": "n13",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n28",
+      "to": "n13",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n29",
+      "to": "n14",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n30",
+      "to": "n14",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n31",
+      "to": "n15",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n32",
+      "to": "n15",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n33",
+      "to": "n16",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n34",
+      "to": "n16",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n35",
+      "to": "n17",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n36",
+      "to": "n17",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n37",
+      "to": "n18",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n38",
+      "to": "n18",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n39",
+      "to": "n19",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n40",
+      "to": "n19",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n41",
+      "to": "n20",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n42",
+      "to": "n20",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n43",
+      "to": "n21",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n44",
+      "to": "n21",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n45",
+      "to": "n22",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n46",
+      "to": "n22",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n47",
+      "to": "n23",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n48",
+      "to": "n23",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n49",
+      "to": "n24",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n50",
+      "to": "n24",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n51",
+      "to": "n25",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n52",
+      "to": "n25",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n53",
+      "to": "n26",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n54",
+      "to": "n26",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n55",
+      "to": "n27",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n56",
+      "to": "n27",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n57",
+      "to": "n28",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n58",
+      "to": "n28",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n59",
+      "to": "n29",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n60",
+      "to": "n29",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n61",
+      "to": "n30",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n62",
+      "to": "n30",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n63",
+      "to": "n31",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n64",
+      "to": "n31",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n65",
+      "to": "n32",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n66",
+      "to": "n32",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n67",
+      "to": "n33",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n68",
+      "to": "n33",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n69",
+      "to": "n34",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n70",
+      "to": "n34",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n71",
+      "to": "n35",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n72",
+      "to": "n35",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n73",
+      "to": "n36",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n74",
+      "to": "n36",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n75",
+      "to": "n37",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n76",
+      "to": "n37",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n77",
+      "to": "n38",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n78",
+      "to": "n38",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n79",
+      "to": "n39",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n80",
+      "to": "n39",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n81",
+      "to": "n40",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n82",
+      "to": "n40",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n83",
+      "to": "n41",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n84",
+      "to": "n41",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n85",
+      "to": "n42",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n86",
+      "to": "n42",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n87",
+      "to": "n43",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n88",
+      "to": "n43",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n89",
+      "to": "n44",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n90",
+      "to": "n44",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n91",
+      "to": "n45",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n92",
+      "to": "n45",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n93",
+      "to": "n46",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n94",
+      "to": "n46",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n95",
+      "to": "n47",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n96",
+      "to": "n47",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n97",
+      "to": "n48",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n98",
+      "to": "n48",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n99",
+      "to": "n49",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n100",
+      "to": "n49",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n101",
+      "to": "n50",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n102",
+      "to": "n50",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n103",
+      "to": "n51",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n104",
+      "to": "n51",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n105",
+      "to": "n52",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n106",
+      "to": "n52",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n107",
+      "to": "n53",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n108",
+      "to": "n53",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n109",
+      "to": "n54",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n110",
+      "to": "n54",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n111",
+      "to": "n55",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n112",
+      "to": "n55",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n113",
+      "to": "n56",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n114",
+      "to": "n56",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n115",
+      "to": "n57",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n116",
+      "to": "n57",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n117",
+      "to": "n58",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n118",
+      "to": "n58",
+      "label": "uses",
+      "kind": "calls"
+    },
+    {
+      "from": "n119",
+      "to": "n59",
+      "label": "uses",
+      "kind": "calls"
+    }
+  ]
+}
