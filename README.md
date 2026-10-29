@@ -63,6 +63,33 @@ New things are `+`, changed ones `~`, existing ones `·`, config `◆`. Layers a
 
 ![Full map: clicking the orders table shows its file and changed fields](docs/images/map.png)
 
+Ask how something works and you get a **flow** instead. Every step points at the code that implements it:
+
+```text
+Flow (key: + new  ~ changed  ? planned  ◇ decision  ⤷ shared step)
+
+Accept a team invite
+────────────────────
++look up invite by token
+◇ +invite found?
+├─ no  → +404 invite not found
+└─ yes → ◇ +expired?
+         ├─ yes → +410 invite expired
+         └─ no  → ◇ +already a member?
+                  ├─ yes → +return already a member
+                  └─ no  → +save membership → +return joined
+
+9 steps · 9 new · 0 changed · 0 planned
+gaps: did not check what happens when two requests accept the same invite at
+      once
+
+Open full map
+```
+
+Its full page shows the exact code behind each step. Click any step:
+
+![Full flow: clicking a decision shows its source lines](docs/images/flow.png)
+
 You don't need to ask for it. The skill fires when the agent summarizes changes, writes a plan, or explains how code behaves, and stays quiet for typo fixes.
 
 ## Install
@@ -91,32 +118,7 @@ Tables, columns, enums, models, endpoints, components, config and env vars, grou
 
 ### Flows: what the code actually does
 
-Decisions, edge cases and outcomes, each pointing at the source lines that implement it.
-
-```text
-Flow (key: + new  ~ changed  ? planned  ◇ decision  ⤷ shared step)
-
-Accept a team invite
-────────────────────
-+look up invite by token
-◇ +invite found?
-├─ no  → +404 invite not found
-└─ yes → ◇ +expired?
-         ├─ yes → +410 invite expired
-         └─ no  → ◇ +already a member?
-                  ├─ yes → +return already a member
-                  └─ no  → +save membership → +return joined
-
-9 steps · 9 new · 0 changed · 0 planned
-gaps: did not check what happens when two requests accept the same invite at
-      once
-
-Open full map
-```
-
-Its full page shows each step's exact code:
-
-![Full flow: clicking a decision shows its source lines](docs/images/flow.png)
+Decisions, edge cases and outcomes, each pointing at the source lines that implement it. Branches the agent didn't verify go under `gaps` instead of being drawn.
 
 ### Terminal first, page when it helps
 

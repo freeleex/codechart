@@ -150,7 +150,10 @@ export function renderCommand(opts: CommandOptions): Command {
           writeFileSync(file, html, { mode: 0o600 });
           pruneHtml(dirname(file), { ...config.web, now, replaceSlug: slug });
           const mode = config.web.open;
-          if (o.open || mode === 'always' || (mode === 'auto' && inCodeEditor(opts.env ?? process.env))) (opts.open ?? openInBrowser)(file);
+          if (o.open || mode === 'always' || (mode === 'auto' && inCodeEditor(opts.env ?? process.env))) {
+            const failed = (opts.open ?? openInBrowser)(file);
+            if (failed) opts.stderr(`codechart: could not open the browser (${failed}); open the link instead\n`);
+          }
           return file;
         };
 

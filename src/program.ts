@@ -17,7 +17,7 @@ export interface ProgramOptions {
   stdin?: () => Promise<string>;
   choose?: (title: string, items: { label: string; hint: string }[]) => Promise<number[] | undefined>;
   now?: () => Date;
-  open?: (path: string) => void;
+  open?: (path: string) => string | void;
 }
 
 export type CommandOptions = Required<Pick<ProgramOptions, 'stdout' | 'stderr'>> & ProgramOptions;

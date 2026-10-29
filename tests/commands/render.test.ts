@@ -66,7 +66,9 @@ async function run(args: string[], opts: Partial<ProgramOptions> = {}) {
     stderr: (s) => (stderr += s),
     now: () => now,
     isTTY: false,
-    open: (p) => opened.push(p),
+    open: (p) => {
+      opened.push(p);
+    },
     ...opts,
   });
   await runProgram(program, args, 'user');
@@ -311,6 +313,12 @@ describe('codechart render', () => {
     expect(vscodeTerm.opened).toEqual([expectedFile()]);
     expect((await run(['render', specFile(spec(2)), '--output', 'web'])).opened).toEqual([]);
     expect((await run(['render', specFile(spec(2)), '--output', 'cli'], { env: { VSCODE_PID: '42' } })).opened).toEqual([]);
+  });
+
+  it('a failed browser open is reported on stderr; the link is still printed', async () => {
+    const r = await run(['render', specFile(spec(2)), '--output', 'web', '--open'], { open: () => 'open exited with 1' });
+    expect(r.err).toBe('codechart: could not open the browser (open exited with 1); open the link instead\n');
+    expect(r.out).toContain('full map');
   });
 
   it('web.open never / always in the global config; ignored in a repo config', async () => {
