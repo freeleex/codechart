@@ -116,11 +116,11 @@ Re-verified by auditors A and B against the built CLI at 33651bd.
 - [x] CI: `npm pack --dry-run` with allowlist assertion (`dist/cli.js`, `skills/codechart/*.md`, `templates/*`, `config.schema.json`, `package.json`, `LICENSE`, `README.md`).
 - [x] CI: add `windows-latest` to the matrix (opener path untested otherwise).
 - [x] Release workflow: on tag `v*`, one job, `permissions: contents: read, id-token: write`, `environment: npm` with required reviewer, `npm ci && npm test && npm stage publish --access public` via a stage-only trusted publisher (OIDC, provenance automatic); each release goes live only after a maintainer's 2FA approval on npmjs.com.
-- [ ] npm account: 2FA for auth and writes; "require 2FA, disallow tokens" once trusted publishing works.
+- [x] npm account: 2FA for auth and writes; "require 2FA, disallow tokens" once trusted publishing works. (done 2026-10-29; stage-only trusted publisher validated by v0.1.1)
 - [x] `.github/dependabot.yml`: `npm` and `github-actions`, weekly, `cooldown: default-days: 7`, group dev deps.
 - [x] CodeQL: SHA-pinned action, `javascript-typescript`, default + `security-extended`, on PR and weekly.
-- [ ] Repo settings: `sha_pinning_required: true`, `allowed_actions: selected`; secret scanning, push protection, private vulnerability reporting and a `main` ruleset (require CI, no force-push) once the repo is public.
-- [x] `SECURITY.md`: supported versions (latest minor); report via private vulnerability reporting, 7-day ack, 30-day fix; threat model; guarantees from the summary below; out of scope (attacker with write access to `~/.claude` or `~/.config/codechart`); cache location and purge (`rm -rf ~/.cache/codechart`).
+- [x] Repo settings: `sha_pinning_required: true`, `allowed_actions: selected`; secret scanning, push protection, private vulnerability reporting and a `main` ruleset (require CI, no force-push) once the repo is public. (done 2026-10-29; `npm` environment requires the maintainer's approval)
+- [x] `SECURITY.md`: supported versions (latest minor); report via private vulnerability reporting, 7-day ack, 30-day fix; threat model; guarantees from the summary below; out of scope (attacker with write access to your agents' skills folders or `~/.config/codechart`); cache location and purge (`rm -rf ~/.cache/codechart`).
 - [x] `package.json`: `repository`, `bugs`, `homepage`, `publishConfig`, `prepack`, exact runtime pins; add `LICENSE`.
 - [x] Docs: release docs must not claim 7-day retention; the cache keeps the newest 20 files per repo (`design.md`).
 
