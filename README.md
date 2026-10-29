@@ -214,7 +214,7 @@ Not because of codechart. It makes no network calls. The diagram is built from w
 `~/.cache/codechart`. It keeps the newest 20 per repo, plus anything under 7 days old.
 
 **I use VS Code, Cursor, Windsurf or Antigravity, and "Open full map" shows HTML source.**
-Those editors open file links as text. codechart detects them and opens new pages in your browser instead. Turn it off with `web.open: never` in `~/.config/codechart/config.yaml`.
+Those editors open file links as text. codechart detects them and opens new pages in your browser instead. Where the editor doesn't allow that (Antigravity sandboxes agent commands), the reply includes the page's address to paste into your browser. Turn auto-open off with `web.open: never` in `~/.config/codechart/config.yaml`.
 
 ## License
 
