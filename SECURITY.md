@@ -38,4 +38,4 @@ Rendered HTML lives in the user cache dir (`~/.cache/codechart` by default, `web
 
 ## Release integrity
 
-The first release (v0.1.0) is published manually by the maintainer with 2FA (`npm publish --access public --provenance=false`; provenance needs a CI provider); later releases are published from version tags by `.github/workflows/publish.yml` with npm provenance. Verify with `npm audit signatures`.
+The first release (v0.1.0) is published manually by the maintainer with 2FA (`npm publish --access public --provenance=false`; provenance needs a CI provider); later releases are staged from version tags by `.github/workflows/publish.yml` (stage-only trusted publisher, npm provenance) and go live only after the maintainer approves them on npmjs.com with 2FA. Verify with `npm audit signatures`.
