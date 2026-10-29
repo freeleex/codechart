@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
+import { Window } from 'happy-dom';
 import { describe, expect, it } from 'vitest';
 import { renderFlowHtml } from '../../src/render/flow/html.js';
 import { layoutFlow } from '../../src/render/flow/layout.js';
@@ -25,9 +26,13 @@ describe('S-17 CSP', () => {
     const html = (await pages()).find(([k]) => k === kind)![1];
     const csp = html.match(/<meta http-equiv="Content-Security-Policy" content="([^"]*)">/)?.[1];
     expect(csp).toBeDefined();
-    const inline = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)];
+    // Parse rather than regex-match: every <script> element, however it is written. JSON data blocks never run.
+    const doc = new new Window().DOMParser().parseFromString(html, 'text/html');
+    const scripts = [...doc.querySelectorAll('script')];
+    const inline = scripts.filter((el) => el.getAttribute('type') !== 'application/json');
+    expect(scripts.length - inline.length).toBe(1);
     expect(inline).toHaveLength(1);
-    const hash = createHash('sha256').update(inline[0]![1]!).digest('base64');
+    const hash = createHash('sha256').update(inline[0]!.textContent).digest('base64');
     expect(csp).toBe(
       `default-src 'none'; style-src 'unsafe-inline'; script-src 'sha256-${hash}'; img-src data:; base-uri 'none'; form-action 'none'`,
     );

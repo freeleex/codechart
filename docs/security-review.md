@@ -189,3 +189,8 @@ Last updated after the final review round.
 - Stored data: rendered HTML only, under the user's cache dir. No telemetry.
 
 **Known open items:** the dev-only esbuild advisory (S-21, not shipped, `npm audit --omit=dev` is clean); S-19 (info); S-24's Windows fix is unit-tested but not yet run on a Windows host; S-29 (dev scripts). Repo and account settings still to apply: see "Repo settings to apply".
+
+## CodeQL alerts (2026-10-29)
+
+- `js/file-system-race` in `src/config/load.ts` and `src/render/flow/anchors.ts`: the file was checked (realpath, `stat`) and then read again by path, so a concurrent swap could slip a FIFO or oversized file past the checks. Both now open once (`O_NOFOLLOW | O_NONBLOCK`) and check and read the same descriptor (`src/read-regular.ts`), reading at most the checked size. Needs a local process writing to the repo during the run; low severity.
+- Five test-only alerts (regex escaping, a case-sensitive `<script>` match, a check-then-read in a test) fixed in the tests.
