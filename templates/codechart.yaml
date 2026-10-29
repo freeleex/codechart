@@ -11,7 +11,8 @@
 # web:
 #   theme: auto                # auto | light | dark
 #   minNodes: 8                # auto output: write HTML from this many nodes on, or when the map cuts text
-# Only in ~/.config/codechart/config.yaml (ignored here): web: outDir: ~/.cache/codechart (relative to home), keep: 20, maxAgeDays: 7 (HTML cleanup)
+# Only in ~/.config/codechart/config.yaml (ignored here): web: outDir: ~/.cache/codechart (relative to home), keep: 20, maxAgeDays: 7 (HTML cleanup),
+#   open: auto (auto | always | never; auto opens new HTML in your browser inside VS Code-based editors, whose links show the source)
 
 # useBuiltinRules: true   # common migration and model paths, "more than 2 changed files depend on each other", and behaviour-flow
 

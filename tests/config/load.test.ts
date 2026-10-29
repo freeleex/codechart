@@ -43,6 +43,7 @@ describe('loadConfig', () => {
       minNodes: 8,
       keep: 20,
       maxAgeDays: 7,
+      open: 'auto',
     });
     expect(c.useBuiltinRules).toBe(true);
     expect(c.rules).toEqual(BUILTIN_RULES);

@@ -18,7 +18,7 @@ import { unionOutputs } from '../rules/resolve.js';
 import type { FlowSpec } from '../spec/flow.js';
 import { validateSpec, type Spec } from '../spec/schema.js';
 import { MAX_SPEC_BYTES } from '../spec/shared.js';
-import { openInBrowser } from './open.js';
+import { inCodeEditor, openInBrowser } from './open.js';
 import { renderFlow } from './render-flow.js';
 
 class InvalidSpec extends Error {
@@ -149,7 +149,8 @@ export function renderCommand(opts: CommandOptions): Command {
           chmodSync(dirname(file), 0o700);
           writeFileSync(file, html, { mode: 0o600 });
           pruneHtml(dirname(file), { ...config.web, now, replaceSlug: slug });
-          if (o.open) (opts.open ?? openInBrowser)(file);
+          const mode = config.web.open;
+          if (o.open || mode === 'always' || (mode === 'auto' && inCodeEditor(opts.env ?? process.env))) (opts.open ?? openInBrowser)(file);
           return file;
         };
 

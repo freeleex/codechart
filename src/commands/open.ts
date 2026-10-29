@@ -10,6 +10,11 @@ export function openArgv(platform: NodeJS.Platform, file: string, env: NodeJS.Pr
   return ['xdg-open', [file]];
 }
 
+// VS Code-based editors (VS Code, Cursor, Windsurf, Antigravity) open file:// links as source, not in a browser.
+export function inCodeEditor(env: NodeJS.ProcessEnv): boolean {
+  return Boolean(env.VSCODE_PID) || env.TERM_PROGRAM === 'vscode';
+}
+
 export function openInBrowser(file: string): void {
   const [cmd, args] = openArgv(process.platform, file);
   try {

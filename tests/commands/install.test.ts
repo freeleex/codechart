@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -32,22 +32,31 @@ afterEach(() => {
   process.exitCode = undefined;
 });
 
-async function run(cwd: string, args: string[]) {
+async function run(cwd: string, args: string[], picked?: number[] | 'cancel') {
   let out = '';
   let err = '';
-  const program = buildProgram({ cwd, home, env: {}, stdout: (s) => (out += s), stderr: (s) => (err += s) });
+  let shown: string[] = [];
+  const choose =
+    picked === undefined
+      ? undefined
+      : async (_: string, items: { label: string; hint: string }[]) => {
+          shown = items.map((i) => `${i.label} ${i.hint}`);
+          return picked === 'cancel' ? undefined : picked;
+        };
+  const program = buildProgram({ cwd, home, env: {}, choose, stdout: (s) => (out += s), stderr: (s) => (err += s) });
   await runProgram(program, args, 'user');
-  return { out, err, code: process.exitCode };
+  return { out, err, code: process.exitCode, shown };
 }
 
 describe('codechart install-skill', () => {
   const target = () => join(home, '.claude', 'skills', 'codechart', 'SKILL.md');
+  beforeEach(() => mkdirSync(join(home, '.claude')));
 
   it('install-skill writes file in temp HOME', async () => {
     const { out, code } = await run(repo, ['install-skill']);
     expect(code).toBeUndefined();
     expect(readFileSync(target(), 'utf8')).toBe(skill);
-    expect(out).toContain(target());
+    expect(out).toBe(`agents: Claude Code\ninstalled for Claude Code: ${join(home, '.claude', 'skills', 'codechart')}\n`);
   });
 
   it('installs every file of the skill, so its links resolve', async () => {
@@ -59,22 +68,22 @@ describe('codechart install-skill', () => {
     }
   });
 
-  it('refuses overwrite', async () => {
+  it('skips an existing install without overwriting it', async () => {
     mkdirSync(join(home, '.claude', 'skills', 'codechart'), { recursive: true });
     writeFileSync(target(), 'mine');
-    const { err, code } = await run(repo, ['install-skill']);
-    expect(code).toBe(1);
-    expect(err).toBe(`exists: ${target()} (use --force)\n`);
+    const { out, code } = await run(repo, ['install-skill']);
+    expect(code).toBeUndefined();
+    expect(out).toContain(`already installed for Claude Code: ${join(home, '.claude', 'skills', 'codechart')} (--force to update)\n`);
     expect(readFileSync(target(), 'utf8')).toBe('mine');
   });
 
-  it('refuses when any skill file exists, writing nothing', async () => {
+  it('skips a folder holding any skill file, writing nothing there', async () => {
     const dir = join(home, '.claude', 'skills', 'codechart');
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, 'spec-guide.md'), 'mine');
-    const { err, code } = await run(repo, ['install-skill']);
-    expect(code).toBe(1);
-    expect(err).toBe(`exists: ${join(dir, 'spec-guide.md')} (use --force)\n`);
+    const { out, code } = await run(repo, ['install-skill']);
+    expect(code).toBeUndefined();
+    expect(out).toContain(`already installed for Claude Code: ${dir}`);
     expect(readFileSync(join(dir, 'spec-guide.md'), 'utf8')).toBe('mine');
     expect(existsSync(target())).toBe(false);
   });
@@ -93,6 +102,109 @@ describe('codechart install-skill', () => {
     const { code } = await run(repo, ['install-skill', '--force']);
     expect(code).toBeUndefined();
     expect(readFileSync(target(), 'utf8')).toBe(skill);
+  });
+});
+
+describe('codechart install-skill for other agents', () => {
+  const skillAt = (...dir: string[]) => join(home, ...dir, 'codechart', 'SKILL.md');
+
+  it('detects agents by their home folder and names them', async () => {
+    mkdirSync(join(home, '.gemini'));
+    mkdirSync(join(home, '.kiro'));
+    const { out, code } = await run(repo, ['install-skill']);
+    expect(code).toBeUndefined();
+    expect(out.split('\n')[0]).toBe('agents: Gemini CLI, Kiro');
+    expect(readFileSync(skillAt('.gemini', 'skills'), 'utf8')).toBe(skill);
+    expect(readFileSync(skillAt('.kiro', 'skills'), 'utf8')).toBe(skill);
+    expect(existsSync(join(home, '.claude'))).toBe(false);
+  });
+
+  it('installs once per folder: agents that also read a chosen folder are skipped', async () => {
+    for (const d of ['.claude', '.cursor', '.codex', '.gemini']) mkdirSync(join(home, d));
+    const { out } = await run(repo, ['install-skill']);
+    expect(out).toContain(`installed for Claude Code, Cursor: ${join(home, '.claude', 'skills', 'codechart')}\n`);
+    expect(out).toContain(`installed for Codex, Gemini CLI: ${join(home, '.agents', 'skills', 'codechart')}\n`);
+    expect(existsSync(skillAt('.claude', 'skills'))).toBe(true);
+    expect(existsSync(skillAt('.agents', 'skills'))).toBe(true);
+    expect(existsSync(skillAt('.cursor', 'skills'))).toBe(false);
+    expect(existsSync(skillAt('.gemini', 'skills'))).toBe(false);
+  });
+
+  it('existing copies in other folders the agents read are reported, and updated with --force', async () => {
+    mkdirSync(join(home, '.gemini', 'skills', 'codechart'), { recursive: true });
+    writeFileSync(skillAt('.gemini', 'skills'), 'old');
+    const keep = await run(repo, ['install-skill', '--agent', 'codex,gemini']);
+    expect(keep.out).toBe(
+      `installed for Codex, Gemini CLI: ${join(home, '.agents', 'skills', 'codechart')}\n` +
+        `already installed for Gemini CLI: ${join(home, '.gemini', 'skills', 'codechart')} (--force to update)\n`,
+    );
+    expect(readFileSync(skillAt('.gemini', 'skills'), 'utf8')).toBe('old');
+    const force = await run(repo, ['install-skill', '--agent', 'codex,gemini', '--force']);
+    expect(force.out).toContain(`installed for Gemini CLI: ${join(home, '.gemini', 'skills', 'codechart')}\n`);
+    expect(readFileSync(skillAt('.gemini', 'skills'), 'utf8')).toBe(skill);
+  });
+
+  it('--agent picks agents without detection, comma or space separated', async () => {
+    const { out, code } = await run(repo, ['install-skill', '--agent', 'codex,copilot', 'junie']);
+    expect(code).toBeUndefined();
+    expect(out).not.toContain('agents:');
+    expect(existsSync(skillAt('.agents', 'skills'))).toBe(true);
+    expect(existsSync(skillAt('.copilot', 'skills'))).toBe(false);
+    expect(existsSync(skillAt('.junie', 'skills'))).toBe(true);
+  });
+
+  it('skips folders already installed and installs the rest', async () => {
+    for (const d of ['.claude', '.kiro']) mkdirSync(join(home, d));
+    mkdirSync(join(home, '.claude', 'skills', 'codechart'), { recursive: true });
+    writeFileSync(skillAt('.claude', 'skills'), 'mine');
+    const { out, code } = await run(repo, ['install-skill']);
+    expect(code).toBeUndefined();
+    expect(out).toContain('already installed for Claude Code');
+    expect(out).toContain(`installed for Kiro: ${join(home, '.kiro', 'skills', 'codechart')}\n`);
+    expect(readFileSync(skillAt('.claude', 'skills'), 'utf8')).toBe('mine');
+    expect(readFileSync(skillAt('.kiro', 'skills'), 'utf8')).toBe(skill);
+  });
+
+  it('in a terminal, lets you pick among the detected agents', async () => {
+    for (const d of ['.claude', '.gemini', '.kiro']) mkdirSync(join(home, d));
+    const { shown, code } = await run(repo, ['install-skill'], [1, 2]);
+    expect(code).toBeUndefined();
+    expect(shown).toEqual(['Claude Code ~/.claude/skills', 'Gemini CLI ~/.gemini/skills', 'Kiro ~/.kiro/skills']);
+    expect(existsSync(skillAt('.claude', 'skills'))).toBe(false);
+    expect(existsSync(skillAt('.gemini', 'skills'))).toBe(true);
+    expect(existsSync(skillAt('.kiro', 'skills'))).toBe(true);
+  });
+
+  it('cancelling or picking nothing writes nothing', async () => {
+    for (const d of ['.claude', '.kiro']) mkdirSync(join(home, d));
+    const cancel = await run(repo, ['install-skill'], 'cancel');
+    expect(cancel.code).toBe(1);
+    expect(cancel.err).toBe('codechart: cancelled, nothing installed\n');
+    process.exitCode = undefined;
+    const none = await run(repo, ['install-skill'], []);
+    expect(none.code).toBeUndefined();
+    expect(none.out).toBe('nothing selected, nothing installed\n');
+    expect(existsSync(join(home, '.claude', 'skills'))).toBe(false);
+    expect(existsSync(join(home, '.kiro', 'skills'))).toBe(false);
+  });
+
+  it('--dir installs into the given skills folder only', async () => {
+    mkdirSync(join(home, '.claude'));
+    const { code } = await run(repo, ['install-skill', '--dir', 'my-skills']);
+    expect(code).toBeUndefined();
+    expect(readFileSync(join(repo, 'my-skills', 'codechart', 'SKILL.md'), 'utf8')).toBe(skill);
+    expect(existsSync(skillAt('.claude', 'skills'))).toBe(false);
+  });
+
+  it('unknown agent and no agent found fail without writing', async () => {
+    const unknown = await run(repo, ['install-skill', '--agent', 'nope']);
+    expect(unknown.code).toBe(1);
+    expect(unknown.err).toMatch(/^codechart: unknown agent 'nope' \(known: claude, codex, /);
+    process.exitCode = undefined;
+    const none = await run(repo, ['install-skill']);
+    expect(none.code).toBe(1);
+    expect(none.err).toContain('no agent found');
+    expect(readdirSync(home)).toEqual([]);
   });
 });
 

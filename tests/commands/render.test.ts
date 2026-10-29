@@ -304,6 +304,31 @@ describe('codechart render', () => {
     expect(r2.opened).toEqual([]);
   });
 
+  it('web.open auto: opens new HTML inside VS Code-based editors only', async () => {
+    const editor = await run(['render', specFile(spec(2)), '--output', 'web'], { env: { VSCODE_PID: '42' } });
+    expect(editor.opened).toEqual([expectedFile()]);
+    const vscodeTerm = await run(['render', specFile(spec(2)), '--output', 'web'], { env: { TERM_PROGRAM: 'vscode' } });
+    expect(vscodeTerm.opened).toEqual([expectedFile()]);
+    expect((await run(['render', specFile(spec(2)), '--output', 'web'])).opened).toEqual([]);
+    expect((await run(['render', specFile(spec(2)), '--output', 'cli'], { env: { VSCODE_PID: '42' } })).opened).toEqual([]);
+  });
+
+  it('web.open never / always in the global config; ignored in a repo config', async () => {
+    const globalOpen = (mode: string) => {
+      mkdirSync(join(home, '.config', 'codechart'), { recursive: true });
+      writeFileSync(join(home, '.config', 'codechart', 'config.yaml'), `web:\n  outDir: ${out}\n  open: ${mode}\n`);
+    };
+    globalOpen('never');
+    expect((await run(['render', specFile(spec(2)), '--output', 'web'], { env: { VSCODE_PID: '42' } })).opened).toEqual([]);
+    expect((await run(['render', specFile(spec(2)), '--output', 'web', '--open'], { env: { VSCODE_PID: '42' } })).opened).toEqual([expectedFile()]);
+    globalOpen('always');
+    expect((await run(['render', specFile(spec(2)), '--output', 'web'])).opened).toEqual([expectedFile()]);
+    config('  open: always\n');
+    const repoSet = await run(['render', specFile(spec(2)), '--output', 'web']);
+    expect(repoSet.opened).toEqual([]);
+    expect(repoSet.err).toContain('web.open are global-only; ignored');
+  });
+
   it('color only when stdout is a TTY', async () => {
     const plain = await run(['render', specFile(spec(2)), '--output', 'cli']);
     expect(plain.out).not.toContain('\u001b[');
