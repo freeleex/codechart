@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { parse } from 'yaml';
 import { builtinRules } from '../../src/config/builtin-rules.js';
 import { buildProgram } from '../../src/program.js';
 import { STEP_STATUSES } from '../../src/spec/flow.js';
@@ -55,6 +56,19 @@ describe('skill command examples (S-1)', () => {
   it('SKILL.md states the allowlist and the leading-dash ban', () => {
     expect(skill).toContain('Single-quote every value');
     expect(skill).toContain("Only paste values made of letters, digits, spaces and `. _ / @ : + = , - [ ] ( ) ~ ^` that don't start with `-`");
+  });
+});
+
+describe('SKILL.md frontmatter (Agent Skills spec)', () => {
+  // Strict parsers (OpenCode and others) drop a skill whose frontmatter isn't valid YAML.
+  it('is strict YAML with a name matching the folder and a description of at most 1024 chars', () => {
+    const fm = /^---\n([\s\S]*?)\n---\n/.exec(skill);
+    expect(fm).not.toBeNull();
+    const meta = parse(fm![1]!, { strict: true, uniqueKeys: true }) as Record<string, unknown>;
+    expect(meta.name).toBe('codechart');
+    expect(typeof meta.description).toBe('string');
+    expect((meta.description as string).length).toBeGreaterThan(0);
+    expect((meta.description as string).length).toBeLessThanOrEqual(1024);
   });
 });
 
