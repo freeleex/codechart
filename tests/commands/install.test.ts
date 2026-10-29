@@ -130,6 +130,20 @@ describe('codechart install-skill for other agents', () => {
     expect(existsSync(skillAt('.gemini', 'skills'))).toBe(false);
   });
 
+  it('existing copies in other folders the agents read are reported, and updated with --force', async () => {
+    mkdirSync(join(home, '.gemini', 'skills', 'codechart'), { recursive: true });
+    writeFileSync(skillAt('.gemini', 'skills'), 'old');
+    const keep = await run(repo, ['install-skill', '--agent', 'codex,gemini']);
+    expect(keep.out).toBe(
+      `installed for Codex, Gemini CLI: ${join(home, '.agents', 'skills', 'codechart')}\n` +
+        `already installed for Gemini CLI: ${join(home, '.gemini', 'skills', 'codechart')} (--force to update)\n`,
+    );
+    expect(readFileSync(skillAt('.gemini', 'skills'), 'utf8')).toBe('old');
+    const force = await run(repo, ['install-skill', '--agent', 'codex,gemini', '--force']);
+    expect(force.out).toContain(`installed for Gemini CLI: ${join(home, '.gemini', 'skills', 'codechart')}\n`);
+    expect(readFileSync(skillAt('.gemini', 'skills'), 'utf8')).toBe(skill);
+  });
+
   it('--agent picks agents without detection, comma or space separated', async () => {
     const { out, code } = await run(repo, ['install-skill', '--agent', 'codex,copilot', 'junie']);
     expect(code).toBeUndefined();

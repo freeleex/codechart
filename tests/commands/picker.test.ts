@@ -40,4 +40,15 @@ describe('picker drawing', () => {
     expect(lines[2]).toBe('❯ ◉ Gemini CLI  \x1b[2m~/.gemini/skills\x1b[0m');
     expect(lines[3]).toContain('Space toggle');
   });
+
+  it('cuts every line to the width so nothing wraps', () => {
+    const strip = (l: string) => l.replace(/\x1b\[[0-9;]*m/g, '');
+    const lines = pickerLines('Install the codechart skill for:', [{ label: 'GitHub Copilot', hint: '~/.copilot/skills' }], {
+      cursor: 0,
+      checked: [true],
+    }, 24);
+    for (const l of lines) expect(strip(l).length, l).toBeLessThanOrEqual(24);
+    expect(strip(lines[1]!)).toBe('❯ ◉ GitHub Copilot  ~/.…');
+    expect(strip(lines[2]!)).toBe('↑/↓ move · Space toggle…');
+  });
 });

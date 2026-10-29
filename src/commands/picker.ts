@@ -42,12 +42,19 @@ export function pickerStep(s: PickerState, key: Key): PickerState {
   }
 }
 
-export function pickerLines(title: string, items: PickerItem[], s: PickerState): string[] {
-  const width = Math.max(...items.map((i) => i.label.length));
+const cut = (text: string, max: number) => (text.length <= max ? text : `${text.slice(0, Math.max(0, max - 1))}…`);
+const dim = (text: string) => (text ? `\x1b[2m${text}\x1b[0m` : '');
+
+// Every line fits in `width` columns, so redrawing can move up exactly one row per line.
+export function pickerLines(title: string, items: PickerItem[], s: PickerState, width = Infinity): string[] {
+  const pad = Math.max(...items.map((i) => i.label.length));
   return [
-    title,
-    ...items.map((it, i) => `${i === s.cursor ? '❯' : ' '} ${s.checked[i] ? '◉' : '◯'} ${it.label.padEnd(width)}  \x1b[2m${it.hint}\x1b[0m`),
-    '\x1b[2m↑/↓ move · Space toggle · a all · Enter install · Esc cancel\x1b[0m',
+    cut(title, width),
+    ...items.map((it, i) => {
+      const head = cut(`${i === s.cursor ? '❯' : ' '} ${s.checked[i] ? '◉' : '◯'} ${it.label.padEnd(pad)}  `, width);
+      return head + dim(cut(it.hint, width - head.length));
+    }),
+    dim(cut('↑/↓ move · Space toggle · a all · Enter install · Esc cancel', width)),
   ];
 }
 
@@ -57,7 +64,7 @@ export function terminalPicker(title: string, items: PickerItem[]): Promise<numb
   let s: PickerState = { cursor: 0, checked: items.map(() => true) };
   let drawn = 0;
   const draw = () => {
-    const lines = pickerLines(title, items, s);
+    const lines = pickerLines(title, items, s, (stdout.columns || 80) - 1);
     stdout.write((drawn ? `\x1b[${drawn}A\r\x1b[0J` : '') + lines.join('\n') + '\n');
     drawn = lines.length;
   };

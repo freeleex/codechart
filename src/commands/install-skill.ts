@@ -69,13 +69,16 @@ export function installSkillCommand(opts: CommandOptions): Command {
           opts.stdout(`agents: ${agents.map((a) => a.label).join(', ')}\n`);
         }
       }
-      const targets = skillFolders(agents).map((g) => ({
-        dir: join(home, g.folder, 'codechart'),
-        who: g.agents.map((a) => a.label).join(', '),
-      }));
-      if (o.dir !== undefined) targets.push({ dir: join(resolve(opts.cwd ?? process.cwd(), o.dir), 'codechart'), who: 'your folder' });
       // SKILL.md first; it links to the other files.
       const files = readdirSync(packageFile('skills/codechart')).sort((a, b) => Number(b === 'SKILL.md') - Number(a === 'SKILL.md'));
+      const groups = skillFolders(agents);
+      // Earlier installs in other folders these agents read would go stale, so report or update them too.
+      for (const folder of new Set(agents.flatMap((a) => [a.skills, ...a.reads]))) {
+        if (groups.some((g) => g.folder === folder) || !hasAny(files.map((f) => join(home, folder, 'codechart', f)))) continue;
+        groups.push({ folder, agents: agents.filter((a) => [a.skills, ...a.reads].includes(folder)) });
+      }
+      const targets = groups.map((g) => ({ dir: join(home, g.folder, 'codechart'), who: g.agents.map((a) => a.label).join(', ') }));
+      if (o.dir !== undefined) targets.push({ dir: join(resolve(opts.cwd ?? process.cwd(), o.dir), 'codechart'), who: 'your folder' });
       for (const { dir, who } of targets) {
         const pairs = files.map((f) => ({ source: packageFile(`skills/codechart/${f}`), target: join(dir, f) }));
         if (o.force !== true && hasAny(pairs.map((p) => p.target))) {
