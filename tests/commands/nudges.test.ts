@@ -1,0 +1,241 @@
+import { execFileSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { changedFiles, turnUsedCodechart } from '../../src/commands/hook.js';
+import { addReminder, installClaudeHooks, REMINDER } from '../../src/commands/nudges.js';
+import { buildProgram, runProgram } from '../../src/program.js';
+
+let tmp: string;
+let home: string;
+let repo: string;
+
+beforeEach(() => {
+  tmp = mkdtempSync(join(tmpdir(), 'codechart-nudges-'));
+  home = join(tmp, 'home');
+  repo = join(tmp, 'repo');
+  mkdirSync(home);
+  mkdirSync(repo);
+  process.exitCode = undefined;
+});
+
+afterEach(() => {
+  rmSync(tmp, { recursive: true, force: true });
+  process.exitCode = undefined;
+});
+
+const BLOCK = `<!-- codechart -->\n${REMINDER}\n<!-- /codechart -->\n`;
+
+async function run(args: string[], stdin = '', choose?: (t: string, items: { label: string; hint: string }[], checked?: boolean) => Promise<number[] | undefined>) {
+  let out = '';
+  let err = '';
+  const program = buildProgram({ cwd: repo, home, env: {}, stdin: async () => stdin, choose, stdout: (s) => (out += s), stderr: (s) => (err += s) });
+  await runProgram(program, args, 'user');
+  return { out, err, code: process.exitCode };
+}
+
+describe('addReminder', () => {
+  const file = () => join(home, 'CLAUDE.md');
+
+  it('creates the file, or appends after a blank line, once', () => {
+    expect(addReminder(file(), false)).toBe('added');
+    expect(readFileSync(file(), 'utf8')).toBe(BLOCK);
+    writeFileSync(file(), '# mine\n- a rule');
+    expect(addReminder(file(), false)).toBe('added');
+    expect(readFileSync(file(), 'utf8')).toBe(`# mine\n- a rule\n\n${BLOCK}`);
+    expect(addReminder(file(), false)).toBe('present');
+    expect(readFileSync(file(), 'utf8')).toBe(`# mine\n- a rule\n\n${BLOCK}`);
+  });
+
+  it('a different reminder stays unless forced, and only the block is replaced', () => {
+    writeFileSync(file(), 'before\n<!-- codechart -->\nold text\n<!-- /codechart -->\nafter\n');
+    expect(addReminder(file(), false)).toBe('outdated');
+    expect(readFileSync(file(), 'utf8')).toContain('old text');
+    expect(addReminder(file(), true)).toBe('updated');
+    expect(readFileSync(file(), 'utf8')).toBe(`before\n${BLOCK}after\n`);
+  });
+
+  it('writes through a symlink (dotfiles) but refuses a folder', () => {
+    const real = join(tmp, 'dotfiles-CLAUDE.md');
+    writeFileSync(real, 'x\n');
+    symlinkSync(real, file());
+    addReminder(file(), false);
+    expect(readFileSync(real, 'utf8')).toBe(`x\n\n${BLOCK}`);
+    expect(() => addReminder(home, false)).toThrow('not a regular file');
+  });
+});
+
+describe('installClaudeHooks', () => {
+  const file = () => join(home, '.claude', 'settings.json');
+
+  it('adds both hooks, keeps other settings and hooks, and is idempotent', () => {
+    mkdirSync(join(home, '.claude'));
+    const other = { matcher: 'Bash', hooks: [{ type: 'command', command: 'guard.py' }] };
+    writeFileSync(file(), JSON.stringify({ model: 'x', hooks: { PreToolUse: [other], Stop: [{ hooks: [{ type: 'command', command: 'mine' }] }] } }));
+    expect(installClaudeHooks(file())).toBe('added');
+    const s = JSON.parse(readFileSync(file(), 'utf8'));
+    expect(s.model).toBe('x');
+    expect(s.hooks.PreToolUse).toEqual([other]);
+    expect(s.hooks.Stop).toEqual([
+      { hooks: [{ type: 'command', command: 'mine' }] },
+      { hooks: [{ type: 'command', command: 'codechart hook stop', timeout: 30 }] },
+    ]);
+    expect(s.hooks.UserPromptSubmit).toEqual([{ hooks: [{ type: 'command', command: 'codechart hook prompt', timeout: 10 }] }]);
+    const text = readFileSync(file(), 'utf8');
+    expect(installClaudeHooks(file())).toBe('present');
+    expect(readFileSync(file(), 'utf8')).toBe(text);
+  });
+
+  it('creates settings.json when missing', () => {
+    expect(installClaudeHooks(file())).toBe('added');
+    expect(Object.keys(JSON.parse(readFileSync(file(), 'utf8')).hooks)).toEqual(['UserPromptSubmit', 'Stop']);
+  });
+
+  it('refuses invalid JSON or an unexpected shape without touching the file', () => {
+    mkdirSync(join(home, '.claude'));
+    writeFileSync(file(), '{ // comment\n}');
+    expect(() => installClaudeHooks(file())).toThrow('not valid JSON');
+    writeFileSync(file(), '{"hooks": []}');
+    expect(() => installClaudeHooks(file())).toThrow('"hooks" is not an object');
+    expect(readFileSync(file(), 'utf8')).toBe('{"hooks": []}');
+  });
+});
+
+describe('install-skill --reminder / --hook', () => {
+  beforeEach(() => {
+    mkdirSync(join(home, '.claude'));
+    mkdirSync(join(home, '.config', 'opencode'), { recursive: true });
+  });
+
+  it('--reminder writes each agent its instructions file; --hook writes Claude Code settings', async () => {
+    const r = await run(['install-skill', '--agent', 'claude,opencode', '--reminder', '--hook']);
+    expect(r.code).toBeUndefined();
+    expect(readFileSync(join(home, '.claude', 'CLAUDE.md'), 'utf8')).toBe(BLOCK);
+    expect(readFileSync(join(home, '.config', 'opencode', 'AGENTS.md'), 'utf8')).toBe(BLOCK);
+    expect(r.out).toContain(`reminder added: ${join(home, '.claude', 'CLAUDE.md')}\n`);
+    expect(r.out).toContain(`hook added: ${join(home, '.claude', 'settings.json')}\n`);
+  });
+
+  it('without flags, offers both unchecked and installs only what was picked', async () => {
+    let offered: { title: string; labels: string[]; checked?: boolean } | undefined;
+    const choose = async (title: string, items: { label: string; hint: string }[], checked?: boolean) => {
+      if (checked !== false) return items.map((_, i) => i);
+      offered = { title, labels: items.map((i) => i.label), checked };
+      return [1];
+    };
+    const r = await run(['install-skill'], '', choose);
+    expect(offered).toEqual({ title: 'Optional: help agents remember to use codechart', labels: ['Reminder line', 'Claude Code hook'], checked: false });
+    expect(r.out).toContain('hook added');
+    expect(r.out).not.toContain('reminder');
+  });
+
+  it('without a terminal and without flags, adds nothing', async () => {
+    const r = await run(['install-skill', '--agent', 'claude']);
+    expect(r.out).not.toMatch(/reminder|hook/);
+  });
+
+  it('the hook is not offered when Claude Code is not picked', async () => {
+    let labels: string[] = [];
+    await run(['install-skill', '--agent', 'opencode'], '', async (_, items, checked) => {
+      if (checked === false) labels = items.map((i) => i.label);
+      return [];
+    });
+    expect(labels).toEqual(['Reminder line']);
+  });
+});
+
+describe('changedFiles', () => {
+  it('counts files whose content changed, appeared or went away, plus files of commits made in between', () => {
+    const before = { head: 'a', files: { 'same.ts': 'h1', 'edited.ts': 'h1', 'committed.ts': 'h1' } };
+    const now = { head: 'b', files: { 'same.ts': 'h1', 'edited.ts': 'h2', 'new.ts': 'h3' } };
+    expect(changedFiles(before, now, (a, b) => (a === 'a' && b === 'b' ? ['in-commit.ts'] : []))).toEqual([
+      'committed.ts',
+      'edited.ts',
+      'in-commit.ts',
+      'new.ts',
+    ]);
+  });
+});
+
+describe('turnUsedCodechart', () => {
+  const line = (o: unknown) => JSON.stringify(o);
+  const prompt = line({ type: 'user', message: { content: 'do it' } });
+  const toolResult = line({ type: 'user', message: { content: [{ type: 'tool_result', content: 'ok' }] } });
+  const text = (t: string) => line({ type: 'assistant', message: { content: [{ type: 'text', text: t }] } });
+  const bash = (command: string) => line({ type: 'assistant', message: { content: [{ type: 'tool_use', name: 'Bash', input: { command } }] } });
+
+  it('a map or flow block in this turn counts', () => {
+    expect(turnUsedCodechart([prompt, toolResult, text('**Map** _(key: …)_')].join('\n'))).toBe(true);
+    expect(turnUsedCodechart([prompt, text('**Flow** _(key: …)_')].join('\n'))).toBe(true);
+  });
+
+  it('running codechart check or render counts, even when it drew nothing', () => {
+    expect(turnUsedCodechart([prompt, bash("git diff; codechart check --git")].join('\n'))).toBe(true);
+  });
+
+  it('only this turn: a map before the last prompt does not count', () => {
+    expect(turnUsedCodechart([prompt, text('**Map**'), prompt, text('done')].join('\n'))).toBe(false);
+  });
+
+  it('tool results and a cut first line do not reset or break it', () => {
+    expect(turnUsedCodechart(['{"type":"assis', prompt, text('**Map**'), toolResult].join('\n'))).toBe(true);
+  });
+});
+
+describe('codechart hook', () => {
+  const git = (...args: string[]) => execFileSync('git', args, { cwd: repo, stdio: 'pipe' });
+  const input = (extra: Record<string, unknown> = {}) => JSON.stringify({ session_id: 's1', cwd: repo, ...extra });
+  const write = (...files: string[]) => files.forEach((f) => writeFileSync(join(repo, f), `${f} ${Math.random()}\n`));
+
+  beforeEach(() => {
+    git('init', '-q');
+    git('config', 'user.email', 't@example.com');
+    git('config', 'user.name', 'T');
+    git('config', 'commit.gpgsign', 'false');
+    write('a.ts', 'b.ts', 'c.ts', 'mine.ts');
+    git('add', '.');
+    git('commit', '-q', '-m', 'init');
+    write('mine.ts');
+  });
+
+  it('asks for a diagram when the turn changed 3+ files and nothing used codechart', async () => {
+    expect((await run(['hook', 'prompt'], input())).out).toBe('');
+    write('a.ts', 'b.ts', 'new.ts');
+    const r = await run(['hook', 'stop'], input({ last_assistant_message: 'Done: added new.ts.' }));
+    const out = JSON.parse(r.out);
+    expect(out.hookSpecificOutput.hookEventName).toBe('Stop');
+    expect(out.hookSpecificOutput.additionalContext).toContain('This turn changed 3 files (a.ts, b.ts, new.ts)');
+    expect(r.code).toBeUndefined();
+  });
+
+  it('stays quiet under 3 files, ignoring files already changed before the turn', async () => {
+    await run(['hook', 'prompt'], input());
+    write('a.ts', 'b.ts');
+    expect((await run(['hook', 'stop'], input())).out).toBe('');
+  });
+
+  it('counts files committed during the turn', async () => {
+    await run(['hook', 'prompt'], input());
+    write('a.ts', 'b.ts', 'c.ts');
+    git('commit', '-q', '-m', 'turn', 'a.ts', 'b.ts', 'c.ts');
+    expect(JSON.parse((await run(['hook', 'stop'], input())).out).hookSpecificOutput.additionalContext).toContain('(a.ts, b.ts, c.ts)');
+  });
+
+  it('asks only once per turn, and not when the reply has a diagram', async () => {
+    await run(['hook', 'prompt'], input());
+    write('a.ts', 'b.ts', 'c.ts');
+    expect((await run(['hook', 'stop'], input({ stop_hook_active: true }))).out).toBe('');
+    expect((await run(['hook', 'stop'], input({ last_assistant_message: '**Map** _(key)_' }))).out).toBe('');
+    const transcript = join(tmp, 't.jsonl');
+    writeFileSync(transcript, [JSON.stringify({ type: 'user', message: { content: 'go' } }), JSON.stringify({ type: 'assistant', message: { content: [{ type: 'text', text: '**Map** _(key)_' }] } })].join('\n'));
+    expect((await run(['hook', 'stop'], input({ transcript_path: transcript }))).out).toBe('');
+  });
+
+  it('never fails: no snapshot, bad input, outside a repo', async () => {
+    for (const stdin of [input(), 'not json', JSON.stringify({ session_id: '../x', cwd: repo }), JSON.stringify({ session_id: 's', cwd: tmp })]) {
+      const r = await run(['hook', 'stop'], stdin);
+      expect(r).toEqual({ out: '', err: '', code: undefined });
+    }
+  });
+});

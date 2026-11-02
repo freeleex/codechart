@@ -108,6 +108,13 @@ That's it. Open your coding agent in any repo and try:
 
 Needs Node 22.12+. `install-skill` finds the agents you use and asks which ones get the skill. Existing installs are skipped (`--force` updates them). Skip the question with `--agent codex,gemini`, or use `--dir <skills folder>` for anything else.
 
+### Optional: help agents remember it
+
+Agents load a skill only when they think of it, and in long sessions they sometimes don't. `install-skill` then offers two opt-ins (both off by default; flags skip the question):
+
+- **Reminder line** (`--reminder`): one line in your agents' global instructions file (`~/.claude/CLAUDE.md`, `~/.config/opencode/AGENTS.md`, `~/.codex/AGENTS.md`, `~/.gemini/GEMINI.md`) asking them to use codechart for changes that touch 3+ files or add branching behaviour. It sits between `<!-- codechart -->` markers; delete them to remove it.
+- **Claude Code hook** (`--hook`): adds `codechart hook prompt` (UserPromptSubmit) and `codechart hook stop` (Stop) to `~/.claude/settings.json`. When a turn changed 3+ files and the reply has no diagram, Claude is asked once to follow the skill. Files you had already changed before the turn don't count. Remove the two entries to turn it off.
+
 **Works with** any agent that supports [Agent Skills](https://agentskills.io): Codex, Gemini CLI, GitHub Copilot, Cursor, OpenCode, Goose, Amp, Windsurf, Cline, Roo Code, Kiro, Junie, Factory Droid and Claude Code.
 
 ## What you get
@@ -142,6 +149,7 @@ The CLI is small: a 46.5 kB package, 5 runtime dependencies, and a cold start ar
 - No network calls, no telemetry.
 - No shell: only read-only `git` and your OS opener, called with argument arrays.
 - HTML pages load nothing external, and all text is escaped. They're saved to `~/.cache/codechart`, never to your repo.
+- The optional hook keeps, per session, the names and content hashes of your changed files in `~/.cache/codechart/turns` (removed after 7 days), never their contents.
 - Audited before release across 8 areas, including untrusted repos and prompt-injected specs. See [docs/security-review.md](docs/security-review.md) and [SECURITY.md](SECURITY.md).
 
 ## Configure
@@ -195,7 +203,8 @@ Rules have a `name` plus exactly one of `paths` (globs: `*`, `**`, `?`, `[..]`; 
 | `codechart schema` | Spec JSON schema; `--flow` for flow specs, `--config` for the config file |
 | `codechart config` | Config in effect and where each value comes from (`--json`) |
 | `codechart init` | Write a commented starter `.codechart.yaml` at the git root (`--force` to overwrite) |
-| `codechart install-skill` | Install the skill for the agents found in your home folder. `--agent <names>`, `--dir <path>`, `--force` to overwrite |
+| `codechart install-skill` | Install the skill for the agents found in your home folder. `--agent <names>`, `--dir <path>`, `--force` to overwrite, `--reminder`, `--hook` |
+| `codechart hook prompt\|stop` | Run by the Claude Code hook; reads the hook's JSON on stdin |
 
 </details>
 

@@ -4,8 +4,9 @@ import { join, resolve } from 'node:path';
 import { Command } from 'commander';
 import { packageFile } from '../assets.js';
 import type { CommandOptions } from '../program.js';
-import { AGENTS, skillFolders } from './agents.js';
+import { AGENTS, skillFolders, type AgentPreset } from './agents.js';
 import { copyFiles } from './copy-file.js';
+import { addReminder, installClaudeHooks } from './nudges.js';
 import { terminalPicker } from './picker.js';
 
 const NAMES = AGENTS.map((a) => a.name).join(', ');
@@ -22,13 +23,59 @@ const hasAny = (paths: string[]) =>
     }
   });
 
+interface Extras {
+  reminder: boolean;
+  hook: boolean;
+}
+
+async function chooseExtras(agents: AgentPreset[], opts: CommandOptions): Promise<Extras> {
+  const choose = opts.choose ?? terminalChoose();
+  const files = agents.flatMap((a) => (a.instructions ? [`~/${a.instructions}`] : []));
+  const items: { key: keyof Extras; label: string; hint: string }[] = [];
+  if (files.length) items.push({ key: 'reminder', label: 'Reminder line', hint: `use codechart for 3+ file changes → ${files.join(', ')}` });
+  if (agents.some((a) => a.name === 'claude')) {
+    items.push({ key: 'hook', label: 'Claude Code hook', hint: 'ask for a diagram when a turn changed 3+ files → ~/.claude/settings.json' });
+  }
+  if (!choose || items.length === 0) return { reminder: false, hook: false };
+  const picked = await choose('Optional: help agents remember to use codechart', items, false);
+  const keys = new Set((picked ?? []).map((i) => items[i]!.key));
+  return { reminder: keys.has('reminder'), hook: keys.has('hook') };
+}
+
+function installExtras(extras: Extras, agents: AgentPreset[], home: string, force: boolean, opts: CommandOptions) {
+  const report = (what: string, run: () => string) => {
+    try {
+      opts.stdout(`${run()}\n`);
+    } catch (e) {
+      opts.stderr(`codechart: ${what}: ${(e as Error).message}\n`);
+      process.exitCode = 1;
+    }
+  };
+  if (extras.reminder) {
+    for (const a of agents) {
+      if (!a.instructions) continue;
+      const file = join(home, a.instructions);
+      report('reminder', () => {
+        const r = addReminder(file, force);
+        return r === 'outdated' ? `reminder differs in ${file} (--force to update)` : r === 'present' ? `reminder already in ${file}` : `reminder ${r}: ${file}`;
+      });
+    }
+  }
+  if (extras.hook) {
+    const file = join(home, '.claude', 'settings.json');
+    report('hook', () => (installClaudeHooks(file) === 'added' ? `hook added: ${file}` : `hook already in ${file}`));
+  }
+}
+
 export function installSkillCommand(opts: CommandOptions): Command {
   return new Command('install-skill')
     .description('install the skill for the agents found in your home folder (or --agent / --dir)')
     .option('--agent <names...>', `install for these agents: ${NAMES}`)
     .option('--dir <path>', 'install into this skills folder')
     .option('--force', 'overwrite an existing install')
-    .action(async (o: { agent?: string[]; dir?: string; force?: boolean }) => {
+    .option('--reminder', "add a one-line reminder to use codechart to each agent's global instructions file")
+    .option('--hook', 'add a Claude Code hook that asks for a diagram after a turn that changed 3+ files without one')
+    .action(async (o: { agent?: string[]; dir?: string; force?: boolean; reminder?: boolean; hook?: boolean }) => {
       const home = opts.home ?? homedir();
       const names = o.agent?.flatMap((n) => n.split(',')).map((n) => n.trim().toLowerCase()).filter(Boolean);
       const unknown = names?.find((n) => !AGENTS.some((a) => a.name === n));
@@ -87,5 +134,7 @@ export function installSkillCommand(opts: CommandOptions): Command {
         }
         if (copyFiles(pairs, o.force === true, { ...opts, stdout: () => {} })) opts.stdout(`installed for ${who}: ${dir}\n`);
       }
+      const extras = o.reminder || o.hook ? { reminder: o.reminder === true, hook: o.hook === true } : await chooseExtras(agents, opts);
+      installExtras(extras, agents, home, o.force === true, opts);
     });
 }

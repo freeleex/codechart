@@ -32,20 +32,26 @@ afterEach(() => {
   process.exitCode = undefined;
 });
 
-async function run(cwd: string, args: string[], picked?: number[] | 'cancel') {
+/** `extras`: what to pick in the optional reminder/hook picker (shown unchecked); nothing by default. */
+async function run(cwd: string, args: string[], picked?: number[] | 'cancel', extras: number[] = []) {
   let out = '';
   let err = '';
   let shown: string[] = [];
+  let extrasShown: string[] = [];
   const choose =
     picked === undefined
       ? undefined
-      : async (_: string, items: { label: string; hint: string }[]) => {
+      : async (_: string, items: { label: string; hint: string }[], checked?: boolean) => {
+          if (checked === false) {
+            extrasShown = items.map((i) => `${i.label} ${i.hint}`);
+            return extras;
+          }
           shown = items.map((i) => `${i.label} ${i.hint}`);
           return picked === 'cancel' ? undefined : picked;
         };
   const program = buildProgram({ cwd, home, env: {}, choose, stdout: (s) => (out += s), stderr: (s) => (err += s) });
   await runProgram(program, args, 'user');
-  return { out, err, code: process.exitCode, shown };
+  return { out, err, code: process.exitCode, shown, extrasShown };
 }
 
 describe('codechart install-skill', () => {

@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import { win32 } from 'node:path';
+import { existsSync, lstatSync } from 'node:fs';
+import { join, win32 } from 'node:path';
 import { hasHiddenChars } from '../render/strip.js';
 
 const MAX_REF = 200;
@@ -22,7 +22,7 @@ let gitPath: string | undefined;
 // A checkout's own .git/config (an unpacked archive, not a clone) must not make codechart run commands or go online.
 const SAFE_ARGS = ['--no-optional-locks', '-c', 'core.fsmonitor=false', '-c', 'protocol.allow=never'];
 
-function git(cwd: string, args: string[], config: [string, string][] = []): string {
+function git(cwd: string, args: string[], config: [string, string][] = [], input?: string): string {
   try {
     gitPath ??= gitBinary();
     const n = Number(process.env.GIT_CONFIG_COUNT) || 0;
@@ -38,7 +38,7 @@ function git(cwd: string, args: string[], config: [string, string][] = []): stri
       encoding: 'utf8',
       // -uall on big trees can exceed the 1 MiB default
       maxBuffer: 256 * 1024 * 1024,
-      stdio: ['ignore', 'pipe', 'pipe'],
+      ...(input === undefined ? { stdio: ['ignore', 'pipe', 'pipe'] as const } : { input, stdio: ['pipe', 'pipe', 'pipe'] as const }),
     });
   } catch (e) {
     const stderr = String((e as { stderr?: unknown }).stderr ?? '').trim().split('\n')[0];
@@ -144,4 +144,35 @@ export function gitFileAt(cwd: string, sha: string, rel: string, maxBytes: numbe
   if (type !== 'blob' || mode === '120000') return { error: `${rel} is not a regular file at ${sha.slice(0, 12)}` };
   if (Number(git(cwd, ['cat-file', '-s', oid!]).trim()) > maxBytes) return { error: `${rel} is too large (over 5 MB)` };
   return git(cwd, ['cat-file', 'blob', oid!]);
+}
+
+/** HEAD's sha, or undefined before the first commit. */
+export function gitHead(cwd: string): string | undefined {
+  try {
+    return git(cwd, ['rev-parse', '--verify', '--quiet', 'HEAD^{commit}']).trim() || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Each uncommitted file with its content hash (`deleted` when gone), to tell later which ones changed.
+ * `--no-filters`: hashing must not run the repo's clean filters.
+ */
+export function gitDirtyHashes(cwd: string): Record<string, string> {
+  const files = gitChangedFiles(cwd);
+  const out: Record<string, string> = {};
+  // A dirty submodule is listed as a folder; hash-object takes files only.
+  const present = files.filter((f) => !f.includes('\n') && lstatSync(join(cwd, f), { throwIfNoEntry: false })?.isFile() === true);
+  const hashes = present.length
+    ? git(cwd, ['hash-object', '--no-filters', '--stdin-paths'], [], present.join('\n')).trim().split('\n')
+    : [];
+  for (const f of files) out[f] = existsSync(join(cwd, f)) ? 'present' : 'deleted';
+  present.forEach((f, i) => (out[f] = hashes[i] ?? ''));
+  return out;
+}
+
+/** Files changed between two commits. */
+export function gitDiffFiles(cwd: string, from: string, to: string): string[] {
+  return nulList(git(cwd, ['diff', '--no-renames', '--name-only', '-z', from, to, '--']));
 }

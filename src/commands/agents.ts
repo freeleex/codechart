@@ -5,17 +5,19 @@ export interface AgentPreset {
   home: string;
   skills: string;
   reads: string[];
+  /** The user-level instructions file the agent loads every session. */
+  instructions?: string;
 }
 
 const SHARED = '.agents/skills';
 
 export const AGENTS: AgentPreset[] = [
-  { name: 'claude', label: 'Claude Code', home: '.claude', skills: '.claude/skills', reads: [] },
-  { name: 'codex', label: 'Codex', home: '.codex', skills: SHARED, reads: [] },
-  { name: 'gemini', label: 'Gemini CLI', home: '.gemini', skills: '.gemini/skills', reads: [SHARED] },
+  { name: 'claude', label: 'Claude Code', home: '.claude', skills: '.claude/skills', reads: [], instructions: '.claude/CLAUDE.md' },
+  { name: 'codex', label: 'Codex', home: '.codex', skills: SHARED, reads: [], instructions: '.codex/AGENTS.md' },
+  { name: 'gemini', label: 'Gemini CLI', home: '.gemini', skills: '.gemini/skills', reads: [SHARED], instructions: '.gemini/GEMINI.md' },
   { name: 'copilot', label: 'GitHub Copilot', home: '.copilot', skills: '.copilot/skills', reads: [SHARED] },
   { name: 'cursor', label: 'Cursor', home: '.cursor', skills: '.cursor/skills', reads: [SHARED, '.claude/skills', '.codex/skills'] },
-  { name: 'opencode', label: 'OpenCode', home: '.config/opencode', skills: '.config/opencode/skills', reads: [SHARED, '.claude/skills'] },
+  { name: 'opencode', label: 'OpenCode', home: '.config/opencode', skills: '.config/opencode/skills', reads: [SHARED, '.claude/skills'], instructions: '.config/opencode/AGENTS.md' },
   { name: 'goose', label: 'Goose', home: '.config/goose', skills: SHARED, reads: ['.claude/skills'] },
   { name: 'amp', label: 'Amp', home: '.config/amp', skills: '.config/agents/skills', reads: ['.claude/skills'] },
   { name: 'windsurf', label: 'Windsurf', home: '.codeium/windsurf', skills: '.codeium/windsurf/skills', reads: [SHARED] },
