@@ -3,6 +3,7 @@ import { markdownBlock } from '../markdown.js';
 import { columns, fit, flat, truncate, wrapItems, type Cuts, type Segment } from '../terminal/wrap.js';
 import { defaultWidth, fullMapLine, MIN_WIDTH } from '../terminal/render.js';
 import { walkFlow, type Arm, type Chain, type Item } from './walk.js';
+import { alertLine, countLines, type CheckSummary } from '../terminal/check-lines.js';
 
 export interface FlowTreeOptions {
   maxNodes: number;
@@ -10,12 +11,14 @@ export interface FlowTreeOptions {
   color: boolean;
   md?: boolean;
   htmlPath?: string;
+  check?: CheckSummary;
 }
 
 type Status = FlowStep['status'];
 
 export const FLOW_KEY = 'key: + new  ~ changed  ? planned  ◇ decision  ⤷ shared step';
 const MARKER: Record<Status, string> = { existing: '', new: '+', changed: '~', planned: '?' };
+export const stepLabel = (step: FlowStep): string => MARKER[step.status] + flat(step.label);
 const SGR: Record<Status, string | undefined> = { existing: undefined, new: '32', changed: '33', planned: '35' };
 
 interface Ctx {
@@ -24,13 +27,14 @@ interface Ctx {
   cuts: Cuts;
   htmlPath?: string;
   spec: FlowSpec;
+  check?: CheckSummary;
 }
 
 const painter = (status: Status, ctx: Ctx) =>
   ctx.color && SGR[status] ? (text: string) => (text ? `\u001b[${SGR[status]}m${text}\u001b[0m` : text) : undefined;
 
 const stepSegment = (step: FlowStep, ctx: Ctx): Segment => ({
-  text: MARKER[step.status] + flat(step.label),
+  text: stepLabel(step),
   paint: painter(step.status, ctx),
 });
 
@@ -111,10 +115,7 @@ function chainLines(chain: Chain, first: Segment[], rest: string, lead: string, 
 function footer(spec: FlowSpec, ctx: Ctx, md: boolean): string {
   const count = (status: Status) => spec.steps.filter((s) => s.status === status).length;
   const lines = [
-    truncate(
-      `${spec.steps.length} steps · ${count('new')} new · ${count('changed')} changed · ${count('planned')} planned`,
-      ctx.width,
-    ),
+    countLines(`${spec.steps.length} steps · ${count('new')} new · ${count('changed')} changed · ${count('planned')} planned`, ctx.check, ctx.width),
   ];
   if (!md) lines.push(truncate(FLOW_KEY, ctx.width));
   if (spec.gaps?.length) lines.push(wrapItems('gaps: ', spec.gaps.map(flat), ctx.width));
@@ -140,12 +141,16 @@ export function renderFlowTree(spec: FlowSpec, opts: FlowTreeOptions): { text: s
     cuts: { truncated: false },
     htmlPath: opts.htmlPath,
     spec,
+    check: opts.check,
   };
   const walk = walkFlow(spec, opts.maxNodes);
   const md = opts.md ?? false;
+  const alert = alertLine(opts.check, ctx.width);
   if (walk.blocks.length === 0) {
-    if (!opts.htmlPath) return { text: md ? flowMarkdown(spec.title, TOO_LARGE, undefined, ctx.width) : `${TOO_LARGE}\n`, truncated: true };
-    return { text: md ? flowMarkdown(spec.title, undefined, opts.htmlPath, ctx.width) : `${fullMapLine(opts.htmlPath)}\n`, truncated: true };
+    const body = (line: string) => (alert ? `${alert}\n${line}` : line);
+    if (!opts.htmlPath) return { text: md ? flowMarkdown(spec.title, body(TOO_LARGE), undefined, ctx.width) : `${body(TOO_LARGE)}\n`, truncated: true };
+    const text = md ? flowMarkdown(spec.title, alert || undefined, opts.htmlPath, ctx.width) : `${body(fullMapLine(opts.htmlPath))}\n`;
+    return { text, truncated: true };
   }
 
   const blocks = walk.blocks.map((b) => chainLines(b.chain, [], '', b.shared ? '⤷ ' : '', ctx).join('\n'));
@@ -153,7 +158,7 @@ export function renderFlowTree(spec: FlowSpec, opts: FlowTreeOptions): { text: s
     blocks[0] = `${truncate('planned flow', ctx.width)}\n${blocks[0]}`;
   }
   if (walk.unreachable > 0) blocks[blocks.length - 1] += `\n${truncate(cutText(walk.unreachable, ctx), ctx.width, ctx.cuts)}`;
-  const tree = [...blocks, footer(spec, ctx, md)].join('\n\n');
+  const tree = [...(alert ? [alert] : []), ...blocks, footer(spec, ctx, md)].join('\n\n');
   const text = md ? flowMarkdown(spec.title, tree, opts.htmlPath, ctx.width, ctx.cuts) : `${tree}\n`;
   return { text, truncated: walk.truncated || ctx.cuts.truncated };
 }

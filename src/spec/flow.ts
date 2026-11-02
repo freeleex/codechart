@@ -10,7 +10,7 @@ const SOURCE_RE = /^[^\s:\u0000-\u001f\u007f-\u009f]+(:\d+(-\d+)?)?$/;
 const sourceSchema = pathStr().regex(SOURCE_RE, 'must be path:line or path:start-end, or a path with match');
 const hasLine = (source: string) => source.includes(':');
 const ANCHOR = '(path:line, path:start-end, or a path with match)';
-const matchSchema = z
+export const matchSchema = z
   .string()
   .trim()
   .min(1, 'must not be blank')

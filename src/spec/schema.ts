@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { validateFlowSpec, type FlowSpec } from './flow.js';
+import { matchSchema, validateFlowSpec, type FlowSpec } from './flow.js';
 import { formatIssues, ident, labelIssues, long, pathStr, short, shortOpt, type ValidationResult as Result } from './shared.js';
 
 export const STATUSES = ['new', 'changed', 'removed', 'context', 'config'] as const;
@@ -25,6 +25,7 @@ const nodeSchema = z.strictObject({
   layer: short(),
   summary: long().optional(),
   path: pathStr().optional(),
+  match: matchSchema.describe('Text on exactly one line of path (plain substring, not a regex), checked at render').optional(),
   fields: z.array(fieldSchema).optional(),
   fieldsComplete: z.boolean().optional().describe('Required when fields is non-empty: true if every field is listed, false if only the fields you saw'),
   notes: z.array(long()).optional(),
@@ -64,6 +65,9 @@ const specSchema = z
       ids.add(node.id);
       if (node.kind === undefined && node.path === undefined) {
         ctx.addIssue({ code: 'custom', path: ['nodes', i, 'kind'], message: 'required unless path is set (then it defaults to "file")' });
+      }
+      if (node.match !== undefined && node.path === undefined) {
+        ctx.addIssue({ code: 'custom', path: ['nodes', i, 'match'], message: 'needs path set to the file the line is in' });
       }
       if (node.fields?.length && node.fieldsComplete === undefined) {
         ctx.addIssue({

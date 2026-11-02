@@ -40,7 +40,7 @@ codechart render --md - <<'EOF'
 EOF
 ```
 
-Commit or branch not checked out: add `--at '<sha or branch>'` so anchors are read from it. On errors, fix the spec and rerun. Stderr `no map drawn`/`no flow drawn`: skip it silently. Rare cases: [spec-guide.md](spec-guide.md), [flow-guide.md](flow-guide.md), `codechart schema [--flow]`.
+For a change summary, add the same `--git`/`--since`/`--commit`/`--head` you gave `check`. Commit or branch not checked out: add `--at '<sha or branch>'` so anchors are read from it. On errors, fix the spec and rerun. A `✗` line is a claim that doesn't match the code: if your spec was wrong (status, path), fix it and rerender; if the change really differs from what you said, keep the `✗` and say so. Stderr `no map drawn`/`no flow drawn`: skip it silently. Rare cases: [spec-guide.md](spec-guide.md), [flow-guide.md](flow-guide.md), `codechart schema [--flow]`.
 
 ### Flow (one behaviour each)
 
@@ -84,6 +84,7 @@ Draw only branches you saw in the code or (plan) will build; unverified ones go 
 - One node per table, model, file, service or endpoint, never merged: `new`, `changed`, `removed`, `config` (config/env), `context` (untouched neighbour the reader needs). Under 15; tests and docs go in `omitted`.
 - `layer` required, from a small set. `kind`: `table` `enum` `model` `service` `endpoint` `component` `file` (default with `path`) `config` `other`. Migration label: `migration: <what it does>`.
 - `fields`: all you read, `change`: `added`/`removed`/`modified`; `fieldsComplete: true` only if you read the whole definition.
+- Optional on a `new`/`changed` node with `path`: `match`, a distinctive piece of one line from the diff, as proof (shown in the HTML).
 - Edges: dependent → dependency, labelled with the column, method or key; only ones you saw or will build. `kind`: `fk` `calls` `imports` `reads` `writes` `renders` `configures` `other`.
 - Context `short`: only what you read in this task, unread goes in `gaps`; `full`: also read the definitions of entities on the map.
 

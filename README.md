@@ -143,6 +143,7 @@ Small diagrams stay in the reply. Big ones, or rules you mark `output: both`, al
 
 - **The agent writes data, codechart draws.** LLMs misalign hand-drawn ASCII, so the agent only describes nodes and links. Layout is code.
 - **Flows are anchored to real code.** Every step that exists in code names its `file:line` or quotes the line. If the line doesn't exist, the render fails and the agent has to fix it.
+- **Map claims are checked.** Each node's file must exist, a quoted line must be in it, and in a change summary every new, changed or removed node must be in the git diff. A mismatch opens the output with a `✗` line; when everything matches, the footer just says `✓ 10 checked`.
 - **Gaps are explicit.** Whatever the agent didn't read is listed under `gaps`, not guessed.
 - **Validated input.** Specs are checked against a schema, with clear errors the agent can act on.
 
@@ -207,7 +208,7 @@ Rules have a `name` plus exactly one of `paths` (globs: `*`, `**`, `?`, `[..]`; 
 | Command | Purpose |
 |---|---|
 | `codechart check` | Which rules apply to changed files. `--files <csv>`, `--git`, `--commit <sha>`, `--since <base>` (+ `--head <ref>`), `--matched <csv>` |
-| `codechart render <spec>` | Render a spec (JSON file or `-` for stdin). `--output auto\|cli\|web\|both`, `--theme auto\|light\|dark`, `--open`, `--md`, `--at <rev>` |
+| `codechart render <spec>` | Render a spec (JSON file or `-` for stdin). `--output auto\|cli\|web\|both`, `--theme auto\|light\|dark`, `--open`, `--md`, `--at <rev>`; `--git`, `--commit <sha>`, `--since <base>` (+ `--head <ref>`) to check claims against the diff; `--strict` to exit 1 on a mismatch |
 | `codechart schema` | Spec JSON schema; `--flow` for flow specs, `--config` for the config file |
 | `codechart config` | Config in effect and where each value comes from (`--json`) |
 | `codechart init` | Write a commented starter `.codechart.yaml` at the git root (`--force` to overwrite) |
