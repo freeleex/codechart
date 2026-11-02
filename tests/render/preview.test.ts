@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, unlinkSync, writeFileSync }
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { diffOf } from '../../src/render/check.js';
+import { checkMapNodes, diffOf } from '../../src/render/check.js';
 import { nodePreviews, parseDiff } from '../../src/render/preview.js';
 import { diffRange, gitFiles, type GitSelection } from '../../src/rules/selection.js';
 import type { Spec, SpecNode } from '../../src/spec/schema.js';
@@ -37,7 +37,8 @@ const summary = (...nodes: Partial<SpecNode>[]): Spec => ({
   edges: [],
 });
 
-const previews = (spec: Spec, sel: GitSelection) => nodePreviews(spec, repo, diffOf(gitFiles(repo, sel, true)), diffRange(repo, sel));
+const previews = (spec: Spec, sel: GitSelection, cwd?: string) =>
+  nodePreviews(spec, repo, diffOf(gitFiles(repo, sel, true)), diffRange(repo, sel), checkMapNodes(spec, repo, { cwd }).found, cwd);
 
 const text = (p: ReturnType<typeof parseDiff> | undefined) => p?.lines.map((l) => (l.kind === 'hunk' ? '@@' : `${l.n}${{ add: '+', del: '-', ctx: ' ' }[l.kind]}${l.text}`));
 
@@ -108,7 +109,34 @@ describe('nodePreviews', () => {
     const sel = { git: true };
     const p = previews(summary({ path: 'src/a.ts', status: 'context' }, { path: 'src' }, { path: 'src/gone.ts' }), sel);
     expect(p.size).toBe(0);
-    expect(nodePreviews({ ...summary({ path: 'src/a.ts' }), kind: 'plan' }, repo, diffOf(['src/a.ts']), diffRange(repo, sel)).size).toBe(0);
+    expect(nodePreviews({ ...summary({ path: 'src/a.ts' }), kind: 'plan' }, repo, diffOf(['src/a.ts']), diffRange(repo, sel), new Map()).size).toBe(0);
+  });
+
+  it('from a subfolder, the file the check found wins over a changed namesake', () => {
+    write('a.ts', 'root\n');
+    commit('root a');
+    write('src/a.ts', 'one\nTWO\nthree\n');
+    const spec = summary({ path: 'a.ts' }, { path: 'gone.ts', status: 'removed' });
+    unlinkSync(join(repo, 'src/gone.ts'));
+    const p = previews(spec, { git: true }, join(repo, 'src'));
+    expect(p.has('n0')).toBe(false);
+    expect(text(p.get('n1'))).toEqual(['@@', '1-bye']);
+  });
+
+  it('nodes naming the same file share one preview', () => {
+    write('src/a.ts', 'x\n');
+    const p = previews(summary({ path: 'src/a.ts' }, { path: 'src/a.ts' }), { git: true });
+    expect(p.get('n0')).toBeDefined();
+    expect(p.get('n1')).toBe(p.get('n0'));
+  });
+
+  it('a diff over 5 MB is not read whole; an untracked binary says so', () => {
+    write('src/big.ts', 'x'.repeat(100).concat('\n').repeat(60_000));
+    git('add', 'src/big.ts');
+    writeFileSync(join(repo, 'src/img.bin'), Buffer.from([0, 1, 2]));
+    const p = previews(summary({ path: 'src/big.ts', status: 'new' }, { path: 'src/img.bin', status: 'new' }), { git: true });
+    expect(p.get('n0')).toMatchObject({ note: 'diff is too large (over 5 MB)', lines: [] });
+    expect(p.get('n1')).toMatchObject({ note: 'binary file', lines: [] });
   });
 });
 

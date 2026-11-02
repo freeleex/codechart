@@ -22,7 +22,10 @@ let gitPath: string | undefined;
 // A checkout's own .git/config (an unpacked archive, not a clone) must not make codechart run commands or go online.
 const SAFE_ARGS = ['--no-optional-locks', '-c', 'core.fsmonitor=false', '-c', 'protocol.allow=never'];
 
-function git(cwd: string, args: string[], config: [string, string][] = [], input?: string): string {
+/** Git printed more than the caller's `maxBuffer`. */
+export class OutputTooLarge extends Error {}
+
+function git(cwd: string, args: string[], config: [string, string][] = [], input?: string, maxBuffer = 256 * 1024 * 1024): string {
   try {
     gitPath ??= gitBinary();
     const n = Number(process.env.GIT_CONFIG_COUNT) || 0;
@@ -37,10 +40,11 @@ function git(cwd: string, args: string[], config: [string, string][] = [], input
       timeout: 30_000,
       encoding: 'utf8',
       // -uall on big trees can exceed the 1 MiB default
-      maxBuffer: 256 * 1024 * 1024,
+      maxBuffer,
       ...(input === undefined ? { stdio: ['ignore', 'pipe', 'pipe'] as const } : { input, stdio: ['pipe', 'pipe', 'pipe'] as const }),
     });
   } catch (e) {
+    if ((e as NodeJS.ErrnoException).code === 'ENOBUFS') throw new OutputTooLarge(`git output over ${maxBuffer} bytes`);
     const stderr = String((e as { stderr?: unknown }).stderr ?? '').trim().split('\n')[0];
     throw new Error(`git ${args.find((a) => !a.startsWith('-'))} failed: ${stderr || (e as Error).message}`);
   }
@@ -137,12 +141,15 @@ export interface DiffRange {
 /**
  * One file's unified diff over `range` (`rel` is repo-relative with `/`).
  * --no-ext-diff/--no-textconv: the repo's config must not make the diff run its commands.
+ * Throws `OutputTooLarge` past `maxBytes`.
  */
-export function gitFileDiff(cwd: string, range: DiffRange, rel: string): string {
+export function gitFileDiff(cwd: string, range: DiffRange, rel: string, maxBytes: number): string {
   return git(
     cwd,
     ['--literal-pathspecs', 'diff', '--no-color', '--no-ext-diff', '--no-textconv', '--no-renames', '--submodule=short', '-U3', ...range.args, '--', rel],
     range.config,
+    undefined,
+    maxBytes,
   );
 }
 

@@ -202,7 +202,7 @@ export function renderCommand(opts: CommandOptions): Command {
         const check = checkMapNodes(spec, root, { at, cwd: resolve(cwd), diff });
         const { hidden } = selectTerminalNodes(spec, maxNodes);
         const termOpts = { maxNodes, keyLine: !o.md, color, width, check };
-        const previews = () => (diff ? nodePreviews(spec, root, diff, diffRange(root, o), resolve(cwd)) : undefined);
+        const previews = () => (diff ? nodePreviews(spec, root, diff, diffRange(root, o), check.found, resolve(cwd)) : undefined);
         const writeMapHtml = () => writeHtml(async (meta) => renderHtml(spec, await layoutSpec(spec), meta, check, previews()));
 
         let htmlPath: string | undefined;

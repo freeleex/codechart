@@ -1,6 +1,6 @@
 import { join, resolve } from 'node:path';
 import { readRegularFile } from '../read-regular.js';
-import { gitFileDiff, gitUntracked, type DiffRange } from '../rules/git-files.js';
+import { gitFileDiff, gitUntracked, OutputTooLarge, type DiffRange } from '../rules/git-files.js';
 import type { Spec } from '../spec/schema.js';
 import { IN_DIFF, repoPath, type Diff } from './check.js';
 
@@ -64,50 +64,55 @@ export function parseDiff(path: string, text: string): Preview {
   return p;
 }
 
-/** An untracked file as an all-added diff. */
-function untrackedDiff(root: string, rel: string): string | { note: string } {
-  let tooBig = false;
-  const text = readRegularFile(join(root, rel), (st) => st.isFile() && !(tooBig = st.size > MAX_BYTES));
-  if (text === undefined) return { note: tooBig ? 'file is too large (over 5 MB)' : 'not a regular file' };
-  if (text.includes('\0')) return 'Binary files differ';
+const TOO_LARGE = 'diff is too large (over 5 MB)';
+const OVER_BUDGET = 'not shown: the diffs pass 25 MB together';
+
+/** An untracked file as an all-added diff, read only if it fits in `max` bytes. */
+function untrackedDiff(root: string, rel: string, max: number): string | { note: string } {
+  let size = 0;
+  const text = readRegularFile(join(root, rel), (st) => st.isFile() && (size = st.size) <= max);
+  if (text === undefined) return { note: size > MAX_BYTES ? TOO_LARGE : size > max ? OVER_BUDGET : 'not a regular file' };
+  if (text.includes('\0')) return { note: 'binary file' };
   const lines = text.split('\n');
   if (lines[lines.length - 1] === '') lines.pop();
   return `@@ -0,0 +1,${lines.length} @@\n${lines.map((l) => `+${l}`).join('\n')}`;
 }
 
+/** Reads at most `min(5 MB, left)` bytes of diff. */
+function fileDiff(root: string, range: DiffRange, rel: string, left: number): string | { note: string } {
+  const max = Math.min(MAX_BYTES, left);
+  try {
+    const text = gitFileDiff(root, range, rel, max);
+    return text === '' && range.worktree && gitUntracked(root, rel) ? untrackedDiff(root, rel, max) : text;
+  } catch (e) {
+    if (e instanceof OutputTooLarge) return { note: max < MAX_BYTES ? OVER_BUDGET : TOO_LARGE };
+    return { note: `diff not read (${(e as Error).message})` };
+  }
+}
+
 /**
  * The diff of each new, changed or removed node file in a summary, read from git over `range`.
+ * `found`: the check's resolved file per node; a deleted file isn't found, so its cwd-relative spelling is tried too.
  * A node whose file isn't in `diff` gets none: the check already flags it.
  */
-export function nodePreviews(spec: Spec, root: string, diff: Diff, range: DiffRange, cwd?: string): Map<string, Preview> {
+export function nodePreviews(spec: Spec, root: string, diff: Diff, range: DiffRange, found: Map<string, string>, cwd?: string): Map<string, Preview> {
   const out = new Map<string, Preview>();
   if (spec.kind !== 'summary') return out;
+  const byFile = new Map<string, Preview | undefined>();
   let left = MAX_TOTAL_BYTES;
   for (const node of spec.nodes) {
     if (node.path === undefined || !IN_DIFF.has(node.status)) continue;
-    const rel = [repoPath(root, node.path), ...(cwd ? [repoPath(root, resolve(cwd, node.path))] : [])].find((p) => diff.hasFile(p));
+    const at = found.get(node.id);
+    const candidates = at !== undefined ? [at] : [repoPath(root, node.path), ...(cwd ? [repoPath(root, resolve(cwd, node.path))] : [])];
+    const rel = candidates.find((p) => diff.hasFile(p));
     if (rel === undefined) continue;
-    const note = (n: string) => out.set(node.id, { path: rel, lines: [], shown: 0, total: 0, note: n });
-    if (left <= 0) {
-      note('not shown: the diffs pass 25 MB together');
-      continue;
+    if (!byFile.has(rel)) {
+      const text = left > 0 ? fileDiff(root, range, rel, left) : { note: OVER_BUDGET };
+      if (typeof text === 'string') left -= Buffer.byteLength(text);
+      byFile.set(rel, typeof text !== 'string' ? { path: rel, lines: [], shown: 0, total: 0, note: text.note } : text === '' ? undefined : parseDiff(rel, text));
     }
-    let text: string | { note: string };
-    try {
-      text = gitFileDiff(root, range, rel);
-      if (text === '' && range.worktree && gitUntracked(root, rel)) text = untrackedDiff(root, rel);
-    } catch (e) {
-      note(`diff not read (${(e as Error).message})`);
-      continue;
-    }
-    if (typeof text !== 'string') {
-      note(text.note);
-      continue;
-    }
-    const bytes = Buffer.byteLength(text);
-    left -= bytes;
-    if (bytes > MAX_BYTES) note('diff is too large (over 5 MB)');
-    else if (text !== '') out.set(node.id, parseDiff(rel, text));
+    const preview = byFile.get(rel);
+    if (preview) out.set(node.id, preview);
   }
   return out;
 }
