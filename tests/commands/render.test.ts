@@ -455,8 +455,8 @@ describe('codechart render (flow)', () => {
     const inSrc = { cwd: join(repo, 'src') };
     const r = await run(['render', specFile(flow), '--output', 'both'], inSrc);
     expect(r.err).toBe('');
-    expect(readFileSync(flowFile(), 'utf8')).toContain('src/render.ts:10-12');
-    expect(readFileSync(flowFile(), 'utf8')).not.toContain('>render.ts:10-12');
+    expect(readFileSync(flowFile(), 'utf8')).toContain('src/<wbr>render.ts:10-12');
+    expect(readFileSync(flowFile(), 'utf8')).not.toContain('class="path">render.ts:10-12');
   });
 
   it('consecutive --md renders are separated by a blank line', async () => {

@@ -68,6 +68,24 @@ describe('client panel switching', () => {
     expect(toggle().getAttribute('aria-expanded')).toBe('true');
   });
 
+  it('dragging the handle resizes the panel within 300px and 80% of the window, and remembers it', () => {
+    const handle = q<HTMLElement>('#resize');
+    const aside = () => q<HTMLElement>('aside');
+    const max = Math.round(window.innerWidth * 0.8);
+    handle.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 1 }));
+    handle.dispatchEvent(new PointerEvent('pointermove', { clientX: window.innerWidth - 450 }));
+    expect(aside().style.width).toBe('450px');
+    handle.dispatchEvent(new PointerEvent('pointermove', { clientX: window.innerWidth - 50 }));
+    expect(aside().style.width).toBe('300px');
+    handle.dispatchEvent(new PointerEvent('pointermove', { clientX: 0 }));
+    expect(aside().style.width).toBe(`${max}px`);
+    handle.dispatchEvent(new PointerEvent('pointerup', { pointerId: 1 }));
+    expect(localStorage.getItem('codechart.panel')).toBe(String(max));
+    handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
+    expect(aside().style.width).toBe(`${max - 40}px`);
+    localStorage.removeItem('codechart.panel');
+  });
+
   it('fieldsComplete node shows no note', () => {
     node('tbl.invoices').dispatchEvent(new MouseEvent('click', { bubbles: true }));
     expect(panel().hidden).toBe(false);

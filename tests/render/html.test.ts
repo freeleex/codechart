@@ -118,7 +118,7 @@ describe('renderHtml', () => {
       const spec = loadFixture();
       spec.nodes[0]!.notes = ['a <b> note'];
       const panel = cardPanel(await html(spec), spec.nodes[0]!.id);
-      expect(panel).toContain(`<div class="path">${spec.nodes[0]!.path}</div>`);
+      expect(panel).toContain('<div class="path">shop/<wbr>models/<wbr>order.py</div>');
       expect(panel).toContain('<li>a &lt;b&gt; note</li>');
     });
   });

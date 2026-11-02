@@ -47,7 +47,7 @@ function git(cwd: string, args: string[], config: [string, string][] = [], input
 }
 
 /** Blanks the clean/process commands of filter drivers the repo's own config defines (status would run them) and drops `required` so a blank command is not a failure. */
-function repoFilterOverrides(cwd: string): [string, string][] {
+export function repoFilterOverrides(cwd: string): [string, string][] {
   let out: string;
   try {
     out = git(cwd, ['config', '--show-scope', '--includes', '-z', '--name-only', '--get-regexp', '^filter\\.']);
@@ -111,10 +111,50 @@ export function resolveCommit(cwd: string, flag: string, ref: string): string {
   }
 }
 
+/** A commit's first parent, or undefined for a root commit. */
+export function gitParent(cwd: string, sha: string): string | undefined {
+  return git(cwd, ['rev-list', '--parents', '-n', '1', sha, '--']).trim().split(' ')[1];
+}
+
+/** The empty tree's id in this repo's hash format. */
+export function gitEmptyTree(cwd: string): string {
+  return git(cwd, ['hash-object', '-t', 'tree', '--stdin'], [], '').trim();
+}
+
+/** Where `head` forked from `base`. */
+export function gitMergeBase(cwd: string, base: string, head = 'HEAD'): string {
+  checkRef('--since', base);
+  return git(cwd, ['merge-base', base, head]).trim();
+}
+
+/** What a file diff compares: `args` are the revisions; `worktree`: the working tree is the new side. */
+export interface DiffRange {
+  args: string[];
+  worktree: boolean;
+  config: [string, string][];
+}
+
+/**
+ * One file's unified diff over `range` (`rel` is repo-relative with `/`).
+ * --no-ext-diff/--no-textconv: the repo's config must not make the diff run its commands.
+ */
+export function gitFileDiff(cwd: string, range: DiffRange, rel: string): string {
+  return git(
+    cwd,
+    ['--literal-pathspecs', 'diff', '--no-color', '--no-ext-diff', '--no-textconv', '--no-renames', '--submodule=short', '-U3', ...range.args, '--', rel],
+    range.config,
+  );
+}
+
+/** Whether `rel` is untracked and not ignored. */
+export function gitUntracked(cwd: string, rel: string): boolean {
+  return git(cwd, ['--literal-pathspecs', 'ls-files', '-z', '--others', '--exclude-standard', '--', rel]).split('\0')[0] === rel;
+}
+
 /** Files one commit changed; a merge is compared with its first parent. */
 export function gitCommitFiles(cwd: string, ref: string): string[] {
   const sha = resolveCommit(cwd, '--commit', ref);
-  const parent = git(cwd, ['rev-list', '--parents', '-n', '1', sha, '--']).trim().split(' ')[1];
+  const parent = gitParent(cwd, sha);
   if (!parent) return nulList(git(cwd, ['diff-tree', '-r', '--root', '--no-commit-id', '--name-only', '-z', sha]));
   return nulList(git(cwd, ['diff', '--no-renames', '--name-only', '-z', parent, sha, '--']));
 }

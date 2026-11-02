@@ -9,11 +9,16 @@ import { plainLabel } from './terminal/labels.js';
 /** Files the change touched, repo-relative with `/`. A folder is in it when a file under it is. */
 export interface Diff {
   has(path: string): boolean;
+  /** Only a file, not a folder above one. */
+  hasFile(path: string): boolean;
 }
 
 export function diffOf(files: string[]): Diff {
   const set = new Set(files);
-  return { has: (p) => (p === '' ? files.length > 0 : set.has(p) || files.some((f) => f.startsWith(`${p}/`))) };
+  return {
+    has: (p) => (p === '' ? files.length > 0 : set.has(p) || files.some((f) => f.startsWith(`${p}/`))),
+    hasFile: (p) => set.has(p),
+  };
 }
 
 export interface MapCheck extends CheckSummary {
@@ -28,11 +33,11 @@ interface CheckOptions {
   diff?: Diff;
 }
 
-const repoPath = (root: string, path: string) => relative(root, resolve(root, path)).split(sep).join('/');
+export const repoPath = (root: string, path: string) => relative(root, resolve(root, path)).split(sep).join('/');
 
 // A removed node may be a class deleted from a file that stays; a planned new file doesn't exist yet.
 const mustExist = (spec: Spec, node: SpecNode) => (spec.kind === 'plan' ? node.status !== 'new' : node.status !== 'removed');
-const IN_DIFF: ReadonlySet<string> = new Set(['new', 'changed', 'removed']);
+export const IN_DIFF: ReadonlySet<string> = new Set(['new', 'changed', 'removed']);
 
 type Problem = Pick<Mismatch, 'short' | 'detail'>;
 

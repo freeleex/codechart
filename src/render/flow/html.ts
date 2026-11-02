@@ -76,12 +76,19 @@ function renderLink(link: FlowLink, e: FlowLayoutEdge, planned: boolean): string
   return `<g class="edge${planned ? ' planned' : ''}">${out}</g>`;
 }
 
+/** A path that wraps after `/`, not mid-name. */
+export const pathHtml = (p: string) => esc(p).replaceAll('/', '/<wbr>');
+
+/** One code row; the number gets its own grid column so a wrapped line hangs under the code. */
+export const codeRow = (n: number | undefined, code: string, cls?: string) =>
+  `<span class="ln">${n ?? ''}</span><span${cls ? ` class="${cls}"` : ''}>${code}</span>`;
+
 export function snippetHtml(s: Snippet): string {
-  const code = s.lines.map((l, i) => `<span class="ln">${s.startLine + i}</span>${esc(l)}`).join('\n');
+  const code = s.lines.map((l, i) => codeRow(s.startLine + i, esc(l))).join('\n');
   const end = Number(s.source.match(/-(\d+)$/)?.[1] ?? s.startLine);
   const total = end - s.startLine + 1;
   const more = total > s.lines.length ? `<p class="more">first ${s.lines.length} of ${total} lines</p>` : '';
-  return `<div class="path">${esc(s.source)}</div><pre class="snippet"><code>${code}</code></pre>${more}`;
+  return `<div class="path">${pathHtml(s.source)}</div><pre class="snippet"><code>${code}</code></pre>${more}`;
 }
 
 const tag = (status: string) => `<span class="tag tag-${esc(status)}">${esc(status)}</span>`;
