@@ -54,14 +54,14 @@ export function pickerLines(title: string, items: PickerItem[], s: PickerState, 
       const head = cut(`${i === s.cursor ? '❯' : ' '} ${s.checked[i] ? '◉' : '◯'} ${it.label.padEnd(pad)}  `, width);
       return head + dim(cut(it.hint, width - head.length));
     }),
-    dim(cut('↑/↓ move · Space toggle · a all · Enter install · Esc cancel', width)),
+    dim(cut('↑/↓ move · Space toggle · a all · Enter confirm · Esc cancel', width)),
   ];
 }
 
 // Indexes of the checked items, or undefined when cancelled. Needs a TTY on stdin and stdout.
-export function terminalPicker(title: string, items: PickerItem[]): Promise<number[] | undefined> {
+export function terminalPicker(title: string, items: PickerItem[], checked = true): Promise<number[] | undefined> {
   const { stdin, stdout } = process;
-  let s: PickerState = { cursor: 0, checked: items.map(() => true) };
+  let s: PickerState = { cursor: 0, checked: items.map(() => checked) };
   let drawn = 0;
   const draw = () => {
     const lines = pickerLines(title, items, s, (stdout.columns || 80) - 1);

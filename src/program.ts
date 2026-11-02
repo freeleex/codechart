@@ -1,10 +1,12 @@
 import { Command, CommanderError } from 'commander';
 import { checkCommand } from './commands/check.js';
 import { configCommand } from './commands/config.js';
+import { hookCommand } from './commands/hook.js';
 import { initCommand } from './commands/init.js';
 import { installSkillCommand } from './commands/install-skill.js';
 import { renderCommand } from './commands/render.js';
 import { schemaCommand } from './commands/schema.js';
+import { uninstallCommand } from './commands/uninstall.js';
 import { sanitizeText } from './render/strip.js';
 
 export interface ProgramOptions {
@@ -15,7 +17,8 @@ export interface ProgramOptions {
   stderr?: (s: string) => void;
   isTTY?: boolean;
   stdin?: () => Promise<string>;
-  choose?: (title: string, items: { label: string; hint: string }[]) => Promise<number[] | undefined>;
+  /** `checked`: whether items start selected (default true). */
+  choose?: (title: string, items: { label: string; hint: string }[], checked?: boolean) => Promise<number[] | undefined>;
   now?: () => Date;
   open?: (path: string) => string | void;
 }
@@ -34,6 +37,8 @@ export function buildProgram(opts: ProgramOptions = {}): Command {
   program.addCommand(configCommand(cmdOpts));
   program.addCommand(initCommand(cmdOpts));
   program.addCommand(installSkillCommand(cmdOpts));
+  program.addCommand(uninstallCommand(cmdOpts));
+  program.addCommand(hookCommand(cmdOpts));
   // addCommand does not inherit these settings
   for (const c of [program, ...program.commands]) {
     c.exitOverride().configureOutput({ writeOut: stdout, writeErr: stderr });
