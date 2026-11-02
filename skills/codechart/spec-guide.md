@@ -47,10 +47,19 @@ Rules:
 - `layer`: free text, one per area: `database`, `backend`, `frontend`, `config`, `ci`. Nodes in a layer are drawn together, so keep the set small and consistent.
 - `summary`: one short line, what it is (not what changed).
 - `fields`: for tables, models and enums: **every** field you read, not only the changed ones. Mark changes with `change` (added, removed, modified); leave unchanged fields unmarked. In `short` mode only fields you actually read; in a plan, the fields you are committing to build are always listed (they are the plan).
+- `match` (optional, needs `path`): a distinctive piece of one line in that file, copied from the diff, like a flow anchor. It must be on exactly one line. The HTML shows the line in the node's panel; the terminal doesn't.
 - `fieldsComplete`: required on every node with `fields`.
   - `true`: you read the whole definition (model, table or enum) and listed every field.
   - `false`: you list only what you saw, such as the changed columns in a migration. The map then says only some fields are shown.
   - In `full` context, open the definition so you can list every field and set `true`.
+
+## What `render` checks
+
+Warnings, not failures (`--strict` makes them exit 1). Each mismatch is named in a `✗` line at the top of the output.
+
+- **File exists:** every node with a `path`, except a summary's `removed` node (a class deleted from a file that stays) and a plan's `new` node (not built yet). A folder counts.
+- **In the diff:** in a summary rendered with `--git`, `--since` or `--commit`, every `new`, `changed` or `removed` node's file. `context` and `config` nodes are not checked against the diff.
+- **`match`:** found on exactly one line, when the file must exist.
 
 ## Edges
 

@@ -39,6 +39,7 @@ describe('checkFlowAnchors', () => {
     expect(r).toEqual({
       ok: true,
       snippets: { steps: new Map([['s', { source: 'src/a.ts:3-4', startLine: 3, lines: ['line 3', 'line 4'] }]]), links: {} },
+      checked: 1,
     });
   });
 
@@ -166,6 +167,7 @@ describe('content anchors (source + match)', () => {
         steps: new Map([['s', { source: 'src/a.ts:7', startLine: 7, lines: ['line 7'] }]]),
         links: { 0: { source: 'src/a.ts:12', startLine: 12, lines: ['line 12'] } },
       },
+      checked: 2,
     });
   });
 
@@ -267,6 +269,7 @@ describe('paths relative to the working directory', () => {
         steps: new Map([['s', { source: 'src/a.ts:3-4', startLine: 3, lines: ['line 3', 'line 4'] }]]),
         links: { 0: { source: 'src/a.ts:5', startLine: 5, lines: ['line 5'] } },
       },
+      checked: 2,
     });
   });
 

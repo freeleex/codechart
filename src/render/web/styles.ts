@@ -25,6 +25,11 @@ aside ul{margin:0;padding-left:18px}
 aside .fields-note{color:var(--muted);font-size:11.5px;font-style:italic;margin:6px 0 0}
 aside code{font-family:ui-monospace,monospace;font-size:11px;font-style:normal}
 aside .path{font-family:ui-monospace,monospace;font-size:11px;word-break:break-all;color:var(--muted)}
+aside .snippet{font:11px/1.45 ui-monospace,monospace;background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:6px 8px;margin:6px 0;overflow:auto;white-space:pre}
+aside .snippet .ln{display:inline-block;min-width:3ch;margin-right:10px;color:var(--muted);text-align:right;user-select:none}
+aside .mismatch-note{color:var(--rem);margin:6px 0}
+header .check{font-size:11px;color:var(--new-t)}header .check.bad{color:var(--rem);font-weight:600}
+.node .flag{fill:var(--rem);font-size:13px;font-weight:700;text-anchor:middle}
 .group rect{fill:none;stroke:var(--line);stroke-dasharray:4 3}
 .group text{fill:var(--muted);font-size:10px;text-transform:uppercase}
 .edge path{fill:none;stroke:var(--edge);stroke-width:1.2}

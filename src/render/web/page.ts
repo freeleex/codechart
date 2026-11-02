@@ -58,6 +58,8 @@ interface PageParts {
   title: string;
   meta: HtmlMeta;
   infoButton: string;
+  /** Escaped already. */
+  headerNote?: string;
   viewport: string;
   aside: string;
   width: number;
@@ -77,7 +79,7 @@ export function renderPage(p: PageParts): string {
 <title>${esc(p.title)}</title>
 <style>${CSS}${p.extraCss ?? ''}</style></head>
 <body>
-<header><h1>${esc(p.title)}</h1><span class="meta">${esc(p.meta.repo)} · ${esc(p.meta.generatedAt.toISOString())}</span>${p.infoButton}<button id="theme-toggle" type="button" title="Cycle theme: auto, light, dark"></button></header>
+<header><h1>${esc(p.title)}</h1>${p.headerNote ?? ''}<span class="meta">${esc(p.meta.repo)} · ${esc(p.meta.generatedAt.toISOString())}</span>${p.infoButton}<button id="theme-toggle" type="button" title="Cycle theme: auto, light, dark"></button></header>
 <main>
 <div id="canvas"><svg><defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z"/></marker>${p.extraDefs ?? ''}</defs>
 <g id="viewport">${p.viewport}</g></svg></div>
