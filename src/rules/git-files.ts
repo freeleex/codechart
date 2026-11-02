@@ -159,8 +159,9 @@ export function gitHead(cwd: string): string | undefined {
  * Each uncommitted file with its content hash (`deleted` when gone), to tell later which ones changed.
  * `--no-filters`: hashing must not run the repo's clean filters.
  */
-export function gitDirtyHashes(cwd: string): Record<string, string> {
+export function gitDirtyHashes(cwd: string, max = Infinity): Record<string, string> | undefined {
   const files = gitChangedFiles(cwd);
+  if (files.length > max) return undefined;
   const out: Record<string, string> = {};
   // A dirty submodule is listed as a folder; hash-object takes files only.
   const present = files.filter((f) => !f.includes('\n') && lstatSync(join(cwd, f), { throwIfNoEntry: false })?.isFile() === true);

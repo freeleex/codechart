@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { Argument, Command } from 'commander';
 import { findRepoRoot } from '../config/load.js';
 import type { CommandOptions } from '../program.js';
-import { gitDiffFiles, gitDirtyHashes, gitHead } from '../rules/git-files.js';
+import { gitDiffFiles, gitDirtyHashes, gitHead, gitListFiles } from '../rules/git-files.js';
 
 export const MIN_FILES = 3;
 const MAX_INPUT = 1024 * 1024;
@@ -19,13 +19,13 @@ export interface Snapshot {
   files: Record<string, string>;
 }
 
-/** Files whose content changed between two snapshots, plus those changed by commits made in between. */
-export function changedFiles(before: Snapshot, now: Snapshot, diff: (from: string, to: string) => string[]): string[] {
+/** Files whose content changed between two snapshots, plus those changed by commits made in between (`from` undefined: the repo's first commit). */
+export function changedFiles(before: Snapshot, now: Snapshot, diff: (from: string | undefined, to: string) => string[]): string[] {
   const changed = new Set<string>();
   for (const f of new Set([...Object.keys(before.files), ...Object.keys(now.files)])) {
     if (before.files[f] !== now.files[f]) changed.add(f);
   }
-  if (before.head && now.head && before.head !== now.head) for (const f of diff(before.head, now.head)) changed.add(f);
+  if (now.head && before.head !== now.head) for (const f of diff(before.head, now.head)) changed.add(f);
   return [...changed].sort();
 }
 
@@ -90,8 +90,8 @@ async function readStdin(): Promise<string> {
 }
 
 function snapshot(root: string): Snapshot | undefined {
-  const files = gitDirtyHashes(root);
-  return Object.keys(files).length > MAX_DIRTY ? undefined : { head: gitHead(root), files };
+  const files = gitDirtyHashes(root, MAX_DIRTY);
+  return files && { head: gitHead(root), files };
 }
 
 function prune(dir: string, now: number) {
@@ -101,10 +101,9 @@ function prune(dir: string, now: number) {
   }
 }
 
-export const nudge = (files: string[]): string => {
-  const shown = files.slice(0, 5).join(', ') + (files.length > 5 ? ` and ${files.length - 5} more` : '');
-  return `This turn changed ${files.length} files (${shown}) and your reply has no codechart diagram. Unless the user said no diagram, follow the codechart skill now (check, then render) and reply with what it prints; if it says no diagram applies, stop without mentioning it.`;
-};
+// No file names: a crafted name would become part of the instruction.
+export const nudge = (count: number): string =>
+  `This turn changed ${count} files and your reply has no codechart diagram. Unless the user said no diagram, follow the codechart skill now (check, then render) and reply with what it prints; if it says no diagram applies, stop without mentioning it.`;
 
 export function hookCommand(opts: CommandOptions): Command {
   return new Command('hook')
@@ -135,14 +134,14 @@ export function hookCommand(opts: CommandOptions): Command {
         if (before.root !== root) return;
         const now = snapshot(root);
         if (!now) return;
-        const files = changedFiles(before, now, (a, b) => gitDiffFiles(root, a, b));
+        const files = changedFiles(before, now, (a, b) => (a ? gitDiffFiles(root, a, b) : gitListFiles(root, b)));
         if (files.length < MIN_FILES) return;
         const last = input.last_assistant_message;
         if (typeof last === 'string' && DIAGRAM.test(last)) return;
         // The transcript may lag the final reply (hence last_assistant_message), but holds the turn's earlier tool calls.
         const transcript = input.transcript_path;
         if (typeof transcript === 'string' && turnUsedCodechart(readTail(transcript, MAX_TRANSCRIPT_TAIL))) return;
-        opts.stdout(`${JSON.stringify({ hookSpecificOutput: { hookEventName: 'Stop', additionalContext: nudge(files) } })}\n`);
+        opts.stdout(`${JSON.stringify({ hookSpecificOutput: { hookEventName: 'Stop', additionalContext: nudge(files.length) } })}\n`);
       } catch {
         // A failing hook must never get in the way of the session.
       }

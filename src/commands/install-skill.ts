@@ -134,7 +134,9 @@ export function installSkillCommand(opts: CommandOptions): Command {
         }
         if (copyFiles(pairs, o.force === true, { ...opts, stdout: () => {} })) opts.stdout(`installed for ${who}: ${dir}\n`);
       }
-      const extras = o.reminder || o.hook ? { reminder: o.reminder === true, hook: o.hook === true } : await chooseExtras(agents, opts);
+      // --agent means no questions; the extras then come only from their flags.
+      const asked = !o.reminder && !o.hook && !names;
+      const extras = asked ? await chooseExtras(agents, opts) : { reminder: o.reminder === true, hook: o.hook === true };
       installExtras(extras, agents, home, o.force === true, opts);
     });
 }

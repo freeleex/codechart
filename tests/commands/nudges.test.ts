@@ -137,11 +137,21 @@ describe('install-skill --reminder / --hook', () => {
 
   it('the hook is not offered when Claude Code is not picked', async () => {
     let labels: string[] = [];
-    await run(['install-skill', '--agent', 'opencode'], '', async (_, items, checked) => {
+    await run(['install-skill'], '', async (_, items, checked) => {
       if (checked === false) labels = items.map((i) => i.label);
-      return [];
+      return checked === false ? [] : [items.findIndex((i) => i.label === 'OpenCode')];
     });
     expect(labels).toEqual(['Reminder line']);
+  });
+
+  it('--agent asks nothing: extras come only from their flags', async () => {
+    let asked = false;
+    const r = await run(['install-skill', '--agent', 'claude'], '', async () => {
+      asked = true;
+      return [0, 1];
+    });
+    expect(asked).toBe(false);
+    expect(r.out).not.toMatch(/reminder|hook/);
   });
 });
 
@@ -149,6 +159,7 @@ describe('changedFiles', () => {
   it('counts files whose content changed, appeared or went away, plus files of commits made in between', () => {
     const before = { head: 'a', files: { 'same.ts': 'h1', 'edited.ts': 'h1', 'committed.ts': 'h1' } };
     const now = { head: 'b', files: { 'same.ts': 'h1', 'edited.ts': 'h2', 'new.ts': 'h3' } };
+    expect(changedFiles({ files: {} }, { head: 'b', files: {} }, (a, b) => (a === undefined && b === 'b' ? ['first.ts'] : []))).toEqual(['first.ts']);
     expect(changedFiles(before, now, (a, b) => (a === 'a' && b === 'b' ? ['in-commit.ts'] : []))).toEqual([
       'committed.ts',
       'edited.ts',
@@ -205,7 +216,8 @@ describe('codechart hook', () => {
     const r = await run(['hook', 'stop'], input({ last_assistant_message: 'Done: added new.ts.' }));
     const out = JSON.parse(r.out);
     expect(out.hookSpecificOutput.hookEventName).toBe('Stop');
-    expect(out.hookSpecificOutput.additionalContext).toContain('This turn changed 3 files (a.ts, b.ts, new.ts)');
+    expect(out.hookSpecificOutput.additionalContext).toContain('This turn changed 3 files and your reply has no codechart diagram.');
+    expect(out.hookSpecificOutput.additionalContext).not.toContain('a.ts');
     expect(r.code).toBeUndefined();
   });
 
@@ -219,7 +231,24 @@ describe('codechart hook', () => {
     await run(['hook', 'prompt'], input());
     write('a.ts', 'b.ts', 'c.ts');
     git('commit', '-q', '-m', 'turn', 'a.ts', 'b.ts', 'c.ts');
-    expect(JSON.parse((await run(['hook', 'stop'], input())).out).hookSpecificOutput.additionalContext).toContain('(a.ts, b.ts, c.ts)');
+    expect(JSON.parse((await run(['hook', 'stop'], input())).out).hookSpecificOutput.additionalContext).toContain('changed 3 files');
+  });
+
+  it("counts the files of a repo's first commit made during the turn", async () => {
+    rmSync(join(repo, '.git'), { recursive: true, force: true });
+    rmSync(join(repo, 'mine.ts'));
+    git('init', '-q');
+    git('config', 'user.email', 't@example.com');
+    git('config', 'user.name', 'T');
+    git('config', 'commit.gpgsign', 'false');
+    rmSync(join(repo, 'a.ts'));
+    rmSync(join(repo, 'b.ts'));
+    rmSync(join(repo, 'c.ts'));
+    await run(['hook', 'prompt'], input());
+    write('a.ts', 'b.ts', 'c.ts');
+    git('add', '.');
+    git('commit', '-q', '-m', 'first');
+    expect(JSON.parse((await run(['hook', 'stop'], input())).out).hookSpecificOutput.additionalContext).toContain('changed 3 files');
   });
 
   it('asks only once per turn, and not when the reply has a diagram', async () => {
