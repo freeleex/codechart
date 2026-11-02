@@ -84,7 +84,8 @@ function checkRef(flag: string, ref: string): void {
   if (problem) throw new Error(`${flag} ${problem}`);
 }
 
-export function gitChangedFiles(cwd: string): string[] {
+/** `renameSources`: also list the path a rename moved from (gone from the tree, so changed too). */
+export function gitChangedFiles(cwd: string, renameSources = false): string[] {
   const records = git(cwd, ['status', '--porcelain=v1', '-z', '-uall'], repoFilterOverrides(cwd)).split('\0');
   const files: string[] = [];
   for (let i = 0; i < records.length; i++) {
@@ -92,7 +93,10 @@ export function gitChangedFiles(cwd: string): string[] {
     if (!rec || rec.length < 4) continue;
     files.push(rec.slice(3));
     // rename/copy records are followed by the original path
-    if (rec[0] === 'R' || rec[0] === 'C' || rec[1] === 'R' || rec[1] === 'C') i++;
+    if (rec[0] === 'R' || rec[0] === 'C' || rec[1] === 'R' || rec[1] === 'C') {
+      i++;
+      if (renameSources && (rec[0] === 'R' || rec[1] === 'R') && records[i]) files.push(records[i]!);
+    }
   }
   return files;
 }

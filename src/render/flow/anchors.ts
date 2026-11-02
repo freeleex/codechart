@@ -1,4 +1,4 @@
-import { realpathSync } from 'node:fs';
+import { realpathSync, statSync } from 'node:fs';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
 import { readRegularFile } from '../../read-regular.js';
 import { gitFileAt, gitListFiles } from '../../rules/git-files.js';
@@ -21,7 +21,8 @@ export interface FlowSnippets {
   links: Record<number, Snippet>;
 }
 
-type AnchorResult = { ok: true; snippets: FlowSnippets } | { ok: false; errors: string[] };
+/** `checked`: how many anchors resolved. */
+type AnchorResult = { ok: true; snippets: FlowSnippets; checked: number } | { ok: false; errors: string[] };
 
 type Resolved = { snippet: Snippet } | { error: string; field?: 'match' };
 /** `null`: the file does not exist. */
@@ -95,7 +96,7 @@ function lineList(hits: number[]): string {
   return hits.length > MAX_LISTED ? `${shown} and ${hits.length - MAX_LISTED} more` : shown;
 }
 
-function findMatch(path: string, match: string, lines: string[]): Resolved {
+export function findMatch(path: string, match: string, lines: string[]): Resolved {
   const needle = match.trim();
   const hits: number[] = [];
   lines.forEach((l, i) => {
@@ -112,12 +113,12 @@ function findMatch(path: string, match: string, lines: string[]): Resolved {
   return { snippet: { source: `${path}:${line}`, startLine: line, lines: [clip(lines[line - 1]!)] } };
 }
 
-interface Loaded {
+export interface Loaded {
   path: string;
   lines: Read;
 }
 
-interface Ctx {
+export interface AnchorCtx {
   root: string;
   realRoot: string;
   at: string | undefined;
@@ -126,37 +127,90 @@ interface Ctx {
   cwd: string | undefined;
   cache: Map<string, Loaded>;
   listing?: string[];
+  tree?: Set<string>;
 }
 
-function read(c: Ctx, path: string): Read {
-  const rel = relative(c.root, resolve(c.root, path));
+/** `at`: a commit sha to read the files from instead of the working tree. `cwd`: where cwd-relative paths resolve from. */
+export function anchorContext(root: string, at?: string, cwd?: string): AnchorCtx {
+  return {
+    root,
+    realRoot: realpathSync(root),
+    at,
+    budget: { left: MAX_TOTAL_BYTES },
+    cwd: cwd !== undefined && resolve(cwd) !== resolve(root) ? resolve(cwd) : undefined,
+    cache: new Map(),
+  };
+}
+
+function refused(path: string, rel: string): { error: string } | undefined {
   if (isAbsolute(path) || escapes(rel)) return { error: `${path} is outside the repo` };
   if (inGit(rel)) return { error: `${path} is inside .git` };
+  return undefined;
+}
+
+function read(c: AnchorCtx, path: string): Read {
+  const rel = relative(c.root, resolve(c.root, path));
+  const no = refused(path, rel);
+  if (no) return no;
   return c.at ? readLinesAt(path, rel, c.root, c.at, c.budget) : readLines(path, c.root, c.realRoot, c.budget);
 }
 
-/** Paths are repo-root relative; one that exists only relative to the cwd is read from there and reported repo-root relative. */
-function load(c: Ctx, path: string): Loaded {
-  const hit = c.cache.get(path);
-  if (hit) return hit;
-  const direct = read(c, path);
-  let loaded: Loaded = { path, lines: direct };
+/** Whether `path` is a file or folder, without reading it. */
+function present(c: AnchorCtx, path: string): boolean | { error: string } {
+  const rel = relative(c.root, resolve(c.root, path));
+  const no = refused(path, rel);
+  if (no) return no;
+  if (c.at) {
+    c.tree ??= new Set(gitListFiles(c.root, c.at));
+    const slashed = rel.split(sep).join('/');
+    if (c.tree.has(slashed)) return true;
+    for (const f of c.tree) if (f.startsWith(`${slashed}/`)) return true;
+    return false;
+  }
+  try {
+    const real = realpathSync(resolve(c.root, path));
+    if (escapes(relative(c.realRoot, real))) return { error: `${path} is outside the repo` };
+    statSync(real);
+    return true;
+  } catch (e) {
+    const code = (e as NodeJS.ErrnoException).code;
+    return code === 'ENOENT' || code === 'ENOTDIR' ? false : { error: `${path} cannot be read (${code})` };
+  }
+}
+
+/** Paths are repo-root relative; one found only relative to the cwd is taken from there and reported repo-root relative. */
+function withCwd<T>(c: AnchorCtx, path: string, get: (p: string) => T, missing: (v: T) => boolean): { path: string; value: T } {
+  const direct = get(path);
   const outside = !isAbsolute(path) && escapes(relative(c.root, resolve(c.root, path)));
-  if (c.cwd && (direct === null || outside)) {
+  if (c.cwd && (missing(direct) || outside)) {
     const rel = relative(c.root, resolve(c.cwd, path));
     if (rel !== '' && !escapes(rel)) {
       const alt = rel.split(sep).join('/');
-      const lines = read(c, alt);
-      if (lines !== null) loaded = { path: alt, lines };
+      const value = get(alt);
+      if (!missing(value)) return { path: alt, value };
     }
   }
+  return { path, value: direct };
+}
+
+export function load(c: AnchorCtx, path: string): Loaded {
+  const hit = c.cache.get(path);
+  if (hit) return hit;
+  const { path: found, value } = withCwd(c, path, (p) => read(c, p), (v) => v === null);
+  const loaded = { path: found, lines: value };
   c.cache.set(path, loaded);
   return loaded;
 }
 
+/** `found`: false when the file or folder does not exist. */
+export function locate(c: AnchorCtx, path: string): { path: string; found: boolean } | { error: string } {
+  const { path: found, value } = withCwd(c, path, (p) => present(c, p), (v) => v === false);
+  return typeof value === 'boolean' ? { path: found, found: value } : value;
+}
+
 const MAX_LISTED_FILES = 200_000;
 
-function likelyPath(c: Ctx, path: string): string {
+export function likelyPath(c: AnchorCtx, path: string): string {
   const slashed = path.replaceAll('\\', '/');
   if (isAbsolute(path) || slashed.split('/').includes('..')) return '';
   const tail = `/${slashed.replace(/^(\.\/)+/, '')}`;
@@ -172,7 +226,7 @@ function likelyPath(c: Ctx, path: string): string {
   return hits.length === 1 ? `; did you mean ${hits[0]}` : '';
 }
 
-function resolveAnchor(source: string, match: string | undefined, c: Ctx): Resolved {
+function resolveAnchor(source: string, match: string | undefined, c: AnchorCtx): Resolved {
   let path = source;
   let a = '';
   let b: string | undefined;
@@ -208,25 +262,22 @@ function resolveAnchor(source: string, match: string | undefined, c: Ctx): Resol
 
 /** `at`: a commit sha to read the files from instead of the working tree. `cwd`: where cwd-relative paths resolve from. */
 export function checkFlowAnchors(spec: FlowSpec, root: string, at?: string, cwd?: string): AnchorResult {
-  const ctx: Ctx = {
-    root,
-    realRoot: realpathSync(root),
-    at,
-    budget: { left: MAX_TOTAL_BYTES },
-    cwd: cwd !== undefined && resolve(cwd) !== resolve(root) ? resolve(cwd) : undefined,
-    cache: new Map(),
-  };
+  const ctx = anchorContext(root, at, cwd);
   const errors: string[] = [];
   const snippets: FlowSnippets = { steps: new Map(), links: {} };
+  let checked = 0;
 
   const check = (label: string, { source, match }: { source?: string; match?: string }, store: (s: Snippet) => void) => {
     if (!source) return;
     const r = resolveAnchor(source, match, ctx);
     if ('error' in r) errors.push(`${label}.${r.field ?? 'source'}: ${r.error}`);
-    else store(r.snippet);
+    else {
+      checked++;
+      store(r.snippet);
+    }
   };
   spec.steps.forEach((step, i) => check(`steps[${i}]`, step, (s) => snippets.steps.set(step.id, s)));
   spec.links.forEach((link, i) => check(`links[${i}]`, link, (s) => (snippets.links[i] = s)));
 
-  return errors.length ? { ok: false, errors } : { ok: true, snippets };
+  return errors.length ? { ok: false, errors } : { ok: true, snippets, checked };
 }

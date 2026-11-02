@@ -6,6 +6,7 @@ import { renderFieldLines } from './fields.js';
 import { selectTerminalNodes } from './select.js';
 import { marker, paint, plainLabel } from './labels.js';
 import { linksAmong, renderLinks } from './links.js';
+import { alertLine, checkTag, type CheckSummary } from './check-lines.js';
 
 interface TerminalOptions {
   maxNodes: number;
@@ -13,6 +14,7 @@ interface TerminalOptions {
   htmlPath?: string;
   color: boolean;
   keyLine?: boolean;
+  check?: CheckSummary;
 }
 
 export const MIN_WIDTH = 20;
@@ -33,11 +35,11 @@ export function defaultWidth(
   return Number.isFinite(fromEnv) && fromEnv > 0 && fromEnv <= MAX_ENV_WIDTH ? fromEnv : NOT_TTY_WIDTH;
 }
 
-function footer(spec: Spec, hidden: number, width: number, keyLine: boolean, htmlPath?: string): string {
+function footer(spec: Spec, hidden: number, width: number, keyLine: boolean, htmlPath?: string, check?: CheckSummary): string {
   const count = (status: string) => spec.nodes.filter((n) => n.status === status).length;
   const removed = count('removed') > 0 ? ` · ${count('removed')} removed` : '';
   const lines = [
-    truncate(`${spec.nodes.length} nodes · ${count('new')} new · ${count('changed')} changed${removed} · ${count('config')} config`, width),
+    truncate(`${spec.nodes.length} nodes · ${count('new')} new · ${count('changed')} changed${removed} · ${count('config')} config${checkTag(check)}`, width),
   ];
   if (keyLine) lines.push(truncate(KEY, width));
   if (spec.gaps?.length) lines.push(wrapItems('gaps: ', spec.gaps.map(flat), width));
@@ -59,6 +61,8 @@ export function renderTerminalDetailed(spec: Spec, opts: TerminalOptions): { tex
   const { ids, hidden } = selectTerminalNodes(spec, opts.maxNodes);
 
   const sections: string[] = [];
+  const alert = alertLine(opts.check, width);
+  if (alert) sections.push(alert);
   const links = renderLinks(spec, ids, width, opts.color, cuts);
   if (links) sections.push(links);
   const shown = new Set(linksAmong(spec, ids).flatMap((e) => [e.from, e.to]));
@@ -72,6 +76,6 @@ export function renderTerminalDetailed(spec: Spec, opts: TerminalOptions): { tex
     const fields = renderFieldLines(spec, ids, width, opts.color, cuts);
     if (fields) sections.push(fields);
   }
-  sections.push(footer(spec, hidden, width, opts.keyLine ?? true, opts.htmlPath));
+  sections.push(footer(spec, hidden, width, opts.keyLine ?? true, opts.htmlPath, opts.check));
   return { text: `${sections.join('\n\n')}\n`, truncated: cuts.truncated };
 }

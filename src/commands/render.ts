@@ -4,10 +4,12 @@ import { Command, Option } from 'commander';
 import { findRepoRoot, loadConfig } from '../config/load.js';
 import { THEMES, type Config, type Diagram, type Output, type Theme } from '../config/schema.js';
 import type { CommandOptions } from '../program.js';
-import { checkFlowAnchors, type FlowSnippets } from '../render/flow/anchors.js';
+import { checkFlowDiff, checkMapNodes, diffOf, type Diff } from '../render/check.js';
+import { checkFlowAnchors } from '../render/flow/anchors.js';
 import { markdownBlock, openBlockedNote } from '../render/markdown.js';
 import { fileSlug, htmlOutputPath, needsWeb, repoFolder } from '../render/output-path.js';
 import { pruneHtml } from '../render/prune.js';
+import { alertLine, type CheckSummary } from '../render/terminal/check-lines.js';
 import { defaultWidth, fullMapLine, KEY, renderTerminalDetailed } from '../render/terminal/render.js';
 import { selectTerminalNodes } from '../render/terminal/select.js';
 import { renderHtml } from '../render/web/html.js';
@@ -15,6 +17,7 @@ import { layoutSpec } from '../render/web/layout.js';
 import type { HtmlMeta } from '../render/web/page.js';
 import { resolveCommit } from '../rules/git-files.js';
 import { unionOutputs } from '../rules/resolve.js';
+import { gitFiles, hasGitSelection, selectionError, type GitSelection } from '../rules/selection.js';
 import type { FlowSpec } from '../spec/flow.js';
 import { validateSpec, type Spec } from '../spec/schema.js';
 import { MAX_SPEC_BYTES } from '../spec/shared.js';
@@ -79,23 +82,31 @@ async function readSpec(arg: string, cwd: string, stdin: () => Promise<string>):
   return result.spec;
 }
 
-function flowSnippets(spec: FlowSpec, root: string, at: string | undefined, cwd: string): FlowSnippets {
+function flowAnchors(spec: FlowSpec, root: string, at: string | undefined, cwd: string) {
   const anchors = checkFlowAnchors(spec, root, at, cwd);
   if (!anchors.ok) throw new InvalidSpec(anchors.errors);
-  return anchors.snippets;
+  return anchors;
 }
 
-interface RenderFlags {
+interface RenderFlags extends GitSelection {
   output?: Exclude<Output, 'none'>;
   theme?: Theme;
   open?: boolean;
   md?: boolean;
   at?: string;
+  strict?: boolean;
 }
 
-function markdown(map: string | undefined, htmlPath: string | undefined): string {
+function renderSelectionError(o: RenderFlags): string | undefined {
+  if (!hasGitSelection(o)) return undefined;
+  if (o.head !== undefined && o.since === undefined) return '--head needs --since';
+  if (o.commit !== undefined && (o.git || o.since !== undefined)) return '--commit does not combine with --git or --since';
+  return selectionError(o);
+}
+
+function markdown(map: string | undefined, htmlPath: string | undefined, alert: string): string {
   const body = map !== undefined && htmlPath ? map.split('\n').filter((l) => l !== fullMapLine(htmlPath)).join('\n') : map;
-  return markdownBlock(`**Map** _(${KEY})_`, body, htmlPath);
+  return markdownBlock(`**Map** _(${KEY})_`, body ?? (alert || undefined), htmlPath);
 }
 
 export function renderCommand(opts: CommandOptions): Command {
@@ -107,8 +118,15 @@ export function renderCommand(opts: CommandOptions): Command {
     .addOption(new Option('--theme <theme>', 'HTML theme').choices(THEMES))
     .option('--open', 'open the HTML file in the browser')
     .option('--md', 'print a paste-ready markdown block (no color)')
-    .option('--at <rev>', 'check flow anchors against the files at this commit instead of the working tree')
-    .action(async (arg: string, o: RenderFlags) => {
+    .option('--at <rev>', 'check anchors and node paths against the files at this commit instead of the working tree')
+    .option('--git', "check a summary's new, changed and removed claims against staged, unstaged and untracked files")
+    .option('--commit <sha>', 'check claims against the files one commit changed')
+    .option('--since <base>', 'check claims against the files committed since <base>; add --git for uncommitted ones too')
+    .option('--head <ref>', 'with --since: compare <base>...<ref> instead of HEAD')
+    .option('--strict', "exit 1 when a claim doesn't match the code")
+    .action(async (arg: string, o: RenderFlags, cmd: Command) => {
+      const usage = renderSelectionError(o);
+      if (usage) cmd.error(usage, { exitCode: 2 });
       try {
         const spec = await readSpec(arg, cwd, opts.stdin ?? readStdin);
         const repoRoot = findRepoRoot(cwd);
@@ -118,7 +136,12 @@ export function renderCommand(opts: CommandOptions): Command {
           if (!repoRoot) throw new Error('--at needs a git repository');
           at = resolveCommit(root, '--at', o.at);
         }
-        const snippets = spec.diagram === 'flow' ? flowSnippets(spec, root, at, resolve(cwd)) : undefined;
+        const anchors = spec.diagram === 'flow' ? flowAnchors(spec, root, at, resolve(cwd)) : undefined;
+        let diff: Diff | undefined;
+        if (hasGitSelection(o)) {
+          if (!repoRoot) throw new Error('--git, --commit and --since need a git repository');
+          diff = diffOf(gitFiles(root, o, true));
+        }
         const config = loadConfig({ cwd, home: opts.home, env: opts.env, warn: (l) => opts.stderr(`codechart: ${l}\n`) });
         const diagram = spec.diagram ?? 'map';
         const resolved = spec.rules?.length ? specOutput(config, spec.rules, diagram) : config.defaults.output;
@@ -162,16 +185,23 @@ export function renderCommand(opts: CommandOptions): Command {
           return file;
         };
 
+        const failStrict = (check: CheckSummary) => {
+          if (o.strict && check.mismatches.length > 0) process.exitCode = 1;
+        };
+
         if (spec.diagram === 'flow') {
-          const tree = { maxNodes, width, color, md: o.md };
-          print(await renderFlow(spec, snippets!, { output, minNodes: config.web.minNodes, tree, writeHtml }));
+          const check = checkFlowDiff(spec, anchors!.snippets, anchors!.checked, root, diff);
+          const tree = { maxNodes, width, color, md: o.md, check };
+          print(await renderFlow(spec, anchors!.snippets, { output, minNodes: config.web.minNodes, tree, writeHtml }));
           printBlocked();
+          failStrict(check);
           return;
         }
 
+        const check = checkMapNodes(spec, root, { at, cwd: resolve(cwd), diff });
         const { hidden } = selectTerminalNodes(spec, maxNodes);
-        const termOpts = { maxNodes, keyLine: !o.md, color, width };
-        const writeMapHtml = () => writeHtml(async (meta) => renderHtml(spec, await layoutSpec(spec), meta));
+        const termOpts = { maxNodes, keyLine: !o.md, color, width, check };
+        const writeMapHtml = () => writeHtml(async (meta) => renderHtml(spec, await layoutSpec(spec), meta, check));
 
         let htmlPath: string | undefined;
         let terminal: { text: string; truncated: boolean } | undefined;
@@ -186,9 +216,11 @@ export function renderCommand(opts: CommandOptions): Command {
         }
 
         const map = output === 'web' ? undefined : (terminal ?? renderTerminalDetailed(spec, { ...termOpts, htmlPath })).text;
-        if (o.md) print(markdown(map, htmlPath));
-        else print(map ?? `${fullMapLine(htmlPath!)}\n`);
+        const alert = alertLine(check, width);
+        if (o.md) print(markdown(map, htmlPath, alert));
+        else print(map ?? `${alert ? `${alert}\n` : ''}${fullMapLine(htmlPath!)}\n`);
         printBlocked();
+        failStrict(check);
       } catch (e) {
         const message = e instanceof Error ? e.message : String(e);
         const lines = e instanceof InvalidSpec ? e.errors : message.split('\n').map((l) => `codechart: ${l}`);

@@ -1,4 +1,6 @@
 import { isPlannedLink, type FlowLink, type FlowSpec, type FlowStep } from '../../spec/flow.js';
+import type { CheckSummary } from '../terminal/check-lines.js';
+import { checkNote, checkSection, flagMark, isFlagged, mismatchNote } from '../web/check-html.js';
 import { esc, list, midpoint, num, renderPage, type HtmlMeta } from '../web/page.js';
 import type { FlowSnippets, Snippet } from './anchors.js';
 import { BADGE_HEIGHT, LINE_HEIGHT, type FlowLayout, type FlowLayoutEdge, type FlowLayoutNode } from './layout.js';
@@ -17,8 +19,6 @@ aside .status{color:var(--muted);margin-bottom:4px}
 aside .tag{font-size:10px;text-transform:uppercase;border:1px solid currentColor;border-radius:8px;padding:0 5px}
 aside .tag-new{color:var(--new-t)}aside .tag-changed{color:var(--chg-t)}aside .tag-planned{color:var(--cfg-t);border-style:dashed}
 aside .planned-note{color:var(--cfg-t);font-style:italic;margin:6px 0}
-aside .snippet{font:11px/1.45 ui-monospace,monospace;background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:6px 8px;margin:6px 0;overflow:auto;white-space:pre}
-aside .snippet .ln{display:inline-block;min-width:3ch;margin-right:10px;color:var(--muted);text-align:right;user-select:none}
 aside .more{color:var(--muted);font-size:11px;margin:0}
 aside .branches{padding-left:0;list-style:none}
 aside .branches li{margin:0 0 10px}
@@ -40,7 +40,7 @@ function shape(step: FlowStep, b: FlowLayoutNode): string {
   return `<rect class="shape" x="${num(b.x)}" y="${num(b.y)}" width="${num(b.w)}" height="${num(b.h)}" rx="${num(rx)}"/>`;
 }
 
-function renderStep(step: FlowStep, b: FlowLayoutNode): string {
+function renderStep(step: FlowStep, b: FlowLayoutNode, flagged: boolean): string {
   const cx = num(b.x + b.w / 2);
   const content = b.lines.length * LINE_HEIGHT + (b.badge ? BADGE_HEIGHT : 0);
   let y = b.y + (b.h - content) / 2;
@@ -54,9 +54,10 @@ function renderStep(step: FlowStep, b: FlowLayoutNode): string {
     y += LINE_HEIGHT;
   }
   return (
-    `<g class="node type-${step.type} status-${step.status}" data-id="${esc(step.id)}" tabindex="0" role="button" aria-label="${esc(`${step.label} (${step.status} ${step.type})`)}">` +
+    `<g class="node type-${step.type} status-${step.status}" data-id="${esc(step.id)}" tabindex="0" role="button" aria-label="${esc(`${step.label} (${step.status} ${step.type}${flagged ? ", doesn't match the code" : ''})`)}">` +
     shape(step, b) +
     text +
+    (flagged ? flagMark(b.x + b.w, b.y) : '') +
     `</g>`
   );
 }
@@ -75,7 +76,7 @@ function renderLink(link: FlowLink, e: FlowLayoutEdge, planned: boolean): string
   return `<g class="edge${planned ? ' planned' : ''}">${out}</g>`;
 }
 
-function snippetHtml(s: Snippet): string {
+export function snippetHtml(s: Snippet): string {
   const code = s.lines.map((l, i) => `<span class="ln">${s.startLine + i}</span>${esc(l)}`).join('\n');
   const end = Number(s.source.match(/-(\d+)$/)?.[1] ?? s.startLine);
   const total = end - s.startLine + 1;
@@ -85,9 +86,10 @@ function snippetHtml(s: Snippet): string {
 
 const tag = (status: string) => `<span class="tag tag-${esc(status)}">${esc(status)}</span>`;
 
-function stepPanel(spec: FlowSpec, step: FlowStep, snippets: FlowSnippets, byId: Map<string, FlowStep>): string {
+function stepPanel(spec: FlowSpec, step: FlowStep, snippets: FlowSnippets, byId: Map<string, FlowStep>, check: CheckSummary | undefined): string {
   let out = `<h2>${esc(step.label)}</h2>`;
   out += `<div class="status">${tag(step.status)} ${esc(step.type)}</div>`;
+  out += mismatchNote(check, step.id);
   const snip = snippets.steps.get(step.id);
   if (step.status === 'planned') {
     out += `<p class="planned-note">${snip ? 'Planned change to the code below.' : 'Planned: not in the code yet.'}</p>`;
@@ -111,14 +113,15 @@ function stepPanel(spec: FlowSpec, step: FlowStep, snippets: FlowSnippets, byId:
   return `<template class="card-panel" data-for="${esc(step.id)}">${out}</template>`;
 }
 
-function pageInfo(spec: FlowSpec, anyPlanned: boolean): string {
+function pageInfo(spec: FlowSpec, anyPlanned: boolean, check: CheckSummary | undefined): string {
   let out = '<p>Click a step for its status, source and code. Scroll to zoom, drag to pan.</p>';
+  out += checkSection(check);
   if (anyPlanned) out += '<p class="planned-note">Dashed steps and arrows are planned: not in the code yet.</p>';
   if (spec.gaps?.length) out += `<h3>Gaps</h3>${list(spec.gaps)}`;
   return `<section id="page-info">${out}</section>`;
 }
 
-export function renderFlowHtml(spec: FlowSpec, layout: FlowLayout, snippets: FlowSnippets, meta: HtmlMeta): string {
+export function renderFlowHtml(spec: FlowSpec, layout: FlowLayout, snippets: FlowSnippets, meta: HtmlMeta, check?: CheckSummary): string {
   const byId = new Map(spec.steps.map((s) => [s.id, s]));
   const boxes = new Map(layout.nodes.map((n) => [n.id, n]));
   const planned = spec.links.map((l) => isPlannedLink(spec, l));
@@ -126,19 +129,22 @@ export function renderFlowHtml(spec: FlowSpec, layout: FlowLayout, snippets: Flo
   const nodes = spec.steps
     .map((s) => {
       const b = boxes.get(s.id);
-      return b ? renderStep(s, b) : '';
+      return b ? renderStep(s, b, isFlagged(check, s.id)) : '';
     })
     .join('');
   const anyPlanned = planned.includes(true) || spec.steps.some((s) => s.status === 'planned');
-  const infoButton = spec.gaps?.length
-    ? '<button id="info-toggle" type="button" aria-controls="page-info" title="Show what the agent did not check">Gaps</button>'
-    : '';
+  const infoButton = check?.mismatches.length
+    ? '<button id="info-toggle" type="button" aria-controls="page-info" title="Show what doesn\'t match the code and what the agent did not check">Check / gaps</button>'
+    : spec.gaps?.length
+      ? '<button id="info-toggle" type="button" aria-controls="page-info" title="Show what the agent did not check">Gaps</button>'
+      : '';
   return renderPage({
     title: spec.title,
     meta,
     infoButton,
+    headerNote: checkNote(check),
     viewport: `${edges}${nodes}`,
-    aside: `${pageInfo(spec, anyPlanned)}<div id="panel" hidden></div>${spec.steps.map((s) => stepPanel(spec, s, snippets, byId)).join('')}`,
+    aside: `${pageInfo(spec, anyPlanned, check)}<div id="panel" hidden></div>${spec.steps.map((s) => stepPanel(spec, s, snippets, byId, check)).join('')}`,
     width: layout.width,
     height: layout.height,
     extraCss: FLOW_CSS,

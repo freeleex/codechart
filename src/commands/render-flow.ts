@@ -3,6 +3,7 @@ import type { FlowSnippets } from '../render/flow/anchors.js';
 import { renderFlowHtml } from '../render/flow/html.js';
 import { layoutFlow } from '../render/flow/layout.js';
 import { flowMarkdown, renderFlowTree, type FlowTreeOptions } from '../render/flow/tree.js';
+import { alertLine } from '../render/terminal/check-lines.js';
 import { defaultWidth, fullMapLine } from '../render/terminal/render.js';
 import type { HtmlMeta } from '../render/web/page.js';
 import type { FlowSpec } from '../spec/flow.js';
@@ -17,7 +18,7 @@ interface FlowRenderContext {
 /** Writes the HTML when the output mode asks for it; returns what goes to stdout. */
 export async function renderFlow(spec: FlowSpec, snippets: FlowSnippets, ctx: FlowRenderContext): Promise<string> {
   const { output } = ctx;
-  const writeHtml = () => ctx.writeHtml(async (meta) => renderFlowHtml(spec, await layoutFlow(spec), snippets, meta));
+  const writeHtml = () => ctx.writeHtml(async (meta) => renderFlowHtml(spec, await layoutFlow(spec), snippets, meta, ctx.tree.check));
 
   let htmlPath: string | undefined;
   let tree: { text: string; truncated: boolean } | undefined;
@@ -31,6 +32,11 @@ export async function renderFlow(spec: FlowSpec, snippets: FlowSnippets, ctx: Fl
     }
   }
 
-  if (output === 'web') return ctx.tree.md ? flowMarkdown(spec.title, undefined, htmlPath, ctx.tree.width ?? defaultWidth()) : `${fullMapLine(htmlPath!)}\n`;
+  if (output === 'web') {
+    const width = ctx.tree.width ?? defaultWidth();
+    const alert = alertLine(ctx.tree.check, width);
+    if (ctx.tree.md) return flowMarkdown(spec.title, alert || undefined, htmlPath, width);
+    return `${alert ? `${alert}\n` : ''}${fullMapLine(htmlPath!)}\n`;
+  }
   return (tree ?? renderFlowTree(spec, { ...ctx.tree, htmlPath })).text;
 }
