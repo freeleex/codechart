@@ -223,7 +223,7 @@ Rules have a `name` plus exactly one of `paths` (globs: `*`, `**`, `?`, `[..]`; 
 If it loads `SKILL.md` skills, run `codechart install-skill --dir <its skills folder>`. If not, the CLI still works for any agent that can run a command and write JSON: point it at `codechart schema` and `codechart render`.
 
 **My agent asks permission for every render, even though I allowed `codechart`.**
-The skill pipes the spec in with a heredoc (`codechart render --md - <<'EOF'`). In Claude Code, an allow rule like `Bash(codechart:*)` didn't cover that in our tests, so the call still needs your approval when asked.
+The skill pipes the spec in with a heredoc (`codechart render --md - <<'EOF'`). In Claude Code, an allow rule like `Bash(codechart:*)` didn't cover that in our tests, so Claude Code asks before each render: approve it.
 
 **Will it draw a diagram for every tiny change?**
 No. One-file text, comment, formatting or version-bump changes are skipped. Flows only appear for logic with 2+ decisions or edge cases, or when you ask for one.
