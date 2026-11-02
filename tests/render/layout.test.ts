@@ -1,10 +1,18 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { layoutSpec, wrapSummary, SUMMARY_CHARS_PER_LINE, SUMMARY_MAX_LINES } from '../../src/render/web/layout.js';
+import {
+  layoutSpec,
+  pickLayout,
+  wrapSummary,
+  SUMMARY_CHARS_PER_LINE,
+  SUMMARY_MAX_LINES,
+  type Direction,
+  type Layout,
+} from '../../src/render/web/layout.js';
 import { validateSpec, type Spec } from '../../src/spec/schema.js';
 
-function loadFixture(): Spec {
-  const raw = JSON.parse(readFileSync('tests/fixtures/shop.spec.json', 'utf8'));
+function loadFixture(file = 'tests/fixtures/shop.spec.json'): Spec {
+  const raw = JSON.parse(readFileSync(file, 'utf8'));
   const result = validateSpec(raw);
   if (!result.ok) throw new Error(result.errors.join('\n'));
   if (result.spec.diagram === 'flow') throw new Error('expected map spec');
@@ -97,6 +105,42 @@ describe('layoutSpec', () => {
     expect(await h('short')).toBe(28 + 16);
     expect(await h('word '.repeat(10).trim())).toBe(28 + 16 * 2);
     expect(await h('word '.repeat(60).trim())).toBe(28 + 16 * SUMMARY_MAX_LINES);
+  });
+
+  it.each([
+    ['shop', 'tests/fixtures/shop.spec.json'],
+    ['4-layer chain', 'tests/fixtures/chain.spec.json'],
+    ['small', 'tests/fixtures/measure/small.map.json'],
+  ])('%s map lays out top-down, so the chain does not become a wide strip', async (_, file) => {
+    expect((await layoutSpec(loadFixture(file))).direction).toBe('DOWN');
+  });
+
+  it('120-node map stays left-to-right, which fits a landscape canvas better', async () => {
+    expect((await layoutSpec(loadFixture('tests/fixtures/measure/large.map.json'))).direction).toBe('RIGHT');
+  });
+});
+
+describe('pickLayout', () => {
+  const box = (direction: Direction, width: number, height: number): Layout => ({
+    direction,
+    width,
+    height,
+    groups: [],
+    nodes: [],
+    edges: [],
+  });
+
+  it('keeps the layout with the bigger fit on a laptop canvas', () => {
+    expect(pickLayout(box('RIGHT', 2400, 300), box('DOWN', 800, 1200)).direction).toBe('DOWN');
+    expect(pickLayout(box('RIGHT', 4600, 4000), box('DOWN', 11000, 2500)).direction).toBe('RIGHT');
+  });
+
+  it('breaks a tie on the laptop canvas with the half-screen split', () => {
+    expect(pickLayout(box('RIGHT', 1000, 130), box('DOWN', 280, 430)).direction).toBe('DOWN');
+  });
+
+  it('keeps left-to-right on a full tie', () => {
+    expect(pickLayout(box('RIGHT', 300, 200), box('DOWN', 200, 300)).direction).toBe('RIGHT');
   });
 });
 
