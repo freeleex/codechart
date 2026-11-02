@@ -1,10 +1,10 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { changedFiles, turnUsedCodechart } from '../../src/commands/hook.js';
-import { addReminder, installClaudeHooks, REMINDER } from '../../src/commands/nudges.js';
+import { addReminder, installClaudeHooks, REMINDER, removeClaudeHooks, removeReminder } from '../../src/commands/nudges.js';
 import { buildProgram, runProgram } from '../../src/program.js';
 
 let tmp: string;
@@ -237,5 +237,63 @@ describe('codechart hook', () => {
       const r = await run(['hook', 'stop'], stdin);
       expect(r).toEqual({ out: '', err: '', code: undefined });
     }
+  });
+});
+
+describe('removing what install-skill added', () => {
+  it('removeReminder takes the block and the blank line before it, nothing else', () => {
+    const file = join(home, 'CLAUDE.md');
+    writeFileSync(file, '# mine\n- a rule\n');
+    addReminder(file, false);
+    writeFileSync(file, `${readFileSync(file, 'utf8')}after\n`);
+    expect(removeReminder(file)).toBe('removed');
+    expect(readFileSync(file, 'utf8')).toBe('# mine\n- a rule\nafter\n');
+    expect(removeReminder(file)).toBe('absent');
+    expect(removeReminder(join(home, 'missing.md'))).toBe('absent');
+  });
+
+  it('removeClaudeHooks keeps other hooks and drops what it empties', () => {
+    const file = join(home, 'settings.json');
+    const other = { matcher: 'Bash', hooks: [{ type: 'command', command: 'guard.py' }] };
+    writeFileSync(file, JSON.stringify({ model: 'x', hooks: { PreToolUse: [other], Stop: [{ hooks: [{ type: 'command', command: 'mine' }] }] } }));
+    installClaudeHooks(file);
+    expect(removeClaudeHooks(file)).toBe('removed');
+    expect(JSON.parse(readFileSync(file, 'utf8'))).toEqual({ model: 'x', hooks: { PreToolUse: [other], Stop: [{ hooks: [{ type: 'command', command: 'mine' }] }] } });
+    expect(removeClaudeHooks(file)).toBe('absent');
+    writeFileSync(file, '{"model":"x"}');
+    installClaudeHooks(file);
+    removeClaudeHooks(file);
+    expect(JSON.parse(readFileSync(file, 'utf8'))).toEqual({ model: 'x' });
+  });
+
+  it('uninstall removes the skill, reminders and hooks; keeps files that are not its own', async () => {
+    mkdirSync(join(home, '.claude'));
+    mkdirSync(join(home, '.config', 'opencode'), { recursive: true });
+    await run(['install-skill', '--agent', 'claude,opencode', '--reminder', '--hook']);
+    await run(['install-skill', '--agent', 'codex']);
+    writeFileSync(join(home, '.agents', 'skills', 'codechart', 'notes.txt'), 'mine');
+    mkdirSync(join(home, '.config', 'opencode', 'skills', 'codechart'), { recursive: true });
+    writeFileSync(join(home, '.config', 'opencode', 'skills', 'codechart', 'SKILL.md'), '---\nname: other\n---\n');
+    const r = await run(['uninstall']);
+    expect(r.code).toBeUndefined();
+    expect(existsSync(join(home, '.claude', 'skills', 'codechart'))).toBe(false);
+    expect(readFileSync(join(home, '.agents', 'skills', 'codechart', 'notes.txt'), 'utf8')).toBe('mine');
+    expect(existsSync(join(home, '.agents', 'skills', 'codechart', 'SKILL.md'))).toBe(false);
+    expect(readFileSync(join(home, '.config', 'opencode', 'skills', 'codechart', 'SKILL.md'), 'utf8')).toContain('name: other');
+    expect(readFileSync(join(home, '.claude', 'CLAUDE.md'), 'utf8')).toBe('');
+    expect(JSON.parse(readFileSync(join(home, '.claude', 'settings.json'), 'utf8'))).toEqual({});
+    expect(r.out).toContain(`removed skill: ${join(home, '.claude', 'skills', 'codechart')}`);
+    expect(r.out).toContain('kept your other files there');
+    expect(r.out).toContain('not the codechart skill');
+    expect(r.out).toContain(`removed hook: ${join(home, '.claude', 'settings.json')}`);
+    expect((await run(['uninstall', '--hook'])).out).toBe('nothing to remove\n');
+  });
+
+  it('uninstall --reminder touches only reminders', async () => {
+    mkdirSync(join(home, '.claude'));
+    await run(['install-skill', '--agent', 'claude', '--reminder']);
+    const r = await run(['uninstall', '--reminder']);
+    expect(r.out).toBe(`removed reminder: ${join(home, '.claude', 'CLAUDE.md')}\n`);
+    expect(existsSync(join(home, '.claude', 'skills', 'codechart', 'SKILL.md'))).toBe(true);
   });
 });
