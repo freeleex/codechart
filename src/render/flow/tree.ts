@@ -3,7 +3,7 @@ import { markdownBlock } from '../markdown.js';
 import { columns, fit, flat, truncate, wrapItems, type Cuts, type Segment } from '../terminal/wrap.js';
 import { defaultWidth, fullMapLine, MIN_WIDTH } from '../terminal/render.js';
 import { walkFlow, type Arm, type Chain, type Item } from './walk.js';
-import { alertLine, checkTag, type CheckSummary } from '../terminal/check-lines.js';
+import { alertLine, countLines, type CheckSummary } from '../terminal/check-lines.js';
 
 export interface FlowTreeOptions {
   maxNodes: number;
@@ -115,10 +115,7 @@ function chainLines(chain: Chain, first: Segment[], rest: string, lead: string, 
 function footer(spec: FlowSpec, ctx: Ctx, md: boolean): string {
   const count = (status: Status) => spec.steps.filter((s) => s.status === status).length;
   const lines = [
-    truncate(
-      `${spec.steps.length} steps · ${count('new')} new · ${count('changed')} changed · ${count('planned')} planned${checkTag(ctx.check)}`,
-      ctx.width,
-    ),
+    countLines(`${spec.steps.length} steps · ${count('new')} new · ${count('changed')} changed · ${count('planned')} planned`, ctx.check, ctx.width),
   ];
   if (!md) lines.push(truncate(FLOW_KEY, ctx.width));
   if (spec.gaps?.length) lines.push(wrapItems('gaps: ', spec.gaps.map(flat), ctx.width));

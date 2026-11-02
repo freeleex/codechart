@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { checkFlowDiff, checkMapNodes, diffOf } from '../../src/render/check.js';
-import { alertLine, checkHeadline, checkTag } from '../../src/render/terminal/check-lines.js';
+import { alertLine, checkHeadline, checkTag, countLines } from '../../src/render/terminal/check-lines.js';
 import type { FlowSpec } from '../../src/spec/flow.js';
 import { validateSpec, type Spec, type SpecNode } from '../../src/spec/schema.js';
 
@@ -193,16 +193,47 @@ describe('check lines', () => {
   it('alert line: only on a mismatch, at most 5 named, wrapped to the width', () => {
     expect(alertLine({ checked: 3, mismatches: [], unit: 'node' }, 80)).toBe('');
     expect(alertLine({ checked: 3, mismatches: m(1), unit: 'node' }, 80)).toBe("✗ 1 claim doesn't match the code: ~n0 not in diff");
-    const many = alertLine({ checked: 9, mismatches: m(7), unit: 'node' }, 60);
+    const many = alertLine({ checked: 9, mismatches: m(7), unit: 'node' }, 80);
     expect(many.startsWith("✗ 7 claims don't match the code: ~n0 not in diff")).toBe(true);
     expect(many).toContain('+2 more');
     expect(many).not.toContain('~n5');
-    expect(many.split('\n').every((l) => [...l].length <= 60)).toBe(true);
+    expect(many.split('\n').every((l) => [...l].length <= 80)).toBe(true);
+    const narrow = alertLine({ checked: 9, mismatches: m(2), unit: 'node' }, 60);
+    expect(narrow).toBe("✗ 2 claims don't match the code:\n  ~n0 not in diff · ~n1 not in diff");
   });
 
   it('HTML headline', () => {
     expect(checkHeadline({ checked: 10, mismatches: [], unit: 'node' })).toBe('✓ 10 nodes checked against the code');
     expect(checkHeadline({ checked: 10, mismatches: m(1), unit: 'node' })).toBe("✗ 1 of 10 nodes doesn't match the code");
     expect(checkHeadline({ checked: 0, mismatches: [], unit: 'node' })).toBe('');
+  });
+});
+
+describe('review findings', () => {
+  it('a removed node given relative to the cwd matches its deleted file in the diff', () => {
+    const s = map('summary', { status: 'removed', path: 'old.ts' });
+    expect(checkMapNodes(s, repo, { cwd: join(repo, 'src'), diff: diffOf(['src/old.ts']) }).mismatches).toEqual([]);
+  });
+
+  it('the repo root as a folder node exists and is in a non-empty diff', () => {
+    const sha = git('rev-parse', 'HEAD').trim();
+    expect(shorts(map('summary', { status: 'changed', path: '.' }), ['src/a.ts'])).toEqual([]);
+    expect(checkMapNodes(map('summary', { status: 'context', path: '.' }), repo, { at: sha }).mismatches).toEqual([]);
+  });
+
+  it('a narrow terminal keeps the check result and wraps the alert under a short indent', () => {
+    const c = { checked: 1, mismatches: [{ id: 'n', label: '~OrderStatus', short: 'not in diff', detail: '' }], unit: 'node' as const };
+    const alert = alertLine(c, 20);
+    expect(alert.split('\n').every((l) => [...l].length <= 20)).toBe(true);
+    expect(alert).toContain('~OrderStatus');
+  });
+});
+
+describe('countLines', () => {
+  const ok = { checked: 1, mismatches: [], unit: 'node' as const };
+  it('keeps the tag on the count line when it fits, else on its own line', () => {
+    expect(countLines('1 nodes · 0 new', ok, 80)).toBe('1 nodes · 0 new · ✓ 1 checked');
+    expect(countLines('1 nodes · 0 new · 1 changed · 0 config', ok, 40)).toBe('1 nodes · 0 new · 1 changed · 0 config\n✓ 1 checked');
+    expect(countLines('1 nodes · 0 new', undefined, 10)).toBe('1 nodes ·…');
   });
 });

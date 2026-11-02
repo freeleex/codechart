@@ -163,7 +163,7 @@ function present(c: AnchorCtx, path: string): boolean | { error: string } {
   if (c.at) {
     c.tree ??= new Set(gitListFiles(c.root, c.at));
     const slashed = rel.split(sep).join('/');
-    if (c.tree.has(slashed)) return true;
+    if (slashed === '' || c.tree.has(slashed)) return true;
     for (const f of c.tree) if (f.startsWith(`${slashed}/`)) return true;
     return false;
   }

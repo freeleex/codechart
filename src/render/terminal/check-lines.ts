@@ -1,4 +1,4 @@
-import { flat, wrapItems } from './wrap.js';
+import { columns, flat, truncate, wrapItems } from './wrap.js';
 
 export interface Mismatch {
   id: string;
@@ -34,7 +34,17 @@ export function alertLine(c: CheckSummary | undefined, width: number): string {
   if (!c || n === 0) return '';
   const items = c.mismatches.slice(0, MAX_SHOWN).map((m) => `${flat(m.label)} ${m.short}`);
   if (n > MAX_SHOWN) items.push(`+${n - MAX_SHOWN} more`);
-  return wrapItems(`✗ ${n} ${n === 1 ? "claim doesn't" : "claims don't"} match the code: `, items, width);
+  const head = `✗ ${n} ${n === 1 ? "claim doesn't" : "claims don't"} match the code: `;
+  // Wrapping indents under the head, which leaves too little room on a narrow terminal.
+  if (columns(head) <= width / 2) return wrapItems(head, items, width);
+  return `${truncate(head.trimEnd(), width)}\n${wrapItems('  ', items, width)}`;
+}
+
+/** The footer's count line with the check tag, which moves to its own line rather than being cut off. */
+export function countLines(counts: string, c: CheckSummary | undefined, width: number): string {
+  const tag = checkTag(c);
+  if (columns(counts + tag) <= width) return counts + tag;
+  return tag ? `${truncate(counts, width)}\n${truncate(tag.replace(/^ · /, ''), width)}` : truncate(counts, width);
 }
 
 export function checkHeadline(c: CheckSummary | undefined): string {

@@ -13,7 +13,7 @@ export interface Diff {
 
 export function diffOf(files: string[]): Diff {
   const set = new Set(files);
-  return { has: (p) => set.has(p) || files.some((f) => f.startsWith(`${p}/`)) };
+  return { has: (p) => (p === '' ? files.length > 0 : set.has(p) || files.some((f) => f.startsWith(`${p}/`))) };
 }
 
 export interface MapCheck extends CheckSummary {
@@ -36,6 +36,10 @@ const IN_DIFF: ReadonlySet<string> = new Set(['new', 'changed', 'removed']);
 
 type Problem = Pick<Mismatch, 'short' | 'detail'>;
 
+// A deleted file can't be found on disk to tell a cwd-relative path from a root-relative one, so try both.
+const inDiff = (c: AnchorCtx, path: string, diff: Diff) =>
+  diff.has(repoPath(c.root, path)) || (c.cwd !== undefined && diff.has(repoPath(c.root, resolve(c.cwd, path))));
+
 function checkNode(c: AnchorCtx, spec: Spec, node: SpecNode & { path: string }, diff: Diff | undefined, matches: Map<string, Snippet>): Problem | undefined {
   const needed = mustExist(spec, node);
   const where = locate(c, node.path);
@@ -44,7 +48,7 @@ function checkNode(c: AnchorCtx, spec: Spec, node: SpecNode & { path: string }, 
     const at = c.at ? ` at ${c.at.slice(0, 12)}` : '';
     return { short: 'file missing', detail: `${node.path} does not exist${at}${likelyPath(c, node.path)}` };
   }
-  if (diff && spec.kind === 'summary' && IN_DIFF.has(node.status) && !diff.has(repoPath(c.root, where.path))) {
+  if (diff && spec.kind === 'summary' && IN_DIFF.has(node.status) && !inDiff(c, where.path, diff)) {
     return { short: 'not in diff', detail: `marked ${node.status}, but ${where.path} isn't in the diff` };
   }
   if (node.match === undefined || !needed || !where.found) return undefined;

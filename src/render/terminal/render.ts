@@ -6,7 +6,7 @@ import { renderFieldLines } from './fields.js';
 import { selectTerminalNodes } from './select.js';
 import { marker, paint, plainLabel } from './labels.js';
 import { linksAmong, renderLinks } from './links.js';
-import { alertLine, checkTag, type CheckSummary } from './check-lines.js';
+import { alertLine, countLines, type CheckSummary } from './check-lines.js';
 
 interface TerminalOptions {
   maxNodes: number;
@@ -39,7 +39,7 @@ function footer(spec: Spec, hidden: number, width: number, keyLine: boolean, htm
   const count = (status: string) => spec.nodes.filter((n) => n.status === status).length;
   const removed = count('removed') > 0 ? ` · ${count('removed')} removed` : '';
   const lines = [
-    truncate(`${spec.nodes.length} nodes · ${count('new')} new · ${count('changed')} changed${removed} · ${count('config')} config${checkTag(check)}`, width),
+    countLines(`${spec.nodes.length} nodes · ${count('new')} new · ${count('changed')} changed${removed} · ${count('config')} config`, check, width),
   ];
   if (keyLine) lines.push(truncate(KEY, width));
   if (spec.gaps?.length) lines.push(wrapItems('gaps: ', spec.gaps.map(flat), width));
