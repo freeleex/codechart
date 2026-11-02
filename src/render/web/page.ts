@@ -83,6 +83,7 @@ export function renderPage(p: PageParts): string {
 <main>
 <div id="canvas"><svg><defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z"/></marker>${p.extraDefs ?? ''}</defs>
 <g id="viewport">${p.viewport}</g></svg></div>
+<div id="resize" role="separator" aria-orientation="vertical" aria-label="Resize panel" tabindex="0" title="Drag to resize the panel"></div>
 <aside>${p.aside}</aside>
 </main>
 <script type="application/json" id="spec-data">${jsonForScript(data)}</script>

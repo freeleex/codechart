@@ -8,6 +8,7 @@ import { checkFlowDiff, checkMapNodes, diffOf, type Diff } from '../render/check
 import { checkFlowAnchors } from '../render/flow/anchors.js';
 import { markdownBlock, openBlockedNote } from '../render/markdown.js';
 import { fileSlug, htmlOutputPath, needsWeb, repoFolder } from '../render/output-path.js';
+import { nodePreviews } from '../render/preview.js';
 import { pruneHtml } from '../render/prune.js';
 import { alertLine, type CheckSummary } from '../render/terminal/check-lines.js';
 import { defaultWidth, fullMapLine, KEY, renderTerminalDetailed } from '../render/terminal/render.js';
@@ -17,7 +18,7 @@ import { layoutSpec } from '../render/web/layout.js';
 import type { HtmlMeta } from '../render/web/page.js';
 import { resolveCommit } from '../rules/git-files.js';
 import { unionOutputs } from '../rules/resolve.js';
-import { gitFiles, hasGitSelection, selectionError, type GitSelection } from '../rules/selection.js';
+import { diffRange, gitFiles, hasGitSelection, selectionError, type GitSelection } from '../rules/selection.js';
 import type { FlowSpec } from '../spec/flow.js';
 import { validateSpec, type Spec } from '../spec/schema.js';
 import { MAX_SPEC_BYTES } from '../spec/shared.js';
@@ -201,7 +202,8 @@ export function renderCommand(opts: CommandOptions): Command {
         const check = checkMapNodes(spec, root, { at, cwd: resolve(cwd), diff });
         const { hidden } = selectTerminalNodes(spec, maxNodes);
         const termOpts = { maxNodes, keyLine: !o.md, color, width, check };
-        const writeMapHtml = () => writeHtml(async (meta) => renderHtml(spec, await layoutSpec(spec), meta, check));
+        const previews = () => (diff ? nodePreviews(spec, root, diff, diffRange(root, o), check.found, resolve(cwd)) : undefined);
+        const writeMapHtml = () => writeHtml(async (meta) => renderHtml(spec, await layoutSpec(spec), meta, check, previews()));
 
         let htmlPath: string | undefined;
         let terminal: { text: string; truncated: boolean } | undefined;

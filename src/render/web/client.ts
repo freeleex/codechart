@@ -82,6 +82,42 @@ export const CLIENT_JS = `
     var i = themes.indexOf(root.getAttribute('data-theme'));
     setTheme(themes[(i + 1) % themes.length], true);
   });
+  var aside = document.querySelector('aside');
+  var handle = document.getElementById('resize');
+  var width = 0;
+  function setWidth(w, save) {
+    width = Math.round(Math.max(300, Math.min(w, window.innerWidth * 0.8)));
+    aside.style.width = width + 'px';
+    if (save) { try { localStorage.setItem('codechart.panel', String(width)); } catch (e) {} }
+  }
+  function currentWidth() { return width || aside.getBoundingClientRect().width; }
+  var savedWidth = null;
+  try { savedWidth = Number(localStorage.getItem('codechart.panel')); } catch (e) {}
+  if (savedWidth > 0) setWidth(savedWidth, false);
+  var sizing = false;
+  handle.addEventListener('pointerdown', function (e) {
+    sizing = true;
+    handle.classList.add('drag');
+    if (handle.setPointerCapture) handle.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+  handle.addEventListener('pointermove', function (e) {
+    if (sizing) setWidth(window.innerWidth - e.clientX, false);
+  });
+  function endSize() {
+    if (!sizing) return;
+    sizing = false;
+    handle.classList.remove('drag');
+    setWidth(currentWidth(), true);
+  }
+  handle.addEventListener('pointerup', endSize);
+  handle.addEventListener('pointercancel', endSize);
+  handle.addEventListener('keydown', function (e) {
+    var step = e.key === 'ArrowLeft' ? 40 : e.key === 'ArrowRight' ? -40 : 0;
+    if (!step) return;
+    e.preventDefault();
+    setWidth(currentWidth() + step, true);
+  });
   window.addEventListener('resize', fit);
   fit();
 })();

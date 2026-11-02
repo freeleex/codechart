@@ -9,16 +9,23 @@ import { plainLabel } from './terminal/labels.js';
 /** Files the change touched, repo-relative with `/`. A folder is in it when a file under it is. */
 export interface Diff {
   has(path: string): boolean;
+  /** Only a file, not a folder above one. */
+  hasFile(path: string): boolean;
 }
 
 export function diffOf(files: string[]): Diff {
   const set = new Set(files);
-  return { has: (p) => (p === '' ? files.length > 0 : set.has(p) || files.some((f) => f.startsWith(`${p}/`))) };
+  return {
+    has: (p) => (p === '' ? files.length > 0 : set.has(p) || files.some((f) => f.startsWith(`${p}/`))),
+    hasFile: (p) => set.has(p),
+  };
 }
 
 export interface MapCheck extends CheckSummary {
   /** The line each node's `match` found. */
   matches: Map<string, Snippet>;
+  /** Where each node's file was found, repo-relative with `/`. */
+  found: Map<string, string>;
 }
 
 interface CheckOptions {
@@ -28,11 +35,11 @@ interface CheckOptions {
   diff?: Diff;
 }
 
-const repoPath = (root: string, path: string) => relative(root, resolve(root, path)).split(sep).join('/');
+export const repoPath = (root: string, path: string) => relative(root, resolve(root, path)).split(sep).join('/');
 
 // A removed node may be a class deleted from a file that stays; a planned new file doesn't exist yet.
 const mustExist = (spec: Spec, node: SpecNode) => (spec.kind === 'plan' ? node.status !== 'new' : node.status !== 'removed');
-const IN_DIFF: ReadonlySet<string> = new Set(['new', 'changed', 'removed']);
+export const IN_DIFF: ReadonlySet<string> = new Set(['new', 'changed', 'removed']);
 
 type Problem = Pick<Mismatch, 'short' | 'detail'>;
 
@@ -40,10 +47,11 @@ type Problem = Pick<Mismatch, 'short' | 'detail'>;
 const inDiff = (c: AnchorCtx, path: string, diff: Diff) =>
   diff.has(repoPath(c.root, path)) || (c.cwd !== undefined && diff.has(repoPath(c.root, resolve(c.cwd, path))));
 
-function checkNode(c: AnchorCtx, spec: Spec, node: SpecNode & { path: string }, diff: Diff | undefined, matches: Map<string, Snippet>): Problem | undefined {
+function checkNode(c: AnchorCtx, spec: Spec, node: SpecNode & { path: string }, diff: Diff | undefined, result: MapCheck): Problem | undefined {
   const needed = mustExist(spec, node);
   const where = locate(c, node.path);
   if ('error' in where) return { short: 'file unreadable', detail: where.error };
+  if (where.found) result.found.set(node.id, repoPath(c.root, where.path));
   if (!where.found && needed) {
     const at = c.at ? ` at ${c.at.slice(0, 12)}` : '';
     return { short: 'file missing', detail: `${node.path} does not exist${at}${likelyPath(c, node.path)}` };
@@ -60,18 +68,18 @@ function checkNode(c: AnchorCtx, spec: Spec, node: SpecNode & { path: string }, 
   if ('error' in r) {
     return { short: r.error.endsWith(` not found in ${loaded.path}`) ? 'match not found' : 'match on several lines', detail: r.error };
   }
-  matches.set(node.id, r.snippet);
+  result.matches.set(node.id, r.snippet);
   return undefined;
 }
 
 /** Checks each node with a `path` against the files (at `at`, or the working tree) and, given a diff, a summary's changes against it. */
 export function checkMapNodes(spec: Spec, root: string, opts: CheckOptions = {}): MapCheck {
   const c = anchorContext(root, opts.at, opts.cwd);
-  const result: MapCheck = { checked: 0, mismatches: [], matches: new Map(), unit: 'node' };
+  const result: MapCheck = { checked: 0, mismatches: [], matches: new Map(), found: new Map(), unit: 'node' };
   for (const node of spec.nodes) {
     if (node.path === undefined) continue;
     result.checked++;
-    const problem = checkNode(c, spec, { ...node, path: node.path }, opts.diff, result.matches);
+    const problem = checkNode(c, spec, { ...node, path: node.path }, opts.diff, result);
     if (problem) result.mismatches.push({ id: node.id, label: plainLabel(node), ...problem });
   }
   return result;

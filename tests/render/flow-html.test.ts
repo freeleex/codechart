@@ -139,9 +139,9 @@ describe('renderFlowHtml', () => {
   it('step panel: status, source and numbered snippet', async () => {
     const tpl = panelOf(await html(), 'read');
     expect(tpl).toContain('existing');
-    expect(tpl).toContain('src/render.ts:10-12');
-    expect(tpl).toMatch(/<span class="ln">10<\/span>const a = 1;/);
-    expect(tpl).toMatch(/<span class="ln">12<\/span>return a;/);
+    expect(tpl).toContain('<div class="path">src/<wbr>render.ts:10-12</div>');
+    expect(tpl).toContain('<span class="ln">10</span><span>const a = 1;</span>');
+    expect(tpl).toContain('<span class="ln">12</span><span>return a;</span>');
   });
 
   it('decision panel lists branches with their snippets', async () => {

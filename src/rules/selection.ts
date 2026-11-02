@@ -1,4 +1,15 @@
-import { gitChangedFiles, gitCommitFiles, gitSinceFiles } from './git-files.js';
+import {
+  gitChangedFiles,
+  gitCommitFiles,
+  gitEmptyTree,
+  gitHead,
+  gitMergeBase,
+  gitParent,
+  gitSinceFiles,
+  repoFilterOverrides,
+  resolveCommit,
+  type DiffRange,
+} from './git-files.js';
 
 export interface GitSelection {
   git?: boolean;
@@ -32,4 +43,18 @@ export function gitFiles(root: string | undefined, o: GitSelection, renameSource
   if (o.commit !== undefined) files.push(...gitCommitFiles(root, o.commit));
   if (o.git) files.push(...gitChangedFiles(root, renameSources));
   return files;
+}
+
+/** The revisions `gitFiles` compares, for reading a file's diff over the same change. */
+export function diffRange(root: string, o: GitSelection): DiffRange {
+  if (o.commit !== undefined) {
+    const sha = resolveCommit(root, '--commit', o.commit);
+    return { args: [gitParent(root, sha) ?? gitEmptyTree(root), sha], worktree: false, config: [] };
+  }
+  if (o.since !== undefined && !o.git) {
+    return { args: [`${o.since}...${o.head ?? 'HEAD'}`], worktree: false, config: [] };
+  }
+  const from = o.since !== undefined ? gitMergeBase(root, o.since) : (gitHead(root) ?? gitEmptyTree(root));
+  // Diffing working-tree files runs the repo's clean filters, as status would.
+  return { args: [from], worktree: true, config: repoFilterOverrides(root) };
 }

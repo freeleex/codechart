@@ -137,7 +137,7 @@ Decisions, edge cases and outcomes, each pointing at the source lines that imple
 
 ### Terminal first, page when it helps
 
-Small diagrams stay in the reply. Big ones, or rules you mark `output: both`, also get the self-contained HTML page: zoom, pan, light and dark themes, nothing loaded from the internet.
+Small diagrams stay in the reply. Big ones, or rules you mark `output: both`, also get the self-contained HTML page: zoom, pan, light and dark themes, nothing loaded from the internet. In a change summary, clicking a node shows what changed in its file, read from git, so the agent spends no tokens on it.
 
 ## Why you can trust the diagram
 
@@ -158,6 +158,7 @@ The CLI is small: a 46.5 kB package, 5 runtime dependencies, and a cold start ar
 - No network calls, no telemetry.
 - No shell: only read-only `git` and your OS opener, called with argument arrays.
 - HTML pages load nothing external, and all text is escaped. They're saved to `~/.cache/codechart`, never to your repo.
+- A summary page rendered with `--git`, `--since` or `--commit` holds your code: each changed node's panel shows the start of its diff. Share such a page only where you'd share the diff.
 - The optional hook keeps, per session, the names and content hashes of your changed files in `~/.cache/codechart/turns` (removed after 7 days), never their contents.
 - Audited before release across 8 areas, including untrusted repos and prompt-injected specs. See [docs/security-review.md](docs/security-review.md) and [SECURITY.md](SECURITY.md).
 

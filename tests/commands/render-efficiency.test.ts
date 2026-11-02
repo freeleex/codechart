@@ -61,7 +61,7 @@ describe('render: content anchors', () => {
     flow.steps[1] = { ...flow.steps[1]!, source: 'src/render.ts', match: 'line 14' };
     const r = await render(flow, '--output', 'both');
     expect(r.err).toBe('');
-    expect(html()).toContain('<div class="path">src/render.ts:14</div><pre class="snippet"><code><span class="ln">14</span>line 14</code></pre>');
+    expect(html()).toContain('<div class="path">src/<wbr>render.ts:14</div><pre class="snippet"><code><span class="ln">14</span><span>line 14</span></code></pre>');
   });
 
   it('an ambiguous match fails the render with the line numbers', async () => {

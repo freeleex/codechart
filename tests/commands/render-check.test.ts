@@ -109,9 +109,24 @@ describe('render: map checks', () => {
     expect(html).toContain('<span class="check bad">✗ 1 of 2 nodes doesn&#39;t match the code</span>');
     expect(html).toContain('aria-label="Status (changed, doesn&#39;t match the code)"');
     expect(html).toContain('class="flag"');
-    expect(html).toContain('app/orders.py:2');
+    expect(html).toContain('app/<wbr>orders.py:2');
     expect(html).toContain('coupon = Column(Text)');
     expect(html).toContain('marked changed, but app/status.py isn&#39;t in the diff');
+  });
+
+  it('web output with a diff flag: the node panel shows the file diff, escaped; without one, no code', async () => {
+    writeFileSync(join(repo, 'app/orders.py'), 'class Order:\n    coupon = "<b>"\n');
+    const spec = map(node('Order', 'changed', 'app/orders.py'), node('Status', 'context', 'app/status.py'));
+    await run(['render', specFile(spec), '--git', '--output', 'web']);
+    const html = htmlFile();
+    expect(html).toContain('<h3>Changes</h3><pre class="snippet diff">');
+    expect(html).toContain('<span class="ln">2</span><span class="d-del">-    pass</span>');
+    expect(html).toContain('<span class="ln">2</span><span class="d-add">+    coupon = &quot;&lt;b&gt;&quot;</span>');
+    expect(html).toContain('2 changed lines · whole file: <span class="path">app/<wbr>orders.py</span>');
+    expect(html.match(/<h3>Changes<\/h3>/g)).toHaveLength(1);
+    rmSync(out, { recursive: true, force: true });
+    await run(['render', specFile(spec), '--output', 'web']);
+    expect(htmlFile()).not.toContain('<h3>Changes</h3>');
   });
 
   it('--md web output keeps the alert in a fence', async () => {
