@@ -1,0 +1,65 @@
+{
+  "title": "Refunds for paid orders",
+  "kind": "summary",
+  "rules": ["related-files"],
+  "nodes": [
+    { "id": "fe.checkout", "label": "CheckoutPage", "kind": "component", "status": "changed", "layer": "frontend", "summary": "Shows the refund button once an order is paid" },
+    { "id": "fe.orders", "label": "OrderList", "kind": "component", "status": "changed", "layer": "frontend", "summary": "Adds a refunded badge to each row" },
+    { "id": "fe.invoice", "label": "InvoiceView", "kind": "component", "status": "context", "layer": "frontend" },
+    { "id": "fe.hook", "label": "useOrders", "kind": "file", "status": "changed", "layer": "frontend", "summary": "New refund() call that refetches the order" },
+    { "id": "be.ctrl", "label": "POST /orders/{id}/refund", "kind": "endpoint", "status": "new", "layer": "backend", "summary": "Checks the order is paid and starts a refund" },
+    { "id": "be.auth", "label": "requireOwner", "kind": "service", "status": "context", "layer": "backend" },
+    { "id": "be.invoice", "label": "InvoiceService", "kind": "service", "status": "changed", "layer": "backend", "summary": "Issues a credit note for each refund" },
+    { "id": "be.repo", "label": "OrderRepo", "kind": "service", "status": "changed", "layer": "backend", "summary": "Writes the refund state in one transaction" },
+    { "id": "be.job", "label": "RefundJob", "kind": "service", "status": "new", "layer": "backend", "summary": "Retries failed Stripe refunds every 10 minutes" },
+    {
+      "id": "db.orders", "label": "orders", "kind": "table", "status": "changed", "layer": "database", "fieldsComplete": false,
+      "fields": [
+        { "name": "id", "type": "uuid", "note": "PK" },
+        { "name": "status", "type": "text" },
+        { "name": "refund_state", "type": "text", "change": "added" },
+        { "name": "refunded_at", "type": "timestamptz", "change": "added" },
+        { "name": "total_cents", "type": "int" }
+      ]
+    },
+    {
+      "id": "db.invoices", "label": "invoices", "kind": "table", "status": "changed", "layer": "database", "fieldsComplete": false,
+      "fields": [
+        { "name": "id", "type": "uuid", "note": "PK" },
+        { "name": "order_id", "type": "uuid" },
+        { "name": "kind", "type": "text", "change": "added" },
+        { "name": "number", "type": "text" }
+      ]
+    },
+    {
+      "id": "db.refunds", "label": "refunds", "kind": "table", "status": "new", "layer": "database", "fieldsComplete": false,
+      "fields": [
+        { "name": "id", "type": "uuid", "note": "PK" },
+        { "name": "order_id", "type": "uuid" },
+        { "name": "stripe_id", "type": "text" },
+        { "name": "attempts", "type": "int" },
+        { "name": "state", "type": "text" }
+      ]
+    },
+    { "id": "api.stripe", "label": "Stripe refunds", "kind": "other", "status": "context", "layer": "api" },
+    { "id": "api.mailer", "label": "Mailer", "kind": "service", "status": "context", "layer": "api" },
+    { "id": "api.tax", "label": "Tax API", "kind": "other", "status": "context", "layer": "api" }
+  ],
+  "edges": [
+    { "from": "fe.checkout", "to": "fe.hook", "kind": "imports" },
+    { "from": "fe.orders", "to": "fe.hook", "kind": "imports" },
+    { "from": "fe.invoice", "to": "fe.hook", "kind": "imports" },
+    { "from": "fe.hook", "to": "be.ctrl", "label": "POST refund", "kind": "calls" },
+    { "from": "be.ctrl", "to": "be.auth", "kind": "calls" },
+    { "from": "be.ctrl", "to": "be.invoice", "kind": "calls" },
+    { "from": "be.invoice", "to": "be.repo", "kind": "calls" },
+    { "from": "be.job", "to": "be.repo", "kind": "calls" },
+    { "from": "be.repo", "to": "db.orders", "kind": "writes" },
+    { "from": "be.repo", "to": "db.invoices", "kind": "writes" },
+    { "from": "be.job", "to": "db.refunds", "kind": "writes" },
+    { "from": "db.refunds", "to": "db.orders", "label": "order_id", "kind": "fk" },
+    { "from": "be.invoice", "to": "api.tax", "kind": "calls" },
+    { "from": "be.invoice", "to": "api.mailer", "kind": "calls" },
+    { "from": "be.job", "to": "api.stripe", "kind": "calls" }
+  ]
+}

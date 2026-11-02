@@ -1,6 +1,8 @@
 import type { ElkNode, ElkExtendedEdge } from 'elkjs/lib/elk.bundled.js';
 import type { Spec } from '../../spec/schema.js';
 
+export type Direction = 'RIGHT' | 'DOWN';
+
 export interface Point {
   x: number;
   y: number;
@@ -26,6 +28,7 @@ export interface LayoutEdge {
   points: Point[];
 }
 export interface Layout {
+  direction: Direction;
   width: number;
   height: number;
   groups: LayoutGroup[];
@@ -87,7 +90,36 @@ function nodeHeight(fields: number, summary: string | undefined): number {
   return HEADER_HEIGHT + LINE_HEIGHT * (fields + summaryLines);
 }
 
+type Elk = InstanceType<typeof import('elkjs/lib/elk.bundled.js').default>;
+
+// Canvas on a 13-14" laptop (1440x800 viewport minus the side panel), then a half-screen split as tie-break.
+const FIT_CANVASES: ReadonlyArray<readonly [number, number]> = [
+  [1140, 800],
+  [420, 800],
+];
+
+function fitScale(l: Layout, [w, h]: readonly [number, number]): number {
+  return Math.min(w / l.width, h / l.height, 1);
+}
+
+export function pickLayout(right: Layout, down: Layout): Layout {
+  for (const canvas of FIT_CANVASES) {
+    const r = fitScale(right, canvas);
+    const d = fitScale(down, canvas);
+    if (Math.abs(r - d) > 0.005) return d > r ? down : right;
+  }
+  return right;
+}
+
 export async function layoutSpec(spec: Spec): Promise<Layout> {
+  // Lazy: elkjs costs ~70 ms to load and only the HTML path needs it.
+  const { default: ELK } = await import('elkjs/lib/elk.bundled.js');
+  const elk = new ELK();
+  const [right, down] = await Promise.all([layoutIn(elk, spec, 'RIGHT'), layoutIn(elk, spec, 'DOWN')]);
+  return pickLayout(right, down);
+}
+
+async function layoutIn(elk: Elk, spec: Spec, direction: Direction): Promise<Layout> {
   const layers = [...new Set(spec.nodes.map((n) => n.layer))];
   const children: ElkNode[] = layers.map((layer) => ({
     id: LAYER_PREFIX + layer,
@@ -113,7 +145,7 @@ export async function layoutSpec(spec: Spec): Promise<Layout> {
     id: 'root',
     layoutOptions: {
       'elk.algorithm': 'layered',
-      'elk.direction': 'RIGHT',
+      'elk.direction': direction,
       'elk.hierarchyHandling': 'INCLUDE_CHILDREN',
       'elk.spacing.nodeNode': '24',
       'elk.layered.spacing.nodeNodeBetweenLayers': '60',
@@ -121,9 +153,7 @@ export async function layoutSpec(spec: Spec): Promise<Layout> {
     children,
     edges,
   };
-  // Lazy: elkjs costs ~70 ms to load and only the HTML path needs it.
-  const { default: ELK } = await import('elkjs/lib/elk.bundled.js');
-  const root = await new ELK().layout(graph);
+  const root = await elk.layout(graph);
 
   const containerOrigin = new Map<string, Point>();
   const groups: LayoutGroup[] = [];
@@ -154,5 +184,5 @@ export async function layoutSpec(spec: Spec): Promise<Layout> {
     };
   });
 
-  return { width: root.width ?? 0, height: root.height ?? 0, groups, nodes, edges: outEdges };
+  return { direction, width: root.width ?? 0, height: root.height ?? 0, groups, nodes, edges: outEdges };
 }
