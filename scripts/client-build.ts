@@ -7,7 +7,7 @@ export const CLIENT_OUTPUT = 'src/render/web/client.ts';
 /** The browser script as the generated module's text: src/render/web/browser/client.ts without types, as one IIFE. */
 export function buildClient(): string {
   const { outputText } = ts.transpileModule(readFileSync(CLIENT_SOURCE, 'utf8'), {
-    compilerOptions: { target: ts.ScriptTarget.ES2018, module: ts.ModuleKind.ESNext, removeComments: true },
+    compilerOptions: { target: ts.ScriptTarget.ES2018, module: ts.ModuleKind.ESNext, removeComments: true, newLine: ts.NewLineKind.LineFeed },
   });
   // `export {}` only makes the source a module for tsc; in the page the script is wrapped instead.
   const body = outputText.replace(/\nexport \{\};\n$/, '\n');
