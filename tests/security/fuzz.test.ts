@@ -54,7 +54,7 @@ describe('escapers (property)', () => {
 
   it('flow --md title stays inside the fence, header constant', () => {
     fc.assert(fc.property(text, text, (title, tree) => {
-      const out = flowMarkdown(title, `${tree}\n\`\`\`\``, undefined, 80);
+      const out = flowMarkdown(title, `${tree}\n\`\`\`\``, { width: 80 });
       const [header, fence] = out.split('\n');
       expect(header).toBe(`**Flow** _(${FLOW_KEY})_`);
       expect(out.endsWith(`\n${fence!.replace('text', '')}\n`)).toBe(true);

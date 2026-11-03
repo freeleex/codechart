@@ -23,7 +23,7 @@ export async function renderFlow(spec: FlowSpec, anchors: { snippets: FlowSnippe
   if (chosen.kind === 'terminal') return { text: chosen.text, check, html: chosen.html };
   const alert = alertLine(check, ctx.width);
   const text = ctx.md
-    ? flowMarkdown(spec.title, alert || undefined, chosen.html.file, ctx.width, undefined, flowKey(spec))
+    ? flowMarkdown(spec.title, alert || undefined, { width: ctx.width, htmlPath: chosen.html.file }, flowKey(spec))
     : `${alert ? `${alert}\n` : ''}${fullMapLine(chosen.html.file)}\n`;
   return { text, check, html: chosen.html };
 }
