@@ -3,9 +3,10 @@ import { headerHeight, LABEL_LINE_HEIGHT, labelLines, wrapSummary, type Layout, 
 import type { MapCheck } from '../check.js';
 import { codeRow, pathHtml, snippetHtml } from '../flow/html.js';
 import type { Preview } from '../preview.js';
-import { checkNote, checkSection, flagMark, isFlagged, mismatchNote } from './check-html.js';
-import { CHANGE_ARROWS, esc, list, midpoint, num, renderPage, type HtmlMeta } from './page.js';
-import { edgeChange, edgeOn, fieldsOn, hasNowAfter, nodeOn, SIDE_KEY, SIDE_TITLE, SIDES, type Side } from './states.js';
+import { flagMark, isFlagged, mismatchNote } from './check-html.js';
+import { gapsHtml, infoButton, pageInfoSection, renderDiagramPage, renderEdgeSvg } from './diagram.js';
+import { CHANGE_ARROWS, esc, list, num, type HtmlMeta } from './page.js';
+import { edgeChange, edgeOn, fieldsOn, hasNowAfter, nodeOn, SIDE_KEY, type Side } from './states.js';
 
 export { esc, type Theme } from './page.js';
 
@@ -23,17 +24,13 @@ function fieldText(f: Field): string {
 }
 
 function renderEdge(e: LayoutEdge, change: SpecEdge['change']): string {
-  if (e.points.length < 2) return '';
-  const d = e.points.map((p, i) => `${i ? 'L' : 'M'}${num(p.x)},${num(p.y)}`).join(' ');
-  let out = `<path d="${d}" marker-end="url(#arrow${change ? `-${change}` : ''})"/>`;
-  if (e.label) {
-    const m = midpoint(e.points);
-    const w = e.label.length * 5.6 + 6;
-    out +=
-      `<rect x="${num(m.x - w / 2)}" y="${num(m.y - 8)}" width="${num(w)}" height="12" rx="2"/>` +
-      `<text x="${num(m.x)}" y="${num(m.y + 1)}">${esc(e.label)}</text>`;
-  }
-  return `<g class="edge${change ? ` edge-${change}` : ''}">${out}</g>`;
+  return renderEdgeSvg({
+    points: e.points,
+    marker: `arrow${change ? `-${change}` : ''}`,
+    cls: `edge${change ? ` edge-${change}` : ''}`,
+    label: e.label,
+    lift: 8,
+  });
 }
 
 function renderNode(n: SpecNode, box: { x: number; y: number; w: number; h: number }, flagged: boolean, fields: Field[]): string {
@@ -110,11 +107,8 @@ function cardPanel(n: SpecNode, check: MapCheck | undefined, previews: Map<strin
 }
 
 function pageInfo(spec: Spec, check: MapCheck | undefined, sides: boolean): string {
-  let out = `<p>Click a node for details. Scroll to zoom, drag to pan${sides ? '; while "Panes: linked", both panes move together' : ''}.</p>`;
-  out += checkSection(check);
-  if (spec.gaps?.length) out += `<h3>Gaps</h3>${list(spec.gaps)}`;
-  if (spec.omitted?.length) out += `<h3>Not on map</h3>${list(spec.omitted)}`;
-  return `<section id="page-info">${out}</section>`;
+  const hint = 'Click a node for details. Scroll to zoom, drag to pan';
+  return pageInfoSection(hint, sides, check, gapsHtml('Gaps', spec.gaps), gapsHtml('Not on map', spec.omitted));
 }
 
 /** Without `side`: the plan or summary as one picture, both states overlaid. */
@@ -152,24 +146,23 @@ function viewport(spec: Spec, layout: Layout, check: MapCheck | undefined, side?
 /** `previews`: each node's diff, when the render was given one. */
 export function renderHtml(spec: Spec, layout: Layout, meta: HtmlMeta, check?: MapCheck, previews?: Map<string, Preview>): string {
   const sides = hasNowAfter(spec);
-  const infoButton =
-    check?.mismatches.length
-      ? '<button id="info-toggle" type="button" aria-controls="page-info" title="Show what doesn\'t match the code, what is not on the map and what the agent did not read">Check / gaps</button>'
-      : spec.gaps?.length || spec.omitted?.length
-        ? '<button id="info-toggle" type="button" aria-controls="page-info" title="Show what is not on the map and what the agent did not read">Not on map / gaps</button>'
-        : '';
-  return renderPage({
+  return renderDiagramPage({
     title: spec.title,
     meta,
-    infoButton,
-    headerNote: checkNote(check),
-    viewport: sides ? '' : viewport(spec, layout, check),
-    ...(sides
-      ? { panes: SIDES.map((side) => ({ title: SIDE_TITLE[side], key: SIDE_KEY[side], viewport: viewport(spec, layout, check, side) })) }
-      : {}),
-    extraDefs: CHANGE_ARROWS,
+    check,
+    infoButton: infoButton(check, Boolean(spec.gaps?.length || spec.omitted?.length), {
+      mismatch: {
+        label: 'Check / gaps',
+        title: "Show what doesn't match the code, what is not on the map and what the agent did not read",
+      },
+      info: { label: 'Not on map / gaps', title: 'Show what is not on the map and what the agent did not read' },
+    }),
+    sides,
+    paneKey: SIDE_KEY,
+    viewport: (side) => viewport(spec, layout, check, side),
     aside: `${pageInfo(spec, check, sides)}<div id="panel" hidden></div>${spec.nodes.map((n) => cardPanel(n, check, previews, sides)).join('')}`,
     width: layout.width,
     height: layout.height,
+    extraDefs: CHANGE_ARROWS,
   });
 }
