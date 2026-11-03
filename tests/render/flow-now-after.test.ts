@@ -175,14 +175,18 @@ describe('plan flow terminal', () => {
 
   it('auto writes the HTML for a Now/After plan', async () => {
     let written = 0;
-    const out = await renderFlow(spec, noSnippets, {
+    const { text: out } = await renderFlow(spec, { snippets: noSnippets, checked: 0 }, {
+      ...opts,
       output: 'auto',
       minNodes: 50,
-      tree: opts,
-      writeHtml: async (build) => {
+      md: false,
+      root: '/',
+      cwd: '/',
+      selection: {},
+      write: async (build) => {
         written++;
         await build(meta);
-        return '/tmp/x.flow.html';
+        return { file: '/tmp/x.flow.html', openFailed: false };
       },
     });
     expect(written).toBe(1);

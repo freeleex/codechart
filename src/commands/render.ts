@@ -1,30 +1,25 @@
-import { chmodSync, constants, closeSync, fstatSync, lstatSync, mkdirSync, openSync, readSync, writeFileSync } from 'node:fs';
-import { basename, dirname, resolve } from 'node:path';
+import { constants, closeSync, fstatSync, openSync, readSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { Command, Option } from 'commander';
 import { findRepoRoot, loadConfig } from '../config/load.js';
 import { THEMES, type Config, type Diagram, type Output, type Theme } from '../config/schema.js';
 import type { CommandOptions } from '../program.js';
-import { checkFlowDiff, checkMapNodes, diffOf, type Diff } from '../render/check.js';
-import { checkFlowAnchors } from '../render/flow/anchors.js';
-import { markdownBlock, openBlockedNote } from '../render/markdown.js';
-import { fileSlug, htmlOutputPath, needsWeb, repoFolder } from '../render/output-path.js';
-import { nodePreviews } from '../render/preview.js';
-import { pruneHtml } from '../render/prune.js';
-import { alertLine, type CheckSummary } from '../render/terminal/check-lines.js';
-import { defaultWidth, fullMapLine, KEY, renderTerminalDetailed } from '../render/terminal/render.js';
-import { selectTerminalNodes } from '../render/terminal/select.js';
-import { renderHtml } from '../render/web/html.js';
-import { layoutSpec, PANE_CANVASES } from '../render/web/layout.js';
-import type { HtmlMeta } from '../render/web/page.js';
-import { hasNowAfter } from '../render/web/states.js';
+import { diffOf, type Diff } from '../render/check.js';
+import { checkFlowAnchors, type FlowSnippets } from '../render/flow/anchors.js';
+import { openBlockedNote } from '../render/markdown.js';
+import { fileSlug } from '../render/output-path.js';
+import { defaultWidth } from '../render/terminal/render.js';
+import { writeHtml } from '../render/web/write.js';
 import { resolveCommit } from '../rules/git-files.js';
 import { unionOutputs } from '../rules/resolve.js';
-import { diffRange, gitFiles, hasGitSelection, selectionError, type GitSelection } from '../rules/selection.js';
+import { gitFiles, hasGitSelection, selectionError, type GitSelection } from '../rules/selection.js';
 import type { FlowSpec } from '../spec/flow.js';
 import { validateSpec, type Spec } from '../spec/schema.js';
 import { MAX_SPEC_BYTES } from '../spec/shared.js';
+import type { RenderContext } from './choose-output.js';
 import { inCodeEditor, openInBrowser } from './open.js';
 import { renderFlow } from './render-flow.js';
+import { renderMap } from './render-map.js';
 
 class InvalidSpec extends Error {
   constructor(readonly errors: string[]) {
@@ -84,10 +79,13 @@ async function readSpec(arg: string, cwd: string, stdin: () => Promise<string>):
   return result.spec;
 }
 
-function flowAnchors(spec: FlowSpec, root: string, at: string | undefined, cwd: string) {
+type Target = { diagram: 'flow'; spec: FlowSpec; snippets: FlowSnippets; checked: number } | { diagram: 'map'; spec: Spec };
+
+function targetOf(spec: Spec | FlowSpec, root: string, at: string | undefined, cwd: string): Target {
+  if (spec.diagram !== 'flow') return { diagram: 'map', spec };
   const anchors = checkFlowAnchors(spec, root, at, cwd);
   if (!anchors.ok) throw new InvalidSpec(anchors.errors);
-  return anchors;
+  return { diagram: 'flow', spec, snippets: anchors.snippets, checked: anchors.checked };
 }
 
 interface RenderFlags extends GitSelection {
@@ -106,13 +104,70 @@ function renderSelectionError(o: RenderFlags): string | undefined {
   return selectionError(o);
 }
 
-function markdown(map: string | undefined, htmlPath: string | undefined, alert: string): string {
-  const body = map !== undefined && htmlPath ? map.split('\n').filter((l) => l !== fullMapLine(htmlPath)).join('\n') : map;
-  return markdownBlock(`**Map** _(${KEY})_`, body ?? (alert || undefined), htmlPath);
+function resolveAt(o: RenderFlags, repoRoot: string | undefined, root: string): string | undefined {
+  if (o.at === undefined) return undefined;
+  if (!repoRoot) throw new Error('--at needs a git repository');
+  return resolveCommit(root, '--at', o.at);
 }
 
-// complexity-ratchet: 61 -- render action mixes map and flow; split in hotspot refactor
-// eslint-disable-next-line max-lines-per-function -- ratchet: render action mixes map and flow; split in hotspot refactor
+function selectedDiff(o: RenderFlags, repoRoot: string | undefined, root: string): Diff | undefined {
+  if (!hasGitSelection(o)) return undefined;
+  if (!repoRoot) throw new Error('--git, --commit and --since need a git repository');
+  return diffOf(gitFiles(root, o, true));
+}
+
+async function renderSpec(arg: string, o: RenderFlags, opts: CommandOptions, cwd: string): Promise<void> {
+  const spec = await readSpec(arg, cwd, opts.stdin ?? readStdin);
+  const repoRoot = findRepoRoot(cwd);
+  const root = repoRoot ?? resolve(cwd);
+  const at = resolveAt(o, repoRoot, root);
+  const target = targetOf(spec, root, at, resolve(cwd));
+  const diff = selectedDiff(o, repoRoot, root);
+  const config = loadConfig({ cwd, home: opts.home, env: opts.env, warn: (l) => opts.stderr(`codechart: ${l}\n`) });
+  const rules = spec.rules ?? [];
+  const resolved = rules.length ? specOutput(config, rules, target.diagram) : config.defaults.output;
+  const output = o.output ?? resolved;
+  if (output === 'none') {
+    const why = rules.length ? `its rules (${rules.join(', ')}) resolve to output none` : 'defaults.output is none';
+    opts.stderr(`codechart: no ${target.diagram} drawn: ${why}\n`);
+    return;
+  }
+
+  const env = opts.env ?? process.env;
+  const slug = fileSlug(spec.title, target.diagram);
+  const ctx: RenderContext = {
+    output,
+    minNodes: config.web.minNodes,
+    maxNodes: config.defaults.terminalMaxNodes,
+    width: defaultWidth({ isTTY: opts.isTTY ?? process.stdout.isTTY, columns: process.stdout.columns }, env),
+    color: !o.md && (opts.isTTY ?? process.stdout.isTTY === true),
+    md: o.md === true,
+    root,
+    cwd: resolve(cwd),
+    at,
+    diff,
+    selection: o,
+    write: (build) =>
+      writeHtml(build, {
+        config,
+        root,
+        slug,
+        theme: o.theme ?? config.web.theme,
+        now: opts.now?.() ?? new Date(),
+        forceOpen: o.open === true,
+        inEditor: inCodeEditor(env),
+        open: opts.open ?? openInBrowser,
+        stderr: opts.stderr,
+      }),
+  };
+  const { text, check, html } = target.diagram === 'flow' ? await renderFlow(target.spec, target, ctx) : await renderMap(target.spec, ctx);
+  // A blank line after --md output keeps two renders in one Bash call from gluing together.
+  const print = (s: string) => opts.stdout(ctx.md ? `${s}\n` : s);
+  print(text);
+  if (html?.openFailed) print(openBlockedNote(html.file, ctx.md));
+  if (o.strict && check.mismatches.length > 0) process.exitCode = 1;
+}
+
 export function renderCommand(opts: CommandOptions): Command {
   const cwd = opts.cwd ?? process.cwd();
   return new Command('render')
@@ -128,106 +183,11 @@ export function renderCommand(opts: CommandOptions): Command {
     .option('--since <base>', 'check claims against the files committed since <base>; add --git for uncommitted ones too')
     .option('--head <ref>', 'with --since: compare <base>...<ref> instead of HEAD')
     .option('--strict', "exit 1 when a claim doesn't match the code")
-    // eslint-disable-next-line max-lines-per-function, complexity -- ratchet: render action mixes map and flow; split in hotspot refactor
     .action(async (arg: string, o: RenderFlags, cmd: Command) => {
       const usage = renderSelectionError(o);
       if (usage) cmd.error(usage, { exitCode: 2 });
       try {
-        const spec = await readSpec(arg, cwd, opts.stdin ?? readStdin);
-        const repoRoot = findRepoRoot(cwd);
-        const root = repoRoot ?? resolve(cwd);
-        let at: string | undefined;
-        if (o.at !== undefined) {
-          if (!repoRoot) throw new Error('--at needs a git repository');
-          at = resolveCommit(root, '--at', o.at);
-        }
-        const anchors = spec.diagram === 'flow' ? flowAnchors(spec, root, at, resolve(cwd)) : undefined;
-        let diff: Diff | undefined;
-        if (hasGitSelection(o)) {
-          if (!repoRoot) throw new Error('--git, --commit and --since need a git repository');
-          diff = diffOf(gitFiles(root, o, true));
-        }
-        const config = loadConfig({ cwd, home: opts.home, env: opts.env, warn: (l) => opts.stderr(`codechart: ${l}\n`) });
-        const diagram = spec.diagram ?? 'map';
-        const resolved = spec.rules?.length ? specOutput(config, spec.rules, diagram) : config.defaults.output;
-        const output = o.output ?? resolved;
-        if (output === 'none') {
-          const why = spec.rules?.length ? `its rules (${spec.rules.join(', ')}) resolve to output none` : 'defaults.output is none';
-          opts.stderr(`codechart: no ${diagram} drawn: ${why}\n`);
-          return;
-        }
-
-        const maxNodes = config.defaults.terminalMaxNodes;
-        const color = !o.md && (opts.isTTY ?? process.stdout.isTTY === true);
-        const width = defaultWidth(
-          { isTTY: opts.isTTY ?? process.stdout.isTTY, columns: process.stdout.columns },
-          opts.env ?? process.env,
-        );
-        // A blank line after --md output keeps two renders in one Bash call from gluing together.
-        const print = (text: string) => opts.stdout(o.md ? `${text}\n` : text);
-        const slug = fileSlug(spec.title, diagram);
-        let blocked: string | undefined;
-        const printBlocked = () => blocked && print(openBlockedNote(blocked, o.md === true));
-        const writeHtml = async (build: (meta: HtmlMeta) => Promise<string>): Promise<string> => {
-          const now = opts.now?.() ?? new Date();
-          const file = htmlOutputPath(config, repoFolder(root), slug, now);
-          const html = await build({ generatedAt: now, repo: basename(root), theme: o.theme ?? config.web.theme });
-          if (lstatSync(dirname(file), { throwIfNoEntry: false })?.isSymbolicLink()) {
-            throw new Error(`${dirname(file)}: is a symlink; refusing to write`);
-          }
-          mkdirSync(dirname(file), { recursive: true, mode: 0o700 });
-          chmodSync(dirname(file), 0o700);
-          writeFileSync(file, html, { mode: 0o600 });
-          pruneHtml(dirname(file), { ...config.web, now, replaceSlug: slug });
-          const mode = config.web.open;
-          if (o.open || mode === 'always' || (mode === 'auto' && inCodeEditor(opts.env ?? process.env))) {
-            const failed = (opts.open ?? openInBrowser)(file);
-            if (failed) {
-              opts.stderr(`codechart: could not open the browser (${failed})\n`);
-              blocked = file;
-            }
-          }
-          return file;
-        };
-
-        const failStrict = (check: CheckSummary) => {
-          if (o.strict && check.mismatches.length > 0) process.exitCode = 1;
-        };
-
-        if (spec.diagram === 'flow') {
-          const check = checkFlowDiff(spec, anchors!.snippets, anchors!.checked, root, diff);
-          const tree = { maxNodes, width, color, md: o.md, check };
-          print(await renderFlow(spec, anchors!.snippets, { output, minNodes: config.web.minNodes, tree, writeHtml }));
-          printBlocked();
-          failStrict(check);
-          return;
-        }
-
-        const check = checkMapNodes(spec, root, { at, cwd: resolve(cwd), diff });
-        const { hidden } = selectTerminalNodes(spec, maxNodes);
-        const termOpts = { maxNodes, keyLine: !o.md, color, width, check };
-        const previews = () => (diff ? nodePreviews(spec, root, diff, diffRange(root, o), check.found, resolve(cwd)) : undefined);
-        const canvases = hasNowAfter(spec) ? PANE_CANVASES : undefined;
-        const writeMapHtml = () => writeHtml(async (meta) => renderHtml(spec, await layoutSpec(spec, canvases), meta, check, previews()));
-
-        let htmlPath: string | undefined;
-        let terminal: { text: string; truncated: boolean } | undefined;
-        if (output === 'web' || output === 'both' || (output === 'auto' && needsWeb(spec, hidden, config.web.minNodes))) {
-          htmlPath = await writeMapHtml();
-        } else if (output === 'auto') {
-          terminal = renderTerminalDetailed(spec, termOpts);
-          if (terminal.truncated) {
-            htmlPath = await writeMapHtml();
-            terminal = undefined;
-          }
-        }
-
-        const map = output === 'web' ? undefined : (terminal ?? renderTerminalDetailed(spec, { ...termOpts, htmlPath })).text;
-        const alert = alertLine(check, width);
-        if (o.md) print(markdown(map, htmlPath, alert));
-        else print(map ?? `${alert ? `${alert}\n` : ''}${fullMapLine(htmlPath!)}\n`);
-        printBlocked();
-        failStrict(check);
+        await renderSpec(arg, o, opts, cwd);
       } catch (e) {
         const message = e instanceof Error ? e.message : String(e);
         const lines = e instanceof InvalidSpec ? e.errors : message.split('\n').map((l) => `codechart: ${l}`);
