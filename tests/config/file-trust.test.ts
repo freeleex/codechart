@@ -1,8 +1,8 @@
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { loadConfig } from '../../src/config/load.js';
+import { makeSandbox, removeSandbox } from '../helpers/sandbox.js';
 
 let tmp: string;
 let home: string;
@@ -11,15 +11,11 @@ let repoFile: string;
 let globalFile: string;
 
 beforeEach(() => {
-  tmp = mkdtempSync(join(tmpdir(), 'codechart-trust-'));
-  home = join(tmp, 'home');
-  repo = join(tmp, 'repo');
+  ({ tmp, home, repo } = makeSandbox('trust', { git: 'dir', configDir: true }));
   repoFile = join(repo, '.codechart.yaml');
   globalFile = join(home, '.config', 'codechart', 'config.yaml');
-  mkdirSync(join(home, '.config', 'codechart'), { recursive: true });
-  mkdirSync(join(repo, '.git'), { recursive: true });
 });
-afterEach(() => rmSync(tmp, { recursive: true, force: true }));
+afterEach(() => removeSandbox(tmp));
 
 const load = () => loadConfig({ cwd: repo, home, env: {} });
 const message = (fn: () => unknown) => {

@@ -1,15 +1,15 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { buildProgram, runProgram } from '../../src/program.js';
+import { makeTempDir, removeTempDir } from '../helpers/sandbox.js';
 
 let tmp: string;
 beforeEach(() => {
-  tmp = mkdtempSync(join(tmpdir(), 'codechart-prune-'));
+  tmp = makeTempDir('prune');
 });
-afterEach(() => rmSync(tmp, { recursive: true, force: true }));
+afterEach(() => removeTempDir(tmp));
 
 describe('S-39 hook prune', () => {
   it('a directory in the turns cache does not stop the snapshot being written', async () => {

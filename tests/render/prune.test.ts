@@ -1,18 +1,18 @@
-import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { stamp } from '../../src/render/output-path.js';
 import { pruneHtml } from '../../src/render/prune.js';
+import { makeTempDir, removeTempDir } from '../helpers/sandbox.js';
 
 const DAY = 86_400_000;
 const now = new Date(2026, 9, 28, 12, 0, 0);
 let dir: string;
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'codechart-prune-'));
+  dir = makeTempDir('prune');
 });
-afterEach(() => rmSync(dir, { recursive: true, force: true }));
+afterEach(() => removeTempDir(dir));
 
 function file(name: string): string {
   writeFileSync(join(dir, name), 'x');

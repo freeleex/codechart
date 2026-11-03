@@ -1,11 +1,10 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { builtinRules } from '../../src/config/builtin-rules.js';
 import { loadConfig, loadConfigWithSources } from '../../src/config/load.js';
 import { configJsonSchema } from '../../src/config/schema.js';
-import { buildProgram, runProgram } from '../../src/program.js';
+import { makeSandbox, removeSandbox, runCli } from '../helpers/sandbox.js';
 
 let tmp: string;
 let home: string;
@@ -14,28 +13,14 @@ let globalFile: string;
 let repoFile: string;
 
 beforeEach(() => {
-  tmp = mkdtempSync(join(tmpdir(), 'codechart-config-'));
-  home = join(tmp, 'home');
-  repo = join(tmp, 'repo');
+  ({ tmp, home, repo } = makeSandbox('config', { git: 'dir', configDir: true }));
   globalFile = join(home, '.config', 'codechart', 'config.yaml');
   repoFile = join(repo, '.codechart.yaml');
-  mkdirSync(join(home, '.config', 'codechart'), { recursive: true });
-  mkdirSync(join(repo, '.git'), { recursive: true });
-  process.exitCode = undefined;
 });
 
-afterEach(() => {
-  rmSync(tmp, { recursive: true, force: true });
-  process.exitCode = undefined;
-});
+afterEach(() => removeSandbox(tmp));
 
-async function run(args: string[]) {
-  let out = '';
-  let err = '';
-  const program = buildProgram({ cwd: repo, home, env: {}, stdout: (s) => (out += s), stderr: (s) => (err += s) });
-  await runProgram(program, ['config', ...args], 'user');
-  return { out, err, code: process.exitCode };
-}
+const run = (args: string[]) => runCli({ cwd: repo, home }, ['config', ...args]);
 
 const line = (out: string, prefix: string) => out.split('\n').find((l) => l.startsWith(prefix));
 

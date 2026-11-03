@@ -54,7 +54,7 @@
     "bench:tokens": "tsx scripts/token-bench.ts",
     "gen:config-schema": "tsx scripts/gen-config-schema.ts",
     "complexity": "node scripts/complexity.mjs",
-    "dup": "jscpd src --threshold 1 && jscpd tests --threshold 5",
+    "dup": "jscpd src --threshold 1 && jscpd tests --threshold 3",
     "knip": "knip",
     "gen:client": "tsx scripts/gen-client.ts"
   },

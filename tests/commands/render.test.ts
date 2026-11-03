@@ -1,12 +1,12 @@
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { buildProgram, runProgram, type ProgramOptions } from '../../src/program.js';
+import { type ProgramOptions } from '../../src/program.js';
 import { FLOW_KEY } from '../../src/render/flow/tree.js';
 import { repoFolder } from '../../src/render/output-path.js';
 import { sampleFlow } from '../render/flow-fixture.js';
+import { makeSandbox, removeSandbox, runCli } from '../helpers/sandbox.js';
 
 let tmp: string;
 let home: string;
@@ -15,20 +15,11 @@ let out: string;
 const now = new Date(2026, 9, 28, 9, 5, 3);
 
 beforeEach(() => {
-  tmp = mkdtempSync(join(tmpdir(), 'codechart-render-'));
-  home = join(tmp, 'home');
-  repo = join(tmp, 'myrepo');
-  out = join(tmp, 'out');
-  mkdirSync(home);
-  mkdirSync(join(repo, '.git'), { recursive: true });
+  ({ tmp, home, repo, out } = makeSandbox('render', { repo: 'myrepo', git: 'dir' }));
   config('');
-  process.exitCode = undefined;
 });
 
-afterEach(() => {
-  rmSync(tmp, { recursive: true, force: true });
-  process.exitCode = undefined;
-});
+afterEach(() => removeSandbox(tmp));
 
 function config(extra: string, dir = repo) {
   mkdirSync(join(home, '.config', 'codechart'), { recursive: true });
@@ -55,24 +46,9 @@ function specFile(content: unknown, dir = tmp): string {
 }
 
 async function run(args: string[], opts: Partial<ProgramOptions> = {}) {
-  let stdout = '';
-  let stderr = '';
   const opened: string[] = [];
-  const program = buildProgram({
-    cwd: repo,
-    home,
-    env: {},
-    stdout: (s) => (stdout += s),
-    stderr: (s) => (stderr += s),
-    now: () => now,
-    isTTY: false,
-    open: (p) => {
-      opened.push(p);
-    },
-    ...opts,
-  });
-  await runProgram(program, args, 'user');
-  return { out: stdout, err: stderr, code: process.exitCode, opened };
+  const result = await runCli({ cwd: repo, home, now: () => now, isTTY: false, open: (p) => void opened.push(p), ...opts }, args);
+  return { ...result, opened };
 }
 
 const repoOut = () => join(out, repoFolder(repo));

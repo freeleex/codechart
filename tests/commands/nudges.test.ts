@@ -1,39 +1,25 @@
-import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { changedFiles, turnUsedCodechart } from '../../src/commands/hook.js';
 import { addReminder, installClaudeHooks, REMINDER, removeClaudeHooks, removeReminder } from '../../src/commands/nudges.js';
 import { buildProgram, runProgram } from '../../src/program.js';
+import { git, gitInit, makeSandbox, removeSandbox, runCli } from '../helpers/sandbox.js';
 
 let tmp: string;
 let home: string;
 let repo: string;
 
 beforeEach(() => {
-  tmp = mkdtempSync(join(tmpdir(), 'codechart-nudges-'));
-  home = join(tmp, 'home');
-  repo = join(tmp, 'repo');
-  mkdirSync(home);
-  mkdirSync(repo);
-  process.exitCode = undefined;
+  ({ tmp, home, repo } = makeSandbox('nudges'));
 });
 
-afterEach(() => {
-  rmSync(tmp, { recursive: true, force: true });
-  process.exitCode = undefined;
-});
+afterEach(() => removeSandbox(tmp));
 
 const BLOCK = `<!-- codechart -->\n${REMINDER}\n<!-- /codechart -->\n`;
 
-async function run(args: string[], stdin = '', choose?: (t: string, items: { label: string; hint: string }[], checked?: boolean) => Promise<number[] | undefined>) {
-  let out = '';
-  let err = '';
-  const program = buildProgram({ cwd: repo, home, env: {}, stdin: async () => stdin, choose, stdout: (s) => (out += s), stderr: (s) => (err += s) });
-  await runProgram(program, args, 'user');
-  return { out, err, code: process.exitCode };
-}
+const run = (args: string[], stdin = '', choose?: (t: string, items: { label: string; hint: string }[], checked?: boolean) => Promise<number[] | undefined>) =>
+  runCli({ cwd: repo, home, stdin: async () => stdin, choose }, args);
 
 describe('addReminder', () => {
   const file = () => join(home, 'CLAUDE.md');
@@ -195,18 +181,15 @@ describe('turnUsedCodechart', () => {
 });
 
 describe('codechart hook', () => {
-  const git = (...args: string[]) => execFileSync('git', args, { cwd: repo, stdio: 'pipe' });
+  const sh = (...args: string[]) => git(repo, ...args);
   const input = (extra: Record<string, unknown> = {}) => JSON.stringify({ session_id: 's1', cwd: repo, ...extra });
   const write = (...files: string[]) => files.forEach((f) => writeFileSync(join(repo, f), `${f} ${Math.random()}\n`));
 
   beforeEach(() => {
-    git('init', '-q');
-    git('config', 'user.email', 't@example.com');
-    git('config', 'user.name', 'T');
-    git('config', 'commit.gpgsign', 'false');
+    gitInit(repo);
     write('a.ts', 'b.ts', 'c.ts', 'mine.ts');
-    git('add', '.');
-    git('commit', '-q', '-m', 'init');
+    sh('add', '.');
+    sh('commit', '-q', '-m', 'init');
     write('mine.ts');
   });
 
@@ -230,24 +213,21 @@ describe('codechart hook', () => {
   it('counts files committed during the turn', async () => {
     await run(['hook', 'prompt'], input());
     write('a.ts', 'b.ts', 'c.ts');
-    git('commit', '-q', '-m', 'turn', 'a.ts', 'b.ts', 'c.ts');
+    sh('commit', '-q', '-m', 'turn', 'a.ts', 'b.ts', 'c.ts');
     expect(JSON.parse((await run(['hook', 'stop'], input())).out).hookSpecificOutput.additionalContext).toContain('changed 3 files');
   });
 
   it("counts the files of a repo's first commit made during the turn", async () => {
     rmSync(join(repo, '.git'), { recursive: true, force: true });
     rmSync(join(repo, 'mine.ts'));
-    git('init', '-q');
-    git('config', 'user.email', 't@example.com');
-    git('config', 'user.name', 'T');
-    git('config', 'commit.gpgsign', 'false');
+    gitInit(repo);
     rmSync(join(repo, 'a.ts'));
     rmSync(join(repo, 'b.ts'));
     rmSync(join(repo, 'c.ts'));
     await run(['hook', 'prompt'], input());
     write('a.ts', 'b.ts', 'c.ts');
-    git('add', '.');
-    git('commit', '-q', '-m', 'first');
+    sh('add', '.');
+    sh('commit', '-q', '-m', 'first');
     expect(JSON.parse((await run(['hook', 'stop'], input())).out).hookSpecificOutput.additionalContext).toContain('changed 3 files');
   });
 

@@ -1,12 +1,11 @@
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { loadConfig } from '../../src/config/load.js';
 import { configJsonSchema } from '../../src/config/schema.js';
-import { buildProgram, runProgram } from '../../src/program.js';
 import { STEP_STATUSES } from '../../src/spec/flow.js';
 import { STATUSES } from '../../src/spec/schema.js';
+import { makeSandbox, removeSandbox, runCli } from '../helpers/sandbox.js';
 
 const root = join(import.meta.dirname, '..', '..');
 const template = readFileSync(join(root, 'templates', 'codechart.yaml'), 'utf8');
@@ -19,23 +18,12 @@ let home: string;
 let repo: string;
 
 beforeEach(() => {
-  tmp = mkdtempSync(join(tmpdir(), 'codechart-install-'));
-  home = join(tmp, 'home');
-  repo = join(tmp, 'repo');
-  mkdirSync(home);
-  mkdirSync(join(repo, '.git'), { recursive: true });
-  process.exitCode = undefined;
+  ({ tmp, home, repo } = makeSandbox('install', { git: 'dir' }));
 });
 
-afterEach(() => {
-  rmSync(tmp, { recursive: true, force: true });
-  process.exitCode = undefined;
-});
+afterEach(() => removeSandbox(tmp));
 
-/** `extras`: what to pick in the optional reminder/hook picker (shown unchecked); nothing by default. */
 async function run(cwd: string, args: string[], picked?: number[] | 'cancel', extras: number[] = []) {
-  let out = '';
-  let err = '';
   let shown: string[] = [];
   let extrasShown: string[] = [];
   const choose =
@@ -49,9 +37,8 @@ async function run(cwd: string, args: string[], picked?: number[] | 'cancel', ex
           shown = items.map((i) => `${i.label} ${i.hint}`);
           return picked === 'cancel' ? undefined : picked;
         };
-  const program = buildProgram({ cwd, home, env: {}, choose, stdout: (s) => (out += s), stderr: (s) => (err += s) });
-  await runProgram(program, args, 'user');
-  return { out, err, code: process.exitCode, shown, extrasShown };
+  const result = await runCli({ cwd, home, choose }, args);
+  return { ...result, shown, extrasShown };
 }
 
 describe('codechart install-skill', () => {
