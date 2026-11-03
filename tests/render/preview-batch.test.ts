@@ -40,8 +40,14 @@ beforeEach(() => {
   git('config', 'user.name', 'T');
   git('config', 'commit.gpgsign', 'false');
 });
-// Windows can briefly lock a repo git just wrote hundreds of files in
-afterEach(() => rmSync(tmp, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }));
+// Windows keeps a repo git just wrote hundreds of files in locked for seconds; the runner's temp dir is thrown away anyway
+afterEach(() => {
+  try {
+    rmSync(tmp, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
+  } catch (e) {
+    if (process.platform !== 'win32') throw e;
+  }
+});
 
 // `>` and `"` are not allowed in Windows file names
 const [ARROW, QUOTE] = process.platform === 'win32' ? ['a b/c - d.ts', "q'uote.ts"] : ['a b/c -> d.ts', 'q"uote.ts'];
