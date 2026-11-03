@@ -126,6 +126,7 @@ function viewport(spec: Spec, layout: Layout, check: MapCheck | undefined, side?
   const statusOf = new Map(spec.nodes.map((n) => [n.id, n.status]));
   const shown = spec.nodes.filter((n) => !side || nodeOn(side, n.status));
   const layers = new Set(shown.map((n) => n.layer));
+  const present = new Set(shown.map((n) => n.id));
   const groups = layout.groups
     .filter((g) => layers.has(g.layer))
     .map(
@@ -144,7 +145,8 @@ function viewport(spec: Spec, layout: Layout, check: MapCheck | undefined, side?
     .map((e) => {
       const edge = spec.edges[e.index]!;
       const change = side ? edgeChange(edge, statusOf) : edge.change;
-      return !side || edgeOn(side, change) ? renderEdge(e, change) : '';
+      const drawn = !side || (edgeOn(side, change) && present.has(edge.from) && present.has(edge.to));
+      return drawn ? renderEdge(e, change) : '';
     })
     .join('');
   return `${groups}${edges}${nodes}`;

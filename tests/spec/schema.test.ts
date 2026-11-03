@@ -179,6 +179,12 @@ describe('plan changes', () => {
     expect(errorsOf(plan({ to: 'n', change: 'removed' }))[0]).toMatch(/^edges\[0\]\.change: an edge to a new node cannot be removed/);
   });
 
+  it('rejects a plan edge between a new and a removed node', () => {
+    const s = plan({});
+    s.edges = [{ from: 'n', to: 'r' }];
+    expect(errorsOf(s)).toContain('edges[0]: joins a new and a removed node, which never exist at the same time');
+  });
+
   it('was only on a modified field', () => {
     expect(errorsOf(plan({}, { name: 'role', was: 'text', change: 'added' }))).toContain('nodes[0].fields[0].was: only with "change": "modified"');
   });

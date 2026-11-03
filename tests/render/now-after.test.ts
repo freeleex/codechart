@@ -120,13 +120,14 @@ describe('Now and After HTML', () => {
   });
 
   it('panning one pane moves both', () => {
+    const before = transforms()[0];
     const canvas = panes()[1]!.querySelector('.canvas')!;
     canvas.dispatchEvent(new PointerEvent('pointerdown', { clientX: 10, clientY: 10, bubbles: true }));
     window.dispatchEvent(new PointerEvent('pointermove', { clientX: 60, clientY: 40 }));
     window.dispatchEvent(new PointerEvent('pointerup'));
     const [a, b] = transforms();
+    expect(a).not.toBe(before);
     expect(a).toBe(b);
-    expect(a).toContain('translate(');
   });
 
   it('selecting a node selects it in both panes and lists fields now and after', () => {

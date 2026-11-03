@@ -103,12 +103,15 @@ const specSchema = z
           });
         }
       }
+      const ends = [statusOf.get(edge.from), statusOf.get(edge.to)];
+      if (spec.kind === 'plan' && ends.includes('new') && ends.includes('removed')) {
+        ctx.addIssue({ code: 'custom', path: ['edges', i], message: 'joins a new and a removed node, which never exist at the same time' });
+      }
       if (edge.change === undefined) return;
       if (spec.kind !== 'plan') {
         ctx.addIssue({ code: 'custom', path: ['edges', i, 'change'], message: 'only in a plan' });
         return;
       }
-      const ends = [statusOf.get(edge.from), statusOf.get(edge.to)];
       if (edge.change === 'added' && ends.includes('removed')) {
         ctx.addIssue({ code: 'custom', path: ['edges', i, 'change'], message: 'an edge to a removed node cannot be added' });
       }
