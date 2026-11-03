@@ -52,24 +52,32 @@ function git(cwd: string, args: string[], config: [string, string][] = [], input
 
 /** Blanks the clean/process commands of filter drivers the repo's own config defines (status would run them) and drops `required` so a blank command is not a failure. */
 export function repoFilterOverrides(cwd: string): [string, string][] {
-  let out: string;
-  try {
-    out = git(cwd, ['config', '--show-scope', '--includes', '-z', '--name-only', '--get-regexp', '^filter\\.']);
-  } catch {
-    return [];
-  }
   const keys = new Set<string>();
   const drivers = new Set<string>();
-  const recs = out.split('\0');
-  for (let i = 0; i + 1 < recs.length; i += 2) {
-    const [scope, key] = [recs[i], recs[i + 1]!];
+  for (const key of repoConfigKeys(cwd, '^filter\\.')) {
     const m = /^(filter\..+)\.(clean|process)$/i.exec(key);
-    if ((scope === 'local' || scope === 'worktree') && m) {
+    if (m) {
       keys.add(key);
       drivers.add(m[1]!);
     }
   }
   return [...[...keys].map((k): [string, string] => [k, '']), ...[...drivers].map((d): [string, string] => [`${d}.required`, 'false'])];
+}
+
+/** Keys matching `pattern` that the repo's own config (local or worktree scope) sets. */
+function repoConfigKeys(cwd: string, pattern: string): string[] {
+  let out: string;
+  try {
+    out = git(cwd, ['config', '--show-scope', '--includes', '-z', '--name-only', '--get-regexp', pattern]);
+  } catch {
+    return [];
+  }
+  const keys: string[] = [];
+  const recs = out.split('\0');
+  for (let i = 0; i + 1 < recs.length; i += 2) {
+    if (recs[i] === 'local' || recs[i] === 'worktree') keys.push(recs[i + 1]!);
+  }
+  return keys;
 }
 
 const nulList = (out: string) => out.split('\0').filter(Boolean);
@@ -141,13 +149,14 @@ export interface DiffRange {
 /**
  * One file's unified diff over `range` (`rel` is repo-relative with `/`).
  * --no-ext-diff/--no-textconv: the repo's config must not make the diff run its commands.
+ * bigFileThreshold: xdiff loads both sides in memory, so a huge compressible blob must come out as binary.
  * Throws `OutputTooLarge` past `maxBytes`.
  */
 export function gitFileDiff(cwd: string, range: DiffRange, rel: string, maxBytes: number): string {
   return git(
     cwd,
     ['--literal-pathspecs', 'diff', '--no-color', '--no-ext-diff', '--no-textconv', '--no-renames', '--submodule=short', '-U3', ...range.args, '--', rel],
-    range.config,
+    [['core.bigFileThreshold', '5m'], ...range.config],
     undefined,
     maxBytes,
   );
