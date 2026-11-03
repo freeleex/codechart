@@ -38,6 +38,11 @@ const blocks = (e: Entry): Block[] => (Array.isArray(e.message?.content) ? (e.me
 const isPrompt = (e: Entry) =>
   e.type === 'user' && !e.isMeta && (typeof e.message?.content === 'string' || (blocks(e).length > 0 && !blocks(e).some((b) => b.type === 'tool_result')));
 
+const CODECHART_RUN = /\bcodechart\s+(check|render)\b/;
+
+const showsCodechart = (b: Block) =>
+  (b.type === 'text' && DIAGRAM.test(b.text ?? '')) || (b.type === 'tool_use' && typeof b.input?.command === 'string' && CODECHART_RUN.test(b.input.command));
+
 /** Whether the agent, since the last prompt, showed a diagram or ran codechart (which may have said no diagram applies). */
 export function turnUsedCodechart(jsonl: string): boolean {
   let used = false;
@@ -49,12 +54,7 @@ export function turnUsedCodechart(jsonl: string): boolean {
       continue;
     }
     if (isPrompt(e)) used = false;
-    else if (e.type === 'assistant') {
-      for (const b of blocks(e)) {
-        if (b.type === 'text' && DIAGRAM.test(b.text ?? '')) used = true;
-        if (b.type === 'tool_use' && typeof b.input?.command === 'string' && /\bcodechart\s+(check|render)\b/.test(b.input.command)) used = true;
-      }
-    }
+    else if (e.type === 'assistant' && blocks(e).some(showsCodechart)) used = true;
   }
   return used;
 }
@@ -106,45 +106,65 @@ function prune(dir: string, now: number) {
 const nudge = (count: number): string =>
   `This turn changed ${count} files and your reply has no codechart diagram. Unless the user said no diagram, follow the codechart skill now (check, then render) and reply with what it prints; if it says no diagram applies, stop without mentioning it.`;
 
+interface Turn {
+  root: string;
+  /** Where this session's snapshot lives. */
+  dir: string;
+  file: string;
+  input: Record<string, unknown>;
+}
+
+function onPrompt({ root, dir, file }: Turn, now: Date): void {
+  const snap = snapshot(root);
+  mkdirSync(dir, { recursive: true, mode: 0o700 });
+  prune(dir, now.getTime());
+  if (snap) writeFileSync(file, JSON.stringify({ root, ...snap }), { mode: 0o600 });
+  else unlinkSync(file);
+}
+
+/** The reminder to print, or undefined when the turn needs none. */
+function onStop({ root, file, input }: Turn): string | undefined {
+  if (input.stop_hook_active === true) return undefined;
+  const before = JSON.parse(readFileSync(file, 'utf8')) as Snapshot & { root?: string };
+  if (before.root !== root) return undefined;
+  const now = snapshot(root);
+  if (!now) return undefined;
+  const files = changedFiles(before, now, (a, b) => (a ? gitDiffFiles(root, a, b) : gitListFiles(root, b)));
+  if (files.length < MIN_FILES) return undefined;
+  const last = input.last_assistant_message;
+  if (typeof last === 'string' && DIAGRAM.test(last)) return undefined;
+  // The transcript may lag the final reply (hence last_assistant_message), but holds the turn's earlier tool calls.
+  const transcript = input.transcript_path;
+  if (typeof transcript === 'string' && turnUsedCodechart(readTail(transcript, MAX_TRANSCRIPT_TAIL))) return undefined;
+  return `${JSON.stringify({ hookSpecificOutput: { hookEventName: 'Stop', additionalContext: nudge(files.length) } })}\n`;
+}
+
+async function runHook(event: 'prompt' | 'stop', opts: CommandOptions): Promise<void> {
+  const input = await readInput(opts.stdin ?? readStdin);
+  const id = input.session_id;
+  const cwd = input.cwd;
+  if (typeof id !== 'string' || !SESSION_ID.test(id) || typeof cwd !== 'string') return;
+  const root = findRepoRoot(cwd);
+  if (!root) return;
+  const dir = join(opts.home ?? homedir(), '.cache', 'codechart', 'turns');
+  const turn = { root, dir, file: join(dir, `${id}.json`), input };
+  if (event === 'prompt') onPrompt(turn, opts.now?.() ?? new Date());
+  else {
+    const reminder = onStop(turn);
+    if (reminder) opts.stdout(reminder);
+  }
+}
+
 export function hookCommand(opts: CommandOptions): Command {
   return new Command('hook')
     .description('Claude Code hook (install with install-skill --hook): asks for a diagram after a turn that changed 3+ files without one')
     .addArgument(new Argument('<event>').choices(['prompt', 'stop']))
     .action(async (event: 'prompt' | 'stop') => {
       try {
-        const input = await readInput(opts.stdin ?? readStdin);
-        const id = input.session_id;
-        const cwd = input.cwd;
-        if (typeof id !== 'string' || !SESSION_ID.test(id) || typeof cwd !== 'string') return;
-        const root = findRepoRoot(cwd);
-        if (!root) return;
-        const dir = join(opts.home ?? homedir(), '.cache', 'codechart', 'turns');
-        const file = join(dir, `${id}.json`);
-
-        if (event === 'prompt') {
-          const snap = snapshot(root);
-          mkdirSync(dir, { recursive: true, mode: 0o700 });
-          prune(dir, (opts.now?.() ?? new Date()).getTime());
-          if (snap) writeFileSync(file, JSON.stringify({ root, ...snap }), { mode: 0o600 });
-          else unlinkSync(file);
-          return;
-        }
-
-        if (input.stop_hook_active === true) return;
-        const before = JSON.parse(readFileSync(file, 'utf8')) as Snapshot & { root?: string };
-        if (before.root !== root) return;
-        const now = snapshot(root);
-        if (!now) return;
-        const files = changedFiles(before, now, (a, b) => (a ? gitDiffFiles(root, a, b) : gitListFiles(root, b)));
-        if (files.length < MIN_FILES) return;
-        const last = input.last_assistant_message;
-        if (typeof last === 'string' && DIAGRAM.test(last)) return;
-        // The transcript may lag the final reply (hence last_assistant_message), but holds the turn's earlier tool calls.
-        const transcript = input.transcript_path;
-        if (typeof transcript === 'string' && turnUsedCodechart(readTail(transcript, MAX_TRANSCRIPT_TAIL))) return;
-        opts.stdout(`${JSON.stringify({ hookSpecificOutput: { hookEventName: 'Stop', additionalContext: nudge(files.length) } })}\n`);
-      } catch {
-        // A failing hook must never get in the way of the session.
+        await runHook(event, opts);
+      } catch (e) {
+        // A failing hook must never get in the way of the session; only CODECHART_DEBUG says why.
+        if ((opts.env ?? process.env).CODECHART_DEBUG) opts.stderr(`codechart: hook ${event}: ${e instanceof Error ? e.message : String(e)}\n`);
       }
     });
 }

@@ -269,6 +269,22 @@ describe('codechart hook', () => {
   });
 });
 
+describe('codechart hook failures', () => {
+  const failing = async (env: NodeJS.ProcessEnv) => {
+    let err = '';
+    const program = buildProgram({ cwd: repo, home, env, stdin: async () => 'not json', stdout: () => {}, stderr: (s) => (err += s) });
+    await runProgram(program, ['hook', 'stop'], 'user');
+    return { err, code: process.exitCode };
+  };
+
+  it('says why on stderr only when CODECHART_DEBUG is set, and still exits cleanly', async () => {
+    expect(await failing({})).toEqual({ err: '', code: undefined });
+    const r = await failing({ CODECHART_DEBUG: '1' });
+    expect(r.err).toMatch(/^codechart: hook stop: .*JSON/);
+    expect(r.code).toBeUndefined();
+  });
+});
+
 describe('removing what install-skill added', () => {
   it('removeReminder takes the block and the blank line before it, nothing else', () => {
     const file = join(home, 'CLAUDE.md');
