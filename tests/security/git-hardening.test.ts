@@ -1,9 +1,9 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { gitDirtyHashes, gitFileDiff, repoDiffOverrides } from '../../src/rules/git-files.js';
+import { gitChangedFiles, gitDirtyHashes, gitFileDiff, repoDiffOverrides } from '../../src/rules/git-files.js';
 import { diffRange } from '../../src/rules/selection.js';
 
 let tmp: string;
@@ -51,6 +51,36 @@ describe('S-31 core.worktree in the checkout config', () => {
     git('config', 'core.worktree', elsewhere);
     const text = gitFileDiff(repo, { args: ['HEAD'], worktree: true, config: [] }, '.ssh/id_ed25519', 1024 * 1024);
     expect(text).not.toContain('TOP-SECRET-KEY');
+  });
+});
+
+describe('S-32 filters of a nested repo', () => {
+  it.skipIf(process.platform === 'win32')('do not run on status or the preview diff', () => {
+    const sub = join(repo, 'sub');
+    const marker = join(tmp, 'MARK');
+    mkdirSync(sub);
+    const subGit = (...args: string[]) => execFileSync('git', args, { cwd: sub, stdio: 'pipe' });
+    subGit('init', '-q');
+    subGit('config', 'user.email', 't@example.com');
+    subGit('config', 'user.name', 'T');
+    subGit('config', 'commit.gpgsign', 'false');
+    writeFileSync(join(sub, '.gitattributes'), '* filter=evil\n');
+    writeFileSync(join(sub, 'f.txt'), 'x\n');
+    subGit('add', '-A');
+    subGit('commit', '-q', '-m', 'sub');
+    commit('one');
+    subGit('config', 'filter.evil.clean', `sh -c 'touch "${marker}"; cat'`);
+    const later = new Date(Date.now() + 5000);
+    utimesSync(join(sub, 'f.txt'), later, later);
+
+    gitChangedFiles(repo);
+    gitFileDiff(repo, { args: ['HEAD'], worktree: true, config: [] }, 'sub', 1024 * 1024);
+    expect(existsSync(marker)).toBe(false);
+
+    subGit('config', '--unset', 'filter.evil.clean');
+    writeFileSync(join(sub, 'f.txt'), 'y\n');
+    subGit('commit', '-q', '-am', 'moved');
+    expect(gitChangedFiles(repo)).toContain('sub');
   });
 });
 

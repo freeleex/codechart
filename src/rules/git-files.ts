@@ -102,9 +102,12 @@ function checkRef(flag: string, ref: string): void {
   if (problem) throw new Error(`${flag} ${problem}`);
 }
 
-/** `renameSources`: also list the path a rename moved from (gone from the tree, so changed too). */
+/**
+ * `renameSources`: also list the path a rename moved from (gone from the tree, so changed too).
+ * --ignore-submodules=dirty: checking a nested repo's files runs that repo's own filters, which the overrides do not reach.
+ */
 export function gitChangedFiles(cwd: string, renameSources = false): string[] {
-  const records = git(cwd, ['status', '--porcelain=v1', '-z', '-uall'], repoFilterOverrides(cwd)).split('\0');
+  const records = git(cwd, ['status', '--porcelain=v1', '-z', '-uall', '--ignore-submodules=dirty'], repoFilterOverrides(cwd)).split('\0');
   const files: string[] = [];
   for (let i = 0; i < records.length; i++) {
     const rec = records[i];
@@ -161,7 +164,7 @@ export interface DiffRange {
 export function gitFileDiff(cwd: string, range: DiffRange, rel: string, maxBytes: number): string {
   return git(
     cwd,
-    ['--literal-pathspecs', 'diff', '--no-color', '--no-ext-diff', '--no-textconv', '--no-renames', '--submodule=short', '-U3', ...range.args, '--', rel],
+    ['--literal-pathspecs', 'diff', '--no-color', '--no-ext-diff', '--no-textconv', '--no-renames', '--submodule=short', '--ignore-submodules=dirty', '-U3', ...range.args, '--', rel],
     [['core.bigFileThreshold', '5m'], ...range.config],
     undefined,
     maxBytes,
