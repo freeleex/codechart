@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Stand-in for an agent turn in the demo recording: a scripted reply, then the real codechart output.
+here="$(cd "$(dirname "$0")" && pwd)"
+say() { printf '%s\n' "$1"; sleep 0.15; }
+sleep 0.8
+say $'\e[2m● Read 7 files · Edited 9 files\e[0m'
+say ''
+say '● Done. Invoices for paid orders, plus a refund endpoint behind refundsEnabled.'
+say ''
+HOME="${DEMO_HOME:?}" node "$here/../../dist/cli.js" render "$here/../../tests/fixtures/shop.spec.json" --git --output both

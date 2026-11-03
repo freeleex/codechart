@@ -1,0 +1,25 @@
+{
+  "kind": "summary", "title": "Accept a team invite", "rules": ["behaviour-flow"], "start": "lookup",
+  "steps": [
+    { "id": "lookup", "label": "look up invite by token", "status": "new", "source": "app/api/invites.py", "match": "invite = find_invite(token)" },
+    { "id": "found", "label": "invite found?", "status": "new", "source": "app/api/invites.py", "match": "if invite is None:" },
+    { "id": "404", "label": "404 invite not found", "status": "new", "source": "app/api/invites.py", "match": "raise NotFound(\"invite\")" },
+    { "id": "expired", "label": "expired?", "status": "new", "source": "app/api/invites.py", "match": "if invite.expires_at < now():" },
+    { "id": "410", "label": "410 invite expired", "status": "new", "source": "app/api/invites.py", "match": "raise Gone(" },
+    { "id": "member", "label": "already a member?", "status": "new", "source": "app/api/invites.py", "match": "if is_member(user, invite.team):" },
+    { "id": "noop", "label": "return already a member", "status": "new", "source": "app/api/invites.py", "match": "return {\"status\": \"member\"}" },
+    { "id": "join", "label": "save membership", "status": "new", "source": "app/api/invites.py:13-15" },
+    { "id": "joined", "label": "return joined", "status": "new", "source": "app/api/invites.py", "match": "return {\"status\": \"joined\"}" }
+  ],
+  "links": [
+    { "from": "lookup", "to": "found" },
+    { "from": "found", "to": "404", "label": "no", "source": "app/api/invites.py", "match": "raise NotFound(" },
+    { "from": "found", "to": "expired", "label": "yes", "source": "app/api/invites.py", "match": "if invite.expires_at < now():" },
+    { "from": "expired", "to": "410", "label": "yes", "source": "app/api/invites.py", "match": "raise Gone(" },
+    { "from": "expired", "to": "member", "label": "no", "source": "app/api/invites.py", "match": "if is_member(user, invite.team):" },
+    { "from": "member", "to": "noop", "label": "yes", "source": "app/api/invites.py", "match": "return {\"status\": \"member\"}" },
+    { "from": "member", "to": "join", "label": "no", "source": "app/api/invites.py", "match": "m = Membership(" },
+    { "from": "join", "to": "joined" }
+  ],
+  "gaps": ["did not check what happens when two requests accept the same invite at once"]
+}
