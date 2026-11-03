@@ -40,7 +40,6 @@ describe('S-30 big files in the preview diff', () => {
   });
 });
 
-
 describe('S-31 core.worktree in the checkout config', () => {
   it('does not make diffs read files outside the repo', () => {
     mkdirSync(join(repo, '.ssh'));
@@ -54,7 +53,6 @@ describe('S-31 core.worktree in the checkout config', () => {
     expect(text).not.toContain('TOP-SECRET-KEY');
   });
 });
-
 
 describe('S-33 diff driver function-name patterns', () => {
   it('are blanked so a repo cannot stall the preview diff', () => {
@@ -74,7 +72,6 @@ describe('S-33 diff driver function-name patterns', () => {
     expect(gitFileDiff(repo, { ...range, config: [] }, 'a.txt', 1024 * 1024)).toContain('MARKER');
   });
 });
-
 
 describe('S-37 quoted names in the dirty hashes', () => {
   it.skipIf(process.platform === 'win32')('are not unquoted by hash-object', () => {
