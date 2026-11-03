@@ -187,3 +187,24 @@ describe('check: git selection flags', () => {
     expect(await check('--since', 'HEAD')).toMatchObject({ code: 2, err: 'codechart: not a git repository (use --files)\n' });
   });
 });
+
+describe('check: compact JSON', () => {
+  it('prints each path match and each short array on one line, the top level indented', async () => {
+    repoConfig('rules:\n  - name: a\n    diagram: map\n    paths: ["src/x*"]\n  - name: b\n    diagram: map\n    paths: ["src/y*"]\n');
+    const r = await check('--files', 'src/x.ts,src/x2.ts,src/y.ts');
+    const lines = r.out.trimEnd().split('\n');
+    expect(lines[0]).toBe('{');
+    expect(lines[1]).toBe('  "pathMatches": [');
+    expect(lines.filter((l) => l.startsWith('    {"rule":'))).toHaveLength(2);
+    expect(lines.some((l) => l.includes('"files":["src/x.ts","src/x2.ts"]'))).toBe(true);
+    expect(lines).toContain('  "judgeBuiltins": ["related-files","behaviour-flow"]');
+    expect(r.json.pathMatches.map((m: { rule: string }) => m.rule)).toEqual(['a', 'b']);
+  });
+
+  it('prints an object field one key per line', async () => {
+    repoConfig('rules:\n  - name: gen\n    paths: ["gen/**"]\n    output: none\n');
+    const r = await check('--files', 'gen/a.ts,src/b.ts');
+    expect(r.out).toContain('  "excludedFiles": {\n    "map": ["gen/a.ts"],\n    "flow": []\n  },');
+    expect(r.json.remainingFiles).toEqual({ map: ['src/b.ts'], flow: ['gen/a.ts', 'src/b.ts'] });
+  });
+});

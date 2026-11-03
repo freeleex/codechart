@@ -9,12 +9,10 @@ $ git diff '9c1e2a0..HEAD'; codechart check --since '9c1e2a0'
 <the diff>
 {
   "pathMatches": [
-    { "rule": "migrations", "diagram": "map", "output": "auto", "context": "short",
-      "files": ["migrations/versions/7f3d_add_teams.py"] },
-    { "rule": "orm-schema", "diagram": "map", "output": "auto", "context": "short",
-      "files": ["app/models/team.py"] }
+    {"rule":"migrations","diagram":"map","output":"auto","context":"short","files":["migrations/versions/7f3d_add_teams.py"]},
+    {"rule":"orm-schema","diagram":"map","output":"auto","context":"short","files":["app/models/team.py"]}
   ],
-  "judgeBuiltins": ["related-files", "behaviour-flow"]
+  "judgeBuiltins": ["related-files","behaviour-flow"]
 }
 ```
 
