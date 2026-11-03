@@ -130,12 +130,12 @@ describe('nodePreviews', () => {
     expect(p.get('n1')).toBe(p.get('n0'));
   });
 
-  it('a diff over 5 MB is not read whole; an untracked binary says so', () => {
+  it('a file over 5 MB is not diffed (git calls it binary); an untracked binary says so', () => {
     write('src/big.ts', 'x'.repeat(100).concat('\n').repeat(60_000));
     git('add', 'src/big.ts');
     writeFileSync(join(repo, 'src/img.bin'), Buffer.from([0, 1, 2]));
     const p = previews(summary({ path: 'src/big.ts', status: 'new' }, { path: 'src/img.bin', status: 'new' }), { git: true });
-    expect(p.get('n0')).toMatchObject({ note: 'diff is too large (over 5 MB)', lines: [] });
+    expect(p.get('n0')).toMatchObject({ note: 'binary file', lines: [] });
     expect(p.get('n1')).toMatchObject({ note: 'binary file', lines: [] });
   });
 });
