@@ -2,6 +2,8 @@ import type { Spec, SpecEdge, SpecNode } from '../../spec/schema.js';
 import { paint, plainLabel, targetLabel } from './labels.js';
 import { columns, fit, flat, truncate, type Cuts } from './wrap.js';
 
+const EDGE_MARK = { added: '+', removed: '-' } as const;
+
 export const linksAmong = (spec: Spec, ids: Set<string>): SpecEdge[] =>
   spec.edges.filter((e) => ids.has(e.from) && ids.has(e.to));
 
@@ -16,7 +18,7 @@ function sourceLines(
   const cap = Math.floor(width / 3);
   const name = truncate(plainLabel(source), cap, cuts);
   const indent = 2 + columns(name) + 1;
-  const labels = links.map((e) => flat(e.label ?? ''));
+  const labels = links.map((e) => `${e.change ? EDGE_MARK[e.change] : ''}${flat(e.label ?? '')}`);
   const targets = links.map((e) => byId.get(e.to)!);
   const longest = Math.max(...labels.map(columns));
   const room = Math.min(...targets.map((t) => width - indent - 4 - columns(targetLabel(t))));

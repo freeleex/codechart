@@ -1,49 +1,56 @@
 export const CLIENT_JS = `
 (function () {
   var data = JSON.parse(document.getElementById('spec-data').textContent);
-  var svg = document.querySelector('#canvas svg');
-  var vp = document.getElementById('viewport');
-  var canvas = document.getElementById('canvas');
+  var canvases = [].slice.call(document.querySelectorAll('.canvas'));
+  var vps = [].slice.call(document.querySelectorAll('.viewport'));
   var panel = document.getElementById('panel');
   var info = document.getElementById('page-info');
   var infoBtn = document.getElementById('info-toggle');
+  // One transform for every pane, so Now and After stay aligned.
   var t = { x: 0, y: 0, k: 1 };
-  function apply() { vp.setAttribute('transform', 'translate(' + t.x + ',' + t.y + ') scale(' + t.k + ')'); }
+  function apply() {
+    vps.forEach(function (vp) { vp.setAttribute('transform', 'translate(' + t.x + ',' + t.y + ') scale(' + t.k + ')'); });
+  }
   function fit() {
-    var r = svg.getBoundingClientRect();
+    var r = canvases[0].querySelector('svg').getBoundingClientRect();
     var k = Math.min(r.width / data.width, r.height / data.height, 1) || 1;
     t = { k: k, x: (r.width - data.width * k) / 2, y: (r.height - data.height * k) / 2 };
     apply();
   }
-  canvas.addEventListener('wheel', function (e) {
-    e.preventDefault();
-    var r = svg.getBoundingClientRect();
-    var px = e.clientX - r.left, py = e.clientY - r.top;
-    var k = Math.min(4, Math.max(0.1, t.k * Math.exp(-e.deltaY * 0.0015)));
-    t.x = px - ((px - t.x) / t.k) * k;
-    t.y = py - ((py - t.y) / t.k) * k;
-    t.k = k;
-    apply();
-  }, { passive: false });
   var drag = null, moved = false;
-  canvas.addEventListener('pointerdown', function (e) {
-    drag = { x: e.clientX - t.x, y: e.clientY - t.y, sx: e.clientX, sy: e.clientY };
-    moved = false;
+  canvases.forEach(function (canvas) {
+    var svg = canvas.querySelector('svg');
+    canvas.addEventListener('wheel', function (e) {
+      e.preventDefault();
+      var r = svg.getBoundingClientRect();
+      var px = e.clientX - r.left, py = e.clientY - r.top;
+      var k = Math.min(4, Math.max(0.1, t.k * Math.exp(-e.deltaY * 0.0015)));
+      t.x = px - ((px - t.x) / t.k) * k;
+      t.y = py - ((py - t.y) / t.k) * k;
+      t.k = k;
+      apply();
+    }, { passive: false });
+    canvas.addEventListener('pointerdown', function (e) {
+      drag = { x: e.clientX - t.x, y: e.clientY - t.y, sx: e.clientX, sy: e.clientY, canvas: canvas };
+      moved = false;
+    });
   });
   window.addEventListener('pointermove', function (e) {
     if (!drag) return;
-    if (Math.abs(e.clientX - drag.sx) + Math.abs(e.clientY - drag.sy) > 3) { moved = true; canvas.classList.add('drag'); }
+    if (Math.abs(e.clientX - drag.sx) + Math.abs(e.clientY - drag.sy) > 3) { moved = true; drag.canvas.classList.add('drag'); }
     if (!moved) return;
     t.x = e.clientX - drag.x; t.y = e.clientY - drag.y; apply();
   });
-  function endDrag() { drag = null; canvas.classList.remove('drag'); }
+  function endDrag() {
+    if (drag) drag.canvas.classList.remove('drag');
+    drag = null;
+  }
   window.addEventListener('pointerup', endDrag);
   window.addEventListener('pointercancel', endDrag);
   function select(id) {
     document.querySelectorAll('.node.selected').forEach(function (g) { g.classList.remove('selected'); });
     if (id == null) return;
-    var g = document.querySelector('.node[data-id="' + CSS.escape(id) + '"]');
-    if (g) g.classList.add('selected');
+    document.querySelectorAll('.node[data-id="' + CSS.escape(id) + '"]').forEach(function (g) { g.classList.add('selected'); });
   }
   function setInfo(on) {
     info.hidden = !on;

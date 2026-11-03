@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { basename, join } from 'node:path';
 import type { Config } from '../config/schema.js';
 import type { Spec } from '../spec/schema.js';
+import { hasNowAfter } from './web/states.js';
 
 export const HTML_NAME = /^(\d{8}-\d{6})-([a-z0-9-]+(?:\.flow)?)\.html$/;
 
@@ -25,8 +26,9 @@ function slugify(title: string): string {
   return slug || 'map';
 }
 
+// Now and After side by side exist only in the HTML.
 export function needsWeb(spec: Spec, hidden: number, minNodes: number): boolean {
-  return hidden > 0 || spec.nodes.length >= minNodes;
+  return hidden > 0 || spec.nodes.length >= minNodes || hasNowAfter(spec);
 }
 
 // `.` can't come from a title, so a flow file never collides with a map file.

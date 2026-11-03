@@ -15,9 +15,14 @@ header{padding:8px 14px;border-bottom:1px solid var(--line);background:var(--pan
 header h1{margin:0;font-size:15px}
 header .meta{color:var(--muted);font-size:11px;margin-right:auto}
 main{flex:1;display:flex;min-height:0}
-#canvas{flex:1;min-width:0;cursor:grab;overflow:hidden;touch-action:none}
-#canvas.drag{cursor:grabbing}
-#canvas svg{width:100%;height:100%;display:block}
+.canvas{flex:1;min-width:0;min-height:0;cursor:grab;overflow:hidden;touch-action:none}
+.canvas.drag{cursor:grabbing}
+.canvas svg{width:100%;height:100%;display:block}
+#panes{flex:1;min-width:0;display:flex}
+.pane{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column}
+.pane+.pane{border-left:1px solid var(--line)}
+.pane-title{padding:4px 10px;font-size:11px;font-weight:600;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line)}
+@media (max-width:900px){#panes{flex-direction:column}.pane+.pane{border-left:0;border-top:1px solid var(--line)}}
 aside{width:clamp(300px,35vw,600px);min-width:300px;max-width:80vw;border-left:1px solid var(--line);background:var(--panel);overflow:auto;padding:10px 14px}
 #resize{flex:none;width:5px;margin-right:-5px;position:relative;z-index:1;cursor:col-resize;touch-action:none}
 #resize:hover,#resize:focus-visible,#resize.drag{background:var(--edge);outline:none}
@@ -40,6 +45,8 @@ header .check{font-size:11px;color:var(--new-t)}header .check.bad{color:var(--re
 .edge text{fill:var(--edge);font-size:9.5px;text-anchor:middle}
 .edge rect{fill:var(--bg);opacity:.9}
 #arrow path{fill:var(--edge)}
+.edge-added path{stroke:var(--new)}.edge-added text{fill:var(--new-t)}
+.edge-removed path{stroke:var(--rem);stroke-dasharray:5 3}.edge-removed text{fill:var(--rem)}
 .node{cursor:pointer}
 .node .card{fill:var(--card);stroke:var(--line);stroke-width:1}
 .node .head{stroke:var(--line);stroke-width:1}

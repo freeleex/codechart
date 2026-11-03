@@ -11,7 +11,7 @@ const shown = (node: SpecNode): Field[] => {
 };
 
 const item = (f: Field): string =>
-  flat(`${f.change ? MARKER[f.change] : ''}${f.name}${f.type ? ` ${f.type}` : ''}`);
+  flat(`${f.change ? MARKER[f.change] : ''}${f.name}${f.was !== undefined ? ` ${f.was} → ${f.type ?? '?'}` : f.type ? ` ${f.type}` : ''}`);
 
 export function renderFieldLines(spec: Spec, ids: Set<string>, width: number, color: boolean, cuts: Cuts): string {
   const rows = spec.nodes

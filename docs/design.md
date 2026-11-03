@@ -44,7 +44,7 @@ The agent decides what goes in the diagram. The CLI owns layout and drawing. The
 - No static code analysis. codechart does not parse the codebase; the agent builds the spec from what it read.
 - No server, no hosted service, no accounts. The HTML is a local file.
 - Not a general-purpose diagram editor or a Mermaid/D2 replacement.
-- No history or diffing between maps of different plans.
+- No history or diffing between maps of different plans. (One plan map shows its own before and after: see Web, "Now and After".)
 - No editing the diagram from the browser.
 
 ## 5. Anti-goals (would be a failure even if it "works")
@@ -196,13 +196,14 @@ Validation errors (unknown edge endpoints, duplicate ids, bad enums) are printed
 
 - **Output:** by default it resolves from the spec's `rules` field, the rule names `check` returned. With no `rules` field, it uses `defaults.output`. `--output` overrides both. When the output resolves to `none`, `render` prints nothing on stdout and one line on stderr saying why (`codechart: no map drawn: its rules (gen) resolve to output none`, or `… defaults.output is none`), exit 0, so the agent knows the empty result is deliberate.
 - **`--md`:** prints the whole paste-ready reply block, so the agent never rearranges it: `**Map** _(key: + new  - removed  ~ changed  · context  ◆ config)_`, the terminal map in a ```text block without the key and `full map → …` lines, a blank line, then `[Open full map](file:///…)` on its own line when HTML was written. With output `web`, the header, a blank line and the link. Followed by one blank line, so two renders in one Bash call never glue (a trailing blank line is not part of the paste). Never colored. The link uses the percent-encoded file URL, wrapped in `<…>` when it contains parentheses.
-- **`auto` (the default):** the terminal map is always printed. The HTML file is written only when the terminal map can't show everything: nodes were hidden ("+N more in web view"), any text was cut with `…` (label, edge label, target, layer header or field name), or the spec has at least `web.minNodes` nodes (default 8). `cli` keeps cutting without a file. Small changes therefore produce no file at all.
+- **`auto` (the default):** the terminal map is always printed. The HTML file is written only when the terminal map can't show everything: nodes were hidden ("+N more in web view"), any text was cut with `…` (label, edge label, target, layer header or field name), or the spec has at least `web.minNodes` nodes (default 8), or it is a plan with Now and After panes (below). `cli` keeps cutting without a file. Small changes therefore produce no file at all.
 
 ### Terminal
 
 - Built from new, changed and removed nodes, plus `config` nodes, plus the edges between them. Context nodes only appear when an edge needs them as an endpoint.
 - Labels are prefixed by a status marker, so the map reads without color (2026-10-28: agents paste the map into markdown, where ANSI color never renders): `+new`, `-removed`, `~changed`, `·context`, `◆config`, no space.
-  - Link targets carry the same marker (`─maps─▶ +invoices`). Field markers (`+` `-` `~`) in the fields section mean added, removed, modified.
+  - Link targets carry the same marker (`─maps─▶ +invoices`). Field markers (`+` `-` `~`) in the fields section mean added, removed, modified; a field with `was` reads `~role text → enum`.
+  - A plan edge with `change` gets `+` or `-` before its label (`─+reads─▶`).
   - ANSI color is added to labels when stdout is a TTY.
   - Width math counts emoji and wide CJK as 2 columns, since labels may contain them.
 - **Layout: one grouped link list per layer** (changed after dogfooding, 2026-10-28):
@@ -238,6 +239,12 @@ Validation errors (unknown edge endpoints, duplicate ids, bad enums) are printed
 - Edges are labeled.
 - Click a node to open a side panel with its path, summary, all its fields and notes. Fields carry change marks: `+` added (green), `-` removed (struck through, muted), `~` modified (amber), unchanged plain. When `fieldsComplete` is false, a note under the fields says: *Only the fields the agent saw are listed. Set `defaults.context: full` in `.codechart.yaml` to let it read the full definition.*
 - Pan and zoom. Light and dark themes.
+- **Now and After** (2026-11-03): a plan that touches existing code (a `changed` or `removed` node, an edge with `change`, or a field that is removed, modified or has `was`) is drawn as two panes side by side, Now (the code as it is) and After plan. A plan that only adds things keeps one map. Both come from the one spec:
+  - Now leaves out `new` nodes, added edges, edges to new nodes and added fields, and shows a field's `was` type; After leaves out `removed` nodes, removed edges, edges to removed nodes and removed fields.
+  - Edges to a new or removed node fall on their side by themselves; `change: added|removed` on an edge (plans only) is for a link that moves between nodes that exist on both sides.
+  - ELK lays out every node and edge once, so a node sits at the same place in both panes; the direction is picked for a half-width canvas. Pan, zoom and selection are shared. Now tints links that will go red, After tints new ones green.
+  - A card's panel lists "Fields now" and "Fields after" when they differ.
+  - HTML only: under `auto` such a plan always writes the file; the terminal keeps the combined map.
 - Theme `auto|light|dark` is set by config `web.theme` and flag `--theme`; the page has a toggle.
 - **Page-level information:** gaps and "Not on map" (the spec's `omitted`) are a page-level section in the side panel, shown when no card is selected and reachable from the header button "Not on map / gaps" (hidden when both are empty). They never appear under a card's details (2026-10-28, dogfood round 3: the list under every card read as belonging to that card).
 - Saved to `~/.cache/codechart/<repo-name>-<hash>/<YYYYMMDD-HHmmss>-<slug>.html` (configurable via `web.outDir` in the global config only), so repos stay clean. `<hash>` is 8 hex chars of the repo path, so same-named repos never share or prune each other's files.

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   layoutSpec,
   pickLayout,
+  PANE_CANVASES,
   wrapSummary,
   SUMMARY_CHARS_PER_LINE,
   SUMMARY_MAX_LINES,
@@ -137,6 +138,13 @@ describe('pickLayout', () => {
 
   it('breaks a tie on the laptop canvas with the half-screen split', () => {
     expect(pickLayout(box('RIGHT', 1000, 130), box('DOWN', 280, 430)).direction).toBe('DOWN');
+  });
+
+  it('judges Now/After panes on a half-width canvas', () => {
+    const right = box('RIGHT', 1100, 300);
+    const down = box('DOWN', 500, 900);
+    expect(pickLayout(right, down).direction).toBe('RIGHT');
+    expect(pickLayout(right, down, PANE_CANVASES).direction).toBe('DOWN');
   });
 
   it('keeps left-to-right on a full tie', () => {

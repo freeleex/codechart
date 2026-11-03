@@ -237,6 +237,23 @@ describe('codechart render', () => {
     expect(r.out).toContain('full map → file:');
   });
 
+  it('output auto, small plan that changes existing code -> Now/After HTML plus the terminal map', async () => {
+    const s = spec(3);
+    s.nodes[1]!.status = 'changed';
+    const r = await run(['render', specFile(s)]);
+    expect(written()).toHaveLength(1);
+    expect(readFileSync(expectedFile(), 'utf8')).toContain('class="pane"');
+    expect(r.out).toContain('3 nodes');
+    expect(r.out).toContain('full map → file:');
+  });
+
+  it('--output cli on a Now/After plan -> no HTML', async () => {
+    const s = spec(3);
+    s.nodes[1]!.status = 'changed';
+    await run(['render', specFile(s), '--output', 'cli']);
+    expect(existsSync(out)).toBe(false);
+  });
+
   it('output auto, terminalMaxNodes 3 on a 5-node spec (hidden > 0) -> HTML written', async () => {
     config('defaults:\n  terminalMaxNodes: 3\n');
     const r = await run(['render', specFile(spec(5))]);

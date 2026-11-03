@@ -14,8 +14,9 @@ import { alertLine, type CheckSummary } from '../render/terminal/check-lines.js'
 import { defaultWidth, fullMapLine, KEY, renderTerminalDetailed } from '../render/terminal/render.js';
 import { selectTerminalNodes } from '../render/terminal/select.js';
 import { renderHtml } from '../render/web/html.js';
-import { layoutSpec } from '../render/web/layout.js';
+import { layoutSpec, PANE_CANVASES } from '../render/web/layout.js';
 import type { HtmlMeta } from '../render/web/page.js';
+import { hasNowAfter } from '../render/web/states.js';
 import { resolveCommit } from '../rules/git-files.js';
 import { unionOutputs } from '../rules/resolve.js';
 import { diffRange, gitFiles, hasGitSelection, selectionError, type GitSelection } from '../rules/selection.js';
@@ -203,7 +204,8 @@ export function renderCommand(opts: CommandOptions): Command {
         const { hidden } = selectTerminalNodes(spec, maxNodes);
         const termOpts = { maxNodes, keyLine: !o.md, color, width, check };
         const previews = () => (diff ? nodePreviews(spec, root, diff, diffRange(root, o), check.found, resolve(cwd)) : undefined);
-        const writeMapHtml = () => writeHtml(async (meta) => renderHtml(spec, await layoutSpec(spec), meta, check, previews()));
+        const canvases = hasNowAfter(spec) ? PANE_CANVASES : undefined;
+        const writeMapHtml = () => writeHtml(async (meta) => renderHtml(spec, await layoutSpec(spec, canvases), meta, check, previews()));
 
         let htmlPath: string | undefined;
         let terminal: { text: string; truncated: boolean } | undefined;

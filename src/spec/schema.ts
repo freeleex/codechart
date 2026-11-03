@@ -15,6 +15,7 @@ const fieldSchema = z.strictObject({
   type: shortOpt().optional(),
   note: long().optional(),
   change: z.enum(['added', 'removed', 'modified']).optional(),
+  was: shortOpt().optional().describe('The type before the change; only with change modified'),
 });
 
 const nodeSchema = z.strictObject({
@@ -36,6 +37,7 @@ const edgeSchema = z.strictObject({
   to: ident(),
   label: shortOpt().optional(),
   kind: z.enum(EDGE_KINDS).optional(),
+  change: z.enum(['added', 'removed']).optional().describe('Plan only: a link the plan adds or drops between nodes that exist before and after'),
 });
 
 const MAX_NODES = 500;
@@ -76,6 +78,11 @@ const specSchema = z
           message: 'required when fields are listed (true if you listed every field, false if only what you saw)',
         });
       }
+      node.fields?.forEach((f, j) => {
+        if (f.was !== undefined && f.change !== 'modified') {
+          ctx.addIssue({ code: 'custom', path: ['nodes', i, 'fields', j, 'was'], message: 'only with "change": "modified"' });
+        }
+      });
       for (const message of labelIssues(
         node.label,
         'node',
@@ -85,6 +92,7 @@ const specSchema = z
         ctx.addIssue({ code: 'custom', path: ['nodes', i, 'label'], message });
       }
     });
+    const statusOf = new Map(spec.nodes.map((n) => [n.id, n.status]));
     spec.edges.forEach((edge, i) => {
       for (const end of ['from', 'to'] as const) {
         if (!ids.has(edge[end])) {
@@ -94,6 +102,18 @@ const specSchema = z
             message: `unknown node "${edge[end]}"`,
           });
         }
+      }
+      if (edge.change === undefined) return;
+      if (spec.kind !== 'plan') {
+        ctx.addIssue({ code: 'custom', path: ['edges', i, 'change'], message: 'only in a plan' });
+        return;
+      }
+      const ends = [statusOf.get(edge.from), statusOf.get(edge.to)];
+      if (edge.change === 'added' && ends.includes('removed')) {
+        ctx.addIssue({ code: 'custom', path: ['edges', i, 'change'], message: 'an edge to a removed node cannot be added' });
+      }
+      if (edge.change === 'removed' && ends.includes('new')) {
+        ctx.addIssue({ code: 'custom', path: ['edges', i, 'change'], message: 'an edge to a new node cannot be removed; leave change out' });
       }
     });
   });

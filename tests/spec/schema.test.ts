@@ -153,6 +153,37 @@ describe('validateSpec', () => {
   });
 });
 
+describe('plan changes', () => {
+  const plan = (edge: Record<string, unknown>, field: Record<string, unknown> = { name: 'role', change: 'modified' }) => ({
+    title: 'p',
+    kind: 'plan',
+    nodes: [
+      { id: 'a', label: 'a', kind: 'table', status: 'changed', layer: 'db', fieldsComplete: false, fields: [field] },
+      { id: 'b', label: 'b', kind: 'table', status: 'context', layer: 'db' },
+      { id: 'n', label: 'n', kind: 'table', status: 'new', layer: 'db' },
+      { id: 'r', label: 'r', kind: 'table', status: 'removed', layer: 'db' },
+    ],
+    edges: [{ from: 'a', to: 'b', ...edge }],
+  });
+
+  it('accepts edge change and a modified field with was', () => {
+    expect(validateSpec(plan({ change: 'removed' }, { name: 'role', type: 'enum', was: 'text', change: 'modified' })).ok).toBe(true);
+  });
+
+  it('edge change only in a plan', () => {
+    expect(errorsOf({ ...plan({ change: 'added' }), kind: 'summary' })).toContain('edges[0].change: only in a plan');
+  });
+
+  it('rejects an added edge to a removed node and a removed edge to a new node', () => {
+    expect(errorsOf(plan({ to: 'r', change: 'added' }))).toContain('edges[0].change: an edge to a removed node cannot be added');
+    expect(errorsOf(plan({ to: 'n', change: 'removed' }))[0]).toMatch(/^edges\[0\]\.change: an edge to a new node cannot be removed/);
+  });
+
+  it('was only on a modified field', () => {
+    expect(errorsOf(plan({}, { name: 'role', was: 'text', change: 'added' }))).toContain('nodes[0].fields[0].was: only with "change": "modified"');
+  });
+});
+
 describe('specJsonSchema', () => {
   it('forbids extra properties on root, node, field and edge', () => {
     const js = specJsonSchema() as J;
