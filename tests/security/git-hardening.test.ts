@@ -39,3 +39,18 @@ describe('S-30 big files in the preview diff', () => {
   });
 });
 
+
+describe('S-31 core.worktree in the checkout config', () => {
+  it('does not make diffs read files outside the repo', () => {
+    mkdirSync(join(repo, '.ssh'));
+    writeFileSync(join(repo, '.ssh', 'id_ed25519'), 'placeholder\n');
+    commit('one');
+    const elsewhere = join(tmp, 'home');
+    mkdirSync(join(elsewhere, '.ssh'), { recursive: true });
+    writeFileSync(join(elsewhere, '.ssh', 'id_ed25519'), 'TOP-SECRET-KEY\n');
+    git('config', 'core.worktree', elsewhere);
+    const text = gitFileDiff(repo, { args: ['HEAD'], worktree: true, config: [] }, '.ssh/id_ed25519', 1024 * 1024);
+    expect(text).not.toContain('TOP-SECRET-KEY');
+  });
+});
+

@@ -19,7 +19,8 @@ export function gitBinary(platform: NodeJS.Platform = process.platform, env: Nod
 
 let gitPath: string | undefined;
 
-// A checkout's own .git/config (an unpacked archive, not a clone) must not make codechart run commands or go online.
+// A checkout's own .git/config (an unpacked archive, not a clone) must not make codechart run commands or go online,
+// nor point core.worktree outside the repo (callers pass the repo root as cwd).
 const SAFE_ARGS = ['--no-optional-locks', '-c', 'core.fsmonitor=false', '-c', 'protocol.allow=never'];
 
 /** Git printed more than the caller's `maxBuffer`. */
@@ -34,7 +35,7 @@ function git(cwd: string, args: string[], config: [string, string][] = [], input
       env[`GIT_CONFIG_KEY_${n + i}`] = k;
       env[`GIT_CONFIG_VALUE_${n + i}`] = v;
     });
-    return execFileSync(gitPath, [...SAFE_ARGS, ...args], {
+    return execFileSync(gitPath, [...SAFE_ARGS, `--work-tree=${cwd}`, ...args], {
       cwd,
       env,
       timeout: 30_000,
