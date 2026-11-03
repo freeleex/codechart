@@ -92,14 +92,18 @@ export const CLIENT_JS = `
   var aside = document.querySelector('aside');
   var handle = document.getElementById('resize');
   var width = 0;
+  // Two panes need the room, so their panel starts at half width and remembers its own size.
+  var panes = !!document.getElementById('panes');
+  var widthKey = panes ? 'codechart.panel.panes' : 'codechart.panel';
+  var minWidth = panes ? 200 : 300;
   function setWidth(w, save) {
-    width = Math.round(Math.max(300, Math.min(w, window.innerWidth * 0.8)));
+    width = Math.round(Math.max(minWidth, Math.min(w, window.innerWidth * 0.8)));
     aside.style.width = width + 'px';
-    if (save) { try { localStorage.setItem('codechart.panel', String(width)); } catch (e) {} }
+    if (save) { try { localStorage.setItem(widthKey, String(width)); } catch (e) {} }
   }
   function currentWidth() { return width || aside.getBoundingClientRect().width; }
   var savedWidth = null;
-  try { savedWidth = Number(localStorage.getItem('codechart.panel')); } catch (e) {}
+  try { savedWidth = Number(localStorage.getItem(widthKey)); } catch (e) {}
   if (savedWidth > 0) setWidth(savedWidth, false);
   var sizing = false;
   handle.addEventListener('pointerdown', function (e) {

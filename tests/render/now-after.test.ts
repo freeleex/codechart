@@ -127,6 +127,18 @@ describe('Now and After HTML', () => {
     expect(document.querySelector('#panel')!.textContent).toContain('role: text');
   });
 
+  it('the panel starts at half width, goes down to 200px and keeps its own saved size', () => {
+    expect(page).toMatch(/#panes~aside\{width:clamp\(200px,17\.5vw,300px\);min-width:200px\}/);
+    const handle = document.querySelector<HTMLElement>('#resize')!;
+    handle.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 1 }));
+    handle.dispatchEvent(new PointerEvent('pointermove', { clientX: window.innerWidth - 50 }));
+    expect(document.querySelector<HTMLElement>('aside')!.style.width).toBe('200px');
+    handle.dispatchEvent(new PointerEvent('pointerup', { pointerId: 1 }));
+    expect(localStorage.getItem('codechart.panel.panes')).toBe('200');
+    expect(localStorage.getItem('codechart.panel')).toBeNull();
+    localStorage.removeItem('codechart.panel.panes');
+  });
+
   it('a summary keeps one canvas, with explicit edge colours only', async () => {
     const summary = load({ ...raw, kind: 'summary', edges: raw.edges.slice(0, 2) });
     const out = renderHtml(summary, await layoutSpec(summary), meta);

@@ -21,6 +21,7 @@ main{flex:1;display:flex;min-height:0}
 #panes{flex:1;min-width:0;display:flex}
 .pane{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column}
 .pane+.pane{border-left:1px solid var(--line)}
+#panes~aside{width:clamp(200px,17.5vw,300px);min-width:200px}
 .pane-title{padding:4px 10px;font-size:11px;font-weight:600;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line)}
 @media (max-width:900px){#panes{flex-direction:column}.pane+.pane{border-left:0;border-top:1px solid var(--line)}}
 aside{width:clamp(300px,35vw,600px);min-width:300px;max-width:80vw;border-left:1px solid var(--line);background:var(--panel);overflow:auto;padding:10px 14px}

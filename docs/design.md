@@ -243,7 +243,7 @@ Validation errors (unknown edge endpoints, duplicate ids, bad enums) are printed
   - Now leaves out `new` nodes, added edges, edges to new nodes and added fields, and shows a field's `was` type; After leaves out `removed` nodes, removed edges, edges to removed nodes and removed fields.
   - Edges to a new or removed node fall on their side by themselves; `change: added|removed` on an edge (plans only) is for a link that moves between nodes that exist on both sides.
   - ELK lays out every node and edge once, so a node sits at the same place in both panes; the direction is picked for a half-width canvas. Pan, zoom and selection are shared. Now tints links that will go red, After tints new ones green.
-  - A card's panel lists "Fields now" and "Fields after" when they differ.
+  - A card's panel lists "Fields now" and "Fields after" when they differ. The side panel starts at half the usual width (min 200px) and saves its own size, so the panes get the room.
   - HTML only: under `auto` such a plan always writes the file; the terminal keeps the combined map.
 - Theme `auto|light|dark` is set by config `web.theme` and flag `--theme`; the page has a toggle.
 - **Page-level information:** gaps and "Not on map" (the spec's `omitted`) are a page-level section in the side panel, shown when no card is selected and reachable from the header button "Not on map / gaps" (hidden when both are empty). They never appear under a card's details (2026-10-28, dogfood round 3: the list under every card read as belonging to that card).
