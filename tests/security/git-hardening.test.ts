@@ -3,7 +3,8 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { gitFileDiff } from '../../src/rules/git-files.js';
+import { gitFileDiff, repoDiffOverrides } from '../../src/rules/git-files.js';
+import { diffRange } from '../../src/rules/selection.js';
 
 let tmp: string;
 let repo: string;
@@ -51,6 +52,26 @@ describe('S-31 core.worktree in the checkout config', () => {
     git('config', 'core.worktree', elsewhere);
     const text = gitFileDiff(repo, { args: ['HEAD'], worktree: true, config: [] }, '.ssh/id_ed25519', 1024 * 1024);
     expect(text).not.toContain('TOP-SECRET-KEY');
+  });
+});
+
+
+describe('S-33 diff driver function-name patterns', () => {
+  it('are blanked so a repo cannot stall the preview diff', () => {
+    git('config', 'diff.evil.xfuncname', '^(MARKER.*)$');
+    git('config', 'diff.evil.funcname', 'MARKER');
+    git('config', 'user.name', 'T');
+    writeFileSync(join(repo, '.gitattributes'), '* diff=evil\n');
+    writeFileSync(join(repo, 'a.txt'), `MARKER top\n${'x\n'.repeat(10)}old\n`);
+    commit('one');
+    writeFileSync(join(repo, 'a.txt'), `MARKER top\n${'x\n'.repeat(10)}new\n`);
+
+    expect(repoDiffOverrides(repo)).toEqual(expect.arrayContaining([['diff.evil.xfuncname', '^$'], ['diff.evil.funcname', '^$']]));
+    const range = diffRange(repo, { git: true });
+    const text = gitFileDiff(repo, range, 'a.txt', 1024 * 1024);
+    expect(text).toContain('@@');
+    expect(text).not.toContain('MARKER');
+    expect(gitFileDiff(repo, { ...range, config: [] }, 'a.txt', 1024 * 1024)).toContain('MARKER');
   });
 });
 

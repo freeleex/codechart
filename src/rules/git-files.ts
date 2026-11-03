@@ -65,6 +65,11 @@ export function repoFilterOverrides(cwd: string): [string, string][] {
   return [...[...keys].map((k): [string, string] => [k, '']), ...[...drivers].map((d): [string, string] => [`${d}.required`, 'false'])];
 }
 
+/** Replaces (`^$` as git rejects an empty one) the function-name regexes diff drivers get from the repo's own config (a backtracking one stalls every diff). */
+export function repoDiffOverrides(cwd: string): [string, string][] {
+  return repoConfigKeys(cwd, '^diff\\.').filter((k) => /^diff\..+\.x?funcname$/i.test(k)).map((k): [string, string] => [k, '^$']);
+}
+
 /** Keys matching `pattern` that the repo's own config (local or worktree scope) sets. */
 function repoConfigKeys(cwd: string, pattern: string): string[] {
   let out: string;
