@@ -46,7 +46,7 @@ Rules:
 - `kind`: table, enum, model, service, endpoint, component, file, config, other. Defaults to `file` when `path` is set, so a plain file node needs only `path`.
 - `layer`: free text, one per area: `database`, `backend`, `frontend`, `config`, `ci`. Nodes in a layer are drawn together, so keep the set small and consistent.
 - `summary`: one short line, what it is (not what changed).
-- `fields`: for tables, models and enums: **every** field you read, not only the changed ones. Mark changes with `change` (added, removed, modified); leave unchanged fields unmarked. In `short` mode only fields you actually read; in a plan, the fields you are committing to build are always listed (they are the plan).
+- `fields`: for tables, models and enums: **every** field you read, not only the changed ones. Mark changes with `change` (added, removed, modified); leave unchanged fields unmarked. On a `modified` field, `was` is the old type when the type changes (`"type": "enum", "was": "text"`). In `short` mode only fields you actually read; in a plan, the fields you are committing to build are always listed (they are the plan).
 - `match` (optional, needs `path`): a distinctive piece of one line in that file, copied from the diff, like a flow anchor. It must be on exactly one line. The HTML shows the line in the node's panel; the terminal doesn't.
 - `fieldsComplete`: required on every node with `fields`.
   - `true`: you read the whole definition (model, table or enum) and listed every field.
@@ -71,6 +71,7 @@ Warnings, not failures (`--strict` makes them exit 1). Each mismatch is named in
 - `label`: the column, method or key that makes the link (`team_id`, `list_projects()`, `reads DEFAULT_CURRENCY`). Short.
 - `kind`: fk, calls, imports, reads, writes, renders, configures, other. Use `writes` for a migration that creates or alters a table, and `other` for a model's `maps` edge to its table.
 - Only edges you saw in code, or (in a plan) ones you are committing to build.
+- In a plan, `change` marks a link that moves between nodes existing before and after: `"added"` for one the plan builds, `"removed"` for one it drops. Leave it out on edges to a `new` or `removed` node; their status already says it. The HTML then shows the plan as Now and After side by side.
 
 ## gaps vs omitted vs your prose
 

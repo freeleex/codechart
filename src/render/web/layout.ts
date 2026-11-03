@@ -22,6 +22,8 @@ export interface LayoutNode {
   h: number;
 }
 export interface LayoutEdge {
+  /** Its place in `spec.edges`. */
+  index: number;
   from: string;
   to: string;
   label?: string;
@@ -93,17 +95,23 @@ function nodeHeight(fields: number, summary: string | undefined): number {
 type Elk = InstanceType<typeof import('elkjs/lib/elk.bundled.js').default>;
 
 // Canvas on a 13-14" laptop (1440x800 viewport minus the side panel), then a half-screen split as tie-break.
-const FIT_CANVASES: ReadonlyArray<readonly [number, number]> = [
+type Canvases = ReadonlyArray<readonly [number, number]>;
+const FIT_CANVASES: Canvases = [
   [1140, 800],
   [420, 800],
+];
+/** Each of the Now and After panes, side by side on that laptop canvas. */
+export const PANE_CANVASES: Canvases = [
+  [560, 770],
+  [420, 770],
 ];
 
 function fitScale(l: Layout, [w, h]: readonly [number, number]): number {
   return Math.min(w / l.width, h / l.height, 1);
 }
 
-export function pickLayout(right: Layout, down: Layout): Layout {
-  for (const canvas of FIT_CANVASES) {
+export function pickLayout(right: Layout, down: Layout, canvases: Canvases = FIT_CANVASES): Layout {
+  for (const canvas of canvases) {
     const r = fitScale(right, canvas);
     const d = fitScale(down, canvas);
     if (Math.abs(r - d) > 0.005) return d > r ? down : right;
@@ -111,12 +119,13 @@ export function pickLayout(right: Layout, down: Layout): Layout {
   return right;
 }
 
-export async function layoutSpec(spec: Spec): Promise<Layout> {
+/** Lays out every node and edge, so a plan's Now and After panes share one set of positions. */
+export async function layoutSpec(spec: Spec, canvases?: Canvases): Promise<Layout> {
   // Lazy: elkjs costs ~70 ms to load and only the HTML path needs it.
   const { default: ELK } = await import('elkjs/lib/elk.bundled.js');
   const elk = new ELK();
   const [right, down] = await Promise.all([layoutIn(elk, spec, 'RIGHT'), layoutIn(elk, spec, 'DOWN')]);
-  return pickLayout(right, down);
+  return pickLayout(right, down, canvases);
 }
 
 async function layoutIn(elk: Elk, spec: Spec, direction: Direction): Promise<Layout> {
@@ -177,6 +186,7 @@ async function layoutIn(elk: Elk, spec: Spec, direction: Direction): Promise<Lay
     // ancestor), even for edges declared on the root.
     const origin = (e.container && containerOrigin.get(e.container)) || { x: 0, y: 0 };
     return {
+      index: idx,
       from: specEdge.from,
       to: specEdge.to,
       ...(specEdge.label ? { label: specEdge.label } : {}),

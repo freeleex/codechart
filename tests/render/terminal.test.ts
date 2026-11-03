@@ -103,6 +103,20 @@ describe('renderLinks', () => {
     );
   });
 
+  it('a plan edge with change gets + or - before its label', () => {
+    const spec = makeSpec({ a: 'changed', b: 'context', c: 'context' }, [['a', 'b'], ['a', 'c']]);
+    spec.edges[0] = { ...spec.edges[0]!, label: 'calls', change: 'added' };
+    spec.edges[1] = { ...spec.edges[1]!, change: 'removed' };
+    expect(renderLinks(spec, allIds(spec), 100, false)).toBe('l\n  ~a ─+calls─▶ ·b\n     ─-──────▶ ·c');
+  });
+
+  it('a modified field with was shows old → new type', () => {
+    const spec = makeSpec({ a: 'changed' }, []);
+    spec.nodes[0]!.fields = [{ name: 'role', type: 'enum', was: 'text', change: 'modified' }];
+    spec.nodes[0]!.fieldsComplete = false;
+    expect(renderTerminal(spec, { maxNodes: 10, width: 100, color: false })).toContain('~role text → enum');
+  });
+
   it('no-label link alone is ──▶', () => {
     const spec = makeSpec({ a: 'new', b: 'changed' }, [['a', 'b']]);
     expect(renderLinks(spec, allIds(spec), 100, false)).toBe('l\n  +a ──▶ ~b');

@@ -184,7 +184,7 @@ describe('renderHtml', () => {
 
   it('canvas disables touch gestures and client handles pointercancel', async () => {
     const out = await html(loadFixture());
-    expect(out).toMatch(/#canvas\{[^}]*touch-action:none/);
+    expect(out).toMatch(/\.canvas\{[^}]*touch-action:none/);
     expect(out).toContain("addEventListener('pointercancel'");
     expect(out).toContain("addEventListener('keydown'");
   });

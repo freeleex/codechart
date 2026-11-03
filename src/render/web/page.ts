@@ -61,6 +61,8 @@ interface PageParts {
   /** Escaped already. */
   headerNote?: string;
   viewport: string;
+  /** Instead of `viewport`: canvases side by side that pan and zoom together. */
+  panes?: { title: string; key: string; viewport: string }[];
   aside: string;
   width: number;
   height: number;
@@ -73,6 +75,13 @@ const CSP = `default-src 'none'; style-src 'unsafe-inline'; script-src 'sha256-$
 export function renderPage(p: PageParts): string {
   const theme: Theme = p.meta.theme && THEMES.includes(p.meta.theme) ? p.meta.theme : 'auto';
   const data = { width: p.width, height: p.height };
+  const defs = `<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z"/></marker>${p.extraDefs ?? ''}</defs>`;
+  // Ids are document-wide, so the second pane's url(#arrow) finds the first pane's defs.
+  const canvas = (viewport: string, i: number) =>
+    `<div class="canvas"${p.panes ? '' : ' id="canvas"'}><svg>${i === 0 ? defs : ''}\n<g class="viewport">${viewport}</g></svg></div>`;
+  const body = p.panes
+    ? `<div id="panes">${p.panes.map((pane, i) => `<section class="pane" aria-label="${esc(pane.title)}"><div class="pane-title">${esc(pane.title)}<span class="pane-key"> · ${esc(pane.key)}</span></div>${canvas(pane.viewport, i)}</section>`).join('')}</div>`
+    : canvas(p.viewport, 0);
   return `<!doctype html>
 <html lang="en" data-theme="${theme}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="${CSP}">
@@ -81,8 +90,7 @@ export function renderPage(p: PageParts): string {
 <body>
 <header><h1>${esc(p.title)}</h1>${p.headerNote ?? ''}<span class="meta">${esc(p.meta.repo)} · ${esc(p.meta.generatedAt.toISOString())}</span>${p.infoButton}<button id="theme-toggle" type="button" title="Cycle theme: auto, light, dark"></button></header>
 <main>
-<div id="canvas"><svg><defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z"/></marker>${p.extraDefs ?? ''}</defs>
-<g id="viewport">${p.viewport}</g></svg></div>
+${body}
 <div id="resize" role="separator" aria-orientation="vertical" aria-label="Resize panel" tabindex="0" title="Drag to resize the panel"></div>
 <aside>${p.aside}</aside>
 </main>
