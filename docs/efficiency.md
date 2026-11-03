@@ -17,14 +17,14 @@ These figures were taken from disk blocks (`du`) before the later size work and 
 ## Current
 
 <!-- measure:start -->
-Measured 2026-10-29 | codechart 0.1.0 | node v25.3.0 | darwin arm64 | `npx tsx scripts/measure.ts --write`
+Measured 2026-11-03 | codechart 0.3.0 | node v25.3.0 | darwin arm64 | `npx tsx scripts/measure.ts --write`
 
 Size (`npm pack` + `npm i` of the tarball)
 
 | Metric | Value |
 |---|---|
-| Tarball packed | 46.5 kB |
-| Tarball unpacked | 145.9 kB |
+| Tarball packed | 73.2 kB |
+| Tarball unpacked | 233.9 kB |
 | Tarball files | 11 |
 | Installed node_modules (runtime, excl. codechart) | 15.18 MB |
 | - commander | 207.4 kB |
@@ -32,27 +32,55 @@ Size (`npm pack` + `npm i` of the tarball)
 | - picomatch | 93.8 kB |
 | - yaml | 686.3 kB |
 | - zod | 6148.9 kB |
-| Skill text (skills/codechart/*.md) | 26.3 kB |
+| Skill text (skills/codechart/*.md) | 32.0 kB |
 
 Cold start (median of 10, `node dist/cli.js`)
 
 | Command | Time |
 |---|---|
-| `--version` | 148 ms |
-| `check --files` | 151 ms |
-| `render --output web` small map | 316 ms |
-| `render --output web` large map (120 nodes) | 524 ms |
-| `render --output web` flow | 316 ms |
+| `--version` | 103 ms |
+| `check --files` | 108 ms |
+| `render --output web` small map | 236 ms |
+| `render --output web` large map (120 nodes) | 457 ms |
+| `render --output web` flow | 235 ms |
 
 HTML output size
 
 | Spec | Size |
 |---|---|
-| small map | 10.8 kB |
-| large map (120 nodes) | 105.8 kB |
-| flow | 15.9 kB |
+| small map | 16.2 kB |
+| large map (120 nodes) | 111.2 kB |
+| flow | 21.3 kB |
 
 <!-- measure:end -->
+
+## 0.3.0 (2026-11-03)
+
+Against the 2026-10-29 block (0.1.0). The machine was busier then, so compare rows within one run; the 0.3.0 main (f9724c5) and this branch were measured back to back (tarball 71.0 vs 73.2 kB, `--version` 121 vs 103 ms, large map 488 vs 457 ms, so startup differences are noise; the tarball grew with the batching code).
+
+| Metric | 0.1.0 (2026-10-29) | 0.3.0 |
+|---|---|---|
+| Tarball packed | 46.5 kB | 73.2 kB |
+| Skill text | 26.3 kB (SKILL.md ~2.0k tokens) | 32.0 kB (SKILL.md 2.3k tokens) |
+| Cold start `--version` / `check --files` | 148 / 151 ms | 103 / 108 ms |
+| `render --output web` small / large (120 nodes) / flow | 316 / 524 / 316 ms | 236 / 457 / 235 ms |
+| HTML small / large / flow | 10.8 / 105.8 / 15.9 kB | 16.2 / 111.2 / 21.3 kB |
+
+- Large map: the deliberate two-direction ELK layout does more work than 0.1.0's single pass.
+- HTML grew 5.4 kB per page: panes, file preview and check UI. Tokens per diagram are about 8% higher than in 0.1.0 (figure from the 0.3.0 review; the token bench was not re-run for this section).
+
+Changed in the efficiency pass (render with a diff flag, `check`, flow errors):
+
+- Preview git calls batched. One `git diff` per node file plus `cat-file` size and blob calls per file (4 to 5 git processes per file) became one `git diff -- p1 p2 …` (500 paths per call), one `cat-file --batch-check` for all sizes, one `cat-file --batch` for the blobs that fit, one `ls-files --others` for empties. 100 changed node files: 1784 ms to 96 ms for the file list, range, check and previews together. Sections are matched to paths from the `diff --git a/P b/P` line (`--no-renames` makes both sides equal, so spaces, `->` and unicode split cleanly); names git would quote (quotes, backslash, control characters) and anything unmatched diff file by file. Per-file 5 MB cap, 25 MB budget (charged in node order) and secret checks are unchanged; files with a side over 5 MB are not diffed in the batch.
+- Repo `filter.*`/`diff.*` config read once per repo instead of three times per `render --git` (about 6 ms each, so about 12 ms).
+- Flow anchors: a file missing for 3 or more anchors is reported once, `app/x.py: file does not exist (repo root is …); used by steps[0..8].source`. Nine steps on one file: 810 to 89 characters in the test repo (the repeated repo-root sentence dominates with long paths).
+- `check` JSON: one line per `pathMatches` entry and short array, top level indented. 8 files over 2 matches: 714 to 525 characters (-26%).
+
+Considered and dropped:
+
+- Hook fast path: saves about 50 ms per call; not worth a second code path.
+- Minifying the bundle: unreadable stack traces in bug reports.
+- Worker-thread ELK layout, `status --porcelain=v2`, capping `check` file lists: considered, not done (no measured gain worth the complexity; a cap would hide files the agent must judge).
 
 ## Dead code
 
