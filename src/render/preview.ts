@@ -78,12 +78,24 @@ function untrackedDiff(root: string, rel: string, max: number): string | { note:
   return `@@ -0,0 +1,${lines.length} @@\n${lines.map((l) => `+${l}`).join('\n')}`;
 }
 
+const SECRET = { note: 'not shown: looks like a secret' };
+const SECRET_NAME = /^(\.env(\..*)?|.*\.(pem|key|p12|pfx)|id_(rsa|dsa|ecdsa|ed25519).*|\.npmrc|\.netrc|\.pypirc|.*credentials.*)$/i;
+const ENV_TEMPLATE = /^\.env\.(example|sample|template)$/i;
+const PRIVATE_KEY = /-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----/;
+
+const looksSecret = (rel: string) => {
+  const name = rel.slice(rel.lastIndexOf('/') + 1);
+  return SECRET_NAME.test(name) && !ENV_TEMPLATE.test(name);
+};
+
 /** Reads at most `min(5 MB, left)` bytes of diff. */
 function fileDiff(root: string, range: DiffRange, rel: string, left: number): string | { note: string } {
+  if (looksSecret(rel)) return SECRET;
   const max = Math.min(MAX_BYTES, left);
   try {
     const text = gitFileDiff(root, range, rel, max);
-    return text === '' && range.worktree && gitUntracked(root, rel) ? untrackedDiff(root, rel, max) : text;
+    const shown = text === '' && range.worktree && gitUntracked(root, rel) ? untrackedDiff(root, rel, max) : text;
+    return typeof shown === 'string' && PRIVATE_KEY.test(shown) ? SECRET : shown;
   } catch (e) {
     if (e instanceof OutputTooLarge) return { note: max < MAX_BYTES ? OVER_BUDGET : TOO_LARGE };
     return { note: `diff not read (${(e as Error).message})` };

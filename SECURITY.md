@@ -22,7 +22,7 @@ Guarantees:
 - Flow anchors must resolve inside the repo root: `..`, absolute paths and anchors whose real path leaves the repo (including via symlinks) are rejected, as are `.git` directories, devices and files over 5 MB; one render reads at most 25 MB. A symlink that stays inside the repo is accepted.
 - Output file names come from `[a-z0-9-]` slugs; prune deletes only generated files in the cache folder.
 - Inputs are bounded (string lengths, regex size, YAML aliases and depth, node and step counts).
-- Stored data: rendered HTML under the user cache dir. No telemetry.
+- Stored data: rendered HTML under the user cache dir. Summary pages hold diff hunks of the changed files, minus files that look like secrets (`.env`, keys, `.npmrc`, credentials files, private-key blocks). No telemetry.
 
 Details: `docs/security-review.md`.
 
@@ -34,7 +34,7 @@ Details: `docs/security-review.md`.
 
 ## Cache
 
-Rendered HTML lives in the user cache dir (`~/.cache/codechart` by default, `web.outDir`). Per repo, the newest 20 files and anything younger than `web.maxAgeDays` are kept. Purge with `rm -rf ~/.cache/codechart`.
+Rendered HTML lives in the user cache dir (`~/.cache/codechart` by default, `web.outDir`). Summary pages include diff hunks of changed files (not of files that look like secrets). Per repo, the newest 20 files and anything younger than `web.maxAgeDays` are kept. Purge with `rm -rf ~/.cache/codechart`.
 
 ## Release integrity
 
