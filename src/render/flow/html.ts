@@ -1,7 +1,9 @@
-import { isPlannedLink, type FlowLink, type FlowSpec, type FlowStep } from '../../spec/flow.js';
+import { isPlannedLink, isRemovedLink, type FlowLink, type FlowSpec, type FlowStep } from '../../spec/flow.js';
 import type { CheckSummary } from '../terminal/check-lines.js';
 import { checkNote, checkSection, flagMark, isFlagged, mismatchNote } from '../web/check-html.js';
-import { esc, list, midpoint, num, renderPage, type HtmlMeta } from '../web/page.js';
+import { arrowMarker, CHANGE_ARROWS, esc, list, midpoint, num, renderPage, type HtmlMeta, type KeyPart } from '../web/page.js';
+import { SIDE_TITLE, SIDES, type Side } from '../web/states.js';
+import { hasFlowNowAfter, isAltered, linkOn, linkTone, stepOn } from './states.js';
 import type { FlowSnippets, Snippet } from './anchors.js';
 import { BADGE_HEIGHT, LINE_HEIGHT, type FlowLayout, type FlowLayoutEdge, type FlowLayoutNode } from './layout.js';
 
@@ -13,6 +15,8 @@ const FLOW_CSS = `
 .node:focus-visible .shape{stroke:var(--edge);stroke-width:3.5}
 .status-new .shape{stroke:var(--new)}
 .status-changed .shape{stroke:var(--chg)}
+.status-removed .shape{stroke:var(--rem)}
+aside .tag-removed{color:var(--rem)}aside .removed-note{color:var(--rem);font-style:italic;margin:6px 0}
 .status-planned .shape{stroke:var(--cfg);stroke-dasharray:6 4;fill:var(--bg)}.status-planned .badge{fill:var(--cfg-t)}
 .edge.planned path{stroke:var(--cfg);stroke-dasharray:6 4}#arrow-planned path{fill:var(--cfg)}.edge.planned text{fill:var(--cfg-t)}
 aside .status{color:var(--muted);margin-bottom:4px}
@@ -40,13 +44,16 @@ function shape(step: FlowStep, b: FlowLayoutNode): string {
   return `<rect class="shape" x="${num(b.x)}" y="${num(b.y)}" width="${num(b.w)}" height="${num(b.h)}" rx="${num(rx)}"/>`;
 }
 
-function renderStep(step: FlowStep, b: FlowLayoutNode, flagged: boolean): string {
+function renderStep(step: FlowStep, b: FlowLayoutNode, flagged: boolean, side?: Side): string {
   const cx = num(b.x + b.w / 2);
   const content = b.lines.length * LINE_HEIGHT + (b.badge ? BADGE_HEIGHT : 0);
   let y = b.y + (b.h - content) / 2;
   let text = '';
+  // In Now, a step the plan alters is today's code that will change.
+  const changing = side === 'now' && isAltered(step);
+  const status = changing ? 'changed' : step.status;
   if (b.badge) {
-    text += `<text class="badge" x="${cx}" y="${num(y + 9)}">${esc(b.badge)}</text>`;
+    text += `<text class="badge" x="${cx}" y="${num(y + 9)}">${esc(changing ? 'will change' : b.badge)}</text>`;
     y += BADGE_HEIGHT;
   }
   for (const l of b.lines) {
@@ -54,7 +61,7 @@ function renderStep(step: FlowStep, b: FlowLayoutNode, flagged: boolean): string
     y += LINE_HEIGHT;
   }
   return (
-    `<g class="node type-${step.type} status-${step.status}" data-id="${esc(step.id)}" tabindex="0" role="button" aria-label="${esc(`${step.label} (${step.status} ${step.type}${flagged ? ", doesn't match the code" : ''})`)}">` +
+    `<g class="node type-${step.type} status-${status}" data-id="${esc(step.id)}" tabindex="0" role="button" aria-label="${esc(`${step.label} (${step.status} ${step.type}${flagged ? ", doesn't match the code" : ''})`)}">` +
     shape(step, b) +
     text +
     (flagged ? flagMark(b.x + b.w, b.y) : '') +
@@ -62,10 +69,10 @@ function renderStep(step: FlowStep, b: FlowLayoutNode, flagged: boolean): string
   );
 }
 
-function renderLink(link: FlowLink, e: FlowLayoutEdge, planned: boolean): string {
+function renderLink(link: FlowLink, e: FlowLayoutEdge, tone: 'planned' | 'removed' | undefined): string {
   if (e.points.length < 2) return '';
   const d = e.points.map((p, i) => `${i ? 'L' : 'M'}${num(p.x)},${num(p.y)}`).join(' ');
-  let out = `<path d="${d}" marker-end="url(#${planned ? 'arrow-planned' : 'arrow'})"/>`;
+  let out = `<path d="${d}" marker-end="url(#arrow${tone ? `-${tone}` : ''})"/>`;
   if (link.label) {
     const m = e.labelAt ?? midpoint(e.points);
     const w = link.label.length * 5.6 + 6;
@@ -73,7 +80,7 @@ function renderLink(link: FlowLink, e: FlowLayoutEdge, planned: boolean): string
       `<rect x="${num(m.x - w / 2)}" y="${num(m.y - 7)}" width="${num(w)}" height="12" rx="2"/>` +
       `<text x="${num(m.x)}" y="${num(m.y + 2)}">${esc(link.label)}</text>`;
   }
-  return `<g class="edge${planned ? ' planned' : ''}">${out}</g>`;
+  return `<g class="edge${tone === 'planned' ? ' planned' : tone === 'removed' ? ' edge-removed' : ''}">${out}</g>`;
 }
 
 /** A path that wraps after `/`, not mid-name. */
@@ -101,6 +108,7 @@ function stepPanel(spec: FlowSpec, step: FlowStep, snippets: FlowSnippets, byId:
   if (step.status === 'planned') {
     out += `<p class="planned-note">${snip ? 'Planned change to the code below.' : 'Planned: not in the code yet.'}</p>`;
   }
+  if (step.status === 'removed') out += '<p class="removed-note">Removed by the plan.</p>';
   if (snip) out += snippetHtml(snip);
   else if (step.source) out += `<div class="path">${esc(step.source)}</div>`;
 
@@ -109,7 +117,8 @@ function stepPanel(spec: FlowSpec, step: FlowStep, snippets: FlowSnippets, byId:
     const items = next.map(({ l, i }) => {
       const target = byId.get(l.to)?.label ?? l.to;
       let li = `${l.label ? `<b>${esc(l.label)}</b> → ` : '→ '}${esc(target)}`;
-      if (isPlannedLink(spec, l)) li += ` ${tag('planned')}`;
+      if (isRemovedLink(spec, l)) li += ` ${tag('removed')}`;
+      else if (isPlannedLink(spec, l)) li += ` ${tag('planned')}`;
       const s = snippets.links[i];
       if (s) li += snippetHtml(s);
       else if (l.source) li += `<div class="path">${esc(l.source)}</div>`;
@@ -120,26 +129,49 @@ function stepPanel(spec: FlowSpec, step: FlowStep, snippets: FlowSnippets, byId:
   return `<template class="card-panel" data-for="${esc(step.id)}">${out}</template>`;
 }
 
-function pageInfo(spec: FlowSpec, anyPlanned: boolean, check: CheckSummary | undefined): string {
-  let out = '<p>Click a step for its status, source and code. Scroll to zoom, drag to pan.</p>';
+function pageInfo(spec: FlowSpec, anyPlanned: boolean, sides: boolean, check: CheckSummary | undefined): string {
+  let out = `<p>Click a step for its status, source and code. Scroll to zoom, drag to pan${sides ? '; both panes move together' : ''}.</p>`;
   out += checkSection(check);
   if (anyPlanned) out += '<p class="planned-note">Dashed steps and arrows are planned: not in the code yet.</p>';
+  if (spec.steps.some((s) => s.status === 'removed') || spec.links.some((l) => l.removed)) {
+    out += '<p class="removed-note">Red steps and arrows are removed by the plan.</p>';
+  }
   if (spec.gaps?.length) out += `<h3>Gaps</h3>${list(spec.gaps)}`;
   return `<section id="page-info">${out}</section>`;
 }
 
-export function renderFlowHtml(spec: FlowSpec, layout: FlowLayout, snippets: FlowSnippets, meta: HtmlMeta, check?: CheckSummary): string {
+const FLOW_KEY_HTML: Record<Side, KeyPart[]> = {
+  now: [
+    { text: 'red: removed by the plan', tone: 'rem' },
+    { text: 'amber: changed by it', tone: 'chg' },
+  ],
+  after: [{ text: 'dashed: planned', tone: 'cfg' }],
+};
+
+/** Without `side`: the whole plan or summary in one picture. */
+function viewport(spec: FlowSpec, layout: FlowLayout, check: CheckSummary | undefined, side?: Side): string {
   const byId = new Map(spec.steps.map((s) => [s.id, s]));
   const boxes = new Map(layout.nodes.map((n) => [n.id, n]));
-  const planned = spec.links.map((l) => isPlannedLink(spec, l));
-  const edges = spec.links.map((l, i) => (layout.edges[i] ? renderLink(l, layout.edges[i], planned[i]!) : '')).join('');
-  const nodes = spec.steps
-    .map((s) => {
-      const b = boxes.get(s.id);
-      return b ? renderStep(s, b, isFlagged(check, s.id)) : '';
+  const edges = spec.links
+    .map((l, i) => {
+      if (!layout.edges[i] || (side && !linkOn(side, spec, l, byId))) return '';
+      return renderLink(l, layout.edges[i], linkTone(side, spec, l));
     })
     .join('');
-  const anyPlanned = planned.includes(true) || spec.steps.some((s) => s.status === 'planned');
+  const nodes = spec.steps
+    .filter((s) => !side || stepOn(side, s))
+    .map((s) => {
+      const b = boxes.get(s.id);
+      return b ? renderStep(s, b, isFlagged(check, s.id), side) : '';
+    })
+    .join('');
+  return `${edges}${nodes}`;
+}
+
+export function renderFlowHtml(spec: FlowSpec, layout: FlowLayout, snippets: FlowSnippets, meta: HtmlMeta, check?: CheckSummary): string {
+  const byId = new Map(spec.steps.map((s) => [s.id, s]));
+  const sides = hasFlowNowAfter(spec);
+  const anyPlanned = spec.links.some((l) => isPlannedLink(spec, l)) || spec.steps.some((s) => s.status === 'planned');
   const infoButton = check?.mismatches.length
     ? '<button id="info-toggle" type="button" aria-controls="page-info" title="Show what doesn\'t match the code and what the agent did not check">Check / gaps</button>'
     : spec.gaps?.length
@@ -150,12 +182,14 @@ export function renderFlowHtml(spec: FlowSpec, layout: FlowLayout, snippets: Flo
     meta,
     infoButton,
     headerNote: checkNote(check),
-    viewport: `${edges}${nodes}`,
-    aside: `${pageInfo(spec, anyPlanned, check)}<div id="panel" hidden></div>${spec.steps.map((s) => stepPanel(spec, s, snippets, byId, check)).join('')}`,
+    viewport: sides ? '' : viewport(spec, layout, check),
+    ...(sides
+      ? { panes: SIDES.map((side) => ({ title: SIDE_TITLE[side], key: FLOW_KEY_HTML[side], viewport: viewport(spec, layout, check, side) })) }
+      : {}),
+    aside: `${pageInfo(spec, anyPlanned, sides, check)}<div id="panel" hidden></div>${spec.steps.map((s) => stepPanel(spec, s, snippets, byId, check)).join('')}`,
     width: layout.width,
     height: layout.height,
     extraCss: FLOW_CSS,
-    extraDefs:
-      '<marker id="arrow-planned" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z"/></marker>',
+    extraDefs: arrowMarker('arrow-planned') + CHANGE_ARROWS,
   });
 }

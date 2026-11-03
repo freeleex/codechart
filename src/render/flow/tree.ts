@@ -1,4 +1,4 @@
-import { isPlannedLink, type FlowLink, type FlowSpec, type FlowStep } from '../../spec/flow.js';
+import { isPlannedLink, isRemovedLink, type FlowLink, type FlowSpec, type FlowStep } from '../../spec/flow.js';
 import { markdownBlock } from '../markdown.js';
 import { columns, fit, flat, truncate, wrapItems, type Cuts, type Segment } from '../terminal/wrap.js';
 import { defaultWidth, fullMapLine, MIN_WIDTH } from '../terminal/render.js';
@@ -17,9 +17,12 @@ export interface FlowTreeOptions {
 type Status = FlowStep['status'];
 
 export const FLOW_KEY = 'key: + new  ~ changed  ? planned  ◇ decision  ⤷ shared step';
-const MARKER: Record<Status, string> = { existing: '', new: '+', changed: '~', planned: '?' };
+// Only a plan that removes something pays for the longer key.
+export const flowKey = (spec: FlowSpec): string => (hasRemoved(spec) ? FLOW_KEY.replace('? planned', '? planned  - removed') : FLOW_KEY);
+const hasRemoved = (spec: FlowSpec) => spec.steps.some((s) => s.status === 'removed') || spec.links.some((l) => l.removed === true);
+const MARKER: Record<Status, string> = { existing: '', new: '+', changed: '~', planned: '?', removed: '-' };
 export const stepLabel = (step: FlowStep): string => MARKER[step.status] + flat(step.label);
-const SGR: Record<Status, string | undefined> = { existing: undefined, new: '32', changed: '33', planned: '35' };
+const SGR: Record<Status, string | undefined> = { existing: undefined, new: '32', changed: '33', planned: '35', removed: '31' };
 
 interface Ctx {
   width: number;
@@ -49,12 +52,14 @@ function itemSegments(item: Item, ctx: Ctx): Segment[] {
 
 const segWidth = (segments: Segment[]): number => columns(segments.map((s) => s.text).join(''));
 
-/** A straight arrow gets `?` only when its own `planned` flag is the sole sign: planned ends already carry `?`. */
-const markedLink = (link: FlowLink, ctx: Ctx): boolean =>
-  link.planned === true && !endsPlanned(ctx.spec, link);
+/** A straight arrow gets `?` or `-` only when its own flag is the sole sign: marked ends already carry one. */
+function linkMark(link: FlowLink, ctx: Ctx): '?' | '-' | '' {
+  if (link.removed === true && !endsAre(ctx.spec, link, 'removed')) return '-';
+  return link.planned === true && !endsAre(ctx.spec, link, 'planned') ? '?' : '';
+}
 
-const endsPlanned = (spec: FlowSpec, link: FlowLink): boolean =>
-  spec.steps.some((s) => s.status === 'planned' && (s.id === link.from || s.id === link.to));
+const endsAre = (spec: FlowSpec, link: FlowLink, status: Status): boolean =>
+  spec.steps.some((s) => s.status === status && (s.id === link.from || s.id === link.to));
 
 /** Items joined with ` → `, breaking between items onto `→` lines indented under the run. */
 function runLines(items: Item[], first: Segment[], rest: string, ctx: Ctx): string[] {
@@ -62,8 +67,8 @@ function runLines(items: Item[], first: Segment[], rest: string, ctx: Ctx): stri
   let line = first;
   items.forEach((item, i) => {
     const segs = itemSegments(item, ctx);
-    const mark = item.via && markedLink(item.via, ctx) ? '?' : '';
-    const arrow: Segment = { text: `${mark}→ `, paint: mark ? painter('planned', ctx) : undefined };
+    const mark = item.via ? linkMark(item.via, ctx) : '';
+    const arrow: Segment = { text: `${mark}→ `, paint: mark ? painter(mark === '-' ? 'removed' : 'planned', ctx) : undefined };
     if (i === 0) {
       line = [...line, ...segs];
     } else if (segWidth(line) + segWidth(segs) + 2 + columns(arrow.text) <= ctx.width) {
@@ -78,8 +83,10 @@ function runLines(items: Item[], first: Segment[], rest: string, ctx: Ctx): stri
 }
 
 function armLines(arms: Arm[], rest: string, ctx: Ctx): string[] {
-  const planned = arms.map(({ link }) => isPlannedLink(ctx.spec, link));
-  const labels = arms.map(({ link }, i) => (planned[i] ? '?' : '') + flat(link.label ?? ''));
+  const tones = arms.map(({ link }): Status | undefined =>
+    isRemovedLink(ctx.spec, link) ? 'removed' : isPlannedLink(ctx.spec, link) ? 'planned' : undefined,
+  );
+  const labels = arms.map(({ link }, i) => (tones[i] ? MARKER[tones[i]] : '') + flat(link.label ?? ''));
   // Align branch targets, but don't let one long label push every target far right.
   const pad = Math.min(Math.max(...labels.map(columns)), Math.floor(ctx.width / 3));
   return arms.flatMap((arm, i) => {
@@ -88,7 +95,7 @@ function armLines(arms: Arm[], rest: string, ctx: Ctx): string[] {
     const label = truncate(labels[i]!, pad, ctx.cuts);
     const head: Segment[] = [{ text: rest + glyph }];
     if (pad > 0) {
-      const paint = planned[i] ? painter('planned', ctx) : undefined;
+      const paint = tones[i] ? painter(tones[i], ctx) : undefined;
       head.push({ text: label, paint }, { text: `${' '.repeat(pad - columns(label))} → ` });
     }
     const under = `${rest}${last ? '   ' : '│  '}${pad > 0 ? ' '.repeat(pad + 3) : ''}`;
@@ -115,9 +122,13 @@ function chainLines(chain: Chain, first: Segment[], rest: string, lead: string, 
 function footer(spec: FlowSpec, ctx: Ctx, md: boolean): string {
   const count = (status: Status) => spec.steps.filter((s) => s.status === status).length;
   const lines = [
-    countLines(`${spec.steps.length} steps · ${count('new')} new · ${count('changed')} changed · ${count('planned')} planned`, ctx.check, ctx.width),
+    countLines(
+      `${spec.steps.length} steps · ${count('new')} new · ${count('changed')} changed · ${count('planned')} planned${count('removed') ? ` · ${count('removed')} removed` : ''}`,
+      ctx.check,
+      ctx.width,
+    ),
   ];
-  if (!md) lines.push(truncate(FLOW_KEY, ctx.width));
+  if (!md) lines.push(truncate(flowKey(spec), ctx.width));
   if (spec.gaps?.length) lines.push(wrapItems('gaps: ', spec.gaps.map(flat), ctx.width));
   // Never broken: a split URL stops being clickable.
   if (ctx.htmlPath && !md) lines.push(fullMapLine(ctx.htmlPath));
@@ -125,10 +136,10 @@ function footer(spec: FlowSpec, ctx: Ctx, md: boolean): string {
 }
 
 // The title sits inside the fence: no Markdown escapes for an agent to "fix" when pasting, and none of it takes effect.
-export function flowMarkdown(title: string, tree: string | undefined, htmlPath: string | undefined, width: number, cuts?: Cuts): string {
+export function flowMarkdown(title: string, tree: string | undefined, htmlPath: string | undefined, width: number, cuts?: Cuts, key = FLOW_KEY): string {
   const heading = truncate(flat(title), Math.max(width, MIN_WIDTH), cuts);
   const titled = `${heading}\n${'─'.repeat(columns(heading))}`;
-  return markdownBlock(`**Flow** _(${FLOW_KEY})_`, tree === undefined ? titled : `${titled}\n${tree}`, htmlPath);
+  return markdownBlock(`**Flow** _(${key})_`, tree === undefined ? titled : `${titled}\n${tree}`, htmlPath);
 }
 
 const TOO_LARGE = 'flow too large for the terminal; use --output both or web';
@@ -148,8 +159,8 @@ export function renderFlowTree(spec: FlowSpec, opts: FlowTreeOptions): { text: s
   const alert = alertLine(opts.check, ctx.width);
   if (walk.blocks.length === 0) {
     const body = (line: string) => (alert ? `${alert}\n${line}` : line);
-    if (!opts.htmlPath) return { text: md ? flowMarkdown(spec.title, body(TOO_LARGE), undefined, ctx.width) : `${body(TOO_LARGE)}\n`, truncated: true };
-    const text = md ? flowMarkdown(spec.title, alert || undefined, opts.htmlPath, ctx.width) : `${body(fullMapLine(opts.htmlPath))}\n`;
+    if (!opts.htmlPath) return { text: md ? flowMarkdown(spec.title, body(TOO_LARGE), undefined, ctx.width, undefined, flowKey(spec)) : `${body(TOO_LARGE)}\n`, truncated: true };
+    const text = md ? flowMarkdown(spec.title, alert || undefined, opts.htmlPath, ctx.width, undefined, flowKey(spec)) : `${body(fullMapLine(opts.htmlPath))}\n`;
     return { text, truncated: true };
   }
 
@@ -159,6 +170,6 @@ export function renderFlowTree(spec: FlowSpec, opts: FlowTreeOptions): { text: s
   }
   if (walk.unreachable > 0) blocks[blocks.length - 1] += `\n${truncate(cutText(walk.unreachable, ctx), ctx.width, ctx.cuts)}`;
   const tree = [...(alert ? [alert] : []), ...blocks, footer(spec, ctx, md)].join('\n\n');
-  const text = md ? flowMarkdown(spec.title, tree, opts.htmlPath, ctx.width, ctx.cuts) : `${tree}\n`;
+  const text = md ? flowMarkdown(spec.title, tree, opts.htmlPath, ctx.width, ctx.cuts, flowKey(spec)) : `${tree}\n`;
   return { text, truncated: walk.truncated || ctx.cuts.truncated };
 }

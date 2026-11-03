@@ -31,6 +31,12 @@ function jsonForScript(v: unknown): string {
 
 export const num = (n: number): string => String(Math.round(n * 10) / 10);
 
+export const arrowMarker = (id: string): string =>
+  `<marker id="${id}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z"/></marker>`;
+
+/** Arrowheads in the colour of a link the plan adds or removes. */
+export const CHANGE_ARROWS = arrowMarker('arrow-added') + arrowMarker('arrow-removed');
+
 export function list(items: string[]): string {
   return `<ul>${items.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>`;
 }
@@ -54,6 +60,14 @@ export function midpoint(points: Point[]): Point {
   return points[0] ?? { x: 0, y: 0 };
 }
 
+/** One entry of a pane's colour key, in that colour. */
+export interface KeyPart {
+  text: string;
+  tone: 'rem' | 'new' | 'chg' | 'cfg';
+}
+
+const keyHtml = (key: KeyPart[]) => key.map((k) => `<span class="k-${k.tone}">${esc(k.text)}</span>`).join(' · ');
+
 interface PageParts {
   title: string;
   meta: HtmlMeta;
@@ -62,7 +76,7 @@ interface PageParts {
   headerNote?: string;
   viewport: string;
   /** Instead of `viewport`: canvases side by side that pan and zoom together. */
-  panes?: { title: string; key: string; viewport: string }[];
+  panes?: { title: string; key: KeyPart[]; viewport: string }[];
   aside: string;
   width: number;
   height: number;
@@ -75,12 +89,12 @@ const CSP = `default-src 'none'; style-src 'unsafe-inline'; script-src 'sha256-$
 export function renderPage(p: PageParts): string {
   const theme: Theme = p.meta.theme && THEMES.includes(p.meta.theme) ? p.meta.theme : 'auto';
   const data = { width: p.width, height: p.height };
-  const defs = `<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z"/></marker>${p.extraDefs ?? ''}</defs>`;
+  const defs = `<defs>${arrowMarker('arrow')}${p.extraDefs ?? ''}</defs>`;
   // Ids are document-wide, so the second pane's url(#arrow) finds the first pane's defs.
   const canvas = (viewport: string, i: number) =>
     `<div class="canvas"${p.panes ? '' : ' id="canvas"'}><svg>${i === 0 ? defs : ''}\n<g class="viewport">${viewport}</g></svg></div>`;
   const body = p.panes
-    ? `<div id="panes">${p.panes.map((pane, i) => `<section class="pane" aria-label="${esc(pane.title)}"><div class="pane-title">${esc(pane.title)}<span class="pane-key"> · ${esc(pane.key)}</span></div>${canvas(pane.viewport, i)}</section>`).join('')}</div>`
+    ? `<div id="panes">${p.panes.map((pane, i) => `<section class="pane" aria-label="${esc(pane.title)}"><div class="pane-title">${esc(pane.title)}<span class="pane-key"> · ${keyHtml(pane.key)}</span></div>${canvas(pane.viewport, i)}</section>`).join('')}</div>`
     : canvas(p.viewport, 0);
   return `<!doctype html>
 <html lang="en" data-theme="${theme}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">

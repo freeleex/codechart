@@ -78,7 +78,7 @@ describe('validateSpec: flow', () => {
     it('rejects new/changed steps in a plan', () => {
       const s = plan();
       s.steps[0]!.status = 'changed';
-      expect(errorsOf(s)).toEqual(['steps[0].status: a plan uses only "existing" or "planned" steps, not "changed"']);
+      expect(errorsOf(s)).toEqual(['steps[0].status: a plan uses only "existing", "planned" or "removed" steps, not "changed"']);
     });
   });
 

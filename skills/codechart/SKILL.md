@@ -63,7 +63,7 @@ Draw only branches you saw in the code or (plan) will build; unverified ones go 
 ```
 
 - 2+ outgoing links make a decision: label ends in `?`, unique, each link labelled. "if", "else", "or" or `;` in a label hides a branch: make it a decision. Labels: verb + object, ≤ 30 chars, one action (no `+` or `and`: split into steps).
-- `status`: summary `existing`/`new`/`changed`; plan (`"kind": "plan"`) `existing` (keeps its anchor) or `planned`.
+- `status`: summary `existing`/`new`/`changed`; plan (`"kind": "plan"`) `existing` (keeps its anchor), `planned` or `removed` (keeps its anchor). Plan: keep links that exist now; one the plan drops gets `"removed": true`.
 - Anchor every non-planned step and non-planned link leaving a decision (a link is planned if either end is, or with `"planned": true`), each its own: the path plus `match`, a distinctive piece of one line copied from the diff (no line lookup; it must be on exactly one line of the file, else drop `match` and use source `path:line`), or `path:start-end` for a block. Paths are relative to the repo root (or cwd). Never drop a failing anchor or mark it `planned`: fix it.
 - Over ~15 steps, split. `gaps`: unverified branches, unread code, what you didn't run. No keys beyond the skeleton's.
 

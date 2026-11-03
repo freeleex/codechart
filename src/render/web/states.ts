@@ -1,10 +1,14 @@
 import type { Field, Spec, SpecEdge, SpecNode, Status } from '../../spec/schema.js';
+import type { KeyPart } from './page.js';
 
 /** A plan's two pictures: the code as it is, and as it will be once built. */
 export type Side = 'now' | 'after';
 export const SIDES: readonly Side[] = ['now', 'after'];
 export const SIDE_TITLE: Record<Side, string> = { now: 'Now', after: 'After plan' };
-export const SIDE_KEY: Record<Side, string> = { now: 'red: removed by the plan', after: 'green: added by the plan' };
+export const SIDE_KEY: Record<Side, KeyPart[]> = {
+  now: [{ text: 'red: removed by the plan', tone: 'rem' }],
+  after: [{ text: 'green: added by the plan', tone: 'new' }],
+};
 
 /** A plan that only adds things gets one map: its Now side would show little but context. */
 export function hasNowAfter(spec: Spec): boolean {

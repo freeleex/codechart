@@ -4,7 +4,7 @@ import { formatIssues, ident, labelIssues, long, pathStr, short, SHORT, shortOpt
 
 const STEP_TYPES = ['step', 'decision', 'end'] as const;
 type StepType = (typeof STEP_TYPES)[number];
-export const STEP_STATUSES = ['existing', 'new', 'changed', 'planned'] as const;
+export const STEP_STATUSES = ['existing', 'new', 'changed', 'planned', 'removed'] as const;
 
 const SOURCE_RE = /^[^\s:\u0000-\u001f\u007f-\u009f]+(:\d+(-\d+)?)?$/;
 const sourceSchema = pathStr().regex(SOURCE_RE, 'must be path:line or path:start-end, or a path with match');
@@ -34,6 +34,7 @@ const linkSchema = z.strictObject({
   source: sourceSchema.optional(),
   match: matchSchema.optional(),
   planned: z.boolean().optional(),
+  removed: z.boolean().optional().describe('Plan only: a link that exists now and the plan drops, between steps that stay'),
 });
 
 const MAX_ITEMS = 200;
@@ -56,12 +57,30 @@ export function isPlannedLink(spec: { steps: readonly { id: string; status: stri
   return link.planned === true || planned(link.from) || planned(link.to);
 }
 
+type RemovedEnds = { from: string; to: string; removed?: boolean };
+type StatusOf = { steps: readonly { id: string; status: string }[] };
+
+/** A link the plan drops: marked so, or with a removed step at either end. */
+export function isRemovedLink(spec: StatusOf, link: RemovedEnds): boolean {
+  const removed = (id: string) => spec.steps.some((s) => s.id === id && s.status === 'removed');
+  return link.removed === true || removed(link.from) || removed(link.to);
+}
+
 const inferType = (outgoing: number): StepType => (outgoing === 0 ? 'end' : outgoing >= 2 ? 'decision' : 'step');
 
-function outgoingCounts(links: readonly { from: string }[]): Map<string, number> {
-  const counts = new Map<string, number>();
-  for (const l of links) counts.set(l.from, (counts.get(l.from) ?? 0) + 1);
-  return counts;
+/** A step's shape follows the flow after the plan; a removed step keeps the links it has now. */
+function outgoingLinks<L extends RemovedEnds>(spec: StatusOf, links: readonly L[]): Map<string, L[]> {
+  const removedStep = new Set(spec.steps.filter((s) => s.status === 'removed').map((s) => s.id));
+  const out = new Map<string, L[]>();
+  for (const l of links) {
+    if (!removedStep.has(l.from) && isRemovedLink(spec, l)) continue;
+    out.set(l.from, [...(out.get(l.from) ?? []), l]);
+  }
+  return out;
+}
+
+function outgoingCounts(spec: StatusOf, links: readonly RemovedEnds[]): Map<string, number> {
+  return new Map([...outgoingLinks(spec, links)].map(([id, ls]) => [id, ls.length]));
 }
 
 const flowSchema = z
@@ -79,7 +98,8 @@ const flowSchema = z
     const issue = (path: (string | number)[], message: string) =>
       ctx.addIssue({ code: 'custom', path, message });
 
-    const counts = outgoingCounts(spec.links);
+    const counts = outgoingCounts(spec, spec.links);
+    const live = outgoingLinks(spec, spec.links.map((l, i) => ({ ...l, i })));
     const typeOf = (step: { id: string; type?: StepType }) => step.type ?? inferType(counts.get(step.id) ?? 0);
     const byId = new Map<string, z.infer<typeof stepSchema>>();
     spec.steps.forEach((step, i) => {
@@ -91,8 +111,11 @@ const flowSchema = z
       if (spec.kind === 'summary' && step.status === 'planned') {
         issue(['steps', i, 'status'], 'a summary describes code that exists; "planned" is for plans');
       }
-      if (spec.kind === 'plan' && step.status !== 'existing' && step.status !== 'planned') {
-        issue(['steps', i, 'status'], `a plan uses only "existing" or "planned" steps, not "${step.status}"`);
+      if (spec.kind === 'summary' && step.status === 'removed') {
+        issue(['steps', i, 'status'], 'a summary describes code that exists; "removed" is for plans');
+      }
+      if (spec.kind === 'plan' && (step.status === 'new' || step.status === 'changed')) {
+        issue(['steps', i, 'status'], `a plan uses only "existing", "planned" or "removed" steps, not "${step.status}"`);
       }
       if (step.status !== 'planned' && !step.source) {
         issue(['steps', i, 'source'], `required for a non-planned step ${ANCHOR}`);
@@ -102,6 +125,16 @@ const flowSchema = z
 
     let refsOk = byId.has(spec.start);
     if (!refsOk) issue(['start'], `unknown step "${spec.start}"`);
+    else if (byId.get(spec.start)!.status === 'removed') issue(['start'], 'the start step cannot be removed; start where the flow begins after the plan');
+    const brandNew = (id: string) => byId.get(id)?.status === 'planned' && !byId.get(id)?.source;
+    const removedStep = (id: string) => byId.get(id)?.status === 'removed';
+    // A step that branches today keeps labelled, anchored branches even if the plan leaves it one exit.
+    const existsNow = (link: FlowLink) => link.planned !== true && !brandNew(link.from) && !brandNew(link.to);
+    const nowOut = new Map<string, number[]>();
+    spec.links.forEach((link, i) => {
+      if (existsNow(link)) nowOut.set(link.from, [...(nowOut.get(link.from) ?? []), i]);
+    });
+    const branchesNow = (id: string) => spec.kind === 'plan' && (nowOut.get(id)?.length ?? 0) >= 2 && (live.get(id)?.length ?? 0) < 2;
 
     const outgoing = new Map<string, number[]>();
     spec.links.forEach((link, i) => {
@@ -117,8 +150,18 @@ const flowSchema = z
       if (spec.kind === 'summary' && link.planned) {
         issue(['links', i, 'planned'], 'a summary describes code that exists; "planned" is for plans');
       }
+      if (spec.kind === 'summary' && link.removed) {
+        issue(['links', i, 'removed'], 'a summary describes code that exists; "removed" is for plans');
+      }
+      if (link.removed && link.planned) issue(['links', i, 'removed'], 'a link is either planned or removed, not both');
+      const ends = [link.from, link.to];
+      if (ends.some(brandNew) && (link.removed || ends.some(removedStep))) {
+        issue(['links', i], 'joins a planned step not in the code yet to something the plan removes; they never exist at the same time');
+      } else if (link.planned && ends.some(removedStep)) {
+        issue(['links', i, 'planned'], 'a link to a removed step cannot be planned');
+      }
       const from = byId.get(link.from);
-      const leavesDecision = from !== undefined && typeOf(from) === 'decision';
+      const leavesDecision = from !== undefined && (typeOf(from) === 'decision' || (branchesNow(from.id) && existsNow(link)));
       if (leavesDecision && !isPlannedLink(spec, link) && !link.source) {
         issue(['links', i, 'source'], `required for a non-planned branch leaving a decision ${ANCHOR}`);
       }
@@ -126,8 +169,9 @@ const flowSchema = z
     });
 
     spec.steps.forEach((step, i) => {
-      const links = outgoing.get(step.id) ?? [];
-      if (step.type === undefined && step.label.trim().endsWith('?') && links.length < 2) {
+      // Shape checks follow the flow after the plan; a decision labels every branch, removed ones too.
+      const links = (live.get(step.id) ?? []).map((l) => l.i);
+      if (step.type === undefined && step.label.trim().endsWith('?') && links.length < 2 && !branchesNow(step.id)) {
         issue(['steps', i, 'type'], `label ends in "?", so this is a decision: it needs at least 2 outgoing links, has ${links.length}`);
         return;
       }
@@ -138,22 +182,28 @@ const flowSchema = z
       if (type === 'step' && links.length > 1) {
         issue(['steps', i, 'type'], `has ${links.length} outgoing links; make it a decision with labelled branches`);
       }
-      if (type !== 'decision') return;
+      const label = (li: number) => {
+        if (!spec.links[li]!.label) issue(['links', li, 'label'], 'required on a link leaving a decision');
+      };
+      if (type !== 'decision') {
+        if (branchesNow(step.id)) (nowOut.get(step.id) ?? []).forEach(label);
+        return;
+      }
       if (links.length < 2) {
         issue(['steps', i, 'id'], `decision "${step.id}" needs at least 2 outgoing links, has ${links.length}`);
       }
-      for (const li of links) {
-        if (!spec.links[li]!.label) issue(['links', li, 'label'], 'required on a link leaving a decision');
-      }
+      (outgoing.get(step.id) ?? []).forEach(label);
     });
 
     if (refsOk) {
       const reached = new Set([spec.start]);
       for (const id of reached) {
-        for (const li of outgoing.get(id) ?? []) reached.add(spec.links[li]!.to);
+        for (const li of outgoing.get(id) ?? []) {
+          if (!isRemovedLink(spec, spec.links[li]!)) reached.add(spec.links[li]!.to);
+        }
       }
       spec.steps.forEach((step, i) => {
-        if (!reached.has(step.id)) issue(['steps', i], 'not reachable from start');
+        if (step.status !== 'removed' && !reached.has(step.id)) issue(['steps', i], 'not reachable from start');
       });
     }
   });
@@ -166,7 +216,7 @@ export type FlowSpec = Omit<ParsedFlow, 'diagram' | 'steps'> & { diagram: 'flow'
 export function validateFlowSpec(input: unknown): ValidationResult<FlowSpec> {
   const result = flowSchema.safeParse(input);
   if (!result.success) return { ok: false, errors: formatIssues(result.error) };
-  const counts = outgoingCounts(result.data.links);
+  const counts = outgoingCounts(result.data, result.data.links);
   const steps = result.data.steps.map((s) => ({ ...s, type: s.type ?? inferType(counts.get(s.id) ?? 0) }));
   return { ok: true, spec: { ...result.data, diagram: 'flow', steps } };
 }
