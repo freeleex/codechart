@@ -1,13 +1,13 @@
-import { realpathSync } from 'node:fs';
+import { lstatSync, realpathSync } from 'node:fs';
 import { dirname, join, resolve, sep } from 'node:path';
 import { readRegularFile } from '../read-regular.js';
-import { gitBlob, gitBlobSizes, gitFileDiff, gitUntracked, OutputTooLarge, type DiffRange } from '../rules/git-files.js';
+import { gitBlob, gitBlobs, gitBlobSizes, gitFileDiff, gitFileDiffs, gitUntracked, OutputTooLarge, plainDiffName, type DiffRange } from '../rules/git-files.js';
 import type { Spec } from '../spec/schema.js';
 import { IN_DIFF, repoPath, type Diff } from './check.js';
+import { clip } from './clip.js';
 
 const MAX_HUNKS = 3;
 const MAX_LINES = 40;
-const MAX_CHARS = 300;
 const MAX_BYTES = 5 * 1024 * 1024;
 const MAX_TOTAL_BYTES = 25 * 1024 * 1024;
 
@@ -27,8 +27,6 @@ export interface Preview {
   total: number;
   note?: string;
 }
-
-const clip = (l: string) => (l.length > MAX_CHARS ? `${l.slice(0, MAX_CHARS)}…` : l);
 
 /** Keeps the first hunks of a unified diff (headers skipped) and counts every changed line. */
 export function parseDiff(path: string, text: string): Preview {
@@ -68,15 +66,26 @@ export function parseDiff(path: string, text: string): Preview {
 const TOO_LARGE = 'diff is too large (over 5 MB)';
 const OVER_BUDGET = 'not shown: the diffs pass 25 MB together';
 
-/** An untracked file as an all-added diff, read only if it fits in `max` bytes. */
-function untrackedDiff(root: string, rel: string, max: number): string | { note: string } {
+/** An untracked file as an all-added preview, read only if it fits in `max` bytes. */
+function untrackedPreview(root: string, rel: string, budget: Budget, max: number): Preview | { note: string } {
   let size = 0;
   const text = readRegularFile(join(root, rel), (st) => st.isFile() && (size = st.size) <= max);
   if (text === undefined) return { note: size > MAX_BYTES ? TOO_LARGE : size > max ? OVER_BUDGET : 'not a regular file' };
   if (text.includes('\0')) return { note: 'binary file' };
-  const lines = text.split('\n');
-  if (lines[lines.length - 1] === '') lines.pop();
-  return `@@ -0,0 +1,${lines.length} @@\n${lines.map((l) => `+${l}`).join('\n')}`;
+  if (PRIVATE_KEY.test(text)) return SECRET;
+  budget.left -= Buffer.byteLength(text);
+  const all = text.split('\n');
+  if (all[all.length - 1] === '') all.pop();
+  const shown = all.slice(0, MAX_LINES - 1);
+  return {
+    path: rel,
+    lines: [
+      { kind: 'hunk', text: `@@ -0,0 +1,${all.length} @@` },
+      ...shown.map((l, i): PreviewLine => ({ kind: 'add', n: i + 1, text: clip(l.replace(/\r$/, '')) })),
+    ],
+    shown: shown.length,
+    total: all.length,
+  };
 }
 
 const SECRET = { note: 'not shown: looks like a secret' };
@@ -104,11 +113,66 @@ interface Budget {
   left: number;
 }
 
+/** What git said for all of a render's files at once; whatever is missing is asked per file. */
+interface Prefetch {
+  sizes: Map<string, number | undefined>;
+  blobs: Map<string, string>;
+  diffs: Map<string, string>;
+  untracked: Set<string>;
+  untrackedKnown: Set<string>;
+}
+
+const noPrefetch = (): Prefetch => ({ sizes: new Map(), blobs: new Map(), diffs: new Map(), untracked: new Set(), untrackedKnown: new Set() });
+
+const worktreeFits = (root: string, rel: string) => {
+  const path = join(root, rel);
+  return !insideRoot(root, path) || (lstatSync(path, { throwIfNoEntry: false })?.size ?? 0) <= MAX_BYTES;
+};
+
+/**
+ * Blob sizes, the blobs that fit, every diff and the untracked ones in a few git calls instead of a few per file.
+ * Only files whose every side is within the per-file cap are diffed: git must not diff a huge file a `diff` attribute turned into text.
+ */
+function prefetch(root: string, range: DiffRange, rels: string[]): Prefetch {
+  const pre = noPrefetch();
+  try {
+    const cands = rels.filter((r) => !looksSecret(r) && !r.includes('\n'));
+    const specs = cands.flatMap((r) => range.revs.map((rev) => `${rev}:${r}`));
+    gitBlobSizes(root, specs).forEach((size, i) => pre.sizes.set(specs[i]!, size));
+    const fits = cands.filter((r) => range.revs.every((rev) => (pre.sizes.get(`${rev}:${r}`) ?? 0) <= MAX_BYTES) && (!range.worktree || worktreeFits(root, r)));
+
+    let room = MAX_TOTAL_BYTES;
+    const fetch: string[] = [];
+    for (const r of fits) {
+      for (const rev of range.revs) {
+        const size = pre.sizes.get(`${rev}:${r}`);
+        if (size === undefined || size > room) continue;
+        room -= size;
+        fetch.push(`${rev}:${r}`);
+      }
+    }
+    gitBlobs(root, fetch, fetch.map((s) => pre.sizes.get(s)!)).forEach((text, i) => pre.blobs.set(fetch[i]!, text));
+
+    const batch = fits.filter(plainDiffName);
+    const diffs = gitFileDiffs(root, range, batch, 2 * MAX_TOTAL_BYTES);
+    if (!diffs) return pre;
+    for (const [rel, text] of diffs) pre.diffs.set(rel, text);
+    if (range.worktree) {
+      const empty = batch.filter((r) => diffs.get(r) === '');
+      for (const r of gitUntracked(root, empty)) pre.untracked.add(r);
+      for (const r of empty) pre.untrackedKnown.add(r);
+    }
+  } catch {
+    // each file asks git itself and reports its own error
+  }
+  return pre;
+}
+
 /**
  * The file on each side of the diff, whole: a key edited in the middle leaves its BEGIN line outside the hunk.
  * Sizes are checked before reading: a `diff` attribute would make git diff a big file as text anyway.
  */
-function sides(root: string, range: DiffRange, rel: string, budget: Budget): string[] | { note: string } {
+function sides(root: string, range: DiffRange, rel: string, budget: Budget, pre: Prefetch): string[] | { note: string } {
   const take = (size: number) => {
     if (size > MAX_BYTES) return TOO_LARGE;
     if (size > budget.left) return OVER_BUDGET;
@@ -116,12 +180,13 @@ function sides(root: string, range: DiffRange, rel: string, budget: Budget): str
     return undefined;
   };
   const texts: string[] = [];
-  const sizes = gitBlobSizes(root, range.revs, rel);
+  const keys = range.revs.map((rev) => `${rev}:${rel}`);
+  const sizes = keys.every((k) => pre.sizes.has(k)) ? keys.map((k) => pre.sizes.get(k)) : gitBlobSizes(root, keys);
   for (const [i, size] of sizes.entries()) {
     if (size === undefined) continue;
     const note = take(size);
     if (note) return { note };
-    texts.push(gitBlob(root, range.revs[i]!, rel));
+    texts.push(pre.blobs.get(keys[i]!) ?? gitBlob(root, range.revs[i]!, rel));
   }
   const path = join(root, rel);
   if (!range.worktree || !insideRoot(root, path)) return texts;
@@ -137,18 +202,21 @@ function sides(root: string, range: DiffRange, rel: string, budget: Budget): str
 }
 
 /** Reads at most `min(5 MB, budget)` bytes of diff, after both sides' files. */
-function fileDiff(root: string, range: DiffRange, rel: string, budget: Budget): string | { note: string } {
+function fileDiff(root: string, range: DiffRange, rel: string, budget: Budget, pre: Prefetch): string | Preview | { note: string } {
   if (looksSecret(rel)) return SECRET;
   if (rel.includes('\n')) return { note: 'not shown: the file name has a line break' };
   let max = MAX_BYTES;
   try {
-    const files = sides(root, range, rel, budget);
+    const files = sides(root, range, rel, budget, pre);
     if (!Array.isArray(files)) return files;
     if (files.some((t) => PRIVATE_KEY.test(t))) return SECRET;
     max = Math.min(MAX_BYTES, budget.left);
     if (max <= 0) return { note: OVER_BUDGET };
-    const text = gitFileDiff(root, range, rel, max);
-    const shown = text === '' && range.worktree && gitUntracked(root, rel) ? untrackedDiff(root, rel, max) : text;
+    const batched = pre.diffs.get(rel);
+    if (batched !== undefined && Buffer.byteLength(batched) > max) throw new OutputTooLarge(`git output over ${max} bytes`);
+    const text = batched ?? gitFileDiff(root, range, rel, max);
+    const untracked = () => (pre.untrackedKnown.has(rel) ? pre.untracked.has(rel) : gitUntracked(root, [rel]).has(rel));
+    const shown = text === '' && range.worktree && untracked() ? untrackedPreview(root, rel, budget, max) : text;
     if (typeof shown !== 'string') return shown;
     budget.left -= Buffer.byteLength(shown);
     // a working-tree-encoding file reads as raw bytes above; git decodes it for the diff
@@ -167,17 +235,23 @@ function fileDiff(root: string, range: DiffRange, rel: string, budget: Budget): 
 export function nodePreviews(spec: Spec, root: string, diff: Diff, range: DiffRange, found: Map<string, string>, cwd?: string): Map<string, Preview> {
   const out = new Map<string, Preview>();
   if (spec.kind !== 'summary') return out;
-  const byFile = new Map<string, Preview | undefined>();
-  const budget: Budget = { left: MAX_TOTAL_BYTES };
+  const rels = new Map<string, string>();
   for (const node of spec.nodes) {
     if (node.path === undefined || !IN_DIFF.has(node.status)) continue;
     const at = found.get(node.id);
     const candidates = at !== undefined ? [at] : [repoPath(root, node.path), ...(cwd ? [repoPath(root, resolve(cwd, node.path))] : [])];
     const rel = candidates.find((p) => diff.hasFile(p));
+    if (rel !== undefined) rels.set(node.id, rel);
+  }
+  const pre = prefetch(root, range, [...new Set(rels.values())]);
+  const byFile = new Map<string, Preview | undefined>();
+  const budget: Budget = { left: MAX_TOTAL_BYTES };
+  for (const node of spec.nodes) {
+    const rel = rels.get(node.id);
     if (rel === undefined) continue;
     if (!byFile.has(rel)) {
-      const text = budget.left > 0 ? fileDiff(root, range, rel, budget) : { note: OVER_BUDGET };
-      byFile.set(rel, typeof text !== 'string' ? { path: rel, lines: [], shown: 0, total: 0, note: text.note } : text === '' ? undefined : parseDiff(rel, text));
+      const r = budget.left > 0 ? fileDiff(root, range, rel, budget, pre) : { note: OVER_BUDGET };
+      byFile.set(rel, typeof r === 'string' ? (r === '' ? undefined : parseDiff(rel, r)) : 'lines' in r ? r : { path: rel, lines: [], shown: 0, total: 0, note: r.note });
     }
     const preview = byFile.get(rel);
     if (preview) out.set(node.id, preview);

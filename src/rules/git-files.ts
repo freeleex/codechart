@@ -30,9 +30,12 @@ interface GitOpts {
   config?: [string, string][];
   input?: string;
   maxBuffer?: number;
+  binary?: boolean;
 }
 
-function git(cwd: string, args: string[], { config = [], input, maxBuffer = 256 * 1024 * 1024 }: GitOpts = {}): string {
+function git(cwd: string, args: string[], opts: GitOpts & { binary: true }): Buffer;
+function git(cwd: string, args: string[], opts?: GitOpts): string;
+function git(cwd: string, args: string[], { config = [], input, maxBuffer = 256 * 1024 * 1024, binary }: GitOpts = {}): string | Buffer {
   try {
     gitPath ??= gitBinary();
     const n = Number(process.env.GIT_CONFIG_COUNT) || 0;
@@ -45,7 +48,7 @@ function git(cwd: string, args: string[], { config = [], input, maxBuffer = 256 
       cwd,
       env,
       timeout: 30_000,
-      encoding: 'utf8',
+      ...(binary ? {} : { encoding: 'utf8' as const }),
       // -uall on big trees can exceed the 1 MiB default
       maxBuffer,
       ...(input === undefined ? { stdio: ['ignore', 'pipe', 'pipe'] as const } : { input, stdio: ['pipe', 'pipe', 'pipe'] as const }),
@@ -165,20 +168,41 @@ export interface DiffRange {
   config: [string, string][];
 }
 
-/** Size of `rel` at each of `revs`; undefined where it is not a blob. `rel` must not hold a newline. */
-export function gitBlobSizes(cwd: string, revs: string[], rel: string): (number | undefined)[] {
-  if (!revs.length) return [];
-  const out = git(cwd, ['cat-file', '--batch-check'], { input: revs.map((r) => `${r}:${rel}\n`).join('') }).split('\n');
-  return revs.map((_, i) => {
+/** Size of each `rev:path` object; undefined where it is not a blob. Paths must not hold a newline. */
+export function gitBlobSizes(cwd: string, specs: string[]): (number | undefined)[] {
+  if (!specs.length) return [];
+  const out = git(cwd, ['cat-file', '--batch-check'], { input: specs.map((s) => `${s}\n`).join('') }).split('\n');
+  return specs.map((_, i) => {
     const m = /^[0-9a-f]+ blob (\d+)$/.exec(out[i] ?? '');
     return m ? Number(m[1]) : undefined;
   });
+}
+
+/** The content of each `rev:path` blob, unfiltered; `sizes` are from `gitBlobSizes`, which parses the one-call output. */
+export function gitBlobs(cwd: string, specs: string[], sizes: number[]): string[] {
+  if (!specs.length) return [];
+  const out = git(cwd, ['cat-file', '--batch'], { input: specs.map((s) => `${s}\n`).join(''), binary: true });
+  const texts: string[] = [];
+  let at = 0;
+  for (const size of sizes) {
+    const eol = out.indexOf(10, at);
+    if (eol < 0 || !/^[0-9a-f]+ blob \d+$/.test(out.toString('latin1', at, eol))) throw new Error('git cat-file --batch: unexpected output');
+    texts.push(out.toString('utf8', eol + 1, eol + 1 + size));
+    at = eol + 1 + size + 1;
+  }
+  return texts;
 }
 
 /** `rel`'s content at `rev`, unfiltered. */
 export function gitBlob(cwd: string, rev: string, rel: string): string {
   return git(cwd, ['cat-file', 'blob', `${rev}:${rel}`]);
 }
+
+// --src-prefix/--dst-prefix: a user's diff.noprefix would change the `diff --git` lines the batch splits on.
+const diffArgs = (range: DiffRange, paths: string[]) => [
+  '--literal-pathspecs', 'diff', '--no-color', '--no-ext-diff', '--no-textconv', '--no-renames', '--submodule=short', '--ignore-submodules=dirty',
+  '--src-prefix=a/', '--dst-prefix=b/', '-U3', ...range.args, '--', ...paths,
+];
 
 /**
  * One file's unified diff over `range` (`rel` is repo-relative with `/`).
@@ -187,16 +211,71 @@ export function gitBlob(cwd: string, rev: string, rel: string): string {
  * Throws `OutputTooLarge` past `maxBytes`.
  */
 export function gitFileDiff(cwd: string, range: DiffRange, rel: string, maxBytes: number): string {
-  return git(
-    cwd,
-    ['--literal-pathspecs', 'diff', '--no-color', '--no-ext-diff', '--no-textconv', '--no-renames', '--submodule=short', '--ignore-submodules=dirty', '-U3', ...range.args, '--', rel],
-    { config: [['core.bigFileThreshold', '5m'], ...range.config], maxBuffer: maxBytes },
-  );
+  return git(cwd, diffArgs(range, [rel]), { config: [['core.bigFileThreshold', '5m'], ...range.config], maxBuffer: maxBytes });
 }
 
-/** Whether `rel` is untracked and not ignored. */
-export function gitUntracked(cwd: string, rel: string): boolean {
-  return git(cwd, ['--literal-pathspecs', 'ls-files', '-z', '--others', '--exclude-standard', '--', rel]).split('\0')[0] === rel;
+const CHUNK_PATHS = 500;
+const CHUNK_CHARS = 20_000;
+
+function chunks(paths: string[]): string[][] {
+  const out: string[][] = [];
+  let cur: string[] = [];
+  let chars = 0;
+  for (const p of paths) {
+    if (cur.length && (cur.length >= CHUNK_PATHS || chars + p.length > CHUNK_CHARS)) {
+      out.push(cur);
+      cur = [];
+      chars = 0;
+    }
+    cur.push(p);
+    chars += p.length;
+  }
+  if (cur.length) out.push(cur);
+  return out;
+}
+
+/** A name git prints bare in `diff --git` headers; others (quotes, backslash, control characters) it escapes. */
+export const plainDiffName = (rel: string) => !/[\x00-\x1f\x7f"\\]/.test(rel);
+
+/**
+ * `gitFileDiff` for many files in few calls: the diff of each of `rels` (all `plainDiffName`), '' where unchanged.
+ * undefined when the output is over `maxBytes` or a section can't be matched to a requested file; the caller then diffs file by file.
+ */
+export function gitFileDiffs(cwd: string, range: DiffRange, rels: string[], maxBytes: number): Map<string, string> | undefined {
+  const out = new Map<string, string>(rels.map((r) => [r, '']));
+  const wanted = new Set(rels);
+  try {
+    for (const group of chunks(rels)) {
+      const text = git(cwd, diffArgs(range, group), { config: [['core.bigFileThreshold', '5m'], ['core.quotePath', 'false'], ...range.config], maxBuffer: maxBytes });
+      const starts = [...text.matchAll(/^diff --git /gm)].map((m) => m.index);
+      for (const [i, start] of starts.entries()) {
+        const end = starts[i + 1] ?? text.length;
+        const eol = text.indexOf('\n', start);
+        const head = text.slice(start + 'diff --git '.length, eol < 0 ? end : eol);
+        // --no-renames: both sides name the same path, so `a/P b/P` splits unambiguously
+        const len = (head.length - 'a/ b/'.length) / 2;
+        const rel = head.slice('a/'.length, 'a/'.length + len);
+        if (!Number.isInteger(len) || head !== `a/${rel} b/${rel}` || !wanted.has(rel)) return undefined;
+        out.set(rel, (out.get(rel) ?? '') + text.slice(start, end));
+      }
+    }
+  } catch (e) {
+    if (e instanceof OutputTooLarge) return undefined;
+    throw e;
+  }
+  return out;
+}
+
+/** Those of `rels` that are untracked and not ignored. */
+export function gitUntracked(cwd: string, rels: string[]): Set<string> {
+  const found = new Set<string>();
+  const wanted = new Set(rels);
+  for (const group of chunks(rels)) {
+    for (const f of git(cwd, ['--literal-pathspecs', 'ls-files', '-z', '--others', '--exclude-standard', '--', ...group]).split('\0')) {
+      if (wanted.has(f)) found.add(f);
+    }
+  }
+  return found;
 }
 
 /** Files one commit changed; a merge is compared with its first parent. */

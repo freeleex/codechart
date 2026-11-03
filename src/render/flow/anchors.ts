@@ -3,6 +3,7 @@ import { isAbsolute, relative, resolve, sep } from 'node:path';
 import { readRegularFile } from '../../read-regular.js';
 import { gitFileAt, gitListFiles } from '../../rules/git-files.js';
 import type { FlowSpec } from '../../spec/flow.js';
+import { clip } from '../clip.js';
 import { hasHiddenChars } from '../strip.js';
 
 const SNIPPET_MAX_LINES = 15;
@@ -86,10 +87,6 @@ function readLines(path: string, root: string, realRoot: string, budget: Budget)
 }
 
 const MAX_LISTED = 10;
-const SNIPPET_MAX_CHARS = 300;
-
-// A minified or generated line would otherwise land whole in the HTML panel.
-const clip = (l: string) => (l.length > SNIPPET_MAX_CHARS ? `${l.slice(0, SNIPPET_MAX_CHARS)}…` : l);
 
 function lineList(hits: number[]): string {
   const shown = hits.slice(0, MAX_LISTED).join(', ');
