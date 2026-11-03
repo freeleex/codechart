@@ -3,6 +3,7 @@ import { isAbsolute, relative, resolve, sep } from 'node:path';
 import { readRegularFile } from '../../read-regular.js';
 import { gitFileAt, gitListFiles } from '../../rules/git-files.js';
 import type { FlowSpec } from '../../spec/flow.js';
+import { clip } from '../clip.js';
 import { hasHiddenChars } from '../strip.js';
 
 const SNIPPET_MAX_LINES = 15;
@@ -24,7 +25,8 @@ export interface FlowSnippets {
 /** `checked`: how many anchors resolved. */
 type AnchorResult = { ok: true; snippets: FlowSnippets; checked: number } | { ok: false; errors: string[] };
 
-type Resolved = { snippet: Snippet } | { error: string; field?: 'match' };
+/** `missing`: the anchored file does not exist; `detail` says where it was looked for. */
+type Resolved = { snippet: Snippet } | { error: string; field?: 'match'; missing?: { path: string; detail: string } };
 /** `null`: the file does not exist. */
 type Read = string[] | { error: string } | null;
 
@@ -86,10 +88,6 @@ function readLines(path: string, root: string, realRoot: string, budget: Budget)
 }
 
 const MAX_LISTED = 10;
-const SNIPPET_MAX_CHARS = 300;
-
-// A minified or generated line would otherwise land whole in the HTML panel.
-const clip = (l: string) => (l.length > SNIPPET_MAX_CHARS ? `${l.slice(0, SNIPPET_MAX_CHARS)}…` : l);
 
 function lineList(hits: number[]): string {
   const shown = hits.slice(0, MAX_LISTED).join(', ');
@@ -241,7 +239,8 @@ function resolveAnchor(source: string, match: string | undefined, c: AnchorCtx):
   const notFound = (why: string) => ({ error: `${source} not found (${why})` });
   if (lines === null) {
     const where = c.at ? `file does not exist at ${c.at.slice(0, 12)}` : 'file does not exist';
-    return notFound(`${where}; repo root is ${c.root}${likelyPath(c, path)}`);
+    const hint = `repo root is ${c.root}${likelyPath(c, path)}`;
+    return { error: `${source} not found (${where}; ${hint})`, missing: { path, detail: `${where} (${hint})` } };
   }
   if (!Array.isArray(lines)) return lines;
   if (match !== undefined) return findMatch(loaded.path, match, lines);
@@ -260,24 +259,56 @@ function resolveAnchor(source: string, match: string | undefined, c: AnchorCtx):
   };
 }
 
+/** `steps[0..2,5].source`-style: the indexes of one group, runs of 3+ as ranges. */
+function indexList(group: string, idx: number[]): string {
+  const parts: string[] = [];
+  for (let i = 0; i < idx.length; ) {
+    let j = i;
+    while (idx[j + 1] === idx[j]! + 1) j++;
+    if (j - i >= 2) parts.push(`${idx[i]}..${idx[j]}`);
+    else for (let k = i; k <= j; k++) parts.push(String(idx[k]));
+    i = j + 1;
+  }
+  return `${group}[${parts.join(',')}].source`;
+}
+
 /** `at`: a commit sha to read the files from instead of the working tree. `cwd`: where cwd-relative paths resolve from. */
 export function checkFlowAnchors(spec: FlowSpec, root: string, at?: string, cwd?: string): AnchorResult {
   const ctx = anchorContext(root, at, cwd);
-  const errors: string[] = [];
+  const errors: (string | undefined)[] = [];
   const snippets: FlowSnippets = { steps: new Map(), links: {} };
   let checked = 0;
+  const gone = new Map<string, { detail: string; at: number[]; uses: { group: string; i: number }[] }>();
 
-  const check = (label: string, { source, match }: { source?: string; match?: string }, store: (s: Snippet) => void) => {
+  const check = (group: 'steps' | 'links', i: number, { source, match }: { source?: string; match?: string }, store: (s: Snippet) => void) => {
     if (!source) return;
     const r = resolveAnchor(source, match, ctx);
-    if ('error' in r) errors.push(`${label}.${r.field ?? 'source'}: ${r.error}`);
-    else {
+    if (!('error' in r)) {
       checked++;
       store(r.snippet);
+      return;
     }
+    if (r.missing) {
+      const g = gone.get(r.missing.path) ?? { detail: r.missing.detail, at: [], uses: [] };
+      g.at.push(errors.length);
+      g.uses.push({ group, i });
+      gone.set(r.missing.path, g);
+    }
+    errors.push(`${group}[${i}].${r.field ?? 'source'}: ${r.error}`);
   };
-  spec.steps.forEach((step, i) => check(`steps[${i}]`, step, (s) => snippets.steps.set(step.id, s)));
-  spec.links.forEach((link, i) => check(`links[${i}]`, link, (s) => (snippets.links[i] = s)));
+  spec.steps.forEach((step, i) => check('steps', i, step, (s) => snippets.steps.set(step.id, s)));
+  spec.links.forEach((link, i) => check('links', i, link, (s) => (snippets.links[i] = s)));
 
-  return errors.length ? { ok: false, errors } : { ok: true, snippets, checked };
+  // Each repeat of the repo-root sentence costs tokens, so a file two or more anchors share is said once.
+  for (const [path, g] of gone) {
+    if (g.uses.length < 2) continue;
+    const used = ['steps', 'links'].flatMap((group) => {
+      const idx = g.uses.filter((u) => u.group === group).map((u) => u.i);
+      return idx.length ? [indexList(group, idx)] : [];
+    });
+    errors[g.at[0]!] = `${path}: ${g.detail}; used by ${used.join(', ')}`;
+    for (const k of g.at.slice(1)) errors[k] = undefined;
+  }
+  const out = errors.filter((e): e is string => e !== undefined);
+  return out.length ? { ok: false, errors: out } : { ok: true, snippets, checked };
 }

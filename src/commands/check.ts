@@ -24,6 +24,19 @@ function terseResult(r: CheckResult): TerseResult {
   return out;
 }
 
+// Pretty-printing puts every file of every match on its own line; here each entry (and each short array) takes one.
+function formatResult(r: TerseResult): string {
+  const one = (v: unknown) => JSON.stringify(v);
+  const block = (v: unknown): string => {
+    const rows = Array.isArray(v) ? (v.some((x) => typeof x === 'object' && x !== null) ? v.map(one) : undefined) : v && typeof v === 'object' ? Object.entries(v).map(([k, x]) => `${one(k)}: ${one(x)}`) : undefined;
+    if (!rows?.length) return one(v);
+    const [open, close] = Array.isArray(v) ? ['[', ']'] : ['{', '}'];
+    return `${open}\n    ${rows.join(',\n    ')}\n  ${close}`;
+  };
+  const rows = Object.entries(r).map(([k, v]) => `  ${one(k)}: ${block(v)}`);
+  return rows.length ? `{\n${rows.join(',\n')}\n}` : '{}';
+}
+
 interface CheckFlags extends GitSelection {
   files?: string;
   matched?: string;
@@ -47,7 +60,7 @@ export function checkCommand(opts: CommandOptions): Command {
         const files = o.files !== undefined ? csv(o.files).map((f) => path.resolve(cwd, f)) : gitFiles(root, o);
         const config = loadConfig({ cwd, home: opts.home, env: opts.env, warn: (l) => opts.stderr(`codechart: ${l}\n`) });
         const result = resolveRules(config, files, o.matched !== undefined ? csv(o.matched) : undefined, root ?? path.resolve(cwd));
-        opts.stdout(escapeJsonControls(JSON.stringify(terseResult(result), null, 2)) + '\n');
+        opts.stdout(escapeJsonControls(formatResult(terseResult(result))) + '\n');
       } catch (e) {
         opts.stderr(`codechart: ${(e as Error).message}\n`);
         process.exitCode = 2;

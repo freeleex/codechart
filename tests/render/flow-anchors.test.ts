@@ -55,10 +55,22 @@ describe('checkFlowAnchors', () => {
     expect(errorsOf(spec('src/nope.ts:1'))).toEqual([`steps[0].source: src/nope.ts:1 not found (file does not exist; repo root is ${repo})`]);
   });
 
-  it('reports each anchor into the same missing file by its own source', () => {
-    expect(errorsOf(spec('src/nope.ts:1', 'src/nope.ts:2'))).toEqual([
-      `steps[0].source: src/nope.ts:1 not found (file does not exist; repo root is ${repo})`,
-      `links[0].source: src/nope.ts:2 not found (file does not exist; repo root is ${repo})`,
+  it('names a missing file once when two anchors share it', () => {
+    expect(errorsOf(spec('src/nope.ts:1', 'src/nope.ts:2'))).toEqual([`src/nope.ts: file does not exist (repo root is ${repo}); used by steps[0].source, links[0].source`]);
+  });
+
+  it('says a file shared by three or more anchors is missing once, with the steps and links using it', () => {
+    const many = (sources: string[], linkSources: string[]): FlowSpec => ({
+      ...spec('src/a.ts:1'),
+      steps: sources.map((source, i) => ({ id: `s${i}`, label: 'a step', type: 'step', status: 'existing', source })),
+      links: linkSources.map((source) => ({ from: 's0', to: 's0', source })),
+      start: 's0',
+    });
+    const gone = (n: number) => `src/nope.ts:${n}`;
+    expect(errorsOf(many(Array.from({ length: 9 }, (_, i) => gone(i + 1)), []))).toEqual([`src/nope.ts: file does not exist (repo root is ${repo}); used by steps[0..8].source`]);
+    expect(errorsOf(many([gone(1), 'src/a.ts:99', gone(2), gone(3), 'src/a.ts:1', gone(4)], [gone(5)]))).toEqual([
+      `src/nope.ts: file does not exist (repo root is ${repo}); used by steps[0,2,3,5].source, links[0].source`,
+      'steps[1].source: src/a.ts:99 not found (file has 20 lines)',
     ]);
   });
 
