@@ -197,7 +197,7 @@ describe('loadConfig', () => {
     globalCfg('defaults:\n  flows: request\n');
     const c = loadConfig({ cwd: repo, home, env: {} });
     expect(c.defaults.flows).toBe('request');
-    expect(c.rules.map((r) => r.name)).toEqual(['migrations', 'orm-schema', 'related-files']);
+    expect(c.rules.map((r) => r.name)).toEqual(['migrations', 'orm-schema', 'infrastructure', 'related-files']);
   });
 
   it('useBuiltinRules false removes behaviour-flow whatever defaults.flows says', () => {

@@ -229,6 +229,27 @@ describe('review findings', () => {
   });
 });
 
+describe('infrastructure nodes', () => {
+  it('a resource anchors on its block line and a module on its folder, as the skill writes them', () => {
+    mkdirSync(join(repo, 'infra/modules/vpc'), { recursive: true });
+    writeFileSync(join(repo, 'infra/main.tf'), 'resource "aws_s3_bucket" "logs" {\n  bucket = "logs"\n}\n\nmodule "vpc" {\n  source = "./modules/vpc"\n}\n');
+    writeFileSync(join(repo, 'infra/modules/vpc/main.tf'), 'resource "aws_vpc" "main" {}\n');
+    const v = validateSpec({
+      title: 'Logs bucket', kind: 'summary',
+      nodes: [
+        { id: 'logs', label: 'aws_s3_bucket.logs', kind: 'other', status: 'new', layer: 'storage', path: 'infra/main.tf', match: 'resource "aws_s3_bucket" "logs"' },
+        { id: 'vpc', label: 'module.vpc', status: 'changed', layer: 'network', path: 'infra/modules/vpc' },
+        { id: 'region', label: 'var.region', kind: 'config', status: 'config', layer: 'config' },
+      ],
+      edges: [{ from: 'logs', to: 'region', label: 'region', kind: 'reads' }],
+    });
+    if (!v.ok) throw new Error(v.errors.join('\n'));
+    const r = checkMapNodes(v.spec as Spec, repo, { diff: diffOf(['infra/main.tf', 'infra/modules/vpc/main.tf']) });
+    expect(r.mismatches).toEqual([]);
+    expect(r.matches.get('logs')?.startLine).toBe(1);
+  });
+});
+
 describe('countLines', () => {
   const ok = { checked: 1, mismatches: [], unit: 'node' as const };
   it('keeps the tag on the count line when it fits, else on its own line', () => {

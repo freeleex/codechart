@@ -53,6 +53,38 @@ Rules:
   - `false`: you list only what you saw, such as the changed columns in a migration. The map then says only some fields are shown.
   - In `full` context, open the definition so you can list every field and set `true`.
 
+## Infrastructure
+
+Terraform, OpenTofu, Terragrunt, Helm, Kustomize and Kubernetes files match the built-in `infrastructure` rule. No special kinds:
+
+| Thing | Node |
+|---|---|
+| Resource or data source | `kind: other`, label as the code names it (`aws_s3_bucket.logs`), `path` its `.tf` file, `match` its block line (`resource "aws_s3_bucket" "logs"`) |
+| Module call | `kind: file`, label `module.vpc`, `path` the module folder if local, else the file with the `module` block |
+| Kubernetes object (manifest or Helm template) | `kind: other`, label `Deployment api`, `path` its file |
+| Chart | `kind: file`, label `chart: api`, `path` its folder |
+| Variable, output, tfvars or values key, ConfigMap or Secret | `kind: config`, status `config` |
+
+- `layer` by role: `network`, `compute`, `storage`, `iam`, `dns`, `config`; not by file or environment.
+- Edges: dependent → dependency, labelled with the attribute that refers (`vpc_id`, `role`, `serviceName`). `reads` for a reference or a variable, `configures` for values or inputs fed into a module or template, `other` for `depends_on`.
+- `fields`: the attributes you changed or that matter, with `was` on a changed value (`"name": "instance_type", "type": "t3.small", "change": "modified", "was": "t3.micro"`); `fieldsComplete: false` unless you listed the whole block.
+- `gaps`: resources and remote modules you didn't read, and `terraform plan not run` (you can't tell an in-place update from a replacement without it). A rename or a replacement you did spot is a risk for your prose.
+
+```json
+{ "kind": "summary", "title": "Access logs bucket for the load balancer", "rules": ["infrastructure"],
+  "nodes": [
+    { "id": "logs", "label": "aws_s3_bucket.logs", "kind": "other", "status": "new", "layer": "storage", "path": "infra/logs.tf", "match": "resource \"aws_s3_bucket\" \"logs\"" },
+    { "id": "alb", "label": "aws_lb.api", "kind": "other", "status": "changed", "layer": "network", "path": "infra/alb.tf", "fieldsComplete": false,
+      "fields": [{ "name": "access_logs.enabled", "type": "true", "change": "modified", "was": "false" }] },
+    { "id": "retention", "label": "var.log_retention_days", "kind": "config", "status": "config", "layer": "config", "path": "infra/variables.tf" }
+  ],
+  "edges": [
+    { "from": "alb", "to": "logs", "label": "access_logs.bucket", "kind": "reads" },
+    { "from": "logs", "to": "retention", "label": "expiration.days", "kind": "reads" }
+  ],
+  "gaps": ["terraform plan not run"] }
+```
+
 ## What `render` checks
 
 Warnings, not failures (`--strict` makes them exit 1). Each mismatch is named in a `✗` line at the top of the output.

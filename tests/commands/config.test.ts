@@ -79,6 +79,7 @@ describe('codechart config', () => {
       `  g1  map  paths: a/**, b/**  web  context: full  (global: ${globalFile})`,
       `  migrations  map  paths: ${builtinRules('auto')[0]!.paths!.join(', ')}  auto  context: short  (built-in)`,
       `  orm-schema  map  paths: ${builtinRules('auto')[1]!.paths!.join(', ')}  auto  context: short  (built-in)`,
+      `  infrastructure  map  paths: ${builtinRules('auto')[2]!.paths!.join(', ')}  auto  context: short  (built-in)`,
       `  related-files  map  when: "more than 2 changed files depend on each other"  auto  context: short  (built-in)`,
       `  behaviour-flow  flow  when: "the change adds or alters behaviour with at least 2 decisions or edge cases a reader would want to see"  auto  (built-in)`,
     ]);

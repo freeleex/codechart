@@ -47,7 +47,7 @@ describe('SKILL.md spec skeletons', () => {
 });
 
 describe('guide and example specs pass validation', () => {
-  it.each(['example.md', 'flow-guide.md'])('%s', (file) => {
+  it.each(['example.md', 'flow-guide.md', 'spec-guide.md'])('%s', (file) => {
     const specs = jsonBlocks(read(file));
     expect(specs.length).toBeGreaterThan(0);
     for (const spec of specs) {
