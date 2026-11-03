@@ -6,6 +6,7 @@ import {
   gitMergeBase,
   gitParent,
   gitSinceFiles,
+  repoDiffOverrides,
   repoFilterOverrides,
   resolveCommit,
   type DiffRange,
@@ -38,23 +39,26 @@ export const hasGitSelection = (o: GitSelection): boolean =>
 /** `renameSources`: with --git, also list the paths renames moved from. */
 export function gitFiles(root: string | undefined, o: GitSelection, renameSources = false): string[] {
   if (!root) throw new Error('not a git repository (use --files)');
-  const files: string[] = [];
-  if (o.since !== undefined) files.push(...gitSinceFiles(root, o.since, o.head));
-  if (o.commit !== undefined) files.push(...gitCommitFiles(root, o.commit));
-  if (o.git) files.push(...gitChangedFiles(root, renameSources));
+  let files: string[] = [];
+  if (o.since !== undefined) files = files.concat(gitSinceFiles(root, o.since, o.head));
+  if (o.commit !== undefined) files = files.concat(gitCommitFiles(root, o.commit));
+  if (o.git) files = files.concat(gitChangedFiles(root, renameSources));
   return files;
 }
 
 /** The revisions `gitFiles` compares, for reading a file's diff over the same change. */
 export function diffRange(root: string, o: GitSelection): DiffRange {
+  const config = repoDiffOverrides(root);
   if (o.commit !== undefined) {
     const sha = resolveCommit(root, '--commit', o.commit);
-    return { args: [gitParent(root, sha) ?? gitEmptyTree(root), sha], worktree: false, config: [] };
+    const parent = gitParent(root, sha) ?? gitEmptyTree(root);
+    return { args: [parent, sha], revs: [parent, sha], worktree: false, config };
   }
   if (o.since !== undefined && !o.git) {
-    return { args: [`${o.since}...${o.head ?? 'HEAD'}`], worktree: false, config: [] };
+    const head = resolveCommit(root, '--head', o.head ?? 'HEAD');
+    return { args: [`${o.since}...${head}`], revs: [gitMergeBase(root, o.since, head), head], worktree: false, config };
   }
   const from = o.since !== undefined ? gitMergeBase(root, o.since) : (gitHead(root) ?? gitEmptyTree(root));
   // Diffing working-tree files runs the repo's clean filters, as status would.
-  return { args: [from], worktree: true, config: repoFilterOverrides(root) };
+  return { args: [from], revs: [from], worktree: true, config: [...config, ...repoFilterOverrides(root)] };
 }

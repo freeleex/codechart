@@ -130,7 +130,7 @@ describe('nodePreviews', () => {
     expect(p.get('n1')).toBe(p.get('n0'));
   });
 
-  it('a diff over 5 MB is not read whole; an untracked binary says so', () => {
+  it('a file over 5 MB is not diffed; an untracked binary says so', () => {
     write('src/big.ts', 'x'.repeat(100).concat('\n').repeat(60_000));
     git('add', 'src/big.ts');
     writeFileSync(join(repo, 'src/img.bin'), Buffer.from([0, 1, 2]));

@@ -15,6 +15,7 @@ export interface HtmlMeta {
 
 export function esc(s: string): string {
   return stripInvisible(s)
+    .replace(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/g, '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')

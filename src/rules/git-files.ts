@@ -19,7 +19,8 @@ export function gitBinary(platform: NodeJS.Platform = process.platform, env: Nod
 
 let gitPath: string | undefined;
 
-// A checkout's own .git/config (an unpacked archive, not a clone) must not make codechart run commands or go online.
+// A checkout's own .git/config (an unpacked archive, not a clone) must not make codechart run commands or go online,
+// nor point core.worktree outside the repo (callers pass the repo root as cwd).
 const SAFE_ARGS = ['--no-optional-locks', '-c', 'core.fsmonitor=false', '-c', 'protocol.allow=never'];
 
 /** Git printed more than the caller's `maxBuffer`. */
@@ -34,7 +35,7 @@ function git(cwd: string, args: string[], config: [string, string][] = [], input
       env[`GIT_CONFIG_KEY_${n + i}`] = k;
       env[`GIT_CONFIG_VALUE_${n + i}`] = v;
     });
-    return execFileSync(gitPath, [...SAFE_ARGS, ...args], {
+    return execFileSync(gitPath, [...SAFE_ARGS, `--work-tree=${cwd}`, ...args], {
       cwd,
       env,
       timeout: 30_000,
@@ -52,24 +53,37 @@ function git(cwd: string, args: string[], config: [string, string][] = [], input
 
 /** Blanks the clean/process commands of filter drivers the repo's own config defines (status would run them) and drops `required` so a blank command is not a failure. */
 export function repoFilterOverrides(cwd: string): [string, string][] {
-  let out: string;
-  try {
-    out = git(cwd, ['config', '--show-scope', '--includes', '-z', '--name-only', '--get-regexp', '^filter\\.']);
-  } catch {
-    return [];
-  }
   const keys = new Set<string>();
   const drivers = new Set<string>();
-  const recs = out.split('\0');
-  for (let i = 0; i + 1 < recs.length; i += 2) {
-    const [scope, key] = [recs[i], recs[i + 1]!];
+  for (const key of repoConfigKeys(cwd, '^filter\\.')) {
     const m = /^(filter\..+)\.(clean|process)$/i.exec(key);
-    if ((scope === 'local' || scope === 'worktree') && m) {
+    if (m) {
       keys.add(key);
       drivers.add(m[1]!);
     }
   }
   return [...[...keys].map((k): [string, string] => [k, '']), ...[...drivers].map((d): [string, string] => [`${d}.required`, 'false'])];
+}
+
+/** Replaces (`^$` as git rejects an empty one) the function-name regexes diff drivers get from the repo's own config (a backtracking one stalls every diff). */
+export function repoDiffOverrides(cwd: string): [string, string][] {
+  return repoConfigKeys(cwd, '^diff\\.').filter((k) => /^diff\..+\.x?funcname$/i.test(k)).map((k): [string, string] => [k, '^$']);
+}
+
+/** Keys matching `pattern` that the repo's own config (local or worktree scope) sets. */
+function repoConfigKeys(cwd: string, pattern: string): string[] {
+  let out: string;
+  try {
+    out = git(cwd, ['config', '--show-scope', '--includes', '-z', '--name-only', '--get-regexp', pattern]);
+  } catch {
+    return [];
+  }
+  const keys: string[] = [];
+  const recs = out.split('\0');
+  for (let i = 0; i + 1 < recs.length; i += 2) {
+    if (recs[i] === 'local' || recs[i] === 'worktree') keys.push(recs[i + 1]!);
+  }
+  return keys;
 }
 
 const nulList = (out: string) => out.split('\0').filter(Boolean);
@@ -88,9 +102,12 @@ function checkRef(flag: string, ref: string): void {
   if (problem) throw new Error(`${flag} ${problem}`);
 }
 
-/** `renameSources`: also list the path a rename moved from (gone from the tree, so changed too). */
+/**
+ * `renameSources`: also list the path a rename moved from (gone from the tree, so changed too).
+ * --ignore-submodules=dirty: checking a nested repo's files runs that repo's own filters, which the overrides do not reach.
+ */
 export function gitChangedFiles(cwd: string, renameSources = false): string[] {
-  const records = git(cwd, ['status', '--porcelain=v1', '-z', '-uall'], repoFilterOverrides(cwd)).split('\0');
+  const records = git(cwd, ['status', '--porcelain=v1', '-z', '-uall', '--ignore-submodules=dirty'], repoFilterOverrides(cwd)).split('\0');
   const files: string[] = [];
   for (let i = 0; i < records.length; i++) {
     const rec = records[i];
@@ -131,23 +148,40 @@ export function gitMergeBase(cwd: string, base: string, head = 'HEAD'): string {
   return git(cwd, ['merge-base', base, head]).trim();
 }
 
-/** What a file diff compares: `args` are the revisions; `worktree`: the working tree is the new side. */
+/** What a file diff compares: `args` are the revisions; `revs`: the commits on its sides; `worktree`: the working tree is the new side. */
 export interface DiffRange {
   args: string[];
+  revs: string[];
   worktree: boolean;
   config: [string, string][];
+}
+
+/** Size of `rel` at each of `revs`; undefined where it is not a blob. `rel` must not hold a newline. */
+export function gitBlobSizes(cwd: string, revs: string[], rel: string): (number | undefined)[] {
+  if (!revs.length) return [];
+  const out = git(cwd, ['cat-file', '--batch-check'], [], revs.map((r) => `${r}:${rel}\n`).join('')).split('\n');
+  return revs.map((_, i) => {
+    const m = /^[0-9a-f]+ blob (\d+)$/.exec(out[i] ?? '');
+    return m ? Number(m[1]) : undefined;
+  });
+}
+
+/** `rel`'s content at `rev`, unfiltered. */
+export function gitBlob(cwd: string, rev: string, rel: string): string {
+  return git(cwd, ['cat-file', 'blob', `${rev}:${rel}`]);
 }
 
 /**
  * One file's unified diff over `range` (`rel` is repo-relative with `/`).
  * --no-ext-diff/--no-textconv: the repo's config must not make the diff run its commands.
+ * bigFileThreshold: xdiff loads both sides in memory, so a huge compressible blob must come out as binary.
  * Throws `OutputTooLarge` past `maxBytes`.
  */
 export function gitFileDiff(cwd: string, range: DiffRange, rel: string, maxBytes: number): string {
   return git(
     cwd,
-    ['--literal-pathspecs', 'diff', '--no-color', '--no-ext-diff', '--no-textconv', '--no-renames', '--submodule=short', '-U3', ...range.args, '--', rel],
-    range.config,
+    ['--literal-pathspecs', 'diff', '--no-color', '--no-ext-diff', '--no-textconv', '--no-renames', '--submodule=short', '--ignore-submodules=dirty', '-U3', ...range.args, '--', rel],
+    [['core.bigFileThreshold', '5m'], ...range.config],
     undefined,
     maxBytes,
   );
@@ -215,7 +249,8 @@ export function gitDirtyHashes(cwd: string, max = Infinity): Record<string, stri
   if (files.length > max) return undefined;
   const out: Record<string, string> = {};
   // A dirty submodule is listed as a folder; hash-object takes files only.
-  const present = files.filter((f) => !f.includes('\n') && lstatSync(join(cwd, f), { throwIfNoEntry: false })?.isFile() === true);
+  // hash-object --stdin-paths C-unquotes a line starting with `"`, so such names are not hashed
+  const present = files.filter((f) => !f.includes('\n') && !f.startsWith('"') && lstatSync(join(cwd, f), { throwIfNoEntry: false })?.isFile() === true);
   const hashes = present.length
     ? git(cwd, ['hash-object', '--no-filters', '--stdin-paths'], [], present.join('\n')).trim().split('\n')
     : [];

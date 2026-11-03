@@ -1,6 +1,7 @@
-import { join, resolve } from 'node:path';
+import { realpathSync } from 'node:fs';
+import { dirname, join, resolve, sep } from 'node:path';
 import { readRegularFile } from '../read-regular.js';
-import { gitFileDiff, gitUntracked, OutputTooLarge, type DiffRange } from '../rules/git-files.js';
+import { gitBlob, gitBlobSizes, gitFileDiff, gitUntracked, OutputTooLarge, type DiffRange } from '../rules/git-files.js';
 import type { Spec } from '../spec/schema.js';
 import { IN_DIFF, repoPath, type Diff } from './check.js';
 
@@ -78,12 +79,80 @@ function untrackedDiff(root: string, rel: string, max: number): string | { note:
   return `@@ -0,0 +1,${lines.length} @@\n${lines.map((l) => `+${l}`).join('\n')}`;
 }
 
-/** Reads at most `min(5 MB, left)` bytes of diff. */
-function fileDiff(root: string, range: DiffRange, rel: string, left: number): string | { note: string } {
-  const max = Math.min(MAX_BYTES, left);
+const SECRET = { note: 'not shown: looks like a secret' };
+const SECRET_NAME = /^(\.env(\..*)?|.*\.(pem|key|p12|pfx)|id_(rsa|dsa|ecdsa|ed25519).*|\.npmrc|\.netrc|\.pypirc|.*credentials.*)$/i;
+const ENV_TEMPLATE = /^\.env\.(example|sample|template)$/i;
+const PRIVATE_KEY = /-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----/;
+
+const looksSecret = (rel: string) => {
+  const name = rel.slice(rel.lastIndexOf('/') + 1);
+  return SECRET_NAME.test(name) && !ENV_TEMPLATE.test(name);
+};
+
+const insideRoot = (root: string, path: string) => {
   try {
+    const dir = realpathSync(dirname(path));
+    const top = realpathSync(root);
+    return dir === top || dir.startsWith(top + sep);
+  } catch {
+    return false;
+  }
+};
+
+/** Bytes a render may still read, whole files and diffs together. */
+interface Budget {
+  left: number;
+}
+
+/**
+ * The file on each side of the diff, whole: a key edited in the middle leaves its BEGIN line outside the hunk.
+ * Sizes are checked before reading: a `diff` attribute would make git diff a big file as text anyway.
+ */
+function sides(root: string, range: DiffRange, rel: string, budget: Budget): string[] | { note: string } {
+  const take = (size: number) => {
+    if (size > MAX_BYTES) return TOO_LARGE;
+    if (size > budget.left) return OVER_BUDGET;
+    budget.left -= size;
+    return undefined;
+  };
+  const texts: string[] = [];
+  const sizes = gitBlobSizes(root, range.revs, rel);
+  for (const [i, size] of sizes.entries()) {
+    if (size === undefined) continue;
+    const note = take(size);
+    if (note) return { note };
+    texts.push(gitBlob(root, range.revs[i]!, rel));
+  }
+  const path = join(root, rel);
+  if (!range.worktree || !insideRoot(root, path)) return texts;
+  let note: string | undefined;
+  try {
+    const text = readRegularFile(path, (st) => st.isFile() && !(note = take(st.size)));
+    if (note) return { note };
+    if (text !== undefined) texts.push(text);
+  } catch {
+    // deleted, or not a regular file: git has nothing to show from it either
+  }
+  return texts;
+}
+
+/** Reads at most `min(5 MB, budget)` bytes of diff, after both sides' files. */
+function fileDiff(root: string, range: DiffRange, rel: string, budget: Budget): string | { note: string } {
+  if (looksSecret(rel)) return SECRET;
+  if (rel.includes('\n')) return { note: 'not shown: the file name has a line break' };
+  let max = MAX_BYTES;
+  try {
+    const files = sides(root, range, rel, budget);
+    if (!Array.isArray(files)) return files;
+    if (files.some((t) => PRIVATE_KEY.test(t))) return SECRET;
+    max = Math.min(MAX_BYTES, budget.left);
+    if (max <= 0) return { note: OVER_BUDGET };
     const text = gitFileDiff(root, range, rel, max);
-    return text === '' && range.worktree && gitUntracked(root, rel) ? untrackedDiff(root, rel, max) : text;
+    const shown = text === '' && range.worktree && gitUntracked(root, rel) ? untrackedDiff(root, rel, max) : text;
+    if (typeof shown !== 'string') return shown;
+    budget.left -= Buffer.byteLength(shown);
+    // a working-tree-encoding file reads as raw bytes above; git decodes it for the diff
+    return PRIVATE_KEY.test(shown) ? SECRET : shown;
   } catch (e) {
     if (e instanceof OutputTooLarge) return { note: max < MAX_BYTES ? OVER_BUDGET : TOO_LARGE };
     return { note: `diff not read (${(e as Error).message})` };
@@ -99,7 +168,7 @@ export function nodePreviews(spec: Spec, root: string, diff: Diff, range: DiffRa
   const out = new Map<string, Preview>();
   if (spec.kind !== 'summary') return out;
   const byFile = new Map<string, Preview | undefined>();
-  let left = MAX_TOTAL_BYTES;
+  const budget: Budget = { left: MAX_TOTAL_BYTES };
   for (const node of spec.nodes) {
     if (node.path === undefined || !IN_DIFF.has(node.status)) continue;
     const at = found.get(node.id);
@@ -107,8 +176,7 @@ export function nodePreviews(spec: Spec, root: string, diff: Diff, range: DiffRa
     const rel = candidates.find((p) => diff.hasFile(p));
     if (rel === undefined) continue;
     if (!byFile.has(rel)) {
-      const text = left > 0 ? fileDiff(root, range, rel, left) : { note: OVER_BUDGET };
-      if (typeof text === 'string') left -= Buffer.byteLength(text);
+      const text = budget.left > 0 ? fileDiff(root, range, rel, budget) : { note: OVER_BUDGET };
       byFile.set(rel, typeof text !== 'string' ? { path: rel, lines: [], shown: 0, total: 0, note: text.note } : text === '' ? undefined : parseDiff(rel, text));
     }
     const preview = byFile.get(rel);

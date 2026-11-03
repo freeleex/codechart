@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process';
 
 const ALLOWED = [
-  /^dist\/.+/,
+  /^dist\/cli\.js$/,
   /^skills\/codechart\/[^/]+\.md$/,
   /^templates\/.+/,
   /^config\.schema\.json$/,

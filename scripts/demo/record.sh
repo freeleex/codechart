@@ -9,7 +9,7 @@ mkdir -p "$work/pw"
 "$demo/make-repo.sh" "$work/shop"
 (cd "$work/shop" && DEMO_BIN="$demo" DEMO_HOME="$work" vhs "$demo/demo.tape" &>/dev/null)
 
-(cd "$work/pw" && npm init -y >/dev/null && npm i --silent playwright >/dev/null && npx playwright install chromium)
+(cd "$work/pw" && npm init -y >/dev/null && npm i --silent playwright@1.64.1 >/dev/null && npx playwright install chromium)
 cp "$demo/page.mjs" "$work/pw/"
 html="$(ls "$work"/.cache/codechart/shop-*/*.html | tail -1)"
 node "$work/pw/page.mjs" "$html" "$work/vid"

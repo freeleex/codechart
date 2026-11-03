@@ -1,4 +1,4 @@
-import { closeSync, fstatSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
+import { closeSync, fstatSync, lstatSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, unlinkSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { Argument, Command } from 'commander';
@@ -97,7 +97,8 @@ function snapshot(root: string): Snapshot | undefined {
 function prune(dir: string, now: number) {
   for (const f of readdirSync(dir)) {
     const p = join(dir, f);
-    if (now - statSync(p).mtimeMs > KEEP_DAYS * 86_400_000) unlinkSync(p);
+    const st = lstatSync(p);
+    if (st.isFile() && now - st.mtimeMs > KEEP_DAYS * 86_400_000) unlinkSync(p);
   }
 }
 

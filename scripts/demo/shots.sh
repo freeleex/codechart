@@ -94,7 +94,7 @@ render invites "$demo/specs/invite.flow.json" --git
 render invites "$demo/specs/invite-plan.flow.json"
 render infra "$demo/specs/infra.spec.json" --git
 
-(cd "$work/pw" && npm init -y >/dev/null && npm i --silent playwright >/dev/null && npx playwright install chromium)
+(cd "$work/pw" && npm init -y >/dev/null && npm i --silent playwright@1.64.1 >/dev/null && npx playwright install chromium)
 cp "$demo/shot.mjs" "$work/pw/"
 cache="$work/.cache/codechart"
 shot() { node "$work/pw/shot.mjs" "$@"; }
