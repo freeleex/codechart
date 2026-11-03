@@ -1,4 +1,4 @@
-<h1 align="center">codechart</h1>
+<h1 align="center"><img src="docs/images/logo.svg" alt="" width="40" height="40" align="top"> codechart</h1>
 
 <p align="center">
   <b>See the shape of a change before you read it.</b><br>
@@ -15,6 +15,10 @@
 
 <p align="center">
   <a href="#install">Install</a> · <a href="#what-you-get">What you get</a> · <a href="#why-you-can-trust-the-diagram">Trust</a> · <a href="#cost">Cost</a> · <a href="#configure">Configure</a> · <a href="#faq">FAQ</a>
+</p>
+
+<p align="center">
+  <img src="docs/images/demo.gif" alt="An agent finishes a change and its reply starts with a map of it; the full page shows each node's diff" width="960">
 </p>
 
 ---

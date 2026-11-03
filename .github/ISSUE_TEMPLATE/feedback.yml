@@ -1,0 +1,20 @@
+name: Feedback
+description: Something annoyed you, confused you, or worked well
+title: "Feedback: "
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What were you doing, and what did codechart draw (or not draw)? A screenshot or the map text helps.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What would you have wanted instead?
+  - type: input
+    id: agent
+    attributes:
+      label: Agent and codechart version
+      placeholder: Claude Code 2.x, codechart 0.3.0
