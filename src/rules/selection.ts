@@ -51,12 +51,14 @@ export function diffRange(root: string, o: GitSelection): DiffRange {
   const config = repoDiffOverrides(root);
   if (o.commit !== undefined) {
     const sha = resolveCommit(root, '--commit', o.commit);
-    return { args: [gitParent(root, sha) ?? gitEmptyTree(root), sha], worktree: false, config };
+    const parent = gitParent(root, sha) ?? gitEmptyTree(root);
+    return { args: [parent, sha], revs: [parent, sha], worktree: false, config };
   }
   if (o.since !== undefined && !o.git) {
-    return { args: [`${o.since}...${o.head ?? 'HEAD'}`], worktree: false, config };
+    const head = resolveCommit(root, '--head', o.head ?? 'HEAD');
+    return { args: [`${o.since}...${head}`], revs: [gitMergeBase(root, o.since, head), head], worktree: false, config };
   }
   const from = o.since !== undefined ? gitMergeBase(root, o.since) : (gitHead(root) ?? gitEmptyTree(root));
   // Diffing working-tree files runs the repo's clean filters, as status would.
-  return { args: [from], worktree: true, config: [...config, ...repoFilterOverrides(root)] };
+  return { args: [from], revs: [from], worktree: true, config: [...config, ...repoFilterOverrides(root)] };
 }

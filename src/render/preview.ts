@@ -1,6 +1,7 @@
-import { join, resolve } from 'node:path';
+import { realpathSync } from 'node:fs';
+import { dirname, join, resolve, sep } from 'node:path';
 import { readRegularFile } from '../read-regular.js';
-import { gitFileDiff, gitUntracked, OutputTooLarge, type DiffRange } from '../rules/git-files.js';
+import { gitBlob, gitBlobSizes, gitFileDiff, gitUntracked, OutputTooLarge, type DiffRange } from '../rules/git-files.js';
 import type { Spec } from '../spec/schema.js';
 import { IN_DIFF, repoPath, type Diff } from './check.js';
 
@@ -88,14 +89,52 @@ const looksSecret = (rel: string) => {
   return SECRET_NAME.test(name) && !ENV_TEMPLATE.test(name);
 };
 
+const insideRoot = (root: string, path: string) => {
+  try {
+    const dir = realpathSync(dirname(path));
+    const top = realpathSync(root);
+    return dir === top || dir.startsWith(top + sep);
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * The file on each side of the diff, whole: a key edited in the middle leaves its BEGIN line outside the hunk.
+ * undefined: a side is over 5 MB (a `diff` attribute would make git diff it as text anyway).
+ */
+function sides(root: string, range: DiffRange, rel: string): string[] | undefined {
+  const texts: string[] = [];
+  const sizes = gitBlobSizes(root, range.revs, rel);
+  for (const [i, size] of sizes.entries()) {
+    if (size === undefined) continue;
+    if (size > MAX_BYTES) return undefined;
+    texts.push(gitBlob(root, range.revs[i]!, rel));
+  }
+  const path = join(root, rel);
+  if (!range.worktree || !insideRoot(root, path)) return texts;
+  let size = 0;
+  try {
+    const text = readRegularFile(path, (st) => st.isFile() && (size = st.size) <= MAX_BYTES);
+    if (size > MAX_BYTES) return undefined;
+    if (text !== undefined) texts.push(text);
+  } catch {
+    // deleted, or not a regular file: git has nothing to show from it either
+  }
+  return texts;
+}
+
 /** Reads at most `min(5 MB, left)` bytes of diff. */
 function fileDiff(root: string, range: DiffRange, rel: string, left: number): string | { note: string } {
   if (looksSecret(rel)) return SECRET;
+  if (rel.includes('\n')) return { note: 'not shown: the file name has a line break' };
   const max = Math.min(MAX_BYTES, left);
   try {
+    const files = sides(root, range, rel);
+    if (!files) return { note: TOO_LARGE };
+    if (files.some((t) => PRIVATE_KEY.test(t))) return SECRET;
     const text = gitFileDiff(root, range, rel, max);
-    const shown = text === '' && range.worktree && gitUntracked(root, rel) ? untrackedDiff(root, rel, max) : text;
-    return typeof shown === 'string' && PRIVATE_KEY.test(shown) ? SECRET : shown;
+    return text === '' && range.worktree && gitUntracked(root, rel) ? untrackedDiff(root, rel, max) : text;
   } catch (e) {
     if (e instanceof OutputTooLarge) return { note: max < MAX_BYTES ? OVER_BUDGET : TOO_LARGE };
     return { note: `diff not read (${(e as Error).message})` };

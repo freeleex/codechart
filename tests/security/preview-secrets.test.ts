@@ -62,4 +62,42 @@ describe('S-34 secret files in the preview', () => {
     writeFileSync(join(repo, 'k.txt'), 'one\n-----BEGIN RSA PRIVATE KEY-----\n');
     expect(previewOf('k.txt')?.note).toBe('not shown: looks like a secret');
   });
+
+  it('hides an edit deep inside a key block, with BEGIN outside the hunk', () => {
+    const body = Array.from({ length: 20 }, (_, i) => `KEYLINE${i}`);
+    const key = (lines: string[]) => `-----BEGIN OPENSSH PRIVATE KEY-----\n${lines.join('\n')}\n-----END OPENSSH PRIVATE KEY-----\n`;
+    writeFileSync(join(repo, 'notes.txt'), key(body));
+    git('add', '-A');
+    git('commit', '-q', '-m', 'k');
+    writeFileSync(join(repo, 'notes.txt'), key(body.map((l, i) => (i === 10 ? 'EDITED' : l))));
+    expect(git('diff', '-U3', '--', 'notes.txt')).not.toContain('BEGIN');
+    expect(previewOf('notes.txt')).toMatchObject({ note: 'not shown: looks like a secret', lines: [] });
+  });
+
+  it('hides an edit deep inside a key block in a commit', () => {
+    const body = Array.from({ length: 20 }, (_, i) => `KEYLINE${i}`);
+    const key = (lines: string[]) => `-----BEGIN RSA PRIVATE KEY-----\n${lines.join('\n')}\n-----END RSA PRIVATE KEY-----\n`;
+    writeFileSync(join(repo, 'notes.txt'), key(body));
+    git('add', '-A');
+    git('commit', '-q', '-m', 'k');
+    writeFileSync(join(repo, 'notes.txt'), key(body.map((l, i) => (i === 10 ? 'EDITED' : l))));
+    git('commit', '-q', '-am', 'edit');
+    const spec: Spec = { title: 't', kind: 'summary', edges: [], nodes: [{ id: 'n', label: 'n', kind: 'file', layer: 'l', status: 'changed', path: 'notes.txt' }] };
+    const sel = { commit: 'HEAD' };
+    const p = nodePreviews(spec, repo, diffOf(gitFiles(repo, sel, true)), diffRange(repo, sel), checkMapNodes(spec, repo, {}).found).get('n');
+    expect(p?.note).toBe('not shown: looks like a secret');
+  });
+});
+
+describe('S-30 follow-up: a diff attribute does not lift the size cap', () => {
+  it('a big file marked `diff` in .gitattributes is not diffed', () => {
+    writeFileSync(join(repo, '.gitattributes'), '*.txt diff\n');
+    writeFileSync(join(repo, 'big.txt'), 'a\n'.repeat(3_000_000));
+    git('add', '-A');
+    git('commit', '-q', '-m', 'big');
+    writeFileSync(join(repo, 'big.txt'), `b\n${'a\n'.repeat(2_999_999)}`);
+    const p = previewOf('big.txt');
+    expect(p?.note).toBe('diff is too large (over 5 MB)');
+    expect(p?.lines).toEqual([]);
+  });
 });

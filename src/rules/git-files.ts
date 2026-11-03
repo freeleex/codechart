@@ -148,11 +148,27 @@ export function gitMergeBase(cwd: string, base: string, head = 'HEAD'): string {
   return git(cwd, ['merge-base', base, head]).trim();
 }
 
-/** What a file diff compares: `args` are the revisions; `worktree`: the working tree is the new side. */
+/** What a file diff compares: `args` are the revisions; `revs`: the commits on its sides; `worktree`: the working tree is the new side. */
 export interface DiffRange {
   args: string[];
+  revs: string[];
   worktree: boolean;
   config: [string, string][];
+}
+
+/** Size of `rel` at each of `revs`; undefined where it is not a blob. `rel` must not hold a newline. */
+export function gitBlobSizes(cwd: string, revs: string[], rel: string): (number | undefined)[] {
+  if (!revs.length) return [];
+  const out = git(cwd, ['cat-file', '--batch-check'], [], revs.map((r) => `${r}:${rel}\n`).join('')).split('\n');
+  return revs.map((_, i) => {
+    const m = /^[0-9a-f]+ blob (\d+)$/.exec(out[i] ?? '');
+    return m ? Number(m[1]) : undefined;
+  });
+}
+
+/** `rel`'s content at `rev`, unfiltered. */
+export function gitBlob(cwd: string, rev: string, rel: string): string {
+  return git(cwd, ['cat-file', 'blob', `${rev}:${rel}`]);
 }
 
 /**

@@ -34,7 +34,7 @@ describe('S-30 big files in the preview diff', () => {
     writeFileSync(join(repo, 'big.txt'), 'b\n'.repeat(3_000_000));
     const second = commit('two');
     const t = Date.now();
-    const text = gitFileDiff(repo, { args: [first, second], worktree: false, config: [] }, 'big.txt', 100 * 1024 * 1024);
+    const text = gitFileDiff(repo, { args: [first, second], revs: [first, second], worktree: false, config: [] }, 'big.txt', 100 * 1024 * 1024);
     expect(text).toMatch(/^Binary files .* differ$/m);
     expect(Date.now() - t).toBeLessThan(5000);
   });
@@ -49,7 +49,7 @@ describe('S-31 core.worktree in the checkout config', () => {
     mkdirSync(join(elsewhere, '.ssh'), { recursive: true });
     writeFileSync(join(elsewhere, '.ssh', 'id_ed25519'), 'TOP-SECRET-KEY\n');
     git('config', 'core.worktree', elsewhere);
-    const text = gitFileDiff(repo, { args: ['HEAD'], worktree: true, config: [] }, '.ssh/id_ed25519', 1024 * 1024);
+    const text = gitFileDiff(repo, { args: ['HEAD'], revs: ['HEAD'], worktree: true, config: [] }, '.ssh/id_ed25519', 1024 * 1024);
     expect(text).not.toContain('TOP-SECRET-KEY');
   });
 });
@@ -74,7 +74,7 @@ describe('S-32 filters of a nested repo', () => {
     utimesSync(join(sub, 'f.txt'), later, later);
 
     gitChangedFiles(repo);
-    gitFileDiff(repo, { args: ['HEAD'], worktree: true, config: [] }, 'sub', 1024 * 1024);
+    gitFileDiff(repo, { args: ['HEAD'], revs: ['HEAD'], worktree: true, config: [] }, 'sub', 1024 * 1024);
     expect(existsSync(marker)).toBe(false);
 
     subGit('config', '--unset', 'filter.evil.clean');
