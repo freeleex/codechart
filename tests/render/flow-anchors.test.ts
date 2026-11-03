@@ -55,11 +55,8 @@ describe('checkFlowAnchors', () => {
     expect(errorsOf(spec('src/nope.ts:1'))).toEqual([`steps[0].source: src/nope.ts:1 not found (file does not exist; repo root is ${repo})`]);
   });
 
-  it('reports each anchor into the same missing file by its own source', () => {
-    expect(errorsOf(spec('src/nope.ts:1', 'src/nope.ts:2'))).toEqual([
-      `steps[0].source: src/nope.ts:1 not found (file does not exist; repo root is ${repo})`,
-      `links[0].source: src/nope.ts:2 not found (file does not exist; repo root is ${repo})`,
-    ]);
+  it('names a missing file once when two anchors share it', () => {
+    expect(errorsOf(spec('src/nope.ts:1', 'src/nope.ts:2'))).toEqual([`src/nope.ts: file does not exist (repo root is ${repo}); used by steps[0].source, links[0].source`]);
   });
 
   it('says a file shared by three or more anchors is missing once, with the steps and links using it', () => {

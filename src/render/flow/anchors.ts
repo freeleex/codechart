@@ -299,9 +299,9 @@ export function checkFlowAnchors(spec: FlowSpec, root: string, at?: string, cwd?
   spec.steps.forEach((step, i) => check('steps', i, step, (s) => snippets.steps.set(step.id, s)));
   spec.links.forEach((link, i) => check('links', i, link, (s) => (snippets.links[i] = s)));
 
-  // Each repeat of the repo-root sentence costs tokens, so a file three or more anchors share is said once.
+  // Each repeat of the repo-root sentence costs tokens, so a file two or more anchors share is said once.
   for (const [path, g] of gone) {
-    if (g.uses.length < 3) continue;
+    if (g.uses.length < 2) continue;
     const used = ['steps', 'links'].flatMap((group) => {
       const idx = g.uses.filter((u) => u.group === group).map((u) => u.i);
       return idx.length ? [indexList(group, idx)] : [];

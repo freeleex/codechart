@@ -73,7 +73,7 @@ Changed in the efficiency pass (render with a diff flag, `check`, flow errors):
 
 - Preview git calls batched. One `git diff` per node file plus `cat-file` size and blob calls per file (4 to 5 git processes per file) became one `git diff -- p1 p2 …` (500 paths per call), one `cat-file --batch-check` for all sizes, one `cat-file --batch` for the blobs that fit, one `ls-files --others` for empties. 100 changed node files: 1784 ms to 96 ms for the file list, range, check and previews together. Sections are matched to paths from the `diff --git a/P b/P` line (`--no-renames` makes both sides equal, so spaces, `->` and unicode split cleanly); names git would quote (quotes, backslash, control characters) and anything unmatched diff file by file. Per-file 5 MB cap, 25 MB budget (charged in node order) and secret checks are unchanged; files with a side over 5 MB are not diffed in the batch.
 - Repo `filter.*`/`diff.*` config read once per repo instead of three times per `render --git` (about 6 ms each, so about 12 ms).
-- Flow anchors: a file missing for 3 or more anchors is reported once, `app/x.py: file does not exist (repo root is …); used by steps[0..8].source`. Nine steps on one file: 810 to 89 characters in the test repo (the repeated repo-root sentence dominates with long paths).
+- Flow anchors: a file missing for 2 or more anchors is reported once, `app/x.py: file does not exist (repo root is …); used by steps[0..8].source`. Nine steps on one file: 810 to 89 characters in the test repo (the repeated repo-root sentence dominates with long paths).
 - `check` JSON: one line per `pathMatches` entry and short array, top level indented. 8 files over 2 matches: 714 to 525 characters (-26%).
 
 Considered and dropped:
