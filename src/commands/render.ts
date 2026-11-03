@@ -20,6 +20,7 @@ import type { RenderContext } from './choose-output.js';
 import { inCodeEditor, openInBrowser } from './open.js';
 import { renderFlow } from './render-flow.js';
 import { renderMap } from './render-map.js';
+import { readStdin } from './stdin.js';
 
 class InvalidSpec extends Error {
   constructor(readonly errors: string[]) {
@@ -28,17 +29,6 @@ class InvalidSpec extends Error {
 }
 
 const TOO_BIG = 'spec is larger than 2 MB';
-
-async function readStdin(): Promise<string> {
-  const chunks: Buffer[] = [];
-  let size = 0;
-  for await (const chunk of process.stdin) {
-    size += (chunk as Buffer).length;
-    if (size > MAX_SPEC_BYTES) throw new Error(TOO_BIG);
-    chunks.push(chunk as Buffer);
-  }
-  return Buffer.concat(chunks).toString('utf8');
-}
 
 function readSpecFile(file: string): string {
   const fd = openSync(file, constants.O_RDONLY | (constants.O_NONBLOCK ?? 0));
@@ -117,7 +107,7 @@ function selectedDiff(o: RenderFlags, repoRoot: string | undefined, root: string
 }
 
 async function renderSpec(arg: string, o: RenderFlags, opts: CommandOptions, cwd: string): Promise<void> {
-  const spec = await readSpec(arg, cwd, opts.stdin ?? readStdin);
+  const spec = await readSpec(arg, cwd, opts.stdin ?? (() => readStdin(MAX_SPEC_BYTES, new Error(TOO_BIG))));
   const repoRoot = findRepoRoot(cwd);
   const root = repoRoot ?? resolve(cwd);
   const at = resolveAt(o, repoRoot, root);

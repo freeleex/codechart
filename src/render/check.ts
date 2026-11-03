@@ -47,29 +47,35 @@ type Problem = Pick<Mismatch, 'short' | 'detail'>;
 const inDiff = (c: AnchorCtx, path: string, diff: Diff) =>
   diff.has(repoPath(c.root, path)) || (c.cwd !== undefined && diff.has(repoPath(c.root, resolve(c.cwd, path))));
 
-function checkNode(c: AnchorCtx, spec: Spec, node: SpecNode & { path: string }, diff: Diff | undefined, result: MapCheck): Problem | undefined {
+interface NodeCheck {
+  problem?: Problem;
+  /** Where the node's file was found, repo-relative with `/`. */
+  found?: string;
+  match?: Snippet;
+}
+
+function checkNode(c: AnchorCtx, spec: Spec, node: SpecNode & { path: string }, diff: Diff | undefined): NodeCheck {
   const needed = mustExist(spec, node);
   const where = locate(c, node.path);
-  if ('error' in where) return { short: 'file unreadable', detail: where.error };
-  if (where.found) result.found.set(node.id, repoPath(c.root, where.path));
+  if ('error' in where) return { problem: { short: 'file unreadable', detail: where.error } };
+  const found = where.found ? repoPath(c.root, where.path) : undefined;
   if (!where.found && needed) {
     const at = c.at ? ` at ${c.at.slice(0, 12)}` : '';
-    return { short: 'file missing', detail: `${node.path} does not exist${at}${likelyPath(c, node.path)}` };
+    return { problem: { short: 'file missing', detail: `${node.path} does not exist${at}${likelyPath(c, node.path)}` } };
   }
   if (diff && spec.kind === 'summary' && IN_DIFF.has(node.status) && !inDiff(c, where.path, diff)) {
-    return { short: 'not in diff', detail: `marked ${node.status}, but ${where.path} isn't in the diff` };
+    return { found, problem: { short: 'not in diff', detail: `marked ${node.status}, but ${where.path} isn't in the diff` } };
   }
-  if (node.match === undefined || !needed || !where.found) return undefined;
+  if (node.match === undefined || !needed || !where.found) return { found };
   const loaded = load(c, where.path);
   if (loaded.lines === null || !Array.isArray(loaded.lines)) {
-    return { short: 'file unreadable', detail: loaded.lines?.error ?? `${where.path} does not exist` };
+    return { found, problem: { short: 'file unreadable', detail: loaded.lines?.error ?? `${where.path} does not exist` } };
   }
   const r = findMatch(loaded.path, node.match, loaded.lines);
   if ('error' in r) {
-    return { short: r.error.endsWith(` not found in ${loaded.path}`) ? 'match not found' : 'match on several lines', detail: r.error };
+    return { found, problem: { short: r.error.endsWith(` not found in ${loaded.path}`) ? 'match not found' : 'match on several lines', detail: r.error } };
   }
-  result.matches.set(node.id, r.snippet);
-  return undefined;
+  return { found, match: r.snippet };
 }
 
 /** Checks each node with a `path` against the files (at `at`, or the working tree) and, given a diff, a summary's changes against it. */
@@ -79,7 +85,9 @@ export function checkMapNodes(spec: Spec, root: string, opts: CheckOptions = {})
   for (const node of spec.nodes) {
     if (node.path === undefined) continue;
     result.checked++;
-    const problem = checkNode(c, spec, { ...node, path: node.path }, opts.diff, result);
+    const { problem, found, match } = checkNode(c, spec, { ...node, path: node.path }, opts.diff);
+    if (found) result.found.set(node.id, found);
+    if (match) result.matches.set(node.id, match);
     if (problem) result.mismatches.push({ id: node.id, label: plainLabel(node), ...problem });
   }
   return result;

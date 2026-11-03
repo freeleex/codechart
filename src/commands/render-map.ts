@@ -3,7 +3,6 @@ import { fullMapLine, KEY, renderTerminalDetailed } from '../render/terminal/ren
 import { alertLine } from '../render/terminal/check-lines.js';
 import { selectTerminalNodes } from '../render/terminal/select.js';
 import { markdownBlock } from '../render/markdown.js';
-import { needsWeb } from '../render/output-path.js';
 import { nodePreviews } from '../render/preview.js';
 import { renderHtml } from '../render/web/html.js';
 import { layoutSpec, PANE_CANVASES } from '../render/web/layout.js';
@@ -16,6 +15,9 @@ function markdown(map: string | undefined, htmlPath: string | undefined, alert: 
   const body = map !== undefined && htmlPath ? map.split('\n').filter((l) => l !== fullMapLine(htmlPath)).join('\n') : map;
   return markdownBlock(`**Map** _(${KEY})_`, body ?? (alert || undefined), htmlPath);
 }
+
+// Now and After side by side exist only in the HTML.
+const needsWeb = (spec: Spec, hidden: number, minNodes: number): boolean => hidden > 0 || spec.nodes.length >= minNodes || hasNowAfter(spec);
 
 export async function renderMap(spec: Spec, ctx: RenderContext): Promise<Rendered> {
   const { root, diff } = ctx;

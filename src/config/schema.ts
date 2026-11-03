@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { oneLine } from '../spec/shared.js';
+import { formatIssues } from '../spec/shared.js';
 
 const OUTPUTS = ['auto', 'cli', 'web', 'both', 'none'] as const;
 const CONTEXT_MODES = ['short', 'full'] as const;
@@ -92,22 +92,8 @@ export function configJsonSchema(): object {
   return z.toJSONSchema(configFileSchema, { io: 'input' });
 }
 
-function formatPath(path: PropertyKey[]): string {
-  if (path.length === 0) return '$';
-  return path.reduce<string>((acc, seg) => {
-    if (typeof seg === 'number') return `${acc}[${seg}]`;
-    const s = String(seg);
-    return acc ? `${acc}.${s}` : s;
-  }, '');
-}
-
 export function parseConfigFile(input: unknown): { ok: true; config: ConfigFile } | { ok: false; errors: string[] } {
   const result = configFileSchema.safeParse(input ?? {});
   if (result.success) return { ok: true, config: result.data };
-  return {
-    ok: false,
-    errors: result.error.issues.map(
-      (i) => `${formatPath(i.path)}: ${oneLine(i.message)}`,
-    ),
-  };
+  return { ok: false, errors: formatIssues(result.error) };
 }

@@ -45,7 +45,7 @@ function formatPath(path: PropertyKey[]): string {
   }, '');
 }
 
-export const oneLine = (s: string): string =>
+const oneLine = (s: string): string =>
   s.split('\n').map((l) => l.trim()).join(' ');
 
 export function formatIssues(error: z.ZodError): string[] {

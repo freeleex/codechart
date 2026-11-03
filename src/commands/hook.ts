@@ -5,6 +5,7 @@ import { Argument, Command } from 'commander';
 import { findRepoRoot } from '../config/load.js';
 import type { CommandOptions } from '../program.js';
 import { gitDiffFiles, gitDirtyHashes, gitHead, gitListFiles } from '../rules/git-files.js';
+import { readStdin } from './stdin.js';
 
 const MIN_FILES = 3;
 const MAX_INPUT = 1024 * 1024;
@@ -75,18 +76,9 @@ function readTail(file: string, max: number): string {
 
 async function readInput(stdin: () => Promise<string>): Promise<Record<string, unknown>> {
   const text = await stdin();
-  if (text.length > MAX_INPUT) return {};
+  if (Buffer.byteLength(text) > MAX_INPUT) return {};
   const v: unknown = JSON.parse(text);
   return typeof v === 'object' && v !== null ? (v as Record<string, unknown>) : {};
-}
-
-async function readStdin(): Promise<string> {
-  let text = '';
-  for await (const chunk of process.stdin) {
-    text += String(chunk);
-    if (text.length > MAX_INPUT) break;
-  }
-  return text;
 }
 
 function snapshot(root: string): Snapshot | undefined {
@@ -140,7 +132,7 @@ function onStop({ root, file, input }: Turn): string | undefined {
 }
 
 async function runHook(event: 'prompt' | 'stop', opts: CommandOptions): Promise<void> {
-  const input = await readInput(opts.stdin ?? readStdin);
+  const input = await readInput(opts.stdin ?? (() => readStdin(MAX_INPUT, 'stop')));
   const id = input.session_id;
   const cwd = input.cwd;
   if (typeof id !== 'string' || !SESSION_ID.test(id) || typeof cwd !== 'string') return;
