@@ -144,7 +144,10 @@ describe('gitFileDiffs', () => {
     for (const r of rels) write(r, `${'x'.repeat(200)}\n`);
     const one = gitFileDiffs(repo, range(), rels.slice(0, 500), 50 * 1024 * 1024)!;
     const firstChunk = [...one.values()].reduce((n, t) => n + Buffer.byteLength(t), 0);
-    expect(gitFileDiffs(repo, range(), rels, firstChunk + 100)).toBeUndefined();
+    // the first chunk uses up the limit, so the second is refused before git runs (a killed git holds the folder on Windows)
+    calls.list.length = 0;
+    expect(gitFileDiffs(repo, range(), rels, firstChunk)).toBeUndefined();
+    expect(countOf('diff')).toBe(1);
   });
 
   it('splits requested paths across several calls', () => {
