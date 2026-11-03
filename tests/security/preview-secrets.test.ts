@@ -89,6 +89,34 @@ describe('S-34 secret files in the preview', () => {
   });
 });
 
+describe('S-34 follow-up: encoded files and the read budget', () => {
+  it('hides a key in a UTF-16 working-tree-encoding file (git decodes it, the raw read does not)', () => {
+    writeFileSync(join(repo, '.gitattributes'), 'notes.txt working-tree-encoding=UTF-16LE\n');
+    const key = '-----BEGIN RSA PRIVATE KEY-----\nabc\n-----END RSA PRIVATE KEY-----\n';
+    writeFileSync(join(repo, 'notes.txt'), Buffer.from(key, 'utf16le'));
+    git('add', '-A');
+    expect(previewOf('notes.txt')?.note).toBe('not shown: looks like a secret');
+  });
+
+  it('whole-file reads count against the 25 MB render budget', () => {
+    const files = ['a.txt', 'b.txt', 'c.txt'];
+    for (const f of files) writeFileSync(join(repo, f), 'a\n'.repeat(2_250_000));
+    git('add', '-A');
+    git('commit', '-q', '-m', 'big');
+    for (const f of files) writeFileSync(join(repo, f), `b\n${'a\n'.repeat(2_249_999)}`);
+    const spec: Spec = {
+      title: 't',
+      kind: 'summary',
+      edges: [],
+      nodes: files.map((f, i) => ({ id: `n${i}`, label: f, kind: 'file', layer: 'l', status: 'changed', path: f })),
+    };
+    const sel = { git: true };
+    const p = nodePreviews(spec, repo, diffOf(gitFiles(repo, sel, true)), diffRange(repo, sel), checkMapNodes(spec, repo, {}).found);
+    expect(p.get('n0')?.lines.length).toBeGreaterThan(0);
+    expect(p.get('n2')?.note).toBe('not shown: the diffs pass 25 MB together');
+  });
+});
+
 describe('S-30 follow-up: a diff attribute does not lift the size cap', () => {
   it('a big file marked `diff` in .gitattributes is not diffed', () => {
     writeFileSync(join(repo, '.gitattributes'), '*.txt diff\n');
