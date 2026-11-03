@@ -4,6 +4,7 @@ import type { Field, Spec, SpecEdge, SpecNode, Status } from '../../spec/schema.
 export type Side = 'now' | 'after';
 export const SIDES: readonly Side[] = ['now', 'after'];
 export const SIDE_TITLE: Record<Side, string> = { now: 'Now', after: 'After plan' };
+export const SIDE_KEY: Record<Side, string> = { now: 'red: removed by the plan', after: 'green: added by the plan' };
 
 /** A plan that only adds things gets one map: its Now side would show little but context. */
 export function hasNowAfter(spec: Spec): boolean {

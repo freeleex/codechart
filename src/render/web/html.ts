@@ -5,7 +5,11 @@ import { codeRow, pathHtml, snippetHtml } from '../flow/html.js';
 import type { Preview } from '../preview.js';
 import { checkNote, checkSection, flagMark, isFlagged, mismatchNote } from './check-html.js';
 import { esc, list, midpoint, num, renderPage, type HtmlMeta } from './page.js';
-import { edgeChange, edgeOn, fieldsOn, hasNowAfter, nodeOn, SIDE_TITLE, SIDES, type Side } from './states.js';
+import { edgeChange, edgeOn, fieldsOn, hasNowAfter, nodeOn, SIDE_KEY, SIDE_TITLE, SIDES, type Side } from './states.js';
+
+const CHANGE_ARROWS = ['added', 'removed']
+  .map((c) => `<marker id="arrow-${c}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z"/></marker>`)
+  .join('');
 
 export { esc, type Theme } from './page.js';
 
@@ -25,7 +29,7 @@ function fieldText(f: Field): string {
 function renderEdge(e: LayoutEdge, change: SpecEdge['change']): string {
   if (e.points.length < 2) return '';
   const d = e.points.map((p, i) => `${i ? 'L' : 'M'}${num(p.x)},${num(p.y)}`).join(' ');
-  let out = `<path d="${d}" marker-end="url(#arrow)"/>`;
+  let out = `<path d="${d}" marker-end="url(#arrow${change ? `-${change}` : ''})"/>`;
   if (e.label) {
     const m = midpoint(e.points);
     const w = e.label.length * 5.6 + 6;
@@ -161,7 +165,10 @@ export function renderHtml(spec: Spec, layout: Layout, meta: HtmlMeta, check?: M
     infoButton,
     headerNote: checkNote(check),
     viewport: sides ? '' : viewport(spec, layout, check),
-    ...(sides ? { panes: SIDES.map((side) => ({ title: SIDE_TITLE[side], viewport: viewport(spec, layout, check, side) })) } : {}),
+    ...(sides
+      ? { panes: SIDES.map((side) => ({ title: SIDE_TITLE[side], key: SIDE_KEY[side], viewport: viewport(spec, layout, check, side) })) }
+      : {}),
+    extraDefs: CHANGE_ARROWS,
     aside: `${pageInfo(spec, check, sides)}<div id="panel" hidden></div>${spec.nodes.map((n) => cardPanel(n, check, previews, sides)).join('')}`,
     width: layout.width,
     height: layout.height,

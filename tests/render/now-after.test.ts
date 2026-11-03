@@ -92,7 +92,7 @@ describe('Now and After HTML', () => {
   });
 
   it('draws a Now and an After pane with their own nodes', () => {
-    expect(panes().map((p) => p.querySelector('.pane-title')?.textContent)).toEqual(['Now', 'After plan']);
+    expect(panes().map((p) => p.querySelector('.pane-title')?.firstChild?.textContent)).toEqual(['Now', 'After plan']);
     expect(ids(panes()[0]!)).toEqual(['users', 'legacy', 'api', 'svc']);
     expect(ids(panes()[1]!)).toEqual(['users', 'teams', 'api', 'svc']);
   });
@@ -100,6 +100,16 @@ describe('Now and After HTML', () => {
   it('a node sits at the same place in both panes', () => {
     const rect = (pane: Element) => pane.querySelector('.node[data-id="users"] .card')!.outerHTML;
     expect(rect(panes()[0]!)).toBe(rect(panes()[1]!));
+  });
+
+  it('each pane title says what its colour means', () => {
+    expect(panes().map((p) => p.querySelector('.pane-key')?.textContent)).toEqual([' · red: removed by the plan', ' · green: added by the plan']);
+  });
+
+  it('changed edges end in an arrow of their colour', () => {
+    expect(panes()[0]!.querySelector('.edge-removed path')!.getAttribute('marker-end')).toBe('url(#arrow-removed)');
+    expect(panes()[1]!.querySelector('.edge-added path')!.getAttribute('marker-end')).toBe('url(#arrow-added)');
+    expect(document.querySelectorAll('marker#arrow-added, marker#arrow-removed')).toHaveLength(2);
   });
 
   it('tints the edges each side loses or gains', () => {

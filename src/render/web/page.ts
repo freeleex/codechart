@@ -62,7 +62,7 @@ interface PageParts {
   headerNote?: string;
   viewport: string;
   /** Instead of `viewport`: canvases side by side that pan and zoom together. */
-  panes?: { title: string; viewport: string }[];
+  panes?: { title: string; key: string; viewport: string }[];
   aside: string;
   width: number;
   height: number;
@@ -80,7 +80,7 @@ export function renderPage(p: PageParts): string {
   const canvas = (viewport: string, i: number) =>
     `<div class="canvas"${p.panes ? '' : ' id="canvas"'}><svg>${i === 0 ? defs : ''}\n<g class="viewport">${viewport}</g></svg></div>`;
   const body = p.panes
-    ? `<div id="panes">${p.panes.map((pane, i) => `<section class="pane" aria-label="${esc(pane.title)}"><div class="pane-title">${esc(pane.title)}</div>${canvas(pane.viewport, i)}</section>`).join('')}</div>`
+    ? `<div id="panes">${p.panes.map((pane, i) => `<section class="pane" aria-label="${esc(pane.title)}"><div class="pane-title">${esc(pane.title)}<span class="pane-key"> · ${esc(pane.key)}</span></div>${canvas(pane.viewport, i)}</section>`).join('')}</div>`
     : canvas(p.viewport, 0);
   return `<!doctype html>
 <html lang="en" data-theme="${theme}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">

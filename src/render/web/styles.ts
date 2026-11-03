@@ -23,6 +23,7 @@ main{flex:1;display:flex;min-height:0}
 .pane+.pane{border-left:1px solid var(--line)}
 #panes~aside{width:clamp(200px,17.5vw,300px);min-width:200px}
 .pane-title{padding:4px 10px;font-size:11px;font-weight:600;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line)}
+.pane-key{font-weight:400;text-transform:none}.pane:first-child .pane-key{color:var(--rem)}.pane+.pane .pane-key{color:var(--new-t)}
 @media (max-width:900px){#panes{flex-direction:column}.pane+.pane{border-left:0;border-top:1px solid var(--line)}}
 aside{width:clamp(300px,35vw,600px);min-width:300px;max-width:80vw;border-left:1px solid var(--line);background:var(--panel);overflow:auto;padding:10px 14px}
 #resize{flex:none;width:5px;margin-right:-5px;position:relative;z-index:1;cursor:col-resize;touch-action:none}
@@ -46,8 +47,8 @@ header .check{font-size:11px;color:var(--new-t)}header .check.bad{color:var(--re
 .edge text{fill:var(--edge);font-size:9.5px;text-anchor:middle}
 .edge rect{fill:var(--bg);opacity:.9}
 #arrow path{fill:var(--edge)}
-.edge-added path{stroke:var(--new)}.edge-added text{fill:var(--new-t)}
-.edge-removed path{stroke:var(--rem);stroke-dasharray:5 3}.edge-removed text{fill:var(--rem)}
+.edge-added path{stroke:var(--new)}.edge-added text{fill:var(--new-t)}#arrow-added path{fill:var(--new)}
+.edge-removed path{stroke:var(--rem);stroke-dasharray:5 3}.edge-removed text{fill:var(--rem)}#arrow-removed path{fill:var(--rem);stroke:none}
 .node{cursor:pointer}
 .node .card{fill:var(--card);stroke:var(--line);stroke-width:1}
 .node .head{stroke:var(--line);stroke-width:1}
