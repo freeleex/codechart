@@ -8,6 +8,7 @@
 <p align="center">
   <a href="https://www.npmjs.com/package/codechart"><img alt="npm" src="https://img.shields.io/npm/v/codechart"></a>
   <a href="https://github.com/freeleex/codechart/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/freeleex/codechart/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://skills.sh/freeleex/codechart"><img alt="skills.sh" src="https://skills.sh/b/freeleex/codechart"></a>
   <img alt="Node 22.12+" src="https://img.shields.io/badge/node-%3E%3D22.12-339933">
   <a href="LICENSE"><img alt="MIT" src="https://img.shields.io/badge/license-MIT-blue"></a>
 </p>
@@ -107,6 +108,8 @@ That's it. Open your coding agent in any repo and try:
 ```
 
 Needs Node 22.12+. `install-skill` finds the agents you use and asks which ones get the skill. Existing installs are skipped (`--force` updates them). Skip the question with `--agent codex,gemini`, or use `--dir <skills folder>` for anything else.
+
+Already use the [skills CLI](https://skills.sh)? `npx skills add freeleex/codechart` installs the skill, but not the CLI it runs: add `npm i -g codechart` too. Pick one way to install the skill, so your agent doesn't load it twice.
 
 ### Optional: help agents remember it
 

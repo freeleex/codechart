@@ -9,7 +9,7 @@ Renders maps and flows from JSON specs you write, for a **plan** or **change sum
 
 A flow the user asked for ("show me the flow"): skip step 1, write a flow spec without `rules` (`summary`, unchanged code `existing`), render as in step 2 with `--output both`.
 
-Skip it for a trivial change (see description), a question not about code changes or behaviour, or if the user said no diagram. If `codechart` is "not found", say once "codechart is not installed, so no map" and go on; never install it.
+Skip it for a trivial change (see description), a question not about code changes or behaviour, or if the user said no diagram. If `codechart` is "not found", say once "the codechart CLI is not installed (`npm i -g codechart`), so no map" and go on; never install it.
 
 ## 1. Check
 
