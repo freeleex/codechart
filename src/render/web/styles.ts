@@ -28,7 +28,7 @@ main{flex:1;display:flex;min-height:0}
 aside{width:clamp(300px,35vw,600px);min-width:300px;max-width:80vw;border-left:1px solid var(--line);background:var(--panel);overflow:auto;padding:10px 14px}
 #resize{flex:none;width:5px;margin-right:-5px;position:relative;z-index:1;cursor:col-resize;touch-action:none}
 #resize:hover,#resize:focus-visible,#resize.drag{background:var(--edge);outline:none}
-aside h2{margin:0 0 6px;font-size:13px}
+aside h2{margin:0 0 6px;font-size:13px;overflow-wrap:anywhere}
 aside h3{margin:12px 0 4px;font-size:11px;text-transform:uppercase;color:var(--muted)}
 aside ul{margin:0;padding-left:18px}
 aside .fields-note{color:var(--muted);font-size:11.5px;font-style:italic;margin:6px 0 0}

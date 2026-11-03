@@ -1,5 +1,5 @@
 import type { Field, Spec, SpecEdge, SpecNode } from '../../spec/schema.js';
-import { wrapSummary, type Layout, type LayoutEdge } from './layout.js';
+import { headerHeight, LABEL_LINE_HEIGHT, labelLines, wrapSummary, type Layout, type LayoutEdge } from './layout.js';
 import type { MapCheck } from '../check.js';
 import { codeRow, pathHtml, snippetHtml } from '../flow/html.js';
 import type { Preview } from '../preview.js';
@@ -41,7 +41,8 @@ function renderNode(n: SpecNode, box: { x: number; y: number; w: number; h: numb
   const y = Math.round(box.y * 10) / 10;
   const w = box.w;
   const lines: string[] = [];
-  let row = 28;
+  const head = headerHeight(n.label);
+  let row = head;
   const text = (cls: string, s: string): void => {
     lines.push(`<text class="${cls}" x="${x + 8}" y="${y + row + 12}">${esc(s)}</text>`);
     row += 16;
@@ -55,8 +56,8 @@ function renderNode(n: SpecNode, box: { x: number; y: number; w: number; h: numb
   return (
     `<g class="node status-${n.status}" data-id="${esc(n.id)}" tabindex="0" role="button" aria-label="${esc(`${n.label} (${n.status}${flagged ? ", doesn't match the code" : ''})`)}">` +
     `<rect class="card" x="${x}" y="${y}" width="${w}" height="${height}" rx="6"/>` +
-    `<line class="head" x1="${x}" y1="${y + 28}" x2="${x + w}" y2="${y + 28}"/>` +
-    `<text class="label" x="${x + 8}" y="${y + 18}">${esc(clip(n.label, 22))}</text>` +
+    `<line class="head" x1="${x}" y1="${y + head}" x2="${x + w}" y2="${y + head}"/>` +
+    labelLines(n.label).map((l, i) => `<text class="label" x="${x + 8}" y="${y + 18 + i * LABEL_LINE_HEIGHT}">${esc(l)}</text>`).join('') +
     `<text class="badge" x="${x + w - 8}" y="${y + 18}">${esc(n.status)}</text>` +
     lines.join('') +
     (flagged ? flagMark(x + w, y) : '') +
@@ -92,7 +93,7 @@ function fieldsHtml(n: SpecNode, sides: boolean): string {
 }
 
 function cardPanel(n: SpecNode, check: MapCheck | undefined, previews: Map<string, Preview> | undefined, sides: boolean): string {
-  let out = `<h2>${esc(`${n.label} (${n.status} ${n.kind})`)}</h2>`;
+  let out = `<h2>${esc(`${n.label} (${n.kind === 'other' ? n.status : `${n.status} ${n.kind}`})`)}</h2>`;
   out += mismatchNote(check, n.id);
   const match = check?.matches.get(n.id);
   if (match) out += snippetHtml(match);
