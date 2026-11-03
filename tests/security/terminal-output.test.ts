@@ -1,9 +1,8 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { buildProgram, runProgram } from '../../src/program.js';
 import { validateSpec } from '../../src/spec/schema.js';
+import { makeSandbox, removeSandbox, runCli } from '../helpers/sandbox.js';
 
 const RAW = /[\u0000-\u0008\u000b-\u001f\u007f-\u009f​-‏‪-‮⁠-⁩﻿]/;
 const OSC = '\u001b]8;;https://evil\u0007x\u001b]8;;\u0007\u009b2J‮';
@@ -12,32 +11,13 @@ let tmp: string;
 let repo: string;
 
 beforeEach(() => {
-  tmp = mkdtempSync(join(tmpdir(), 'codechart-sec-'));
-  repo = join(tmp, 'repo');
-  mkdirSync(join(repo, '.git'), { recursive: true });
-  mkdirSync(join(tmp, 'home'));
-  process.exitCode = undefined;
+  ({ tmp, repo } = makeSandbox('sec', { git: 'dir' }));
 });
 
-afterEach(() => {
-  rmSync(tmp, { recursive: true, force: true });
-  process.exitCode = undefined;
-});
+afterEach(() => removeSandbox(tmp));
 
 async function run(args: string[], stdin = '') {
-  let out = '';
-  let err = '';
-  const program = buildProgram({
-    cwd: repo,
-    home: join(tmp, 'home'),
-    env: {},
-    stdout: (s) => (out += s),
-    stderr: (s) => (err += s),
-    stdin: async () => stdin,
-    isTTY: false,
-  });
-  await runProgram(program, args, 'user');
-  return { out, err, code: process.exitCode };
+  return runCli({ cwd: repo, home: join(tmp, 'home'), stdin: async () => stdin, isTTY: false }, args);
 }
 
 const rules = (name: string) => `rules:\n  - name: ${JSON.stringify(name)}\n    paths: [${JSON.stringify(`src/${name}/**`)}]\n`;

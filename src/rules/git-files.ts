@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- ratchet: grew past 250 in #24 (batched preview reads) before the gate; split those out when next touched */
 import { execFileSync } from 'node:child_process';
 import { existsSync, lstatSync } from 'node:fs';
 import { join, win32 } from 'node:path';

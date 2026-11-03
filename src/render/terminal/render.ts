@@ -1,7 +1,8 @@
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { Spec } from '../../spec/schema.js';
-import { flat, truncate, wrapItems, type Cuts } from './wrap.js';
+import type { TermCtx } from './ctx.js';
+import { flat, truncate, wrapItems } from './wrap.js';
 import { renderFieldLines } from './fields.js';
 import { selectTerminalNodes } from './select.js';
 import { marker, paint, plainLabel } from './labels.js';
@@ -35,7 +36,7 @@ export function defaultWidth(
   return Number.isFinite(fromEnv) && fromEnv > 0 && fromEnv <= MAX_ENV_WIDTH ? fromEnv : NOT_TTY_WIDTH;
 }
 
-function footer(spec: Spec, hidden: number, width: number, keyLine: boolean, htmlPath?: string, check?: CheckSummary): string {
+function footer(spec: Spec, hidden: number, { width, htmlPath, check }: TermCtx, keyLine: boolean): string {
   const count = (status: string) => spec.nodes.filter((n) => n.status === status).length;
   const removed = count('removed') > 0 ? ` · ${count('removed')} removed` : '';
   const lines = [
@@ -56,14 +57,14 @@ export function renderTerminal(spec: Spec, opts: TerminalOptions): string {
 
 /** `truncated`: a label, edge label, target, layer or field head was cut with `…`. */
 export function renderTerminalDetailed(spec: Spec, opts: TerminalOptions): { text: string; truncated: boolean } {
-  const cuts: Cuts = { truncated: false };
   const width = Math.max(opts.width ?? defaultWidth(), MIN_WIDTH);
+  const ctx: TermCtx = { width, color: opts.color, cuts: { truncated: false }, htmlPath: opts.htmlPath, check: opts.check };
   const { ids, hidden } = selectTerminalNodes(spec, opts.maxNodes);
 
   const sections: string[] = [];
   const alert = alertLine(opts.check, width);
   if (alert) sections.push(alert);
-  const links = renderLinks(spec, ids, width, opts.color, cuts);
+  const links = renderLinks(spec, ids, ctx);
   if (links) sections.push(links);
   const shown = new Set(linksAmong(spec, ids).flatMap((e) => [e.from, e.to]));
   const lone = spec.nodes.filter((n) => ids.has(n.id) && !shown.has(n.id));
@@ -73,9 +74,9 @@ export function renderTerminalDetailed(spec: Spec, opts: TerminalOptions): { tex
   }));
   if (items.length > 0) sections.push(wrapItems('also: ', items, width));
   if (!opts.htmlPath) {
-    const fields = renderFieldLines(spec, ids, width, opts.color, cuts);
+    const fields = renderFieldLines(spec, ids, ctx);
     if (fields) sections.push(fields);
   }
-  sections.push(footer(spec, hidden, width, opts.keyLine ?? true, opts.htmlPath, opts.check));
-  return { text: `${sections.join('\n\n')}\n`, truncated: cuts.truncated };
+  sections.push(footer(spec, hidden, ctx, opts.keyLine ?? true));
+  return { text: `${sections.join('\n\n')}\n`, truncated: ctx.cuts.truncated };
 }

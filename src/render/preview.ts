@@ -11,7 +11,7 @@ const MAX_LINES = 40;
 const MAX_BYTES = 5 * 1024 * 1024;
 const MAX_TOTAL_BYTES = 25 * 1024 * 1024;
 
-export interface PreviewLine {
+interface PreviewLine {
   kind: 'add' | 'del' | 'ctx' | 'hunk';
   /** New line number; the old one for a deleted line. */
   n?: number;

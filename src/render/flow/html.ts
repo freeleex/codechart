@@ -1,9 +1,10 @@
 import { isPlannedLink, isRemovedLink, type FlowLink, type FlowSpec, type FlowStep } from '../../spec/flow.js';
 import type { CheckSummary } from '../terminal/check-lines.js';
-import { checkNote, checkSection, flagMark, isFlagged, mismatchNote } from '../web/check-html.js';
-import { arrowMarker, CHANGE_ARROWS, esc, list, midpoint, num, renderPage, type HtmlMeta, type KeyPart } from '../web/page.js';
-import { SIDE_TITLE, SIDES, type Side } from '../web/states.js';
-import { hasFlowNowAfter, isAltered, linkOn, linkTone, stepOn } from './states.js';
+import { flagMark, isFlagged, mismatchNote } from '../web/check-html.js';
+import { infoButton, gapsHtml, pageInfoSection, renderDiagramPage, renderEdgeSvg } from '../web/diagram.js';
+import { arrowMarker, CHANGE_ARROWS, esc, num, type HtmlMeta } from '../web/page.js';
+import type { Side } from '../web/states.js';
+import { FLOW_SIDE_KEY, hasFlowNowAfter, isAltered, linkOn, linkTone, stepOn } from './states.js';
 import type { FlowSnippets, Snippet } from './anchors.js';
 import { BADGE_HEIGHT, LINE_HEIGHT, type FlowLayout, type FlowLayoutEdge, type FlowLayoutNode } from './layout.js';
 
@@ -70,17 +71,14 @@ function renderStep(step: FlowStep, b: FlowLayoutNode, flagged: boolean, side?: 
 }
 
 function renderLink(link: FlowLink, e: FlowLayoutEdge, tone: 'planned' | 'removed' | undefined): string {
-  if (e.points.length < 2) return '';
-  const d = e.points.map((p, i) => `${i ? 'L' : 'M'}${num(p.x)},${num(p.y)}`).join(' ');
-  let out = `<path d="${d}" marker-end="url(#arrow${tone ? `-${tone}` : ''})"/>`;
-  if (link.label) {
-    const m = e.labelAt ?? midpoint(e.points);
-    const w = link.label.length * 5.6 + 6;
-    out +=
-      `<rect x="${num(m.x - w / 2)}" y="${num(m.y - 7)}" width="${num(w)}" height="12" rx="2"/>` +
-      `<text x="${num(m.x)}" y="${num(m.y + 2)}">${esc(link.label)}</text>`;
-  }
-  return `<g class="edge${tone === 'planned' ? ' planned' : tone === 'removed' ? ' edge-removed' : ''}">${out}</g>`;
+  return renderEdgeSvg({
+    points: e.points,
+    marker: `arrow${tone ? `-${tone}` : ''}`,
+    cls: `edge${tone === 'planned' ? ' planned' : tone === 'removed' ? ' edge-removed' : ''}`,
+    label: link.label,
+    labelAt: e.labelAt,
+    lift: 7,
+  });
 }
 
 /** A path that wraps after `/`, not mid-name. */
@@ -130,23 +128,14 @@ function stepPanel(spec: FlowSpec, step: FlowStep, snippets: FlowSnippets, byId:
 }
 
 function pageInfo(spec: FlowSpec, anyPlanned: boolean, sides: boolean, check: CheckSummary | undefined): string {
-  let out = `<p>Click a step for its status, source and code. Scroll to zoom, drag to pan${sides ? '; while "Panes: linked", both panes move together' : ''}.</p>`;
-  out += checkSection(check);
-  if (anyPlanned) out += '<p class="planned-note">Dashed steps and arrows are planned: not in the code yet.</p>';
-  if (spec.steps.some((s) => s.status === 'removed') || spec.links.some((l) => l.removed)) {
-    out += '<p class="removed-note">Red steps and arrows are removed by the plan.</p>';
-  }
-  if (spec.gaps?.length) out += `<h3>Gaps</h3>${list(spec.gaps)}`;
-  return `<section id="page-info">${out}</section>`;
+  const planned = anyPlanned ? '<p class="planned-note">Dashed steps and arrows are planned: not in the code yet.</p>' : '';
+  const removed =
+    spec.steps.some((s) => s.status === 'removed') || spec.links.some((l) => l.removed)
+      ? '<p class="removed-note">Red steps and arrows are removed by the plan.</p>'
+      : '';
+  const hint = 'Click a step for its status, source and code. Scroll to zoom, drag to pan';
+  return pageInfoSection(hint, sides, check, planned, removed, gapsHtml('Gaps', spec.gaps));
 }
-
-const FLOW_KEY_HTML: Record<Side, KeyPart[]> = {
-  now: [
-    { text: 'red: removed by the plan', tone: 'rem' },
-    { text: 'amber: changed by it', tone: 'chg' },
-  ],
-  after: [{ text: 'dashed: planned', tone: 'cfg' }],
-};
 
 /** Without `side`: the whole plan or summary in one picture. */
 function viewport(spec: FlowSpec, layout: FlowLayout, check: CheckSummary | undefined, side?: Side): string {
@@ -172,20 +161,17 @@ export function renderFlowHtml(spec: FlowSpec, layout: FlowLayout, snippets: Flo
   const byId = new Map(spec.steps.map((s) => [s.id, s]));
   const sides = hasFlowNowAfter(spec);
   const anyPlanned = spec.links.some((l) => isPlannedLink(spec, l)) || spec.steps.some((s) => s.status === 'planned');
-  const infoButton = check?.mismatches.length
-    ? '<button id="info-toggle" type="button" aria-controls="page-info" title="Show what doesn\'t match the code and what the agent did not check">Check / gaps</button>'
-    : spec.gaps?.length
-      ? '<button id="info-toggle" type="button" aria-controls="page-info" title="Show what the agent did not check">Gaps</button>'
-      : '';
-  return renderPage({
+  return renderDiagramPage({
     title: spec.title,
     meta,
-    infoButton,
-    headerNote: checkNote(check),
-    viewport: sides ? '' : viewport(spec, layout, check),
-    ...(sides
-      ? { panes: SIDES.map((side) => ({ title: SIDE_TITLE[side], key: FLOW_KEY_HTML[side], viewport: viewport(spec, layout, check, side) })) }
-      : {}),
+    check,
+    infoButton: infoButton(check, Boolean(spec.gaps?.length), {
+      mismatch: { label: 'Check / gaps', title: "Show what doesn't match the code and what the agent did not check" },
+      info: { label: 'Gaps', title: 'Show what the agent did not check' },
+    }),
+    sides,
+    paneKey: FLOW_SIDE_KEY,
+    viewport: (side) => viewport(spec, layout, check, side),
     aside: `${pageInfo(spec, anyPlanned, sides, check)}<div id="panel" hidden></div>${spec.steps.map((s) => stepPanel(spec, s, snippets, byId, check)).join('')}`,
     width: layout.width,
     height: layout.height,

@@ -1,15 +1,15 @@
 import { execFileSync } from 'node:child_process';
-import { appendFileSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { appendFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { readRegularFile } from '../../src/read-regular.js';
+import { makeTempDir, removeTempDir } from '../helpers/sandbox.js';
 
 let dir: string;
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'codechart-read-'));
+  dir = makeTempDir('read');
 });
-afterEach(() => rmSync(dir, { recursive: true, force: true }));
+afterEach(() => removeTempDir(dir));
 
 const posix = process.platform !== 'win32';
 

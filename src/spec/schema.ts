@@ -54,6 +54,7 @@ const specSchema = z
     gaps: z.array(long()).optional(),
     omitted: z.array(long()).optional(),
   })
+  // eslint-disable-next-line max-lines-per-function -- ratchet: one superRefine; barely over
   .superRefine((spec, ctx) => {
     const ids = new Set<string>();
     spec.nodes.forEach((node, i) => {

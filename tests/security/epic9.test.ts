@@ -1,6 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { openArgv } from '../../src/commands/open.js';
@@ -8,21 +7,18 @@ import { buildProgram, runProgram } from '../../src/program.js';
 import { checkFlowAnchors } from '../../src/render/flow/anchors.js';
 import { gitBinary, gitChangedFiles, gitFileAt, gitSinceFiles } from '../../src/rules/git-files.js';
 import type { FlowSpec } from '../../src/spec/flow.js';
+import { gitInit, makeTempDir, removeTempDir } from '../helpers/sandbox.js';
 
 let tmp: string;
 beforeEach(() => {
-  tmp = mkdtempSync(join(tmpdir(), 'codechart-sec9-'));
+  tmp = makeTempDir('sec9');
 });
-afterEach(() => rmSync(tmp, { recursive: true, force: true }));
+afterEach(() => removeTempDir(tmp));
 
 const git = (cwd: string, ...args: string[]) => execFileSync('git', args, { cwd, stdio: 'pipe', encoding: 'utf8' }).trim();
 
 function initRepo(dir: string): string {
-  mkdirSync(dir, { recursive: true });
-  git(dir, 'init', '-q');
-  git(dir, 'config', 'user.email', 't@example.com');
-  git(dir, 'config', 'user.name', 'T');
-  git(dir, 'config', 'commit.gpgsign', 'false');
+  gitInit(dir);
   return dir;
 }
 

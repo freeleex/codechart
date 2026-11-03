@@ -1,24 +1,20 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { builtinRules } from '../../src/config/builtin-rules.js';
 import { loadConfig } from '../../src/config/load.js';
 import { parseConfigFile } from '../../src/config/schema.js';
 import { resolveRules } from '../../src/rules/resolve.js';
+import { makeSandbox, removeSandbox } from '../helpers/sandbox.js';
 
 let tmp: string;
 let home: string;
 let repo: string;
 
 beforeEach(() => {
-  tmp = mkdtempSync(join(tmpdir(), 'codechart-limits-'));
-  home = join(tmp, 'home');
-  repo = join(tmp, 'repo');
-  mkdirSync(join(home, '.config', 'codechart'), { recursive: true });
-  mkdirSync(join(repo, '.git'), { recursive: true });
+  ({ tmp, home, repo } = makeSandbox('limits', { git: 'dir', configDir: true }));
 });
-afterEach(() => rmSync(tmp, { recursive: true, force: true }));
+afterEach(() => removeSandbox(tmp));
 
 const load = () => loadConfig({ cwd: repo, home, env: {} });
 const repoRules = (rules: object[]) => writeFileSync(join(repo, '.codechart.yaml'), JSON.stringify({ rules }));

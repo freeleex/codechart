@@ -1,5 +1,6 @@
 import type { Field, Spec, SpecNode } from '../../spec/schema.js';
-import { columns, flat, truncate, wrapItems, type Cuts } from './wrap.js';
+import type { TermCtx } from './ctx.js';
+import { columns, flat, truncate, wrapItems } from './wrap.js';
 import { paint, plainLabel } from './labels.js';
 
 const MARKER = { added: '+', removed: '-', modified: '~' } as const;
@@ -13,7 +14,7 @@ const shown = (node: SpecNode): Field[] => {
 const item = (f: Field): string =>
   flat(`${f.change ? MARKER[f.change] : ''}${f.name}${f.was !== undefined ? ` ${f.was} → ${f.type ?? '?'}` : f.type ? ` ${f.type}` : ''}`);
 
-export function renderFieldLines(spec: Spec, ids: Set<string>, width: number, color: boolean, cuts: Cuts): string {
+export function renderFieldLines(spec: Spec, ids: Set<string>, { width, color, cuts }: TermCtx): string {
   const rows = spec.nodes
     .filter((n) => ids.has(n.id) && shown(n).length > 0)
     .map((n) => ({ node: n, label: plainLabel(n) }));

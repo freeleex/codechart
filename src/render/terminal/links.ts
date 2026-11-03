@@ -1,20 +1,14 @@
 import type { Spec, SpecEdge, SpecNode } from '../../spec/schema.js';
 import { paint, plainLabel, targetLabel } from './labels.js';
-import { columns, fit, flat, truncate, type Cuts } from './wrap.js';
+import type { TermCtx } from './ctx.js';
+import { columns, fit, flat, truncate } from './wrap.js';
 
 const EDGE_MARK = { added: '+', removed: '-' } as const;
 
 export const linksAmong = (spec: Spec, ids: Set<string>): SpecEdge[] =>
   spec.edges.filter((e) => ids.has(e.from) && ids.has(e.to));
 
-function sourceLines(
-  source: SpecNode,
-  links: SpecEdge[],
-  byId: Map<string, SpecNode>,
-  width: number,
-  color: boolean,
-  cuts: Cuts,
-) {
+function sourceLines(source: SpecNode, links: SpecEdge[], byId: Map<string, SpecNode>, { width, color, cuts }: TermCtx) {
   const cap = Math.floor(width / 3);
   const name = truncate(plainLabel(source), cap, cuts);
   const indent = 2 + columns(name) + 1;
@@ -44,7 +38,7 @@ function sourceLines(
 }
 
 /** Links among `ids`, grouped by source layer, one block per source with aligned arrows. */
-export function renderLinks(spec: Spec, ids: Set<string>, width: number, color: boolean, cuts: Cuts = { truncated: false }): string {
+export function renderLinks(spec: Spec, ids: Set<string>, ctx: TermCtx): string {
   const byId = new Map(spec.nodes.map((n) => [n.id, n]));
   const links = linksAmong(spec, ids);
   const layers = [...new Set(spec.nodes.map((n) => n.layer))];
@@ -53,9 +47,9 @@ export function renderLinks(spec: Spec, ids: Set<string>, width: number, color: 
       .filter((n) => n.layer === layer)
       .flatMap((n) => {
         const own = links.filter((e) => e.from === n.id);
-        return own.length > 0 ? sourceLines(n, own, byId, width, color, cuts) : [];
+        return own.length > 0 ? sourceLines(n, own, byId, ctx) : [];
       });
-    return blocks.length > 0 ? [[truncate(flat(layer), width, cuts), ...blocks].join('\n')] : [];
+    return blocks.length > 0 ? [[truncate(flat(layer), ctx.width, ctx.cuts), ...blocks].join('\n')] : [];
   });
   return sections.join('\n\n');
 }

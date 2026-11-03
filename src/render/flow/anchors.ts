@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- ratchet: grew past 250 in #24 (one error per missing file) before the gate; split when next touched */
 import { realpathSync, statSync } from 'node:fs';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
 import { readRegularFile } from '../../read-regular.js';

@@ -1,5 +1,6 @@
 import { isPlannedLink, isRemovedLink, type FlowLink, type FlowSpec, type FlowStep } from '../../spec/flow.js';
 import { markdownBlock } from '../markdown.js';
+import type { TermCtx } from '../terminal/ctx.js';
 import { columns, fit, flat, truncate, wrapItems, type Cuts, type Segment } from '../terminal/wrap.js';
 import { defaultWidth, fullMapLine, MIN_WIDTH } from '../terminal/render.js';
 import { walkFlow, type Arm, type Chain, type Item } from './walk.js';
@@ -24,13 +25,8 @@ const MARKER: Record<Status, string> = { existing: '', new: '+', changed: '~', p
 export const stepLabel = (step: FlowStep): string => MARKER[step.status] + flat(step.label);
 const SGR: Record<Status, string | undefined> = { existing: undefined, new: '32', changed: '33', planned: '35', removed: '31' };
 
-interface Ctx {
-  width: number;
-  color: boolean;
-  cuts: Cuts;
-  htmlPath?: string;
+interface Ctx extends TermCtx {
   spec: FlowSpec;
-  check?: CheckSummary;
 }
 
 const painter = (status: Status, ctx: Ctx) =>
@@ -136,10 +132,10 @@ function footer(spec: FlowSpec, ctx: Ctx, md: boolean): string {
 }
 
 // The title sits inside the fence: no Markdown escapes for an agent to "fix" when pasting, and none of it takes effect.
-export function flowMarkdown(title: string, tree: string | undefined, htmlPath: string | undefined, width: number, cuts?: Cuts, key = FLOW_KEY): string {
-  const heading = truncate(flat(title), Math.max(width, MIN_WIDTH), cuts);
+export function flowMarkdown(title: string, tree: string | undefined, ctx: Pick<TermCtx, 'width' | 'htmlPath'> & { cuts?: Cuts }, key = FLOW_KEY): string {
+  const heading = truncate(flat(title), Math.max(ctx.width, MIN_WIDTH), ctx.cuts);
   const titled = `${heading}\n${'─'.repeat(columns(heading))}`;
-  return markdownBlock(`**Flow** _(${key})_`, tree === undefined ? titled : `${titled}\n${tree}`, htmlPath);
+  return markdownBlock(`**Flow** _(${key})_`, tree === undefined ? titled : `${titled}\n${tree}`, ctx.htmlPath);
 }
 
 const TOO_LARGE = 'flow too large for the terminal; use --output both or web';
@@ -159,8 +155,8 @@ export function renderFlowTree(spec: FlowSpec, opts: FlowTreeOptions): { text: s
   const alert = alertLine(opts.check, ctx.width);
   if (walk.blocks.length === 0) {
     const body = (line: string) => (alert ? `${alert}\n${line}` : line);
-    if (!opts.htmlPath) return { text: md ? flowMarkdown(spec.title, body(TOO_LARGE), undefined, ctx.width, undefined, flowKey(spec)) : `${body(TOO_LARGE)}\n`, truncated: true };
-    const text = md ? flowMarkdown(spec.title, alert || undefined, opts.htmlPath, ctx.width, undefined, flowKey(spec)) : `${body(fullMapLine(opts.htmlPath))}\n`;
+    if (!opts.htmlPath) return { text: md ? flowMarkdown(spec.title, body(TOO_LARGE), ctx, flowKey(spec)) : `${body(TOO_LARGE)}\n`, truncated: true };
+    const text = md ? flowMarkdown(spec.title, alert || undefined, ctx, flowKey(spec)) : `${body(fullMapLine(opts.htmlPath))}\n`;
     return { text, truncated: true };
   }
 
@@ -170,6 +166,6 @@ export function renderFlowTree(spec: FlowSpec, opts: FlowTreeOptions): { text: s
   }
   if (walk.unreachable > 0) blocks[blocks.length - 1] += `\n${truncate(cutText(walk.unreachable, ctx), ctx.width, ctx.cuts)}`;
   const tree = [...(alert ? [alert] : []), ...blocks, footer(spec, ctx, md)].join('\n\n');
-  const text = md ? flowMarkdown(spec.title, tree, opts.htmlPath, ctx.width, ctx.cuts, flowKey(spec)) : `${tree}\n`;
+  const text = md ? flowMarkdown(spec.title, tree, ctx, flowKey(spec)) : `${tree}\n`;
   return { text, truncated: walk.truncated || ctx.cuts.truncated };
 }

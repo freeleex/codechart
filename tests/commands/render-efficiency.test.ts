@@ -1,10 +1,9 @@
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { buildProgram, runProgram } from '../../src/program.js';
 import { repoFolder } from '../../src/render/output-path.js';
 import { sampleFlow } from '../render/flow-fixture.js';
+import { makeSandbox, removeSandbox, runCli } from '../helpers/sandbox.js';
 
 let tmp: string;
 let home: string;
@@ -12,40 +11,17 @@ let repo: string;
 let out: string;
 
 beforeEach(() => {
-  tmp = mkdtempSync(join(tmpdir(), 'codechart-render-eff-'));
-  home = join(tmp, 'home');
-  repo = join(tmp, 'myrepo');
-  out = join(tmp, 'out');
-  mkdirSync(join(home, '.config', 'codechart'), { recursive: true });
-  writeFileSync(join(home, '.config', 'codechart', 'config.yaml'), `web:\n  outDir: ${JSON.stringify(out)}\n`);
-  mkdirSync(join(repo, '.git'), { recursive: true });
+  ({ tmp, home, repo, out } = makeSandbox('render-eff', { repo: 'myrepo', git: 'dir', htmlOut: true }));
   mkdirSync(join(repo, 'src'));
   writeFileSync(join(repo, 'src', 'render.ts'), Array.from({ length: 30 }, (_, i) => `line ${i + 1}`).join('\n'));
-  process.exitCode = undefined;
 });
 
-afterEach(() => {
-  rmSync(tmp, { recursive: true, force: true });
-  process.exitCode = undefined;
-});
-
+afterEach(() => removeSandbox(tmp));
 
 async function render(spec: unknown, ...args: string[]) {
   const file = join(tmp, 'spec.json');
   writeFileSync(file, JSON.stringify(spec));
-  let stdout = '';
-  let stderr = '';
-  const program = buildProgram({
-    cwd: repo,
-    home,
-    env: {},
-    stdout: (s) => (stdout += s),
-    stderr: (s) => (stderr += s),
-    now: () => new Date(2026, 9, 28, 9, 5, 3),
-    isTTY: false,
-  });
-  await runProgram(program, ['render', file, ...args], 'user');
-  return { out: stdout, err: stderr, code: process.exitCode };
+  return runCli({ cwd: repo, home, now: () => new Date(2026, 9, 28, 9, 5, 3), isTTY: false }, ['render', file, ...args]);
 }
 
 const repoConfig = (yaml: string) => writeFileSync(join(repo, '.codechart.yaml'), yaml);

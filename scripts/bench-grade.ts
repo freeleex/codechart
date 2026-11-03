@@ -31,7 +31,7 @@ const BOX_RE = /[─│├└▶◇⤷]/;
 export const RENDER_ERROR_RE = /^(\$|(steps|links|nodes|edges)\[\d+\]\S*|kind|title|start|rules|diagram|steps|links|nodes|edges): /m;
 
 /** Outputs of one render call, keyed by diagram and spec title when the titles in `command` line up with them. */
-export function renderOutputs(text: string, command = ''): Map<string, string> {
+function renderOutputs(text: string, command = ''): Map<string, string> {
   const found = [...text.matchAll(OUTPUT_RE)];
   const titles = [...command.matchAll(/"title"\s*:\s*"((?:[^"\\]|\\.)*)"/g)].map((m) => m[1]!);
   const out = new Map<string, string>();

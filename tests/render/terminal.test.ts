@@ -88,12 +88,13 @@ const linkSpec = (labels: (string | undefined)[], sourceLabel = 'src'): Spec => 
   ],
   edges: labels.map((label, i) => ({ from: 's', to: `t${i}`, ...(label !== undefined && { label }) })),
 });
+const ctx = (width: number, color = false) => ({ width, color, cuts: { truncated: false } });
 const allIds = (spec: Spec) => new Set(spec.nodes.map((n) => n.id));
 
 describe('renderLinks', () => {
   it('a source with 3 links → written once, arrows aligned', () => {
     const spec = linkSpec(['adds is_deleted', 'adds CHECK', undefined]);
-    expect(renderLinks(spec, allIds(spec), 100, false)).toBe(
+    expect(renderLinks(spec, allIds(spec), ctx(100))).toBe(
       [
         'database',
         '  +src ─adds is_deleted─▶ ~t0',
@@ -107,7 +108,7 @@ describe('renderLinks', () => {
     const spec = makeSpec({ a: 'changed', b: 'context', c: 'context' }, [['a', 'b'], ['a', 'c']]);
     spec.edges[0] = { ...spec.edges[0]!, label: 'calls', change: 'added' };
     spec.edges[1] = { ...spec.edges[1]!, change: 'removed' };
-    expect(renderLinks(spec, allIds(spec), 100, false)).toBe('l\n  ~a ─+calls─▶ ·b\n     ─-──────▶ ·c');
+    expect(renderLinks(spec, allIds(spec), ctx(100))).toBe('l\n  ~a ─+calls─▶ ·b\n     ─-──────▶ ·c');
   });
 
   it('a modified field with was shows old → new type', () => {
@@ -119,11 +120,11 @@ describe('renderLinks', () => {
 
   it('no-label link alone is ──▶', () => {
     const spec = makeSpec({ a: 'new', b: 'changed' }, [['a', 'b']]);
-    expect(renderLinks(spec, allIds(spec), 100, false)).toBe('l\n  +a ──▶ ~b');
+    expect(renderLinks(spec, allIds(spec), ctx(100))).toBe('l\n  +a ──▶ ~b');
   });
 
   it('target shows kind except table/file/other/config; source never shows kind', () => {
-    const out = renderLinks(teams, allIds(teams), 100, false);
+    const out = renderLinks(teams, allIds(teams), ctx(100));
     expect(out).toContain('  ~orders ─customer_id─▶ ·customers\n          ─status──────▶ ~enum order_status');
     expect(out).toContain('  +Invoice ─maps─▶ +invoices');
     expect(out).toContain('  ◆feature flag refundsEnabled ─gates─▶ +endpoint POST /orders/{id}/refund');
@@ -132,21 +133,21 @@ describe('renderLinks', () => {
 
   it('link to a hidden node not shown', () => {
     const spec = linkSpec(['a', 'b']);
-    const out = renderLinks(spec, new Set(['s', 't0']), 100, false);
+    const out = renderLinks(spec, new Set(['s', 't0']), ctx(100));
     expect(out).toBe('database\n  +src ─a─▶ ~t0');
-    expect(renderLinks(spec, new Set(['s']), 100, false)).toBe('');
+    expect(renderLinks(spec, new Set(['s']), ctx(100))).toBe('');
   });
 
   it('long source label cut with …', () => {
     const spec = linkSpec(['x'], 'y'.repeat(40));
-    const line = renderLinks(spec, allIds(spec), 60, false).split('\n')[1]!;
+    const line = renderLinks(spec, allIds(spec), ctx(60)).split('\n')[1]!;
     expect(line).toBe(`  +${'y'.repeat(18)}… ─x─▶ ~t0`);
   });
 
   it('long edge label cut with … then target cut, every line ≤ width', () => {
     const spec = linkSpec(['l'.repeat(60), 'short']);
     spec.nodes[2]!.label = 'T'.repeat(80);
-    const out = renderLinks(spec, allIds(spec), 40, false).split('\n');
+    const out = renderLinks(spec, allIds(spec), ctx(40)).split('\n');
     for (const line of out) expect(columns(line)).toBeLessThanOrEqual(40);
     expect(out[1]).toBe(`  +src ─${'l'.repeat(12)}…─▶ ~t0`);
     expect(out[2]).toBe(`       ─short${'─'.repeat(9)}▶ ~${'T'.repeat(14)}…`);
@@ -156,7 +157,7 @@ describe('renderLinks', () => {
     const spec = linkSpec(['a long label here', 'x']);
     spec.nodes[1]!.label = 'short';
     spec.nodes[2]!.label = 'c'.repeat(80);
-    const out = renderLinks(spec, allIds(spec), 60, false).split('\n').slice(1);
+    const out = renderLinks(spec, allIds(spec), ctx(60)).split('\n').slice(1);
     expect(new Set(out.map((l) => [...l].indexOf('▶'))).size).toBe(1);
     for (const line of out) expect(columns(line)).toBeLessThanOrEqual(60);
     expect(out[1]).toMatch(/c…$/);
@@ -165,7 +166,7 @@ describe('renderLinks', () => {
   it('tiny width keeps color on the visible label', () => {
     const spec = makeSpec({ a: 'new', b: 'changed' }, [['a', 'b']]);
     spec.nodes[0]!.label = 'abcdef';
-    const out = renderLinks(spec, allIds(spec), 6, true).split('\n')[1]!;
+    const out = renderLinks(spec, allIds(spec), ctx(6, true)).split('\n')[1]!;
     expect(out).toBe(`  ${ESC}[32m+…${ESC}[0m …`);
     expect(columns(out)).toBeLessThanOrEqual(6);
   });
@@ -174,12 +175,12 @@ describe('renderLinks', () => {
     const spec = makeSpec({ a: 'new', b: 'changed' }, [['a', 'b']]);
     spec.nodes[0]!.label = 'tab\there';
     spec.edges[0]!.label = 'reads\nconfig';
-    expect(renderLinks(spec, allIds(spec), 100, false)).toBe('l\n  +tab here ─reads config─▶ ~b');
+    expect(renderLinks(spec, allIds(spec), ctx(100))).toBe('l\n  +tab here ─reads config─▶ ~b');
   });
 
   it('color paints only labels', () => {
     const spec = makeSpec({ a: 'new', b: 'changed' }, [['a', 'b']]);
-    expect(renderLinks(spec, allIds(spec), 100, true)).toBe(`l\n  ${ESC}[32m+a${ESC}[0m ──▶ ${ESC}[33m~b${ESC}[0m`);
+    expect(renderLinks(spec, allIds(spec), ctx(100, true))).toBe(`l\n  ${ESC}[32m+a${ESC}[0m ──▶ ${ESC}[33m~b${ESC}[0m`);
   });
 });
 

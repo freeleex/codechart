@@ -1,11 +1,10 @@
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, readdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { loadConfigWithSources } from '../../src/config/load.js';
-import { buildProgram, runProgram } from '../../src/program.js';
 import { repoFolder } from '../../src/render/output-path.js';
 import { pruneHtml } from '../../src/render/prune.js';
+import { makeSandbox, removeSandbox, runCli } from '../helpers/sandbox.js';
 
 let tmp: string;
 let home: string;
@@ -15,28 +14,14 @@ let globalFile: string;
 const now = new Date(2026, 9, 28, 9, 5, 3);
 
 beforeEach(() => {
-  tmp = mkdtempSync(join(tmpdir(), 'codechart-outtrust-'));
-  home = join(tmp, 'home');
-  repo = join(tmp, 'repo');
+  ({ tmp, home, repo } = makeSandbox('outtrust', { git: 'dir', configDir: true }));
   repoFile = join(repo, '.codechart.yaml');
   globalFile = join(home, '.config', 'codechart', 'config.yaml');
-  mkdirSync(join(home, '.config', 'codechart'), { recursive: true });
-  mkdirSync(join(repo, '.git'), { recursive: true });
-  process.exitCode = undefined;
 });
 
-afterEach(() => {
-  rmSync(tmp, { recursive: true, force: true });
-  process.exitCode = undefined;
-});
+afterEach(() => removeSandbox(tmp));
 
-async function run(args: string[]) {
-  let out = '';
-  let err = '';
-  const program = buildProgram({ cwd: repo, home, env: {}, stdout: (s) => (out += s), stderr: (s) => (err += s), now: () => now, isTTY: false });
-  await runProgram(program, args, 'user');
-  return { out, err, code: process.exitCode };
-}
+const run = (args: string[]) => runCli({ cwd: repo, home, now: () => now, isTTY: false }, args);
 
 const mapSpec = () => {
   const file = join(tmp, 'spec.json');

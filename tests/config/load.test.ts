@@ -1,9 +1,9 @@
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { loadConfig } from '../../src/config/load.js';
 import { builtinRules } from '../../src/config/builtin-rules.js';
+import { makeSandbox, removeSandbox } from '../helpers/sandbox.js';
 
 const BUILTIN_RULES = builtinRules('auto');
 
@@ -13,6 +13,7 @@ vi.mock('node:os', async (orig) => ({
   homedir: () => fakeHome.dir,
 }));
 
+let tmp: string;
 let home: string;
 let repo: string;
 
@@ -25,13 +26,10 @@ function repoCfg(yaml: string) {
 }
 
 beforeEach(() => {
-  const base = mkdtempSync(join(tmpdir(), 'codechart-cfg-'));
-  home = join(base, 'home');
-  repo = join(base, 'repo');
-  mkdirSync(home, { recursive: true });
+  ({ tmp, home, repo } = makeSandbox('cfg', { git: 'dir' }));
   fakeHome.dir = home;
-  mkdirSync(join(repo, '.git'), { recursive: true });
 });
+afterEach(() => removeSandbox(tmp));
 
 describe('loadConfig', () => {
   it('no config files -> defaults + builtin rules', () => {
