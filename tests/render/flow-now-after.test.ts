@@ -5,6 +5,7 @@ import { renderFlowHtml } from '../../src/render/flow/html.js';
 import { layoutFlow } from '../../src/render/flow/layout.js';
 import { hasFlowNowAfter } from '../../src/render/flow/states.js';
 import { renderFlowTree } from '../../src/render/flow/tree.js';
+import { fullMapLine } from '../../src/render/terminal/render.js';
 import { validateSpec } from '../../src/spec/schema.js';
 import type { FlowSpec } from '../../src/spec/flow.js';
 import { sampleFlow } from './flow-fixture.js';
@@ -161,6 +162,6 @@ describe('plan flow terminal', () => {
       },
     });
     expect(written).toBe(1);
-    expect(out).toContain('full map → file:///tmp/x.flow.html');
+    expect(out).toContain(fullMapLine('/tmp/x.flow.html'));
   });
 });
