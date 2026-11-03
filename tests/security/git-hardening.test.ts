@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { gitFileDiff, repoDiffOverrides } from '../../src/rules/git-files.js';
+import { gitDirtyHashes, gitFileDiff, repoDiffOverrides } from '../../src/rules/git-files.js';
 import { diffRange } from '../../src/rules/selection.js';
 
 let tmp: string;
@@ -75,3 +75,15 @@ describe('S-33 diff driver function-name patterns', () => {
   });
 });
 
+
+describe('S-37 quoted names in the dirty hashes', () => {
+  it.skipIf(process.platform === 'win32')('are not unquoted by hash-object', () => {
+    writeFileSync(join(repo, 'seed'), 'x');
+    commit('one');
+    const traversal = `"${'..\\057'.repeat(30)}etc\\057hosts"`;
+    writeFileSync(join(repo, traversal), 'mine');
+    writeFileSync(join(repo, '"bad'), 'mine');
+    const hashes = gitDirtyHashes(repo);
+    expect(hashes).toMatchObject({ [traversal]: 'present', '"bad': 'present' });
+  });
+});

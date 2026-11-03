@@ -230,7 +230,8 @@ export function gitDirtyHashes(cwd: string, max = Infinity): Record<string, stri
   if (files.length > max) return undefined;
   const out: Record<string, string> = {};
   // A dirty submodule is listed as a folder; hash-object takes files only.
-  const present = files.filter((f) => !f.includes('\n') && lstatSync(join(cwd, f), { throwIfNoEntry: false })?.isFile() === true);
+  // hash-object --stdin-paths C-unquotes a line starting with `"`, so such names are not hashed
+  const present = files.filter((f) => !f.includes('\n') && !f.startsWith('"') && lstatSync(join(cwd, f), { throwIfNoEntry: false })?.isFile() === true);
   const hashes = present.length
     ? git(cwd, ['hash-object', '--no-filters', '--stdin-paths'], [], present.join('\n')).trim().split('\n')
     : [];
