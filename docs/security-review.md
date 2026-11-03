@@ -168,9 +168,53 @@ Result: 8 findings. 0 Critical, 0 High, 1 Medium, 3 Low, 4 Info. Fixed in 808396
 - Lazy elkjs import: a constant specifier of a pinned runtime dependency, resolved from the package's own `node_modules`; nothing user-controlled reaches `import()`.
 - Dev scripts: temp dirs from `mkdtempSync`, removed in `finally`/signal handlers; worktrees removed with `git worktree remove`; results go to `.superpowers/` (gitignored); `execFileSync`/`spawn` with argv arrays (apart from S-29).
 
+## Review 0.3.0
+
+- Date: 2026-11-03
+- Version: codechart 0.3.0
+- Commit: 0910672, diff `4acc561..0910672` (PRs #10-#22)
+- Scope: whole codebase, deepest on code added since the last review: map node checks (`src/render/check.ts`), code preview with diff hunks read from git (`src/render/preview.ts`, `src/rules/git-files.ts`), Now/After panes (`src/render/web/states.ts`, `src/render/flow/states.ts`, `client.ts`), Stop hook and nudges (`src/commands/hook.ts`, `nudges.ts`), `uninstall`, built-in infra rule, skills.sh install path, publish workflow, demo scripts.
+- Threat model: as above. Added: HTML pages now hold diff hunks of changed files; the hook runs `git status` on every prompt.
+- Method: 3 independent auditors (Fable 5.1; A: areas 1-2, B: areas 3-5, C: areas 6-8). Every finding was reproduced against the built CLI or the units, except S-42 (no Windows host). S-30 and S-31 re-verified by the maintainer's agent. Findings merged by root cause; original ids in "Source".
+
+Result: 14 findings. 0 Critical, 0 High, 1 Medium, 8 Low, 5 Info.
+
+| ID | Severity | Area | File:line | Scenario (input -> effect) | Proposed fix | Status | Source |
+|---|---|---|---|---|---|---|---|
+| S-30 | Medium | 5 | `src/render/preview.ts:85`; `src/rules/git-files.ts` (`gitFileDiff`) | Hostile repo ships a highly compressible blob (60 MB of `\n`, 628 KB packed) changed by a commit; one summary node on it -> preview `git diff` 2-4.6 GB RSS (xdiff loads both sides; `maxBuffer` kills git only after the diff). Linear in blob size, per node, up to 500 nodes | `-c core.bigFileThreshold=5m` on the preview diff (over 5 MB already refused) | fixed (8fa1585, dc7d8be); such files show `binary file` | B-2 |
+| S-31 | Low | 1, 3, 4 | `src/rules/git-files.ts:23` (`SAFE_ARGS`) | Archive whose `.git/config` sets `core.worktree=$HOME` plus an index entry `.ssh/id_ed25519` -> `check --git` lists the home file; `render --git` with that node puts the key in the HTML preview (verified) | `--work-tree=<repo root>` on every git call | fixed (c7dcd28) | A-2 |
+| S-32 | Low | 4 | `src/rules/git-files.ts` (`gitChangedFiles`, `gitFileDiff`) | Archive with a nested repo `sub/` (gitlink) whose own config sets `filter.<x>.clean` + `sub/.gitattributes`: super `git status` refreshes `sub`'s index and runs the filter (`check --git`, `hook prompt` on every prompt, `render --git`; marker created). S-23 blanked only the super repo's filters | `--ignore-submodules=dirty` on `status` and the preview `diff` | fixed (98e174a); a nested repo with only uncommitted edits no longer counts as changed (a moved nested HEAD still does) | B-1 |
+| S-33 | Low | 4, 5 | `src/rules/git-files.ts` (`gitFileDiff`) | Repo-local `diff.<x>.xfuncname` with a backtracking regex + `.gitattributes * diff=<x>`: hunk headers 7.3 s per 5 MB file, 30 s × nodes. `--no-ext-diff --no-textconv` do not cover funcname | Blank local/worktree-scope `diff.*.xfuncname`/`funcname` via `GIT_CONFIG_*` (as S-23); `^$`, since git rejects an empty regex | fixed (e425b12) | B-3 |
+| S-34 | Low | 7 | `src/render/preview.ts`; `SECURITY.md` | Summary with `--git`/`--commit`/`--since` writes diff hunks of each new/changed/removed node file into the page, old values included: `.env`, `*.pem` etc. land in the cache (0600, local) and in any shared page. `SECURITY.md` said pages hold rendered HTML only | No preview (`not shown: looks like a secret`) for secret-looking names (`.env`, `.env.*` except example/sample/template, `*.pem`, `*.key`, `*.p12`, `*.pfx`, `id_rsa*`/`id_dsa*`/`id_ecdsa*`/`id_ed25519*`, `.npmrc`, `.netrc`, `.pypirc`, `*credentials*`) or content with a `PRIVATE KEY` block; `SECURITY.md` updated | fixed (ed916df) | C-1 |
+| S-35 | Low | 1, 2, 8 | `src/render/strip.ts` | Unicode tag chars U+E0000-E007F and other invisible code points passed every output (terminal, `--md`, HTML, `check` JSON, stderr): text invisible to people but read by the agent ("ASCII smuggling"). U+2028/9 raw in `check` JSON | Add them to `INVISIBLE`, `hasHiddenChars`, `escapeJsonControls` (ZWJ and U+FE0F kept for emoji); escape U+2028/9 in JSON | fixed (b64b88e); subdivision flag emoji lose their tags | A-1 |
+| S-36 | Low | 5 | `src/rules/selection.ts:42-44` | `files.push(...list)`: a commit or tree with >= ~125k changed files -> `Maximum call stack size exceeded` in `check`/`render` with `--commit/--since/--git` | `concat` instead of spread | fixed (256e8cc) | B-4 |
+| S-37 | Low | 3, 4 | `src/rules/git-files.ts` (`gitDirtyHashes`) | `git hash-object --stdin-paths` C-unquotes lines starting with `"`: a file named `"..\057..\057etc\057hosts"` made `hook prompt` hash `/etc/hosts` (hash only, in a 0600 cache file); a file named `"bad` made git die, silently disabling the hook | Names starting with `"` treated like names with `\n` (`present`, no hash) | fixed (3ab6a62) | B-5 |
+| S-38 | Info | 2 | `src/render/web/page.ts` (`esc`) | C0/DEL/C1 in a node `path` and diff lines reached the HTML byte for byte. Inert in a browser; raw escapes for a terminal `cat` or an agent reading the page | Strip them in `esc` (keep `\n`, `\t`) | fixed (ae702f8) | A-3 |
+| S-39 | Info | 3 | `src/commands/hook.ts` (`prune`) | A directory in `~/.cache/codechart/turns` made `unlinkSync` throw; snapshot never written, Stop hook silently stops nudging. User-owned dir | Skip non-files | fixed (9a2d0ca) | B-6 |
+| S-40 | Info | 6 | `scripts/check-pack.mjs:4` | Allowlist `^dist\/.+` accepted any `dist/` file (stray sourcemap or chunk would ship). Mitigated by tsup `clean` and `prepack` | `^dist\/cli\.js$` | fixed (b55974f) | C-3 |
+| S-41 | Info | 6 | repo settings | Dependabot security updates off: an advisory on a runtime dep waited for the weekly version run plus the 7-day cooldown | Enable Dependabot security updates (no cooldown) | fixed: enabled 2026-11-03, with malware alerts | C-2 |
+| S-42 | Info | 8 | `src/commands/nudges.ts:58` (`HOOK_COMMANDS`) | Hook commands installed by bare name. If Claude Code on Windows runs hooks through `cmd.exe` in the project dir, a repo-root `codechart.cmd` would run on every prompt (S-24 class). Not run (no Windows host); the agent already runs repo commands there | None | accepted (unverified, Windows only) | C-4 |
+| S-43 | Info | 6 | `scripts/demo/record.sh:12`, `scripts/demo/shots.sh:97` | Dev only, not in CI: `npm i playwright` unpinned | Pin the version | fixed (5ce8e76); 1.64.1 | C-5 |
+
+### Checked, nothing found (0.3.0)
+
+- Preview reads: only paths git reported in the diff set; `--literal-pathspecs --no-ext-diff --no-textconv --no-renames -- <rel>`; untracked files via `O_NOFOLLOW|O_NONBLOCK`, size-capped, NUL = binary note; 5 MB per file, 25 MB per render; gitignored files never listed; leading-symlink paths reported deleted, never read through.
+- Map node checks: absolute, `..`, symlink out, `.git/config`, FIFO, NUL, binary paths become "unreadable"/"missing"/"not in diff" mismatches; nothing outside the repo read; `detail` never reaches the terminal.
+- Hostile super-repo `.git/config` (`filter.*`, `diff.external`, `diff.<x>.command/textconv`, `core.fsmonitor`, `core.hooksPath` hooks, `core.pager`, aliases) vs `hook prompt`, `hook stop`, `render --git/--commit`, `check --git`: no marker. Nested-repo fsmonitor and hooks blocked too (S-32 covers the nested filter).
+- HTML with previews, check results and Now/After panes: every field payload-tested, DOM-parsed incl. `<template>`: exactly 2 scripts, no `on*`/`href`/`src`; CSP hash matches the inline script on map, pane and flow pages; data block numbers only, `<` and U+2028/9 escaped.
+- `client.ts`: localStorage values validated on read (theme allowlist, numeric clamp, `'0'` flag); selectors `CSS.escape`d; panels cloned from inert templates; no `innerHTML`, `eval` or URL sink.
+- Terminal and `--md` (map, plan, flow, check alert lines): 0 C0/C1 bytes; fence grows past any backtick run.
+- Hook: `session_id` `^[A-Za-z0-9_-]{1,128}$`; snapshots hold blob hashes only, 0600 in a 0700 dir, pruned after 7 days; transcript read in memory, tail 8 MB; nudge text constant (a count, no file names); repo content in tool results neither triggers nor silences it.
+- `install-skill --hook`/`uninstall`: settings.json with comments or a non-object `hooks` -> error, file untouched, mode kept; other hooks and keys preserved; `uninstall` removes only the package's own file names in a folder whose `SKILL.md` says `name: codechart`, skips symlinks, `rmdir` only when empty.
+- New git calls (`diff`, `ls-files --others`, `hash-object`, `merge-base`, `rev-list`, `config`): argv arrays, `SAFE_ARGS`, 30 s timeout, `maxBuffer`, paths after `--`, refs validated.
+- DoS: Now/After runs the same two ELK passes (500 nodes 3.3 s); cyclic plan flow 100 steps 0.8 s; 300k-file `check --commit` 0.4 s (after S-36); `parseDiff`, `turnUsedCodechart` linear.
+- Supply chain: 5 runtime deps pinned exact, 0 transitive; `minimatch` override dev-only; lockfile all `registry.npmjs.org` with sha512; `npm audit` (incl. dev) clean; 180 signatures and 64 attestations verified; published 0.3.0 has SLSA provenance and is byte-identical to a local build of its tag.
+- Workflows: top-level `permissions: contents: read`, SHA pins, `persist-credentials: false`, no event data in `run:`, no `pull_request_target`; publish tag/version guard, `id-token: write` in one job, `environment: npm` with reviewer, staged publish. Repo: public, `sha_pinning_required`, GitHub-owned actions only, read-only default token, secret scanning + push protection, `main` ruleset.
+- Skill: CLI missing -> tell the user `npm i -g codechart`, never install; every pasted value single-quoted and allowlisted; new `check` fields are file names (JSON-escaped) or constants; infra rule is path-only, no `when`.
+
 ## Summary for the README
 
-Last updated after the final review round.
+Last updated after the 0.3.0 review.
 
 **What was audited.** The whole codebase before release, in 8 areas: untrusted input, output injection, file system, subprocesses, denial of service, supply chain, privacy, and the skill/agent surface. Threat model: repos you do not trust, specs written by an agent that may be prompt-injected, output read in a browser, terminal and chat.
 
@@ -178,7 +222,7 @@ Last updated after the final review round.
 
 **Guarantees that hold today** (each verified clean by the audit):
 - No network calls at runtime. A runtime trap saw zero network events across `render` (map, flow, `--open`) and `check --git`. `src/` imports no network module, and git is not allowed to fetch (a partial clone's missing objects fail instead).
-- No shell. The only child processes are read-only `git` commands (`status`, `rev-parse`, `rev-list`, `diff --name-only`, `diff-tree`, `ls-tree`, `cat-file`, `config`) and the OS opener, all started with argument arrays (on Windows by absolute path). File names from git are read with `-z` and never passed back to git. Refs are validated before use. Git runs with fsmonitor, optional locks, lazy fetch and all transports off, and filter drivers from the repo's own config blanked.
+- No shell. The only child processes are read-only `git` commands (`status`, `rev-parse`, `rev-list`, `diff --name-only`, `diff-tree`, `ls-tree`, `cat-file`, `config`) and the OS opener, all started with argument arrays (on Windows by absolute path). File names from git are read with `-z` and never passed back to git. Refs are validated before use. Git runs with fsmonitor, optional locks, lazy fetch and all transports off, the work tree pinned to the repo root, and filter drivers and diff funcname patterns from the repo's own config blanked; preview diffs treat files over 5 MB as binary.
 - Generated HTML loads nothing external (no fonts, scripts, styles, images or links).
 - All HTML output is escaped in every context (text, attributes, inline JSON, templates, SVG, snippets). No spec data reaches a URL sink. Injected markup and `javascript:` payloads did not execute in the page's own client code.
 - Terminal and Markdown output carry no control or escape bytes from specs or snippets; `check`/`config` JSON escapes control, bidi and zero-width characters. The Markdown fence cannot be closed from inside; titles sit inside the fence and the file link is percent-encoded.
@@ -186,9 +230,9 @@ Last updated after the final review round.
 - HTML file names are built from `[a-z0-9-]` slugs and `<repo>-<hash>` folders. Prune deletes only regular files matching the generated-name pattern in that folder.
 - Inputs are bounded where tested: YAML alias bombs and deep nesting are rejected, `COLUMNS` is capped, flow specs are capped at 200 steps and links.
 - Runtime dependency tree: 5 packages, no transitive deps, no install scripts. The lockfile has integrity hashes; registry signatures verify. The npm tarball holds 11 files (adds LICENSE, README, THIRD_PARTY_NOTICES) and no repo-internal files, enforced in CI by `scripts/check-pack.mjs`. Releases after v0.1.0 are staged by a tag-only workflow with npm provenance and need the maintainer's 2FA approval to go live (v0.1.0 was published manually with 2FA); CI actions are pinned by SHA, runtime deps by exact version; CodeQL and Dependabot (7-day cooldown) are on.
-- Stored data: rendered HTML only, under the user's cache dir. No telemetry.
+- Stored data: rendered HTML under the user's cache dir (0600 in a 0700 dir). Summary pages hold diff hunks of changed files, except files that look like secrets; the Stop hook keeps blob hashes of dirty files for 7 days. No telemetry.
 
-**Accepted as-is:** S-19 (info) and S-29 (dev-only scripts, not shipped). S-21 was resolved by the tsup 9 upgrade. The Windows opener (S-24) is covered by unit tests and Windows CI. Repo and account settings were applied on 2026-10-29.
+**Accepted as-is:** S-19 (info), S-29 (dev-only scripts, not shipped) and S-42 (Windows hook lookup, unverified). S-21 was resolved by the tsup 9 upgrade. The Windows opener (S-24) is covered by unit tests and Windows CI. Repo and account settings were applied on 2026-10-29.
 
 ## CodeQL alerts (2026-10-29)
 
