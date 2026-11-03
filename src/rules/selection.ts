@@ -39,10 +39,10 @@ export const hasGitSelection = (o: GitSelection): boolean =>
 /** `renameSources`: with --git, also list the paths renames moved from. */
 export function gitFiles(root: string | undefined, o: GitSelection, renameSources = false): string[] {
   if (!root) throw new Error('not a git repository (use --files)');
-  const files: string[] = [];
-  if (o.since !== undefined) files.push(...gitSinceFiles(root, o.since, o.head));
-  if (o.commit !== undefined) files.push(...gitCommitFiles(root, o.commit));
-  if (o.git) files.push(...gitChangedFiles(root, renameSources));
+  let files: string[] = [];
+  if (o.since !== undefined) files = files.concat(gitSinceFiles(root, o.since, o.head));
+  if (o.commit !== undefined) files = files.concat(gitCommitFiles(root, o.commit));
+  if (o.git) files = files.concat(gitChangedFiles(root, renameSources));
   return files;
 }
 
