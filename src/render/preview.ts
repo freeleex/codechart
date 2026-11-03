@@ -124,14 +124,15 @@ interface Prefetch {
 
 const noPrefetch = (): Prefetch => ({ sizes: new Map(), blobs: new Map(), diffs: new Map(), untracked: new Set(), untrackedKnown: new Set() });
 
-const worktreeFits = (root: string, rel: string) => {
+const worktreeSize = (root: string, rel: string) => {
   const path = join(root, rel);
-  return !insideRoot(root, path) || (lstatSync(path, { throwIfNoEntry: false })?.size ?? 0) <= MAX_BYTES;
+  return insideRoot(root, path) ? (lstatSync(path, { throwIfNoEntry: false })?.size ?? 0) : 0;
 };
 
 /**
  * Blob sizes, the blobs that fit, every diff and the untracked ones in a few git calls instead of a few per file.
  * Only files whose every side is within the per-file cap are diffed: git must not diff a huge file a `diff` attribute turned into text.
+ * Files are taken in node order while their sides fit the render budget; the diffs get what is left of it.
  */
 function prefetch(root: string, range: DiffRange, rels: string[]): Prefetch {
   const pre = noPrefetch();
@@ -139,22 +140,24 @@ function prefetch(root: string, range: DiffRange, rels: string[]): Prefetch {
     const cands = rels.filter((r) => !looksSecret(r) && !r.includes('\n'));
     const specs = cands.flatMap((r) => range.revs.map((rev) => `${rev}:${r}`));
     gitBlobSizes(root, specs).forEach((size, i) => pre.sizes.set(specs[i]!, size));
-    const fits = cands.filter((r) => range.revs.every((rev) => (pre.sizes.get(`${rev}:${r}`) ?? 0) <= MAX_BYTES) && (!range.worktree || worktreeFits(root, r)));
 
     let room = MAX_TOTAL_BYTES;
+    const fits: string[] = [];
     const fetch: string[] = [];
-    for (const r of fits) {
-      for (const rev of range.revs) {
-        const size = pre.sizes.get(`${rev}:${r}`);
-        if (size === undefined || size > room) continue;
-        room -= size;
-        fetch.push(`${rev}:${r}`);
-      }
+    for (const r of cands) {
+      const keys = range.revs.map((rev) => `${rev}:${r}`).filter((k) => pre.sizes.get(k) !== undefined);
+      const sizes = [...keys.map((k) => pre.sizes.get(k)!), ...(range.worktree ? [worktreeSize(root, r)] : [])];
+      if (sizes.some((n) => n > MAX_BYTES)) continue;
+      const cost = sizes.reduce((a, b) => a + b, 0);
+      if (cost > room) break;
+      room -= cost;
+      fits.push(r);
+      fetch.push(...keys);
     }
     gitBlobs(root, fetch, fetch.map((s) => pre.sizes.get(s)!)).forEach((text, i) => pre.blobs.set(fetch[i]!, text));
 
     const batch = fits.filter(plainDiffName);
-    const diffs = gitFileDiffs(root, range, batch, 2 * MAX_TOTAL_BYTES);
+    const diffs = room > 0 ? gitFileDiffs(root, range, batch, room) : undefined;
     if (!diffs) return pre;
     for (const [rel, text] of diffs) pre.diffs.set(rel, text);
     if (range.worktree) {

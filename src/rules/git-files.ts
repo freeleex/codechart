@@ -239,14 +239,17 @@ export const plainDiffName = (rel: string) => !/[\x00-\x1f\x7f"\\]/.test(rel);
 
 /**
  * `gitFileDiff` for many files in few calls: the diff of each of `rels` (all `plainDiffName`), '' where unchanged.
- * undefined when the output is over `maxBytes` or a section can't be matched to a requested file; the caller then diffs file by file.
+ * undefined when the output of all calls together is over `maxBytes` or a section can't be matched to a requested file; the caller then diffs file by file.
  */
 export function gitFileDiffs(cwd: string, range: DiffRange, rels: string[], maxBytes: number): Map<string, string> | undefined {
   const out = new Map<string, string>(rels.map((r) => [r, '']));
   const wanted = new Set(rels);
+  let left = maxBytes;
   try {
     for (const group of chunks(rels)) {
-      const text = git(cwd, diffArgs(range, group), { config: [['core.bigFileThreshold', '5m'], ['core.quotePath', 'false'], ...range.config], maxBuffer: maxBytes });
+      if (left <= 0) return undefined;
+      const text = git(cwd, diffArgs(range, group), { config: [['core.bigFileThreshold', '5m'], ['core.quotePath', 'false'], ...range.config], maxBuffer: left });
+      left -= Buffer.byteLength(text);
       const starts = [...text.matchAll(/^diff --git /gm)].map((m) => m.index);
       for (const [i, start] of starts.entries()) {
         const end = starts[i + 1] ?? text.length;

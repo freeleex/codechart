@@ -111,8 +111,40 @@ describe('previews of many files', () => {
   });
 });
 
+describe('the prefetch budget', () => {
+  it('reads only the files whose sides fit in 25 MB, in node order', () => {
+    const files = Array.from({ length: 6 }, (_, i) => `big${i}.txt`);
+    for (const f of files) write(f, 'a\n'.repeat(2_000_000));
+    git('add', '-A');
+    git('commit', '-q', '-m', 'big');
+    for (const f of files) write(f, `b\n${'a\n'.repeat(1_999_999)}`);
+    const spec = specOf(files);
+    const sel = { git: true };
+    const diff = diffOf(gitFiles(repo, sel, true));
+    const range = diffRange(repo, sel);
+    const found = checkMapNodes(spec, repo, {}).found;
+    calls.list.length = 0;
+    const out = nodePreviews(spec, repo, diff, range, found);
+    const batched = calls.list.find((a) => a.includes('diff') && a.includes('big0.txt'))!;
+    expect(batched.filter((a) => a.startsWith('big'))).toEqual(files.slice(0, 3));
+    expect(out.get('n0')?.lines.length).toBeGreaterThan(0);
+    expect(out.get('n5')?.note).toBe('not shown: the diffs pass 25 MB together');
+  });
+});
+
 describe('gitFileDiffs', () => {
   const range = () => ({ args: ['HEAD'], revs: ['HEAD'], worktree: true, config: [] });
+
+  it('counts the limit across calls', () => {
+    for (let i = 0; i < 600; i++) write(`d/f${i}.txt`, 'a\n');
+    git('add', '-A');
+    git('commit', '-q', '-m', 'many');
+    const rels = Array.from({ length: 600 }, (_, i) => `d/f${i}.txt`);
+    for (const r of rels) write(r, `${'x'.repeat(200)}\n`);
+    const one = gitFileDiffs(repo, range(), rels.slice(0, 500), 50 * 1024 * 1024)!;
+    const firstChunk = [...one.values()].reduce((n, t) => n + Buffer.byteLength(t), 0);
+    expect(gitFileDiffs(repo, range(), rels, firstChunk + 100)).toBeUndefined();
+  });
 
   it('splits requested paths across several calls', () => {
     for (let i = 0; i < 1001; i++) write(`d/f${i}.txt`, 'a\n');
