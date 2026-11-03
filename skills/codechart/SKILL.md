@@ -1,6 +1,6 @@
 ---
 name: codechart
-description: 'Use whenever you are about to describe code changes or a plan for them, whether you made the changes or not. Triggers include "summarize the changes", "summarize the staged/uncommitted changes", "what changed", "what did you change", "recap", "walk me through the diff", "explain this diff/commit/branch", "write the PR description", "review what we did", "wrap up", and finishing a task with a summary; also "make a plan", "how would you implement", "plan this feature/migration/refactor", "design the schema change", any request for a map, diagram or overview of how files, tables, models, services or config relate; and any request to see how code behaves: "show me the flow", "how does this work", "walk me through the logic", "what are the edge cases", "what happens when…", "draw the decision flow". Not needed when the change is a single file with only text, comments, formatting, a typo or a version bump: if there is a diff, look at it first and skip this skill then.'
+description: 'Use whenever you are about to describe code changes or a plan for them, whether you made the changes or not. Triggers include "summarize the changes", "summarize the staged/uncommitted changes", "what changed", "what did you change", "recap", "walk me through the diff", "explain this diff/commit/branch", "write the PR description", "review what we did", "wrap up", and finishing a task with a summary; also "make a plan", "how would you implement", "plan this feature/migration/refactor", "design the schema change", any request for a map, diagram or overview of how files, tables, models, services, infrastructure or config relate; and any request to see how code behaves: "show me the flow", "how does this work", "walk me through the logic", "what are the edge cases", "what happens when…", "draw the decision flow". Not needed when the change is a single file with only text, comments, formatting, a typo or a version bump: if there is a diff, look at it first and skip this skill then.'
 ---
 
 # codechart
@@ -82,6 +82,7 @@ Draw only branches you saw in the code or (plan) will build; unverified ones go 
 ```
 
 - One node per table, model, file, service or endpoint, never merged: `new`, `changed`, `removed`, `config` (config/env), `context` (untouched neighbour the reader needs). Under 15; tests and docs go in `omitted`.
+- Infrastructure: one node per resource, module or Kubernetes object, labelled as the code names it (`aws_s3_bucket.logs`, `module.vpc`, `Deployment api`), `kind` `other`, `path` the file that declares it; variables and values `config`; `terraform plan not run` goes in `gaps`. See [spec-guide.md](spec-guide.md#infrastructure).
 - `layer` required, from a small set. `kind`: `table` `enum` `model` `service` `endpoint` `component` `file` (default with `path`) `config` `other`. Migration label: `migration: <what it does>`.
 - `fields`: all you read, `change`: `added`/`removed`/`modified`; `fieldsComplete: true` only if you read the whole definition.
 - Optional on a `new`/`changed` node with `path`: `match`, a distinctive piece of one line from the diff, as proof (shown in the HTML).

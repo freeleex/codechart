@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { builtinRules } from '../../src/config/builtin-rules.js';
 import type { Config } from '../../src/config/schema.js';
 import { normalizePath, resolveRules, unionOutputs } from '../../src/rules/resolve.js';
 
@@ -196,6 +197,26 @@ describe('resolveRules', () => {
 
   it('path rule name in matched throws', () => {
     expect(() => resolveRules(config, [], ['db'])).toThrow('not a plain-language rule: db');
+  });
+});
+
+describe('built-in infrastructure rule', () => {
+  const builtins: Config = { ...config, useBuiltinRules: true, rules: builtinRules('auto') };
+  const infraFiles = (files: string[]) =>
+    resolveRules(builtins, files).pathMatches.find((m) => m.rule === 'infrastructure')?.files ?? [];
+
+  it('matches Terraform, OpenTofu, Terragrunt, Helm, Kustomize and Kubernetes files', () => {
+    const files = [
+      'infra/main.tf', 'modules/vpc/variables.tf', 'envs/prod.tfvars', 'stack.tf.json', 'net/main.tofu',
+      'live/prod/terragrunt.hcl', 'deploy/api/Chart.yaml', 'deploy/api/values.yaml', 'deploy/api/values-prod.yaml',
+      'charts/api/templates/deployment.yaml', 'charts/api/templates/_helpers.tpl', 'helm/web/templates/svc.yaml',
+      'overlays/prod/kustomization.yaml', 'k8s/base/deployment.yaml', 'ops/kubernetes/ingress.yml',
+    ];
+    expect(infraFiles(files)).toEqual(files);
+  });
+
+  it('leaves out lock files, UI chart components and non-Helm templates', () => {
+    expect(infraFiles(['.terraform.lock.hcl', 'src/components/charts/Line.tsx', 'templates/codechart.yaml', 'k8s/README.md'])).toEqual([]);
   });
 });
 

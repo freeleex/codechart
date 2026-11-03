@@ -132,7 +132,7 @@ codechart uninstall && npm uninstall -g codechart
 
 ### Maps: what changed and how it connects
 
-Tables, columns, enums, models, endpoints, components, config and env vars, grouped by layer and marked as new, changed, context or config. They work for **plans** too, so you can catch a wrong design before any code exists. A plan that changes existing code opens as **Now** and **After plan** side by side: same positions, panning together (or apart: header toggle), with what the plan removes in red and what it adds in green.
+Tables, columns, enums, models, endpoints, components, config and env vars, grouped by layer and marked as new, changed, context or config. Infrastructure too: Terraform, OpenTofu, Helm, Kustomize and Kubernetes changes get a map of resources, modules and what they reference, with no rule to write. They work for **plans** too, so you can catch a wrong design before any code exists. A plan that changes existing code opens as **Now** and **After plan** side by side: same positions, panning together (or apart: header toggle), with what the plan removes in red and what it adds in green.
 
 ### Flows: what the code actually does
 
@@ -197,7 +197,7 @@ Repo `.codechart.yaml` and global `~/.config/codechart/config.yaml`. Editor sche
 | `defaults.terminalMaxNodes` | number | `15` |
 | `web.theme` | `auto`, `light`, `dark` | `auto` |
 | `web.minNodes` | HTML from this many nodes on | `8` |
-| `useBuiltinRules` | built-in migration/model path rules, `related-files`, `behaviour-flow` | `true` |
+| `useBuiltinRules` | built-in migration/model/infrastructure path rules, `related-files`, `behaviour-flow` | `true` |
 | `rules` | your own, run before the built-ins | none |
 
 Global only: `web.outDir` (`~/.cache/codechart`), `web.keep` (`20`), `web.maxAgeDays` (`7`), `web.open` (`auto`: new pages open in your browser when running inside a VS Code-based editor; `always`, `never`).

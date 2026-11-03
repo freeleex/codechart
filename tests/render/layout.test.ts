@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
+  labelLines,
   layoutSpec,
   pickLayout,
   PANE_CANVASES,
@@ -172,5 +173,17 @@ describe('wrapSummary', () => {
   it('line count matches ceil(len/34) capped for fixture summaries', () => {
     const lines = wrapSummary('a'.repeat(50));
     expect(lines.length).toBe(2);
+  });
+});
+
+describe('labelLines', () => {
+  it.each([
+    ['users', ['users']],
+    ['aws_s3_bucket_lifecycle_configuration.logs', ['aws_s3_bucket_', 'lifecycle_configuration.logs']],
+    ['Deployment api-gateway-internal', ['Deployment api-', 'gateway-internal']],
+    ['abcdefghijklmnopqrstuvwxyz', ['abcdefghijklmnopqrstuv', 'wxyz']],
+    ['aws_iam_role_policy_attachment.this_is_a_very_long_name', ['aws_iam_role_policy_', 'attachment.this_is_a_very_lon…']],
+  ])('%s', (label, lines) => {
+    expect(labelLines(label)).toEqual(lines);
   });
 });

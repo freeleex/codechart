@@ -86,10 +86,28 @@ export function wrapText(text: string, chars: number, maxLines: number): string[
   return lines;
 }
 
+const LABEL_CHARS = 22;
+// The second line has no status badge beside it.
+const LABEL_MORE_CHARS = 30;
+export const LABEL_LINE_HEIGHT = 14;
+const LABEL_BREAKS = ['_', '.', '/', '-', ' '];
+
+/** A card title on one line, or two broken after `_ . / -` or a space, so `aws_s3_bucket_lifecycle_configuration.logs` stays whole. */
+export function labelLines(label: string): string[] {
+  if (label.length <= LABEL_CHARS) return [label];
+  const head = label.slice(0, LABEL_CHARS);
+  const cut = Math.max(...LABEL_BREAKS.map((c) => head.lastIndexOf(c))) + 1;
+  const at = cut >= LABEL_CHARS / 2 ? cut : LABEL_CHARS;
+  const rest = label.slice(at).trim();
+  return [label.slice(0, at).trimEnd(), rest.length > LABEL_MORE_CHARS ? rest.slice(0, LABEL_MORE_CHARS - 1) + '…' : rest];
+}
+
+export const headerHeight = (label: string): number => HEADER_HEIGHT + LABEL_LINE_HEIGHT * (labelLines(label).length - 1);
+
 // Word-wrapped line count (>= ceil(len/34)) so wrapped text never clips.
-function nodeHeight(fields: number, summary: string | undefined): number {
+function nodeHeight(label: string, fields: number, summary: string | undefined): number {
   const summaryLines = summary ? wrapSummary(summary).length : 0;
-  return HEADER_HEIGHT + LINE_HEIGHT * (fields + summaryLines);
+  return headerHeight(label) + LINE_HEIGHT * (fields + summaryLines);
 }
 
 type Elk = InstanceType<typeof import('elkjs/lib/elk.bundled.js').default>;
@@ -139,7 +157,7 @@ async function layoutIn(elk: Elk, spec: Spec, direction: Direction): Promise<Lay
       .map((n) => ({
         id: n.id,
         width: NODE_WIDTH,
-        height: nodeHeight(n.fields?.length ?? 0, n.summary),
+        height: nodeHeight(n.label, n.fields?.length ?? 0, n.summary),
       })),
   }));
   // Edges stay on the root so every section is in root (absolute) coordinates.

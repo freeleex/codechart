@@ -163,6 +163,26 @@ describe('renderHtml', () => {
     expect(g).toContain('…');
   });
 
+  it('a long label takes a second header line and the card grows to fit', async () => {
+    const spec = loadFixture();
+    const n = spec.nodes[0]!;
+    const before = await html(spec);
+    n.label = 'aws_s3_bucket_lifecycle_configuration.logs';
+    const out = await html(spec);
+    const card = (page: string) => page.split(`data-id="${n.id}"`)[1]!.split('</g>')[0]!;
+    expect([...card(out).matchAll(/class="label"[^>]*>([^<]*)</g)].map((m) => m[1])).toEqual(['aws_s3_bucket_', 'lifecycle_configuration.logs']);
+    const height = (page: string) => Number(card(page).match(/class="card"[^>]*height="([\d.]+)"/)![1]);
+    expect(height(out)).toBe(height(before) + 14);
+  });
+
+  it('the panel title names the kind, except other', async () => {
+    const spec = loadFixture();
+    spec.nodes[0] = { ...spec.nodes[0]!, label: 'aws_lb.api', kind: 'other', status: 'changed' };
+    const out = await html(spec);
+    expect(out).toContain('<h2>aws_lb.api (changed)</h2>');
+    expect(out).toMatch(/<h2>[^<]+ \((new|changed|removed|context|config) (table|enum|model|service|endpoint|component|file|config)\)<\/h2>/);
+  });
+
   it('cards are keyboard focusable buttons with aria-label', async () => {
     const spec = loadFixture();
     const out = await html(spec);
