@@ -2,7 +2,8 @@ import type { Output } from '../config/schema.js';
 import type { FlowSnippets } from '../render/flow/anchors.js';
 import { renderFlowHtml } from '../render/flow/html.js';
 import { layoutFlow } from '../render/flow/layout.js';
-import { flowMarkdown, renderFlowTree, type FlowTreeOptions } from '../render/flow/tree.js';
+import { hasFlowNowAfter } from '../render/flow/states.js';
+import { flowKey, flowMarkdown, renderFlowTree, type FlowTreeOptions } from '../render/flow/tree.js';
 import { alertLine } from '../render/terminal/check-lines.js';
 import { defaultWidth, fullMapLine } from '../render/terminal/render.js';
 import type { HtmlMeta } from '../render/web/page.js';
@@ -22,7 +23,8 @@ export async function renderFlow(spec: FlowSpec, snippets: FlowSnippets, ctx: Fl
 
   let htmlPath: string | undefined;
   let tree: { text: string; truncated: boolean } | undefined;
-  if (output === 'web' || output === 'both' || (output === 'auto' && spec.steps.length >= ctx.minNodes)) {
+  // Now and After side by side exist only in the HTML.
+  if (output === 'web' || output === 'both' || (output === 'auto' && (spec.steps.length >= ctx.minNodes || hasFlowNowAfter(spec)))) {
     htmlPath = await writeHtml();
   } else if (output === 'auto') {
     tree = renderFlowTree(spec, ctx.tree);
@@ -35,7 +37,7 @@ export async function renderFlow(spec: FlowSpec, snippets: FlowSnippets, ctx: Fl
   if (output === 'web') {
     const width = ctx.tree.width ?? defaultWidth();
     const alert = alertLine(ctx.tree.check, width);
-    if (ctx.tree.md) return flowMarkdown(spec.title, alert || undefined, htmlPath, width);
+    if (ctx.tree.md) return flowMarkdown(spec.title, alert || undefined, htmlPath, width, undefined, flowKey(spec));
     return `${alert ? `${alert}\n` : ''}${fullMapLine(htmlPath!)}\n`;
   }
   return (tree ?? renderFlowTree(spec, { ...ctx.tree, htmlPath })).text;

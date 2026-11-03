@@ -23,7 +23,7 @@ main{flex:1;display:flex;min-height:0}
 .pane+.pane{border-left:1px solid var(--line)}
 #panes~aside{width:clamp(200px,17.5vw,300px);min-width:200px}
 .pane-title{padding:4px 10px;font-size:11px;font-weight:600;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line)}
-.pane-key{font-weight:400;text-transform:none}.pane:first-child .pane-key{color:var(--rem)}.pane+.pane .pane-key{color:var(--new-t)}
+.pane-key{font-weight:400;text-transform:none}.k-rem{color:var(--rem)}.k-new{color:var(--new-t)}.k-chg{color:var(--chg-t)}.k-cfg{color:var(--cfg-t)}
 @media (max-width:900px){#panes{flex-direction:column}.pane+.pane{border-left:0;border-top:1px solid var(--line)}}
 aside{width:clamp(300px,35vw,600px);min-width:300px;max-width:80vw;border-left:1px solid var(--line);background:var(--panel);overflow:auto;padding:10px 14px}
 #resize{flex:none;width:5px;margin-right:-5px;position:relative;z-index:1;cursor:col-resize;touch-action:none}

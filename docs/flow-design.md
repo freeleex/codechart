@@ -38,13 +38,15 @@ A second diagram type, the **flow map**:
 
 ## 6. Trust rules
 
-- **Statuses:** every step has one of `existing`, `new`, `changed` or `planned`.
-  - In a **summary** spec (`kind: "summary"`), `planned` is not allowed.
-  - In a **plan** spec (`kind: "plan"`), only `existing` and `planned` are allowed (`new` and `changed` are rejected).
+- **Statuses:** every step has one of `existing`, `new`, `changed`, `planned` or `removed`.
+  - In a **summary** spec (`kind: "summary"`), `planned` and `removed` are not allowed.
+  - In a **plan** spec (`kind: "plan"`), only `existing`, `planned` and `removed` are allowed (`new` and `changed` are rejected).
+    - `removed` (2026-11-03) is a step the plan deletes. It keeps its anchor (the code exists now), can't be the `start`, and links to it count as removed.
     - `planned` marks anything the plan adds or alters, including a planned change to an existing step.
     - `existing` is only for steps the plan builds on unchanged, and they keep their anchors.
     - *design call:* this errs towards never showing intent as fact.
   - **Links:** a link is planned when either endpoint is planned or it sets `planned: true`. An example of the latter is an existing decision gaining a new branch to an existing step. Planned links need no anchor and are drawn like planned steps.
+  - **Removed links** (2026-11-03): a plan keeps every link that exists now; one it drops between steps that stay sets `removed: true` and keeps its anchor when it leaves a decision. A link can't be both planned and removed, can't join a brand-new planned step (no `source`) to anything the plan removes, and a planned link can't touch a removed step. Shapes, link-count lints and reachability follow the flow after the plan (removed links left out); a removed step keeps its own links.
 - **Anchors:** every step that is not `planned`, and every branch leaving a decision that is not `planned`, must have an anchor: `source` as `path:line` or `path:start-end`, or a **content anchor**: `source` as the path alone plus `match`, a piece of the line's text.
   - `match` is a plain substring (no regex), 1-200 characters, one line (a newline fails with `quote a single line`), no control or invisible characters except tabs, trimmed before validation and search. In JSON an inner tab must be written `\t` (a literal tab is a JSON parse error); leading indentation can simply be left out. It must occur on exactly one line of the file: not found is an error, and text on several lines is an error that lists the line numbers and asks for a more distinctive piece or the `path:line` form (owner decision, 2026-10-28; first-hit would anchor `return;` anywhere). The resolved line becomes the anchor (`path:line` in the snippet panel).
   - Content anchors exist so the agent can quote text it already read in the diff instead of re-reading files for line numbers, and they keep working when lines shift.
@@ -140,7 +142,7 @@ read file or stdin → validate spec → load config
   - a step reached from more than one place (a merge point or a loop target) is printed once as its own block, starting with `⤷ label`;
   - every place that reaches it shows `⤷ label`;
   - loops use the same notation.
-- **Status markers:** `+`, `~` and `?` (planned), the same idea as map prefixes. `existing` has no marker. Color follows the map rules (TTY only).
+- **Status markers:** `+`, `~`, `?` (planned) and `-` (removed), the same idea as map prefixes. `existing` has no marker. Color follows the map rules (TTY only). A removed link prints `-` before its branch label or `-→`; the key and footer mention removed only when the flow has some.
 - **Width:** every line fits `width`. Long labels are truncated with `…`, and the full label is in the web view.
 - **Footer:** a step count with new, changed and planned counts, then gaps, then the `full map → file://…` link when HTML was written.
 - **`render --md`** works the same as for maps: a constant header line `**Flow** _(key: + new  ~ changed  ? planned  ◇ decision  ⤷ shared step)_`, then a fenced `text` block that opens with the title (truncated to the width with `…`) underlined by `─` and holds the tree (with output `web`, the title only), a blank line, then `[Open full map](…)` when HTML was written. The agent pastes it verbatim. The title lives inside the fence because agents "fixed" the escaped title in a header line when pasting; inside the fence it needs no escapes and none of its Markdown takes effect.
@@ -155,6 +157,7 @@ read file or stdin → validate spec → load config
 - Top-down ELK layered layout, the same engine as maps.
 - **Shapes:** rectangles for steps, diamonds for decisions, rounded pills for ends, and labelled arrows.
 - **Planned steps:** dashed outline and a "planned" badge.
+- **Now and After** (2026-11-03): a plan that removes a step or link, or alters an existing step (a `planned` step with a `source`), is drawn as two panes like a map plan: Now (existing, removed and altered steps; links whose ends are there, minus `planned: true` ones; removed ones red; altered steps amber, badge "will change") and After plan (all but removed; planned dashed). One layout, so steps keep their place; shared pan, zoom and selection; under `auto` the HTML is always written. A plan that only adds steps keeps one flow.
 - **Click a step:** a side panel shows its status, its `source` as `path:line` (for a content anchor, the line `match` resolved to), and the **code snippet** at that range (one line for a content anchor), read from disk at render time (up to 15 lines, each cut at 300 characters so a minified line can't flood the panel), so the user can check the anchor in seconds.
 - Same themes, toggle, pan/zoom, gaps list and self-contained single file as maps.
 

@@ -25,13 +25,16 @@ An invented branch is the worst failure: it destroys the user's trust in the too
 | `existing` | untouched by the change | built on unchanged; keeps its anchor |
 | `new` | added by the change | rejected |
 | `changed` | altered by the change | rejected |
-| `planned` | rejected | anything the plan adds or alters, including a change to an existing step |
+| `planned` | rejected | anything the plan adds or alters, including a change to an existing step (keep its anchor then) |
+| `removed` | rejected | a step the plan deletes; keeps its anchor, since the code exists now |
 
 ## Links
 
 - Only a `decision` branches: a `step` has at most 1 outgoing link, an `end` none.
 - `{ "from", "to" }`; a link leaving a decision also needs a `label` (`yes`, `no`, `none`, `cli`). A decision has at least 2 outgoing links. Loops back to an earlier step are allowed.
-- A link is planned when either end is `planned`, or it sets `"planned": true` (a plan adds a new branch between existing steps).
+- A link is planned when either end is `planned`, or it sets `"planned": true` (a plan adds a new branch between existing steps, or a new link into a step it alters).
+- In a plan, keep every link that exists now. One the plan drops between steps that stay sets `"removed": true` (with its anchor, if it leaves a decision); links to a `removed` step are removed without it. A step's shape (step, decision, end) follows the flow after the plan.
+- A plan that removes something or alters an existing step (a `planned` step with a `source`) is drawn in the HTML as **Now** and **After plan** side by side.
 
 ## Anchors
 
@@ -114,4 +117,4 @@ A plan to reject revoked invites in that endpoint: the steps above become `exist
 { "id": "403", "label": "403 invite revoked", "status": "planned" }
 ```
 
-Links: `expired → revoked` (`no`) replaces `expired → member`; add `revoked → 403` (`yes`) and `revoked → member` (`no`). All three are planned because `revoked` is.
+Links: `expired → revoked` (`no`) replaces `expired → member`, so keep `expired → member` with `"removed": true` (and its anchor); add `revoked → 403` (`yes`) and `revoked → member` (`no`). The three new ones are planned because `revoked` is. The HTML shows today's flow next to the one after the plan.

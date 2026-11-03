@@ -129,11 +129,11 @@ codechart uninstall && npm uninstall -g codechart
 
 ### Maps: what changed and how it connects
 
-Tables, columns, enums, models, endpoints, components, config and env vars, grouped by layer and marked as new, changed, context or config. They work for **plans** too, so you can catch a wrong design before any code exists.
+Tables, columns, enums, models, endpoints, components, config and env vars, grouped by layer and marked as new, changed, context or config. They work for **plans** too, so you can catch a wrong design before any code exists. A plan that changes existing code opens as **Now** and **After plan** side by side: same positions, panning together, with what the plan removes in red and what it adds in green.
 
 ### Flows: what the code actually does
 
-Decisions, edge cases and outcomes, each pointing at the source lines that implement it. Branches the agent didn't verify go under `gaps` instead of being drawn.
+Decisions, edge cases and outcomes, each pointing at the source lines that implement it. Branches the agent didn't verify go under `gaps` instead of being drawn. A plan that changes existing behaviour also opens as **Now** and **After plan** side by side.
 
 ### Terminal first, page when it helps
 
