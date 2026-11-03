@@ -1,7 +1,8 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
   // src/cli.ts is picked up from tsup.config.ts
-  "entry": ["scripts/*.ts", "scripts/*.mjs", "scripts/demo/*.mjs"],
+  // browser/client.ts is compiled by scripts/gen-client.ts, not imported
+  "entry": ["scripts/*.ts", "scripts/*.mjs", "scripts/demo/*.mjs", "src/render/web/browser/client.ts"],
   "project": ["src/**/*.ts", "scripts/**/*.{ts,mjs}"],
   // demo scripts run from a temp dir where playwright is installed on the fly (scripts/demo/*.sh)
   "ignoreDependencies": ["playwright"],
