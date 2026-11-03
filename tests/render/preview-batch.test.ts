@@ -42,14 +42,16 @@ beforeEach(() => {
 });
 afterEach(() => rmSync(tmp, { recursive: true, force: true }));
 
-const MIX = ['src/plain.ts', 'my file.ts', 'héllo/ü.ts', 'a b/c -> d.ts', 'q"uote.ts', 'src/gone.ts', 'src/binary.bin', 'src/new.ts', '.env', 'src/same.ts'];
+// `>` and `"` are not allowed in Windows file names
+const [ARROW, QUOTE] = process.platform === 'win32' ? ['a b/c - d.ts', "q'uote.ts"] : ['a b/c -> d.ts', 'q"uote.ts'];
+const MIX = ['src/plain.ts', 'my file.ts', 'héllo/ü.ts', ARROW, QUOTE, 'src/gone.ts', 'src/binary.bin', 'src/new.ts', '.env', 'src/same.ts'];
 
 function seedMix() {
-  for (const f of ['src/plain.ts', 'my file.ts', 'héllo/ü.ts', 'a b/c -> d.ts', 'q"uote.ts', 'src/gone.ts', 'src/same.ts']) write(f, 'one\ntwo\nthree\n');
+  for (const f of ['src/plain.ts', 'my file.ts', 'héllo/ü.ts', ARROW, QUOTE, 'src/gone.ts', 'src/same.ts']) write(f, 'one\ntwo\nthree\n');
   write('src/binary.bin', Buffer.from([0, 1, 2, 3]));
   git('add', '-A');
   git('commit', '-q', '-m', 'base');
-  for (const f of ['src/plain.ts', 'my file.ts', 'héllo/ü.ts', 'a b/c -> d.ts', 'q"uote.ts']) write(f, 'one\nTWO\nthree\nfour\n');
+  for (const f of ['src/plain.ts', 'my file.ts', 'héllo/ü.ts', ARROW, QUOTE]) write(f, 'one\nTWO\nthree\nfour\n');
   unlinkSync(join(repo, 'src/gone.ts'));
   write('src/binary.bin', Buffer.from([0, 9, 9, 9]));
   write('src/new.ts', 'x\ny\n');
@@ -73,7 +75,7 @@ describe('previews of many files', () => {
     seedMix();
     const out = previews(specOf(MIX));
     const alone = (path: string) => parseDiff(path, execFileSync('git', ['--literal-pathspecs', 'diff', '--no-color', '-U3', 'HEAD', '--', path], { cwd: repo }).toString());
-    for (const path of ['src/plain.ts', 'my file.ts', 'héllo/ü.ts', 'a b/c -> d.ts', 'q"uote.ts', 'src/gone.ts']) {
+    for (const path of ['src/plain.ts', 'my file.ts', 'héllo/ü.ts', ARROW, QUOTE, 'src/gone.ts']) {
       const node = MIX.indexOf(path);
       expect(out.get(`n${node}`), path).toEqual(alone(path));
       expect(out.get(`n${node}`)!.total, path).toBeGreaterThan(0);
