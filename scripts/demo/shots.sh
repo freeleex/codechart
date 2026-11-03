@@ -5,8 +5,8 @@ set -euo pipefail
 demo="$(cd "$(dirname "$0")" && pwd)"
 root="$(cd "$demo/../.." && pwd)"
 cli="$root/dist/cli.js"
-work=/tmp/demo-shots
-rm -rf "$work" && mkdir -p "$work/pw"
+work="$(mktemp -d /tmp/codechart-shots.XXXXXX)"
+mkdir -p "$work/pw"
 
 "$demo/make-repo.sh" "$work/shop"
 
@@ -94,7 +94,7 @@ render invites "$demo/specs/invite.flow.json" --git
 render invites "$demo/specs/invite-plan.flow.json"
 render infra "$demo/specs/infra.spec.json" --git
 
-(cd "$work/pw" && npm init -y >/dev/null && npm i --silent playwright >/dev/null)
+(cd "$work/pw" && npm init -y >/dev/null && npm i --silent playwright >/dev/null && npx playwright install chromium)
 cp "$demo/shot.mjs" "$work/pw/"
 cache="$work/.cache/codechart"
 shot() { node "$work/pw/shot.mjs" "$@"; }

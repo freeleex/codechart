@@ -3,13 +3,13 @@
 set -euo pipefail
 demo="$(cd "$(dirname "$0")" && pwd)"
 root="$(cd "$demo/../.." && pwd)"
-work=/tmp/demo
-rm -rf "$work" && mkdir -p "$work/pw"
+work="$(mktemp -d /tmp/codechart-demo.XXXXXX)"
+mkdir -p "$work/pw"
 
 "$demo/make-repo.sh" "$work/shop"
-(cd "$work/shop" && DEMO_BIN="$demo" vhs "$demo/demo.tape" &>/dev/null)
+(cd "$work/shop" && DEMO_BIN="$demo" DEMO_HOME="$work" vhs "$demo/demo.tape" &>/dev/null)
 
-(cd "$work/pw" && npm init -y >/dev/null && npm i --silent playwright >/dev/null)
+(cd "$work/pw" && npm init -y >/dev/null && npm i --silent playwright >/dev/null && npx playwright install chromium)
 cp "$demo/page.mjs" "$work/pw/"
 html="$(ls "$work"/.cache/codechart/shop-*/*.html | tail -1)"
 node "$work/pw/page.mjs" "$html" "$work/vid"

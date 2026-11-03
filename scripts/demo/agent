@@ -7,4 +7,4 @@ say $'\e[2m● Read 7 files · Edited 9 files\e[0m'
 say ''
 say '● Done. Invoices for paid orders, plus a refund endpoint behind refundsEnabled.'
 say ''
-HOME=/tmp/demo node "$here/../../dist/cli.js" render "$here/../../tests/fixtures/shop.spec.json" --git --output both
+HOME="${DEMO_HOME:?}" node "$here/../../dist/cli.js" render "$here/../../tests/fixtures/shop.spec.json" --git --output both
