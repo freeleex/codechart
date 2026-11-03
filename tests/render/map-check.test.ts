@@ -230,7 +230,7 @@ describe('review findings', () => {
 });
 
 describe('infrastructure nodes', () => {
-  it('a resource anchors on its block line and a module on its folder, as the skill writes them', () => {
+  it('resources and module calls anchor on their block line, so a change to the call file alone checks clean', () => {
     mkdirSync(join(repo, 'infra/modules/vpc'), { recursive: true });
     writeFileSync(join(repo, 'infra/main.tf'), 'resource "aws_s3_bucket" "logs" {\n  bucket = "logs"\n}\n\nmodule "vpc" {\n  source = "./modules/vpc"\n}\n');
     writeFileSync(join(repo, 'infra/modules/vpc/main.tf'), 'resource "aws_vpc" "main" {}\n');
@@ -238,15 +238,20 @@ describe('infrastructure nodes', () => {
       title: 'Logs bucket', kind: 'summary',
       nodes: [
         { id: 'logs', label: 'aws_s3_bucket.logs', kind: 'other', status: 'new', layer: 'storage', path: 'infra/main.tf', match: 'resource "aws_s3_bucket" "logs"' },
-        { id: 'vpc', label: 'module.vpc', status: 'changed', layer: 'network', path: 'infra/modules/vpc' },
+        { id: 'vpc', label: 'module.vpc', kind: 'other', status: 'changed', layer: 'network', path: 'infra/main.tf', match: 'module "vpc"' },
         { id: 'region', label: 'var.region', kind: 'config', status: 'config', layer: 'config' },
       ],
       edges: [{ from: 'logs', to: 'region', label: 'region', kind: 'reads' }],
     });
     if (!v.ok) throw new Error(v.errors.join('\n'));
-    const r = checkMapNodes(v.spec as Spec, repo, { diff: diffOf(['infra/main.tf', 'infra/modules/vpc/main.tf']) });
+    const r = checkMapNodes(v.spec as Spec, repo, { diff: diffOf(['infra/main.tf']) });
     expect(r.mismatches).toEqual([]);
     expect(r.matches.get('logs')?.startLine).toBe(1);
+    expect(r.matches.get('vpc')?.startLine).toBe(5);
+    // A local module's own code is a folder node, in the diff only when a file under it changed.
+    const internals = map('summary', { status: 'changed', path: 'infra/modules/vpc' });
+    expect(shorts(internals, ['infra/modules/vpc/main.tf'])).toEqual([]);
+    expect(shorts(internals, ['infra/main.tf'])).toEqual(['~node0 not in diff']);
   });
 });
 

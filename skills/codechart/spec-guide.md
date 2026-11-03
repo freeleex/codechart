@@ -60,7 +60,8 @@ Terraform, OpenTofu, Terragrunt, Helm, Kustomize and Kubernetes files match the 
 | Thing | Node |
 |---|---|
 | Resource or data source | `kind: other`, label as the code names it (`aws_s3_bucket.logs`), `path` its `.tf` file, `match` its block line (`resource "aws_s3_bucket" "logs"`) |
-| Module call | `kind: file`, label `module.vpc`, `path` the module folder if local, else the file with the `module` block |
+| Module call | `kind: other`, label `module.vpc`, `path` the file with the `module` block, `match` its line (`module "vpc"`) |
+| Local module's code, when the change edits it | `kind: file`, label `modules/vpc`, `path` its folder |
 | Kubernetes object (manifest or Helm template) | `kind: other`, label `Deployment api`, `path` its file |
 | Chart | `kind: file`, label `chart: api`, `path` its folder |
 | Variable, output, tfvars or values key, ConfigMap or Secret | `kind: config`, status `config` |
