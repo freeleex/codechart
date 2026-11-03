@@ -34,6 +34,8 @@ interface Walk {
  * with any link in) in the order first referenced. Each step is placed once, so loops terminate.
  * Returns no blocks when the budget can't hold the start run and its first branch point.
  */
+// complexity-ratchet: 37 -- single traversal; split by node kind
+// eslint-disable-next-line max-lines-per-function -- ratchet: single traversal; split by node kind
 export function walkFlow(spec: FlowSpec, budget: number): Walk {
   const byId = new Map(spec.steps.map((s) => [s.id, s]));
   const out = new Map<string, FlowLink[]>();

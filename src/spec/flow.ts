@@ -94,6 +94,8 @@ const flowSchema = z
     links: z.array(linkSchema).max(MAX_ITEMS, `at most ${MAX_ITEMS} links; split the flow`),
     gaps: z.array(long()).optional(),
   })
+  // complexity-ratchet: 83 -- one superRefine; split into validators
+  // eslint-disable-next-line max-lines-per-function -- ratchet: one superRefine; split into validators
   .superRefine((spec, ctx) => {
     const issue = (path: (string | number)[], message: string) =>
       ctx.addIssue({ code: 'custom', path, message });
@@ -137,6 +139,7 @@ const flowSchema = z
     const branchesNow = (id: string) => spec.kind === 'plan' && (nowOut.get(id)?.length ?? 0) >= 2 && (live.get(id)?.length ?? 0) < 2;
 
     const outgoing = new Map<string, number[]>();
+    // eslint-disable-next-line complexity -- ratchet: one superRefine; split into validators
     spec.links.forEach((link, i) => {
       for (const end of ['from', 'to'] as const) {
         if (byId.has(link[end])) continue;

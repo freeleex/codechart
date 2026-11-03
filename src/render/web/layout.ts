@@ -7,14 +7,14 @@ export interface Point {
   x: number;
   y: number;
 }
-export interface LayoutGroup {
+interface LayoutGroup {
   layer: string;
   x: number;
   y: number;
   w: number;
   h: number;
 }
-export interface LayoutNode {
+interface LayoutNode {
   id: string;
   x: number;
   y: number;
@@ -146,6 +146,7 @@ export async function layoutSpec(spec: Spec, canvases?: Canvases): Promise<Layou
   return pickLayout(right, down, canvases);
 }
 
+// eslint-disable-next-line max-lines-per-function -- ratchet: one ELK pass; barely over
 async function layoutIn(elk: Elk, spec: Spec, direction: Direction): Promise<Layout> {
   const layers = [...new Set(spec.nodes.map((n) => n.layer))];
   const children: ElkNode[] = layers.map((layer) => ({

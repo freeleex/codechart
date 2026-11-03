@@ -52,7 +52,10 @@
     "lint": "eslint .",
     "measure": "tsx scripts/measure.ts",
     "bench:tokens": "tsx scripts/token-bench.ts",
-    "gen:config-schema": "tsx scripts/gen-config-schema.ts"
+    "gen:config-schema": "tsx scripts/gen-config-schema.ts",
+    "complexity": "node scripts/complexity.mjs",
+    "dup": "jscpd src --threshold 1 && jscpd tests --threshold 5",
+    "knip": "knip"
   },
   "dependencies": {
     "commander": "15.0.0",
@@ -67,6 +70,8 @@
     "eslint": "^10.13.0",
     "fast-check": "4.10.2",
     "happy-dom": "21.0.4",
+    "jscpd": "5.4.2",
+    "knip": "6.44.1",
     "tsup": "^9.0.0",
     "tsx": "4.23.15",
     "typescript": "^6.0.3",

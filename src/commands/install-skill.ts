@@ -67,6 +67,8 @@ function installExtras(extras: Extras, agents: AgentPreset[], home: string, forc
   }
 }
 
+// complexity-ratchet: 46 -- install action does everything inline; split per hook-agent step
+// eslint-disable-next-line max-lines-per-function -- ratchet: install action does everything inline; split per hook-agent step
 export function installSkillCommand(opts: CommandOptions): Command {
   return new Command('install-skill')
     .description('install the skill for the agents found in your home folder (or --agent / --dir)')
@@ -75,6 +77,7 @@ export function installSkillCommand(opts: CommandOptions): Command {
     .option('--force', 'overwrite an existing install')
     .option('--reminder', "add a one-line reminder to use codechart to each agent's global instructions file")
     .option('--hook', 'add a Claude Code hook that asks for a diagram after a turn that changed 3+ files without one')
+    // eslint-disable-next-line max-lines-per-function, complexity -- ratchet: install action does everything inline; split per hook-agent step
     .action(async (o: { agent?: string[]; dir?: string; force?: boolean; reminder?: boolean; hook?: boolean }) => {
       const home = opts.home ?? homedir();
       const names = o.agent?.flatMap((n) => n.split(',')).map((n) => n.trim().toLowerCase()).filter(Boolean);

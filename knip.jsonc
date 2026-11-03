@@ -1,0 +1,15 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  // src/cli.ts is picked up from tsup.config.ts
+  "entry": ["scripts/*.ts", "scripts/*.mjs", "scripts/demo/*.mjs"],
+  "project": ["src/**/*.ts", "scripts/**/*.{ts,mjs}"],
+  // demo scripts run from a temp dir where playwright is installed on the fly (scripts/demo/*.sh)
+  "ignoreDependencies": ["playwright"],
+  // created by tests to exercise non-regular-file handling
+  "ignoreBinaries": ["mkfifo"],
+  "ignoreIssues": {
+    // PreviewLine: file owned by the efficiency PR; drop this entry once its export is removed there
+    "src/render/preview.ts": ["types"]
+  }
+  // renderTerminal is used only by tests; knip counts tests as entries, so it needs no entry here
+}

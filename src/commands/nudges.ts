@@ -55,7 +55,7 @@ export function removeReminder(file: string): 'removed' | 'absent' {
   return 'removed';
 }
 
-export const HOOK_COMMANDS = { UserPromptSubmit: 'codechart hook prompt', Stop: 'codechart hook stop' } as const;
+const HOOK_COMMANDS = { UserPromptSubmit: 'codechart hook prompt', Stop: 'codechart hook stop' } as const;
 const TIMEOUTS = { UserPromptSubmit: 10, Stop: 30 } as const;
 
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);

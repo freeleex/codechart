@@ -111,6 +111,8 @@ function markdown(map: string | undefined, htmlPath: string | undefined, alert: 
   return markdownBlock(`**Map** _(${KEY})_`, body ?? (alert || undefined), htmlPath);
 }
 
+// complexity-ratchet: 61 -- render action mixes map and flow; split in hotspot refactor
+// eslint-disable-next-line max-lines-per-function -- ratchet: render action mixes map and flow; split in hotspot refactor
 export function renderCommand(opts: CommandOptions): Command {
   const cwd = opts.cwd ?? process.cwd();
   return new Command('render')
@@ -126,6 +128,7 @@ export function renderCommand(opts: CommandOptions): Command {
     .option('--since <base>', 'check claims against the files committed since <base>; add --git for uncommitted ones too')
     .option('--head <ref>', 'with --since: compare <base>...<ref> instead of HEAD')
     .option('--strict', "exit 1 when a claim doesn't match the code")
+    // eslint-disable-next-line max-lines-per-function, complexity -- ratchet: render action mixes map and flow; split in hotspot refactor
     .action(async (arg: string, o: RenderFlags, cmd: Command) => {
       const usage = renderSelectionError(o);
       if (usage) cmd.error(usage, { exitCode: 2 });

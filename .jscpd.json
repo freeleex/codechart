@@ -1,0 +1,7 @@
+{
+  "minTokens": 50,
+  "format": ["typescript"],
+  "reporters": ["console"],
+  "silent": true,
+  "absolute": false
+}

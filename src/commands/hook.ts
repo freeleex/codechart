@@ -6,7 +6,7 @@ import { findRepoRoot } from '../config/load.js';
 import type { CommandOptions } from '../program.js';
 import { gitDiffFiles, gitDirtyHashes, gitHead, gitListFiles } from '../rules/git-files.js';
 
-export const MIN_FILES = 3;
+const MIN_FILES = 3;
 const MAX_INPUT = 1024 * 1024;
 const MAX_TRANSCRIPT_TAIL = 8 * 1024 * 1024;
 const MAX_DIRTY = 5000;
@@ -103,7 +103,7 @@ function prune(dir: string, now: number) {
 }
 
 // No file names: a crafted name would become part of the instruction.
-export const nudge = (count: number): string =>
+const nudge = (count: number): string =>
   `This turn changed ${count} files and your reply has no codechart diagram. Unless the user said no diagram, follow the codechart skill now (check, then render) and reply with what it prints; if it says no diagram applies, stop without mentioning it.`;
 
 export function hookCommand(opts: CommandOptions): Command {

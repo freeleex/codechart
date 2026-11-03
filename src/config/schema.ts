@@ -1,17 +1,17 @@
 import { z } from 'zod';
 import { oneLine } from '../spec/shared.js';
 
-export const OUTPUTS = ['auto', 'cli', 'web', 'both', 'none'] as const;
-export const CONTEXT_MODES = ['short', 'full'] as const;
+const OUTPUTS = ['auto', 'cli', 'web', 'both', 'none'] as const;
+const CONTEXT_MODES = ['short', 'full'] as const;
 export const THEMES = ['auto', 'light', 'dark'] as const;
-export const OPEN_MODES = ['auto', 'always', 'never'] as const;
-export const DIAGRAMS = ['map', 'flow'] as const;
-export const FLOWS = ['auto', 'always', 'request'] as const;
+const OPEN_MODES = ['auto', 'always', 'never'] as const;
+const DIAGRAMS = ['map', 'flow'] as const;
+const FLOWS = ['auto', 'always', 'request'] as const;
 
 export type Output = (typeof OUTPUTS)[number];
 export type ContextMode = (typeof CONTEXT_MODES)[number];
 export type Theme = (typeof THEMES)[number];
-export type OpenMode = (typeof OPEN_MODES)[number];
+type OpenMode = (typeof OPEN_MODES)[number];
 export type Diagram = (typeof DIAGRAMS)[number];
 export type Flows = (typeof FLOWS)[number];
 

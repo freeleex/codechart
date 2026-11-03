@@ -90,6 +90,7 @@ export interface ConfigWithSources {
   ruleSources: string[];
 }
 
+// eslint-disable-next-line complexity -- ratchet: config merge chain; split per source
 export function loadConfigWithSources(opts: LoadOptions): ConfigWithSources {
   const env = opts.env ?? process.env;
   const home = opts.home ?? homedir();
