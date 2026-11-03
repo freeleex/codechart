@@ -130,7 +130,7 @@ function stepPanel(spec: FlowSpec, step: FlowStep, snippets: FlowSnippets, byId:
 }
 
 function pageInfo(spec: FlowSpec, anyPlanned: boolean, sides: boolean, check: CheckSummary | undefined): string {
-  let out = `<p>Click a step for its status, source and code. Scroll to zoom, drag to pan${sides ? '; both panes move together' : ''}.</p>`;
+  let out = `<p>Click a step for its status, source and code. Scroll to zoom, drag to pan${sides ? '; while "Panes: linked", both panes move together' : ''}.</p>`;
   out += checkSection(check);
   if (anyPlanned) out += '<p class="planned-note">Dashed steps and arrows are planned: not in the code yet.</p>';
   if (spec.steps.some((s) => s.status === 'removed') || spec.links.some((l) => l.removed)) {

@@ -32,6 +32,10 @@ beforeEach(() => {
 });
 
 describe('client panel switching', () => {
+  it('a single map has no pane link toggle', () => {
+    expect(q('#link-toggle')).toBeNull();
+  });
+
   it('starts on page-info', () => {
     expect(info().hidden).toBe(false);
     expect(panel().hidden).toBe(true);

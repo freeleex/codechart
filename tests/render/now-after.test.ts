@@ -76,6 +76,18 @@ describe('now and after states', () => {
     expect(hasNowAfter(rewire)).toBe(true);
     expect(hasNowAfter({ ...spec, kind: 'summary', edges: [] })).toBe(false);
   });
+
+  it('one map when both panes would match: only changed nodes, or a modified field without was', () => {
+    const changedOnly = load({ ...raw, nodes: [raw.nodes[3], raw.nodes[4]], edges: [{ from: 'api', to: 'svc' }] });
+    expect(hasNowAfter(changedOnly)).toBe(false);
+    const modified = load({
+      ...raw,
+      nodes: [{ ...raw.nodes[0], fields: [{ name: 'role', type: 'enum', change: 'modified' }] }],
+      edges: [],
+    });
+    expect(hasNowAfter(modified)).toBe(false);
+    expect(hasNowAfter(load({ ...raw, nodes: [raw.nodes[3], raw.nodes[2]], edges: [] }))).toBe(true);
+  });
 });
 
 describe('Now and After HTML', () => {
@@ -128,6 +140,26 @@ describe('Now and After HTML', () => {
     const [a, b] = transforms();
     expect(a).not.toBe(before);
     expect(a).toBe(b);
+  });
+
+  it('separate panes move alone, are remembered, and relinking aligns them to the last one moved', () => {
+    const toggle = document.querySelector<HTMLElement>('#link-toggle')!;
+    expect(toggle.textContent).toBe('Panes: linked');
+    toggle.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(toggle.textContent).toBe('Panes: separate');
+    expect(toggle.getAttribute('aria-pressed')).toBe('false');
+    expect(localStorage.getItem('codechart.panes.linked')).toBe('0');
+    const canvas = panes()[1]!.querySelector('.canvas')!;
+    canvas.dispatchEvent(new PointerEvent('pointerdown', { clientX: 10, clientY: 10, bubbles: true }));
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 60, clientY: 40 }));
+    window.dispatchEvent(new PointerEvent('pointerup'));
+    canvas.dispatchEvent(new WheelEvent('wheel', { deltaY: -100, bubbles: true, cancelable: true }));
+    const [a, b] = transforms();
+    expect(a).not.toBe(b);
+    toggle.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(transforms()).toEqual([b, b]);
+    expect(localStorage.getItem('codechart.panes.linked')).toBe('1');
+    localStorage.removeItem('codechart.panes.linked');
   });
 
   it('selecting a node selects it in both panes and lists fields now and after', () => {

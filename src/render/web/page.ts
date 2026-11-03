@@ -75,7 +75,7 @@ interface PageParts {
   /** Escaped already. */
   headerNote?: string;
   viewport: string;
-  /** Instead of `viewport`: canvases side by side that pan and zoom together. */
+  /** Instead of `viewport`: canvases side by side that pan and zoom together while linked. */
   panes?: { title: string; key: KeyPart[]; viewport: string }[];
   aside: string;
   width: number;
@@ -102,7 +102,7 @@ export function renderPage(p: PageParts): string {
 <title>${esc(p.title)}</title>
 <style>${CSS}${p.extraCss ?? ''}</style></head>
 <body>
-<header><h1>${esc(p.title)}</h1>${p.headerNote ?? ''}<span class="meta">${esc(p.meta.repo)} · ${esc(p.meta.generatedAt.toISOString())}</span>${p.infoButton}<button id="theme-toggle" type="button" title="Cycle theme: auto, light, dark"></button></header>
+<header><h1>${esc(p.title)}</h1>${p.headerNote ?? ''}<span class="meta">${esc(p.meta.repo)} · ${esc(p.meta.generatedAt.toISOString())}</span>${p.infoButton}${p.panes ? '<button id="link-toggle" type="button" title="Linked: panning or zooming one pane moves both"></button>' : ''}<button id="theme-toggle" type="button" title="Cycle theme: auto, light, dark"></button></header>
 <main>
 ${body}
 <div id="resize" role="separator" aria-orientation="vertical" aria-label="Resize panel" tabindex="0" title="Drag to resize the panel"></div>

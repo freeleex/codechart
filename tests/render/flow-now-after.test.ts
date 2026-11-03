@@ -140,6 +140,10 @@ describe('plan flow Now and After HTML', async () => {
     expect(join(panes[1]!).getAttribute('class')).toContain('status-planned');
   });
 
+  it('has the pane link toggle', () => {
+    expect(page).toContain('<button id="link-toggle"');
+  });
+
   it('pane keys say what each colour means', () => {
     expect(panes.map((p) => p.querySelector('.pane-key')?.textContent)).toEqual([
       ' · red: removed by the plan · amber: changed by it',
