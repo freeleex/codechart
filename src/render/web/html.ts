@@ -109,7 +109,7 @@ function cardPanel(n: SpecNode, check: MapCheck | undefined, previews: Map<strin
 }
 
 function pageInfo(spec: Spec, check: MapCheck | undefined, sides: boolean): string {
-  let out = `<p>Click a node for details. Scroll to zoom, drag to pan${sides ? '; both panes move together' : ''}.</p>`;
+  let out = `<p>Click a node for details. Scroll to zoom, drag to pan${sides ? '; while "Panes: linked", both panes move together' : ''}.</p>`;
   out += checkSection(check);
   if (spec.gaps?.length) out += `<h3>Gaps</h3>${list(spec.gaps)}`;
   if (spec.omitted?.length) out += `<h3>Not on map</h3>${list(spec.omitted)}`;

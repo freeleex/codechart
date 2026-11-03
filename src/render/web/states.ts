@@ -10,16 +10,18 @@ export const SIDE_KEY: Record<Side, KeyPart[]> = {
   after: [{ text: 'green: added by the plan', tone: 'new' }],
 };
 
-/** A plan that only adds things gets one map: its Now side would show little but context. */
+/** Two panes only when the plan touches existing code and they differ: an additive plan's Now would show little but context. */
 export function hasNowAfter(spec: Spec): boolean {
   if (spec.kind !== 'plan') return false;
-  return (
-    spec.nodes.some((n) => n.status === 'changed' || n.status === 'removed' || n.fields?.some(touchesExisting)) ||
-    spec.edges.some((e) => e.change !== undefined)
-  );
+  if (spec.edges.some((e) => e.change !== undefined) || spec.nodes.some((n) => n.status === 'removed')) return true;
+  const fields = spec.nodes.flatMap((n) => n.fields ?? []);
+  const touches = spec.nodes.some((n) => n.status === 'changed') || fields.some((f) => f.change === 'removed' || f.change === 'modified');
+  const differs = spec.nodes.some((n) => n.status === 'new') || fields.some(differsOnSides);
+  return touches && differs;
 }
 
-const touchesExisting = (f: Field) => f.change === 'removed' || f.change === 'modified' || f.was !== undefined;
+// A modified field without `was` reads the same on both sides.
+const differsOnSides = (f: Field) => f.change === 'added' || f.change === 'removed' || f.was !== undefined;
 
 export const nodeOn = (side: Side, status: Status): boolean => (side === 'now' ? status !== 'new' : status !== 'removed');
 

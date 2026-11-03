@@ -70,6 +70,6 @@ header .check{font-size:11px;color:var(--new-t)}header .check.bad{color:var(--re
 .field-added-t{color:var(--add)}.field-removed-t{color:var(--muted);text-decoration:line-through}.field-modified-t{color:var(--chg-t)}
 
 #info-toggle[aria-expanded="true"]{border-color:var(--edge)}
-#info-toggle,#theme-toggle{align-self:center;padding:4px 10px;font:11px system-ui,sans-serif;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:12px;cursor:pointer}
-#info-toggle:hover,#theme-toggle:hover{border-color:var(--edge)}
+#info-toggle,#link-toggle,#theme-toggle{align-self:center;padding:4px 10px;font:11px system-ui,sans-serif;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:12px;cursor:pointer}
+#info-toggle:hover,#link-toggle:hover,#theme-toggle:hover{border-color:var(--edge)}
 `;
