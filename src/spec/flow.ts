@@ -128,6 +128,13 @@ const flowSchema = z
     else if (byId.get(spec.start)!.status === 'removed') issue(['start'], 'the start step cannot be removed; start where the flow begins after the plan');
     const brandNew = (id: string) => byId.get(id)?.status === 'planned' && !byId.get(id)?.source;
     const removedStep = (id: string) => byId.get(id)?.status === 'removed';
+    // A step that branches today keeps labelled, anchored branches even if the plan leaves it one exit.
+    const existsNow = (link: FlowLink) => link.planned !== true && !brandNew(link.from) && !brandNew(link.to);
+    const nowOut = new Map<string, number[]>();
+    spec.links.forEach((link, i) => {
+      if (existsNow(link)) nowOut.set(link.from, [...(nowOut.get(link.from) ?? []), i]);
+    });
+    const branchesNow = (id: string) => spec.kind === 'plan' && (nowOut.get(id)?.length ?? 0) >= 2 && (live.get(id)?.length ?? 0) < 2;
 
     const outgoing = new Map<string, number[]>();
     spec.links.forEach((link, i) => {
@@ -154,7 +161,7 @@ const flowSchema = z
         issue(['links', i, 'planned'], 'a link to a removed step cannot be planned');
       }
       const from = byId.get(link.from);
-      const leavesDecision = from !== undefined && typeOf(from) === 'decision';
+      const leavesDecision = from !== undefined && (typeOf(from) === 'decision' || (branchesNow(from.id) && existsNow(link)));
       if (leavesDecision && !isPlannedLink(spec, link) && !link.source) {
         issue(['links', i, 'source'], `required for a non-planned branch leaving a decision ${ANCHOR}`);
       }
@@ -164,7 +171,7 @@ const flowSchema = z
     spec.steps.forEach((step, i) => {
       // Shape checks follow the flow after the plan; a decision labels every branch, removed ones too.
       const links = (live.get(step.id) ?? []).map((l) => l.i);
-      if (step.type === undefined && step.label.trim().endsWith('?') && links.length < 2) {
+      if (step.type === undefined && step.label.trim().endsWith('?') && links.length < 2 && !branchesNow(step.id)) {
         issue(['steps', i, 'type'], `label ends in "?", so this is a decision: it needs at least 2 outgoing links, has ${links.length}`);
         return;
       }
@@ -175,13 +182,17 @@ const flowSchema = z
       if (type === 'step' && links.length > 1) {
         issue(['steps', i, 'type'], `has ${links.length} outgoing links; make it a decision with labelled branches`);
       }
-      if (type !== 'decision') return;
+      const label = (li: number) => {
+        if (!spec.links[li]!.label) issue(['links', li, 'label'], 'required on a link leaving a decision');
+      };
+      if (type !== 'decision') {
+        if (branchesNow(step.id)) (nowOut.get(step.id) ?? []).forEach(label);
+        return;
+      }
       if (links.length < 2) {
         issue(['steps', i, 'id'], `decision "${step.id}" needs at least 2 outgoing links, has ${links.length}`);
       }
-      for (const li of outgoing.get(step.id) ?? []) {
-        if (!spec.links[li]!.label) issue(['links', li, 'label'], 'required on a link leaving a decision');
-      }
+      (outgoing.get(step.id) ?? []).forEach(label);
     });
 
     if (refsOk) {

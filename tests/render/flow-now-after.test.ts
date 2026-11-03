@@ -82,6 +82,26 @@ describe('plan flow with removals', () => {
     toNew.links.push({ from: 'audit', to: '403' } as (typeof toNew.links)[number]);
     expect(errorsOf(toNew).some((e) => e.endsWith('they never exist at the same time'))).toBe(true);
 
+    const oneExitLeft = {
+      kind: 'plan',
+      title: 'Drop the admin branch',
+      start: 'access',
+      steps: [
+        { id: 'access', label: 'check access', status: 'existing', source: `${src}:1` },
+        { id: 'user', label: 'show page', status: 'existing', source: `${src}:2` },
+        { id: 'admin', label: 'show admin page', status: 'removed', source: `${src}:3` },
+      ],
+      links: [
+        { from: 'access', to: 'user' },
+        { from: 'access', to: 'admin' },
+      ],
+    };
+    const branchErrors = errorsOf(oneExitLeft);
+    for (const i of [0, 1]) {
+      expect(branchErrors).toContain(`links[${i}].label: required on a link leaving a decision`);
+      expect(branchErrors.some((e) => e.startsWith(`links[${i}].source: required for a non-planned branch leaving a decision`))).toBe(true);
+    }
+
     const plannedToRemoved = structuredClone(raw);
     Object.assign(plannedToRemoved.links[6]!, { planned: true });
     expect(errorsOf(plannedToRemoved)).toContain('links[6].planned: a link to a removed step cannot be planned');
