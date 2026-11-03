@@ -1,0 +1,31 @@
+{
+  "kind": "summary", "title": "Access logs for the api load balancer", "rules": ["infrastructure"],
+  "nodes": [
+    { "id": "logs", "label": "aws_s3_bucket.logs", "kind": "other", "status": "new", "layer": "storage",
+      "summary": "Bucket that receives the load balancer's access logs",
+      "path": "infra/logs.tf", "match": "resource \"aws_s3_bucket\" \"logs\"" },
+    { "id": "expire", "label": "aws_s3_bucket_lifecycle_configuration.logs", "kind": "other", "status": "new", "layer": "storage",
+      "summary": "Expires log objects after the retention window",
+      "path": "infra/logs.tf", "match": "resource \"aws_s3_bucket_lifecycle_configuration\" \"logs\"" },
+    { "id": "alb", "label": "aws_lb.api", "kind": "other", "status": "changed", "layer": "network",
+      "summary": "Public load balancer in front of the api",
+      "path": "infra/alb.tf", "match": "access_logs {", "fieldsComplete": false,
+      "fields": [
+        { "name": "access_logs.bucket", "type": "aws_s3_bucket.logs", "change": "added" },
+        { "name": "access_logs.enabled", "type": "true", "change": "added" }
+      ] },
+    { "id": "vpc", "label": "module.vpc", "kind": "other", "status": "context", "layer": "network",
+      "summary": "Network module the load balancer sits in",
+      "path": "infra/main.tf", "match": "module \"vpc\"" },
+    { "id": "retention", "label": "var.log_retention_days", "kind": "config", "status": "config", "layer": "config",
+      "summary": "Days before a log object expires (default 90)",
+      "path": "infra/variables.tf" }
+  ],
+  "edges": [
+    { "from": "alb", "to": "logs", "label": "access_logs.bucket", "kind": "reads" },
+    { "from": "alb", "to": "vpc", "label": "subnets", "kind": "reads" },
+    { "from": "expire", "to": "logs", "label": "bucket", "kind": "configures" },
+    { "from": "expire", "to": "retention", "label": "expiration.days", "kind": "reads" }
+  ],
+  "gaps": ["terraform plan not run", "module.vpc internals not read"]
+}

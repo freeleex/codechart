@@ -1,0 +1,30 @@
+{
+  "kind": "plan", "title": "Reject revoked invites", "rules": ["behaviour-flow"], "start": "lookup",
+  "steps": [
+    { "id": "lookup", "label": "look up invite by token", "status": "existing", "source": "app/api/invites.py", "match": "invite = find_invite(token)" },
+    { "id": "found", "label": "invite found?", "status": "existing", "source": "app/api/invites.py", "match": "if invite is None:" },
+    { "id": "404", "label": "404 invite not found", "status": "existing", "source": "app/api/invites.py", "match": "raise NotFound(\"invite\")" },
+    { "id": "expired", "label": "expired?", "status": "existing", "source": "app/api/invites.py", "match": "if invite.expires_at < now():" },
+    { "id": "410", "label": "410 invite expired", "status": "existing", "source": "app/api/invites.py", "match": "raise Gone(" },
+    { "id": "revoked", "label": "revoked?", "status": "planned" },
+    { "id": "403", "label": "403 invite revoked", "status": "planned" },
+    { "id": "member", "label": "already a member?", "status": "existing", "source": "app/api/invites.py", "match": "if is_member(user, invite.team):" },
+    { "id": "noop", "label": "return already a member", "status": "existing", "source": "app/api/invites.py", "match": "return {\"status\": \"member\"}" },
+    { "id": "join", "label": "save membership", "status": "existing", "source": "app/api/invites.py:13-15" },
+    { "id": "joined", "label": "return joined", "status": "existing", "source": "app/api/invites.py", "match": "return {\"status\": \"joined\"}" }
+  ],
+  "links": [
+    { "from": "lookup", "to": "found" },
+    { "from": "found", "to": "404", "label": "no", "source": "app/api/invites.py", "match": "raise NotFound(" },
+    { "from": "found", "to": "expired", "label": "yes", "source": "app/api/invites.py", "match": "if invite.expires_at < now():" },
+    { "from": "expired", "to": "410", "label": "yes", "source": "app/api/invites.py", "match": "raise Gone(" },
+    { "from": "expired", "to": "member", "label": "no", "source": "app/api/invites.py", "match": "if is_member(user, invite.team):", "removed": true },
+    { "from": "expired", "to": "revoked", "label": "no" },
+    { "from": "revoked", "to": "403", "label": "yes" },
+    { "from": "revoked", "to": "member", "label": "no" },
+    { "from": "member", "to": "noop", "label": "yes", "source": "app/api/invites.py", "match": "return {\"status\": \"member\"}" },
+    { "from": "member", "to": "join", "label": "no", "source": "app/api/invites.py", "match": "m = Membership(" },
+    { "from": "join", "to": "joined" }
+  ],
+  "gaps": ["where revoked_at is set is not designed yet"]
+}

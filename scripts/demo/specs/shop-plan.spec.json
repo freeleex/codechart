@@ -1,0 +1,27 @@
+{
+  "kind": "plan", "title": "Invoice numbers from a sequences table", "rules": ["related-files"],
+  "nodes": [
+    { "id": "invoices", "label": "invoices", "kind": "table", "status": "changed", "layer": "database",
+      "summary": "One invoice per paid order", "path": "shop/models/invoice.py", "fieldsComplete": false,
+      "fields": [{ "name": "number", "type": "text", "change": "modified" }] },
+    { "id": "sequences", "label": "invoice_sequences", "kind": "table", "status": "new", "layer": "database",
+      "summary": "One counter row per year", "fieldsComplete": true,
+      "fields": [
+        { "name": "year", "type": "int", "note": "PK", "change": "added" },
+        { "name": "next_value", "type": "int", "change": "added" }
+      ] },
+    { "id": "mig", "label": "migration: create invoice_sequences", "kind": "file", "status": "new", "layer": "config",
+      "summary": "Creates the table and seeds it from existing invoices", "path": "db/migrations/0043_sequences.py" },
+    { "id": "prefix", "label": "INVOICE_PREFIX", "kind": "config", "status": "removed", "layer": "config",
+      "summary": "Env prefix for invoice numbers; the sequence replaces it", "path": "shop/settings.py" },
+    { "id": "mig42", "label": "migration: backfill invoices", "kind": "file", "status": "context", "layer": "config",
+      "summary": "Existing backfill, reads the prefix today", "path": "db/migrations/0042_invoices.py" }
+  ],
+  "edges": [
+    { "from": "invoices", "to": "sequences", "label": "number from", "kind": "reads" },
+    { "from": "mig", "to": "sequences", "label": "creates", "kind": "writes" },
+    { "from": "mig", "to": "invoices", "label": "renumbers", "kind": "writes" },
+    { "from": "mig42", "to": "prefix", "label": "reads", "kind": "reads" }
+  ],
+  "gaps": ["locking for concurrent invoice creation not decided"]
+}
