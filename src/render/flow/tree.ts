@@ -4,7 +4,7 @@ import type { TermCtx } from '../terminal/ctx.js';
 import { columns, fit, flat, truncate, wrapItems, type Cuts, type Segment } from '../terminal/wrap.js';
 import { defaultWidth, fullMapLine, MIN_WIDTH } from '../terminal/render.js';
 import { walkFlow, type Arm, type Chain, type Item } from './walk.js';
-import { alertLine, countLines, type CheckSummary } from '../terminal/check-lines.js';
+import { alertLine, countLines, webAlert, type CheckSummary } from '../terminal/check-lines.js';
 
 export interface FlowTreeOptions {
   maxNodes: number;
@@ -154,9 +154,11 @@ export function renderFlowTree(spec: FlowSpec, opts: FlowTreeOptions): { text: s
   const md = opts.md ?? false;
   const alert = alertLine(opts.check, ctx.width);
   if (walk.blocks.length === 0) {
-    const body = (line: string) => (alert ? `${alert}\n${line}` : line);
+    // No footer here, so the unchecked-diff note rides with the alert.
+    const head = webAlert(opts.check, ctx.width);
+    const body = (line: string) => (head ? `${head}\n${line}` : line);
     if (!opts.htmlPath) return { text: md ? flowMarkdown(spec.title, body(TOO_LARGE), ctx, flowKey(spec)) : `${body(TOO_LARGE)}\n`, truncated: true };
-    const text = md ? flowMarkdown(spec.title, alert || undefined, ctx, flowKey(spec)) : `${body(fullMapLine(opts.htmlPath))}\n`;
+    const text = md ? flowMarkdown(spec.title, head || undefined, ctx, flowKey(spec)) : `${body(fullMapLine(opts.htmlPath))}\n`;
     return { text, truncated: true };
   }
 

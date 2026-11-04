@@ -262,4 +262,21 @@ describe('countLines', () => {
     expect(countLines('1 nodes · 0 new · 1 changed · 0 config', ok, 40)).toBe('1 nodes · 0 new · 1 changed · 0 config\n✓ 1 checked');
     expect(countLines('1 nodes · 0 new', undefined, 10)).toBe('1 nodes ·…');
   });
+
+  it('splits the tag into its parts rather than cutting "diff not checked"', () => {
+    const unchecked = { ...ok, diffUnchecked: true };
+    expect(countLines('1 nodes · 0 new', unchecked, 20)).toBe('1 nodes · 0 new\n✓ 1 checked\ndiff not checked');
+    expect(countLines('1 nodes · 0 new · 1 changed', unchecked, 40)).toBe('1 nodes · 0 new · 1 changed\n✓ 1 checked · diff not checked');
+  });
+});
+
+describe('uncovered files', () => {
+  it('from a subfolder, a node found at the root covers only the root file', () => {
+    writeFileSync(join(repo, 'README.md'), 'x\n');
+    mkdirSync(join(repo, 'packages/api'), { recursive: true });
+    writeFileSync(join(repo, 'packages/api/README.md'), 'y\n');
+    const s = map('summary', { status: 'changed', path: 'README.md' });
+    const r = checkMapNodes(s, repo, { cwd: join(repo, 'packages/api'), diff: diffOf(['README.md', 'packages/api/README.md']) });
+    expect(r.uncovered).toEqual(['packages/api/README.md']);
+  });
 });

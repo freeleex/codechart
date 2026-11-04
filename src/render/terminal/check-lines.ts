@@ -64,7 +64,12 @@ export function webAlert(c: CheckSummary | undefined, width: number): string {
 export function countLines(counts: string, c: CheckSummary | undefined, width: number): string {
   const tag = checkTag(c);
   if (columns(counts + tag) <= width) return counts + tag;
-  return tag ? `${truncate(counts, width)}\n${truncate(tag.replace(/^ · /, ''), width)}` : truncate(counts, width);
+  if (!tag) return truncate(counts, width);
+  // Each part on its own line when they don't fit together, so "diff not checked" is never the part cut off.
+  const parts = tag.replace(/^ · /, '').split(' · ');
+  const joined = parts.join(' · ');
+  const rest = columns(joined) <= width ? [joined] : parts.map((p) => truncate(p, width));
+  return [truncate(counts, width), ...rest].join('\n');
 }
 
 export function checkHeadline(c: CheckSummary | undefined): string {

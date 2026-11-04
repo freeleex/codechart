@@ -292,6 +292,11 @@ describe('renderFlowTree', () => {
     );
   });
 
+  it('a too-large flow still says the diff was not checked', () => {
+    const check = { checked: 0, mismatches: [], unit: 'anchor' as const, diffUnchecked: true };
+    expect(renderFlowTree(renderFlow, { ...opts, maxNodes: 3, check }).text).toBe('diff not checked\nflow too large for the terminal; use --output both or web\n');
+  });
+
   it('marks a branch into a planned step with ?, without planned: true', () => {
     const spec = flow(
       [['d', 'd?', 'decision'], ['a', 'a', 'end'], ['b', 'b', 'end', 'planned']],

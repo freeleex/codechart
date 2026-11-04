@@ -96,7 +96,7 @@ export function checkMapNodes(spec: Spec, root: string, opts: CheckOptions = {})
     if (problem) result.mismatches.push({ id: node.id, label: plainLabel(node), ...problem });
   }
   if (opts.diff && spec.kind === 'summary') {
-    const uncovered = uncoveredFiles(c, spec, opts.diff, opts.ignored);
+    const uncovered = uncoveredFiles(c, spec, opts.diff, result.found, opts.ignored);
     if (uncovered.length) result.uncovered = uncovered;
   }
   return result;
@@ -117,8 +117,9 @@ function covered(c: AnchorCtx, file: string, paths: string[]): boolean {
 }
 
 /** Changed files no node's path covers and no `omitted` entry names. */
-function uncoveredFiles(c: AnchorCtx, spec: Spec, diff: Diff, ignored: (file: string) => boolean = () => false): string[] {
-  const paths = spec.nodes.flatMap((n) => (n.path === undefined ? [] : nodeRepoPaths(c, n.path)));
+function uncoveredFiles(c: AnchorCtx, spec: Spec, diff: Diff, found: Map<string, string>, ignored: (file: string) => boolean = () => false): string[] {
+  // A file found on disk covers only where it was found; a missing one (deleted) may mean either path.
+  const paths = spec.nodes.flatMap((n) => (n.path === undefined ? [] : found.has(n.id) ? [found.get(n.id)!] : nodeRepoPaths(c, n.path)));
   const omitted = spec.omitted ?? [];
   return diff.files.filter((f) => !ignored(f) && !omitted.some((o) => explains(o, f)) && !covered(c, f, paths));
 }
