@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { loadConfig } from '../../src/config/load.js';
@@ -29,8 +29,8 @@ async function run(cwd: string, args: string[], picked?: number[] | 'cancel', ex
   const choose =
     picked === undefined
       ? undefined
-      : async (_: string, items: { label: string; hint: string }[], checked?: boolean) => {
-          if (checked === false) {
+      : async (title: string, items: { label: string; hint: string }[]) => {
+          if (!title.startsWith('Install')) {
             extrasShown = items.map((i) => `${i.label} ${i.hint}`);
             return extras;
           }
@@ -49,7 +49,54 @@ describe('codechart install-skill', () => {
     const { out, code } = await run(repo, ['install-skill']);
     expect(code).toBeUndefined();
     expect(readFileSync(target(), 'utf8')).toBe(skill);
-    expect(out).toBe(`agents: Claude Code\ninstalled for Claude Code: ${join(home, '.claude', 'skills', 'codechart')}\n`);
+    expect(out).toBe(
+      `agents: Claude Code\ninstalled for Claude Code: ${join(home, '.claude', 'skills', 'codechart')}\n` +
+        `reminder added: ${join(home, '.claude', 'CLAUDE.md')}\nhook added: ${join(home, '.claude', 'settings.json')}\n`,
+    );
+  });
+
+  it('updates an older codechart copy without --force; a current one is left alone', async () => {
+    const dir = join(home, '.claude', 'skills', 'codechart');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(target(), '---\nname: codechart\ndescription: old\n---\n');
+    const old = await run(repo, ['install-skill', '--no-reminder', '--no-hook']);
+    expect(old.code).toBeUndefined();
+    expect(old.out).toContain(`updated for Claude Code: ${dir}\n`);
+    expect(readFileSync(target(), 'utf8')).toBe(skill);
+    const again = await run(repo, ['install-skill', '--no-reminder', '--no-hook']);
+    expect(again.out).toContain(`up to date for Claude Code: ${dir}\n`);
+  });
+
+  it('adds no reminder or hook when the skill could not go in', async () => {
+    mkdirSync(join(home, '.claude', 'skills', 'codechart'), { recursive: true });
+    writeFileSync(target(), '---\nname: other\n---\n');
+    const { out } = await run(repo, ['install-skill']);
+    expect(out).toContain('already installed for Claude Code');
+    expect(out).not.toMatch(/reminder|hook/);
+    expect(existsSync(join(home, '.claude', 'CLAUDE.md'))).toBe(false);
+  });
+
+  it.skipIf(process.platform === 'win32' || process.getuid?.() === 0)('an unreadable SKILL.md fails that folder only', async () => {
+    mkdirSync(join(home, '.kiro'));
+    mkdirSync(join(home, '.claude', 'skills', 'codechart'), { recursive: true });
+    writeFileSync(target(), '---\nname: codechart\n---\n');
+    chmodSync(target(), 0);
+    const { out, err, code } = await run(repo, ['install-skill']);
+    chmodSync(target(), 0o644);
+    expect(code).toBe(1);
+    expect(err).toMatch(/^codechart: .*EACCES/);
+    expect(out).toContain(`installed for Kiro: ${join(home, '.kiro', 'skills', 'codechart')}\n`);
+  });
+
+  it('a symlinked SKILL.md is not treated as an older copy', async () => {
+    const dir = join(home, '.claude', 'skills', 'codechart');
+    mkdirSync(dir, { recursive: true });
+    const real = join(tmp, 'dotfiles-SKILL.md');
+    writeFileSync(real, '---\nname: codechart\n---\n');
+    symlinkSync(real, target());
+    const { out } = await run(repo, ['install-skill', '--no-reminder', '--no-hook']);
+    expect(out).toContain(`already installed for Claude Code: ${dir} (--force to update)\n`);
+    expect(readFileSync(real, 'utf8')).toBe('---\nname: codechart\n---\n');
   });
 
   it('installs every file of the skill, so its links resolve', async () => {
@@ -126,7 +173,7 @@ describe('codechart install-skill for other agents', () => {
   it('existing copies in other folders the agents read are reported, and updated with --force', async () => {
     mkdirSync(join(home, '.gemini', 'skills', 'codechart'), { recursive: true });
     writeFileSync(skillAt('.gemini', 'skills'), 'old');
-    const keep = await run(repo, ['install-skill', '--agent', 'codex,gemini']);
+    const keep = await run(repo, ['install-skill', '--agent', 'codex,gemini', '--no-reminder']);
     expect(keep.out).toBe(
       `installed for Codex, Gemini CLI: ${join(home, '.agents', 'skills', 'codechart')}\n` +
         `already installed for Gemini CLI: ${join(home, '.gemini', 'skills', 'codechart')} (--force to update)\n`,

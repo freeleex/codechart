@@ -25,20 +25,18 @@ describe('addReminder', () => {
   const file = () => join(home, 'CLAUDE.md');
 
   it('creates the file, or appends after a blank line, once', () => {
-    expect(addReminder(file(), false)).toBe('added');
+    expect(addReminder(file())).toBe('added');
     expect(readFileSync(file(), 'utf8')).toBe(BLOCK);
     writeFileSync(file(), '# mine\n- a rule');
-    expect(addReminder(file(), false)).toBe('added');
+    expect(addReminder(file())).toBe('added');
     expect(readFileSync(file(), 'utf8')).toBe(`# mine\n- a rule\n\n${BLOCK}`);
-    expect(addReminder(file(), false)).toBe('present');
+    expect(addReminder(file())).toBe('present');
     expect(readFileSync(file(), 'utf8')).toBe(`# mine\n- a rule\n\n${BLOCK}`);
   });
 
-  it('a different reminder stays unless forced, and only the block is replaced', () => {
+  it('a different reminder is replaced, and only the block', () => {
     writeFileSync(file(), 'before\n<!-- codechart -->\nold text\n<!-- /codechart -->\nafter\n');
-    expect(addReminder(file(), false)).toBe('outdated');
-    expect(readFileSync(file(), 'utf8')).toContain('old text');
-    expect(addReminder(file(), true)).toBe('updated');
+    expect(addReminder(file())).toBe('updated');
     expect(readFileSync(file(), 'utf8')).toBe(`before\n${BLOCK}after\n`);
   });
 
@@ -46,9 +44,9 @@ describe('addReminder', () => {
     const real = join(tmp, 'dotfiles-CLAUDE.md');
     writeFileSync(real, 'x\n');
     symlinkSync(real, file());
-    addReminder(file(), false);
+    addReminder(file());
     expect(readFileSync(real, 'utf8')).toBe(`x\n\n${BLOCK}`);
-    expect(() => addReminder(home, false)).toThrow('not a regular file');
+    expect(() => addReminder(home)).toThrow('not a regular file');
   });
 });
 
@@ -103,41 +101,66 @@ describe('install-skill --reminder / --hook', () => {
     expect(r.out).toContain(`hook added: ${join(home, '.claude', 'settings.json')}\n`);
   });
 
-  it('without flags, offers both unchecked and installs only what was picked', async () => {
-    let offered: { title: string; labels: string[]; checked?: boolean } | undefined;
+  it('without flags, offers both checked and installs only what was picked', async () => {
+    let offered: { labels: string[]; checked?: boolean } | undefined;
     const choose = async (title: string, items: { label: string; hint: string }[], checked?: boolean) => {
-      if (checked !== false) return items.map((_, i) => i);
-      offered = { title, labels: items.map((i) => i.label), checked };
+      if (title.startsWith('Install')) return items.map((_, i) => i);
+      offered = { labels: items.map((i) => i.label), checked };
       return [1];
     };
     const r = await run(['install-skill'], '', choose);
-    expect(offered).toEqual({ title: 'Optional: help agents remember to use codechart', labels: ['Reminder line', 'Claude Code hook'], checked: false });
+    expect(offered).toEqual({ labels: ['Reminder line', 'Claude Code hook'], checked: true });
     expect(r.out).toContain('hook added');
     expect(r.out).not.toContain('reminder');
   });
 
-  it('without a terminal and without flags, adds nothing', async () => {
-    const r = await run(['install-skill', '--agent', 'claude']);
-    expect(r.out).not.toMatch(/reminder|hook/);
+  it('without a terminal, adds both', async () => {
+    const r = await run(['install-skill'], '', undefined);
+    expect(r.out).toContain(`reminder added: ${join(home, '.claude', 'CLAUDE.md')}\n`);
+    expect(r.out).toContain(`reminder added: ${join(home, '.config', 'opencode', 'AGENTS.md')}\n`);
+    expect(r.out).toContain('hook added');
   });
 
   it('the hook is not offered when Claude Code is not picked', async () => {
     let labels: string[] = [];
-    await run(['install-skill'], '', async (_, items, checked) => {
-      if (checked === false) labels = items.map((i) => i.label);
-      return checked === false ? [] : [items.findIndex((i) => i.label === 'OpenCode')];
+    await run(['install-skill'], '', async (title, items) => {
+      if (title.startsWith('Install')) return [items.findIndex((i) => i.label === 'OpenCode')];
+      labels = items.map((i) => i.label);
+      return [];
     });
     expect(labels).toEqual(['Reminder line']);
   });
 
-  it('--agent asks nothing: extras come only from their flags', async () => {
+  it('--agent asks nothing and adds both; the hook only for Claude Code', async () => {
     let asked = false;
     const r = await run(['install-skill', '--agent', 'claude'], '', async () => {
       asked = true;
-      return [0, 1];
+      return [];
     });
     expect(asked).toBe(false);
-    expect(r.out).not.toMatch(/reminder|hook/);
+    expect(r.out).toContain('reminder added');
+    expect(r.out).toContain('hook added');
+    const other = await run(['install-skill', '--agent', 'opencode']);
+    expect(other.out).toContain('reminder added');
+    expect(other.out).not.toContain('hook');
+  });
+
+  it('--no-reminder / --no-hook opt out; --reminder alone adds only the reminder', async () => {
+    const noHook = await run(['install-skill', '--agent', 'claude', '--no-hook']);
+    expect(noHook.out).toContain('reminder added');
+    expect(existsSync(join(home, '.claude', 'settings.json'))).toBe(false);
+    const neither = await run(['install-skill', '--agent', 'opencode', '--no-reminder', '--no-hook']);
+    expect(neither.out).not.toMatch(/reminder|hook/);
+    const only = await run(['install-skill', '--agent', 'claude', '--reminder']);
+    expect(only.out).toContain('reminder already in');
+    expect(existsSync(join(home, '.claude', 'settings.json'))).toBe(false);
+  });
+
+  it('an old reminder is replaced without --force', async () => {
+    writeFileSync(join(home, '.claude', 'CLAUDE.md'), '<!-- codechart -->\nold\n<!-- /codechart -->\n');
+    const r = await run(['install-skill', '--agent', 'claude', '--no-hook']);
+    expect(r.out).toContain(`reminder updated: ${join(home, '.claude', 'CLAUDE.md')}\n`);
+    expect(readFileSync(join(home, '.claude', 'CLAUDE.md'), 'utf8')).toBe(BLOCK);
   });
 });
 
@@ -269,7 +292,7 @@ describe('removing what install-skill added', () => {
   it('removeReminder takes the block and the blank line before it, nothing else', () => {
     const file = join(home, 'CLAUDE.md');
     writeFileSync(file, '# mine\n- a rule\n');
-    addReminder(file, false);
+    addReminder(file);
     writeFileSync(file, `${readFileSync(file, 'utf8')}after\n`);
     expect(removeReminder(file)).toBe('removed');
     expect(readFileSync(file, 'utf8')).toBe('# mine\n- a rule\nafter\n');

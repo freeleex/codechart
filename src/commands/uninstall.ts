@@ -4,8 +4,7 @@ import { join } from 'node:path';
 import { Command } from 'commander';
 import { packageFile } from '../assets.js';
 import type { CommandOptions } from '../program.js';
-import { readRegularFile } from '../read-regular.js';
-import { AGENTS } from './agents.js';
+import { AGENTS, isCodechartSkill } from './agents.js';
 import { removeClaudeHooks, removeReminder } from './nudges.js';
 
 /** Deletes only the skill's own files, and the folder if that empties it. */
@@ -13,9 +12,7 @@ function removeSkill(dir: string, files: string[]): string | undefined {
   const st = lstatSync(dir, { throwIfNoEntry: false });
   if (!st) return undefined;
   if (!st.isDirectory()) return `left ${dir}: not a folder`;
-  const skill = join(dir, 'SKILL.md');
-  const text = lstatSync(skill, { throwIfNoEntry: false })?.isFile() ? readRegularFile(skill, (s) => s.isFile()) : undefined;
-  if (!text || !/^---\r?\n(?:.*\r?\n)*?name: codechart\r?\n/.test(text)) return `left ${dir}: not the codechart skill`;
+  if (!isCodechartSkill(dir)) return `left ${dir}: not the codechart skill`;
   for (const f of files) if (lstatSync(join(dir, f), { throwIfNoEntry: false })?.isFile()) unlinkSync(join(dir, f));
   if (readdirSync(dir).length > 0) return `removed skill files from ${dir} (kept your other files there)`;
   rmdirSync(dir);

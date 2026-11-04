@@ -1,10 +1,11 @@
-import { existsSync, lstatSync, readdirSync } from 'node:fs';
+import { existsSync, lstatSync, readdirSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { Command } from 'commander';
 import { packageFile } from '../assets.js';
 import type { CommandOptions } from '../program.js';
-import { AGENTS, skillFolders, type AgentPreset } from './agents.js';
+import { readRegularFile } from '../read-regular.js';
+import { AGENTS, isCodechartSkill, skillFolders, type AgentPreset } from './agents.js';
 import { copyFiles } from './copy-file.js';
 import { addReminder, installClaudeHooks } from './nudges.js';
 import { terminalPicker } from './picker.js';
@@ -23,26 +24,53 @@ const hasAny = (paths: string[]) =>
     }
   });
 
+type Pair = { source: string; target: string };
+
+const sameFile = ({ source, target }: Pair) => {
+  try {
+    return readRegularFile(target, (st) => st.isFile()) === readFileSync(source, 'utf8');
+  } catch {
+    return false;
+  }
+};
+
 interface Extras {
   reminder: boolean;
   hook: boolean;
 }
+
+interface Flags {
+  agent?: string[];
+  dir?: string;
+  force?: boolean;
+  reminder?: boolean;
+  hook?: boolean;
+}
+
+const hasClaude = (agents: AgentPreset[]) => agents.some((a) => a.name === 'claude');
 
 async function chooseExtras(agents: AgentPreset[], opts: CommandOptions): Promise<Extras> {
   const choose = opts.choose ?? terminalChoose();
   const files = agents.flatMap((a) => (a.instructions ? [`~/${a.instructions}`] : []));
   const items: { key: keyof Extras; label: string; hint: string }[] = [];
   if (files.length) items.push({ key: 'reminder', label: 'Reminder line', hint: `use codechart for 3+ file changes → ${files.join(', ')}` });
-  if (agents.some((a) => a.name === 'claude')) {
+  if (hasClaude(agents)) {
     items.push({ key: 'hook', label: 'Claude Code hook', hint: 'ask for a diagram when a turn changed 3+ files → ~/.claude/settings.json' });
   }
-  if (!choose || items.length === 0) return { reminder: false, hook: false };
-  const picked = await choose('Optional: help agents remember to use codechart', items, false);
+  if (!choose || items.length === 0) return { reminder: true, hook: hasClaude(agents) };
+  const picked = await choose('Agents forget skills in long sessions; these help them remember codechart:', items, true);
   const keys = new Set((picked ?? []).map((i) => items[i]!.key));
   return { reminder: keys.has('reminder'), hook: keys.has('hook') };
 }
 
-function installExtras(extras: Extras, agents: AgentPreset[], home: string, force: boolean, opts: CommandOptions) {
+// No flag: both, after asking in a terminal. --reminder/--hook: only those. --no-reminder/--no-hook: the rest.
+async function pickExtras(o: Flags, agents: AgentPreset[], opts: CommandOptions): Promise<Extras> {
+  if (o.reminder === true || o.hook === true) return { reminder: o.reminder === true, hook: o.hook === true };
+  if (o.reminder === undefined && o.hook === undefined && o.agent === undefined) return chooseExtras(agents, opts);
+  return { reminder: o.reminder !== false, hook: o.hook !== false && hasClaude(agents) };
+}
+
+function installExtras(extras: Extras, agents: AgentPreset[], home: string, opts: CommandOptions) {
   const report = (what: string, run: () => string) => {
     try {
       opts.stdout(`${run()}\n`);
@@ -56,8 +84,8 @@ function installExtras(extras: Extras, agents: AgentPreset[], home: string, forc
       if (!a.instructions) continue;
       const file = join(home, a.instructions);
       report('reminder', () => {
-        const r = addReminder(file, force);
-        return r === 'outdated' ? `reminder differs in ${file} (--force to update)` : r === 'present' ? `reminder already in ${file}` : `reminder ${r}: ${file}`;
+        const r = addReminder(file);
+        return r === 'present' ? `reminder already in ${file}` : `reminder ${r}: ${file}`;
       });
     }
   }
@@ -67,18 +95,49 @@ function installExtras(extras: Extras, agents: AgentPreset[], home: string, forc
   }
 }
 
-// complexity-ratchet: 46 -- install action does everything inline; split per hook-agent step
-// eslint-disable-next-line max-lines-per-function -- ratchet: install action does everything inline; split per hook-agent step
+// An older codechart copy is updated so description fixes reach users; a folder that isn't ours needs --force.
+// True when the folder ends up holding this version of the skill.
+function installCopy(dir: string, who: string, files: string[], force: boolean, opts: CommandOptions): boolean {
+  const pairs = files.map((f) => ({ source: packageFile(`skills/codechart/${f}`), target: join(dir, f) }));
+  let update = force;
+  if (!force && hasAny(pairs.map((p) => p.target))) {
+    if (pairs.every(sameFile)) {
+      opts.stdout(`up to date for ${who}: ${dir}\n`);
+      return true;
+    }
+    let ours: boolean;
+    try {
+      ours = isCodechartSkill(dir);
+    } catch (e) {
+      opts.stderr(`codechart: ${(e as Error).message}\n`);
+      process.exitCode = 1;
+      return false;
+    }
+    if (!ours) {
+      opts.stdout(`already installed for ${who}: ${dir} (--force to update)\n`);
+      return false;
+    }
+    update = true;
+  }
+  if (!copyFiles(pairs, update, { ...opts, stdout: () => {} })) return false;
+  opts.stdout(`${update && !force ? 'updated' : 'installed'} for ${who}: ${dir}\n`);
+  return true;
+}
+
+// complexity-ratchet: 40 -- install action picks agents and targets inline
+// eslint-disable-next-line max-lines-per-function -- ratchet: install action picks agents and targets inline
 export function installSkillCommand(opts: CommandOptions): Command {
   return new Command('install-skill')
     .description('install the skill for the agents found in your home folder (or --agent / --dir)')
     .option('--agent <names...>', `install for these agents: ${NAMES}`)
     .option('--dir <path>', 'install into this skills folder')
-    .option('--force', 'overwrite an existing install')
-    .option('--reminder', "add a one-line reminder to use codechart to each agent's global instructions file")
-    .option('--hook', 'add a Claude Code hook that asks for a diagram after a turn that changed 3+ files without one')
-    // eslint-disable-next-line max-lines-per-function, complexity -- ratchet: install action does everything inline; split per hook-agent step
-    .action(async (o: { agent?: string[]; dir?: string; force?: boolean; reminder?: boolean; hook?: boolean }) => {
+    .option('--force', 'overwrite an install that is not an older codechart copy')
+    .option('--reminder', "only the reminder line in each agent's global instructions file (both extras are added by default)")
+    .option('--no-reminder', 'skip the reminder line')
+    .option('--hook', 'only the Claude Code hook that asks for a diagram after a turn that changed 3+ files without one')
+    .option('--no-hook', 'skip the Claude Code hook')
+    // eslint-disable-next-line complexity -- ratchet: install action picks agents and targets inline
+    .action(async (o: Flags) => {
       const home = opts.home ?? homedir();
       const names = o.agent?.flatMap((n) => n.split(',')).map((n) => n.trim().toLowerCase()).filter(Boolean);
       const unknown = names?.find((n) => !AGENTS.some((a) => a.name === n));
@@ -127,19 +186,11 @@ export function installSkillCommand(opts: CommandOptions): Command {
         if (groups.some((g) => g.folder === folder) || !hasAny(files.map((f) => join(home, folder, 'codechart', f)))) continue;
         groups.push({ folder, agents: agents.filter((a) => [a.skills, ...a.reads].includes(folder)) });
       }
-      const targets = groups.map((g) => ({ dir: join(home, g.folder, 'codechart'), who: g.agents.map((a) => a.label).join(', ') }));
-      if (o.dir !== undefined) targets.push({ dir: join(resolve(opts.cwd ?? process.cwd(), o.dir), 'codechart'), who: 'your folder' });
-      for (const { dir, who } of targets) {
-        const pairs = files.map((f) => ({ source: packageFile(`skills/codechart/${f}`), target: join(dir, f) }));
-        if (o.force !== true && hasAny(pairs.map((p) => p.target))) {
-          opts.stdout(`already installed for ${who}: ${dir} (--force to update)\n`);
-          continue;
-        }
-        if (copyFiles(pairs, o.force === true, { ...opts, stdout: () => {} })) opts.stdout(`installed for ${who}: ${dir}\n`);
-      }
-      // --agent means no questions; the extras then come only from their flags.
-      const asked = !o.reminder && !o.hook && !names;
-      const extras = asked ? await chooseExtras(agents, opts) : { reminder: o.reminder === true, hook: o.hook === true };
-      installExtras(extras, agents, home, o.force === true, opts);
+      const targets = groups.map((g) => ({ dir: join(home, g.folder, 'codechart'), who: g.agents.map((a) => a.label).join(', '), agents: g.agents }));
+      if (o.dir !== undefined) targets.push({ dir: join(resolve(opts.cwd ?? process.cwd(), o.dir), 'codechart'), who: 'your folder', agents: [] });
+      // Reminder and hook only for agents that can load the skill they point to.
+      const ready = new Set(targets.flatMap((t) => (installCopy(t.dir, t.who, files, o.force === true, opts) ? t.agents : [])));
+      agents = agents.filter((a) => ready.has(a));
+      if (agents.length) installExtras(await pickExtras(o, agents, opts), agents, home, opts);
     });
 }
