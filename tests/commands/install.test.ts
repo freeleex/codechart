@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { loadConfig } from '../../src/config/load.js';
@@ -65,6 +65,27 @@ describe('codechart install-skill', () => {
     expect(readFileSync(target(), 'utf8')).toBe(skill);
     const again = await run(repo, ['install-skill', '--no-reminder', '--no-hook']);
     expect(again.out).toContain(`up to date for Claude Code: ${dir}\n`);
+  });
+
+  it('adds no reminder or hook when the skill could not go in', async () => {
+    mkdirSync(join(home, '.claude', 'skills', 'codechart'), { recursive: true });
+    writeFileSync(target(), '---\nname: other\n---\n');
+    const { out } = await run(repo, ['install-skill']);
+    expect(out).toContain('already installed for Claude Code');
+    expect(out).not.toMatch(/reminder|hook/);
+    expect(existsSync(join(home, '.claude', 'CLAUDE.md'))).toBe(false);
+  });
+
+  it.skipIf(process.platform === 'win32' || process.getuid?.() === 0)('an unreadable SKILL.md fails that folder only', async () => {
+    mkdirSync(join(home, '.kiro'));
+    mkdirSync(join(home, '.claude', 'skills', 'codechart'), { recursive: true });
+    writeFileSync(target(), '---\nname: codechart\n---\n');
+    chmodSync(target(), 0);
+    const { out, err, code } = await run(repo, ['install-skill']);
+    chmodSync(target(), 0o644);
+    expect(code).toBe(1);
+    expect(err).toMatch(/^codechart: .*EACCES/);
+    expect(out).toContain(`installed for Kiro: ${join(home, '.kiro', 'skills', 'codechart')}\n`);
   });
 
   it('a symlinked SKILL.md is not treated as an older copy', async () => {

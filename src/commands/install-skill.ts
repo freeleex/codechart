@@ -4,6 +4,7 @@ import { join, resolve } from 'node:path';
 import { Command } from 'commander';
 import { packageFile } from '../assets.js';
 import type { CommandOptions } from '../program.js';
+import { readRegularFile } from '../read-regular.js';
 import { AGENTS, isCodechartSkill, skillFolders, type AgentPreset } from './agents.js';
 import { copyFiles } from './copy-file.js';
 import { addReminder, installClaudeHooks } from './nudges.js';
@@ -27,7 +28,7 @@ type Pair = { source: string; target: string };
 
 const sameFile = ({ source, target }: Pair) => {
   try {
-    return lstatSync(target).isFile() && readFileSync(target).equals(readFileSync(source));
+    return readRegularFile(target, (st) => st.isFile()) === readFileSync(source, 'utf8');
   } catch {
     return false;
   }
@@ -95,18 +96,35 @@ function installExtras(extras: Extras, agents: AgentPreset[], home: string, opts
 }
 
 // An older codechart copy is updated so description fixes reach users; a folder that isn't ours needs --force.
-function installCopy(dir: string, who: string, files: string[], force: boolean, opts: CommandOptions) {
+// True when the folder ends up holding this version of the skill.
+function installCopy(dir: string, who: string, files: string[], force: boolean, opts: CommandOptions): boolean {
   const pairs = files.map((f) => ({ source: packageFile(`skills/codechart/${f}`), target: join(dir, f) }));
   let update = force;
   if (!force && hasAny(pairs.map((p) => p.target))) {
-    if (pairs.every(sameFile)) return opts.stdout(`up to date for ${who}: ${dir}\n`);
-    if (!isCodechartSkill(dir)) return opts.stdout(`already installed for ${who}: ${dir} (--force to update)\n`);
+    if (pairs.every(sameFile)) {
+      opts.stdout(`up to date for ${who}: ${dir}\n`);
+      return true;
+    }
+    let ours: boolean;
+    try {
+      ours = isCodechartSkill(dir);
+    } catch (e) {
+      opts.stderr(`codechart: ${(e as Error).message}\n`);
+      process.exitCode = 1;
+      return false;
+    }
+    if (!ours) {
+      opts.stdout(`already installed for ${who}: ${dir} (--force to update)\n`);
+      return false;
+    }
     update = true;
   }
-  if (copyFiles(pairs, update, { ...opts, stdout: () => {} })) opts.stdout(`${update && !force ? 'updated' : 'installed'} for ${who}: ${dir}\n`);
+  if (!copyFiles(pairs, update, { ...opts, stdout: () => {} })) return false;
+  opts.stdout(`${update && !force ? 'updated' : 'installed'} for ${who}: ${dir}\n`);
+  return true;
 }
 
-// complexity-ratchet: 37 -- install action picks agents and targets inline
+// complexity-ratchet: 40 -- install action picks agents and targets inline
 // eslint-disable-next-line max-lines-per-function -- ratchet: install action picks agents and targets inline
 export function installSkillCommand(opts: CommandOptions): Command {
   return new Command('install-skill')
@@ -168,9 +186,11 @@ export function installSkillCommand(opts: CommandOptions): Command {
         if (groups.some((g) => g.folder === folder) || !hasAny(files.map((f) => join(home, folder, 'codechart', f)))) continue;
         groups.push({ folder, agents: agents.filter((a) => [a.skills, ...a.reads].includes(folder)) });
       }
-      const targets = groups.map((g) => ({ dir: join(home, g.folder, 'codechart'), who: g.agents.map((a) => a.label).join(', ') }));
-      if (o.dir !== undefined) targets.push({ dir: join(resolve(opts.cwd ?? process.cwd(), o.dir), 'codechart'), who: 'your folder' });
-      for (const { dir, who } of targets) installCopy(dir, who, files, o.force === true, opts);
-      installExtras(await pickExtras(o, agents, opts), agents, home, opts);
+      const targets = groups.map((g) => ({ dir: join(home, g.folder, 'codechart'), who: g.agents.map((a) => a.label).join(', '), agents: g.agents }));
+      if (o.dir !== undefined) targets.push({ dir: join(resolve(opts.cwd ?? process.cwd(), o.dir), 'codechart'), who: 'your folder', agents: [] });
+      // Reminder and hook only for agents that can load the skill they point to.
+      const ready = new Set(targets.flatMap((t) => (installCopy(t.dir, t.who, files, o.force === true, opts) ? t.agents : [])));
+      agents = agents.filter((a) => ready.has(a));
+      if (agents.length) installExtras(await pickExtras(o, agents, opts), agents, home, opts);
     });
 }
