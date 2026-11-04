@@ -1,16 +1,23 @@
-import { checkHeadline, type CheckSummary } from '../terminal/check-lines.js';
+import { checkHeadline, flagged, type CheckSummary } from '../terminal/check-lines.js';
 import { esc, num } from './page.js';
 
 export function checkNote(c: CheckSummary | undefined): string {
   const line = checkHeadline(c);
   if (!line) return '';
-  return `<span class="check${c!.mismatches.length ? ' bad' : ''}">${esc(line)}</span>`;
+  return `<span class="check${flagged(c) ? ' bad' : ''}">${esc(line)}</span>`;
 }
 
 export function checkSection(c: CheckSummary | undefined): string {
-  if (!c?.mismatches.length) return '';
-  const items = c.mismatches.map((m) => `<li><b>${esc(m.label)}</b>: ${esc(m.detail)}</li>`).join('');
-  return `<h3>Doesn't match the code</h3><ul>${items}</ul>`;
+  let out = '';
+  if (c?.mismatches.length) {
+    const items = c.mismatches.map((m) => `<li><b>${esc(m.label)}</b>: ${esc(m.detail)}</li>`).join('');
+    out += `<h3>Doesn't match the code</h3><ul>${items}</ul>`;
+  }
+  if (c?.uncovered?.length) {
+    const items = c.uncovered.map((f) => `<li>${esc(f)}</li>`).join('');
+    out += `<h3>Changed, not on map</h3><p>In the diff, but no node covers them and "Not on map" doesn't name them.</p><ul>${items}</ul>`;
+  }
+  return out;
 }
 
 export function mismatchNote(c: CheckSummary | undefined, id: string): string {

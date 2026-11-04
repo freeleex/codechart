@@ -176,6 +176,7 @@ Before drawing anything, the agent runs `codechart check` on the changed files. 
   ```
 
   The agent is told to fix its spec, or to keep the `✗` and own up when the change really differs from its summary. `--strict` turns mismatches into a non-zero exit.
+- **Nothing left off quietly.** With a diff, every changed file must sit under a node's path or be named in *Not on map* (lockfiles and generated files excepted), else `✗ 1 changed file not on map: src/x.ts`. A summary rendered without a diff says `diff not checked` instead of looking verified.
 - **Flows are anchored to real code.** Every step that exists in code names its `file:line` or quotes the line. If the line doesn't exist, the render fails and the agent has to fix it. For a commit that isn't checked out, `--at <rev>` reads anchors from that revision.
 - **Gaps are explicit.** Whatever the agent didn't read is listed under `gaps`, not guessed.
 - **Validated input.** Specs are checked against a schema, with clear errors the agent can act on.

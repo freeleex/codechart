@@ -3,11 +3,13 @@ import type { FlowSpec } from '../spec/flow.js';
 import type { Spec, SpecNode } from '../spec/schema.js';
 import { anchorContext, findMatch, likelyPath, load, locate, type AnchorCtx, type FlowSnippets, type Snippet } from './flow/anchors.js';
 import { stepLabel } from './flow/tree.js';
+import { explains } from './omitted.js';
 import type { CheckSummary, Mismatch } from './terminal/check-lines.js';
 import { plainLabel } from './terminal/labels.js';
 
 /** Files the change touched, repo-relative with `/`. A folder is in it when a file under it is. */
 export interface Diff {
+  files: readonly string[];
   has(path: string): boolean;
   /** Only a file, not a folder above one. */
   hasFile(path: string): boolean;
@@ -16,6 +18,7 @@ export interface Diff {
 export function diffOf(files: string[]): Diff {
   const set = new Set(files);
   return {
+    files: [...set],
     has: (p) => (p === '' ? files.length > 0 : set.has(p) || files.some((f) => f.startsWith(`${p}/`))),
     hasFile: (p) => set.has(p),
   };
@@ -33,6 +36,8 @@ interface CheckOptions {
   cwd?: string;
   /** Left out: the diff is not checked. */
   diff?: Diff;
+  /** Changed files a summary map need not show. */
+  ignored?: (file: string) => boolean;
 }
 
 export const repoPath = (root: string, path: string) => relative(root, resolve(root, path)).split(sep).join('/');
@@ -90,7 +95,33 @@ export function checkMapNodes(spec: Spec, root: string, opts: CheckOptions = {})
     if (match) result.matches.set(node.id, match);
     if (problem) result.mismatches.push({ id: node.id, label: plainLabel(node), ...problem });
   }
+  if (opts.diff && spec.kind === 'summary') {
+    const uncovered = uncoveredFiles(c, spec, opts.diff, result.found, opts.ignored);
+    if (uncovered.length) result.uncovered = uncovered;
+  }
   return result;
+}
+
+const nodeRepoPaths = (c: AnchorCtx, path: string): string[] =>
+  c.cwd === undefined ? [repoPath(c.root, path)] : [repoPath(c.root, path), repoPath(c.root, resolve(c.cwd, path))];
+
+const under = (file: string, dir: string) => dir === '' || file === dir || file.startsWith(`${dir}/`);
+const baseName = (p: string) => p.slice(p.lastIndexOf('/') + 1);
+
+// A rename's old path is in the diff too; a node at the new path with the same file name covers it.
+function covered(c: AnchorCtx, file: string, paths: string[]): boolean {
+  if (paths.some((p) => under(file, p))) return true;
+  if (!paths.some((p) => baseName(p) === baseName(file))) return false;
+  const where = locate(c, file);
+  return 'found' in where && !where.found;
+}
+
+/** Changed files no node's path covers and no `omitted` entry names. */
+function uncoveredFiles(c: AnchorCtx, spec: Spec, diff: Diff, found: Map<string, string>, ignored: (file: string) => boolean = () => false): string[] {
+  // A file found on disk covers only where it was found; a missing one (deleted) may mean either path.
+  const paths = spec.nodes.flatMap((n) => (n.path === undefined ? [] : found.has(n.id) ? [found.get(n.id)!] : nodeRepoPaths(c, n.path)));
+  const omitted = spec.omitted ?? [];
+  return diff.files.filter((f) => !ignored(f) && !omitted.some((o) => explains(o, f)) && !covered(c, f, paths));
 }
 
 /** `checked`: the anchors that resolved. A summary's new or changed step whose file isn't in `diff` is a mismatch. */

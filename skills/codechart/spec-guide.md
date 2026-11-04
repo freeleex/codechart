@@ -23,7 +23,7 @@ Rules:
   { "id": "legacy-roles", "label": "legacy_roles", "kind": "table", "status": "removed", "layer": "database" }
   ```
   with `users` as `changed` (its `legacy_role_id` field `"change": "removed"`) and the old edge `users → legacy-roles` kept.
-- Leave out tests, docs and lock files; list them in `omitted` instead (`"tests: test_teams.py"`).
+- Leave out tests, docs and lock files; list them in `omitted` instead (`"tests: test_teams.py"`). With a diff flag, `render` flags every changed file that no node's `path` covers (a folder path covers the files under it) and no `omitted` entry names by repo path, file name, `folder/` or glob. Lockfiles, generated files and files a map rule sends to output `none` are never flagged.
 - Don't add a node you can't describe from what you read. Put it in `gaps`.
 - In a plan, name files the repo's way (look at neighbouring files for naming and numbering); they are shown as `new`.
 - Aim for under 15 nodes. More than that: drop the least connected `context` nodes and mention them in `omitted`.
