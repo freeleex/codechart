@@ -1,6 +1,6 @@
 import path from 'node:path';
 import picomatch from 'picomatch';
-import { builtinRules } from '../config/builtin-rules.js';
+import { builtinRules, GENERATED_PATHS } from '../config/builtin-rules.js';
 import { BUILTIN_DEFAULTS } from '../config/load.js';
 import type { Config, ContextMode, Diagram, Output, Rule } from '../config/schema.js';
 
@@ -83,10 +83,12 @@ function toContribution(rule: Rule, config: Pick<Config, 'defaults'>): Contribut
   return { rule: rule.name, diagram, output, context: rule.context ?? config.defaults.context };
 }
 
+const GLOB = { dot: true, nobrace: true, noextglob: true };
+
 function matchPathRules(config: Config, rules: Rule[], files: string[]) {
   const pathRules = rules.filter(isPathRule).map((rule) => ({
     rule,
-    isMatch: picomatch(rule.paths, { dot: true, nobrace: true, noextglob: true }),
+    isMatch: picomatch(rule.paths, GLOB),
   }));
   const filesByRule = new Map<string, string[]>();
   for (const file of files) {
@@ -100,6 +102,16 @@ function matchPathRules(config: Config, rules: Rule[], files: string[]) {
     const matchedFiles = filesByRule.get(rule.name);
     return matchedFiles ? [{ ...toContribution(rule, config), files: matchedFiles }] : [];
   });
+}
+
+/** Changed files a summary map need not show: generated ones, and those whose first matching map path rule has output none. */
+export function unmappedFiles(config: Config): (file: string) => boolean {
+  const generated = picomatch(GENERATED_PATHS, GLOB);
+  const rules = config.rules
+    .filter(isPathRule)
+    .filter((r) => diagramOf(r) === 'map')
+    .map((r) => ({ none: (r.output ?? config.defaults.output) === 'none', isMatch: picomatch(r.paths, GLOB) }));
+  return (file) => generated(file) || rules.find((r) => r.isMatch(file))?.none === true;
 }
 
 // auto counts as cli plus a conditional web.

@@ -1,4 +1,4 @@
-import type { CheckSummary } from '../terminal/check-lines.js';
+import { flagged, type CheckSummary } from '../terminal/check-lines.js';
 import { checkNote, checkSection } from './check-html.js';
 import { esc, list, midpoint, num, renderPage, type HtmlMeta, type KeyPart } from './page.js';
 import { SIDE_TITLE, SIDES, type Side } from './states.js';
@@ -37,7 +37,7 @@ interface InfoButtonText {
 
 /** The header button that opens the page-info section; none when there is nothing to show. */
 export function infoButton(check: CheckSummary | undefined, hasInfo: boolean, text: { mismatch: InfoButtonText; info: InfoButtonText }): string {
-  const t = check?.mismatches.length ? text.mismatch : hasInfo ? text.info : undefined;
+  const t = flagged(check) ? text.mismatch : hasInfo ? text.info : undefined;
   return t ? `<button id="info-toggle" type="button" aria-controls="page-info" title="${t.title}">${t.label}</button>` : '';
 }
 
