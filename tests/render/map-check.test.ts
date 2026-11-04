@@ -7,23 +7,25 @@ import { checkFlowDiff, checkMapNodes, diffOf } from '../../src/render/check.js'
 import { alertLine, checkHeadline, checkTag, countLines } from '../../src/render/terminal/check-lines.js';
 import type { FlowSpec } from '../../src/spec/flow.js';
 import { validateSpec, type Spec, type SpecNode } from '../../src/spec/schema.js';
+import { repoFromTemplate } from '../helpers/sandbox.js';
 
 let base: string;
 let repo: string;
 
 const git = (...args: string[]) => execFileSync('git', args, { cwd: repo, stdio: 'pipe' }).toString();
 
+function seed(dir: string) {
+  mkdirSync(join(dir, 'src'));
+  writeFileSync(join(dir, 'src/a.ts'), 'export const a = 1;\nexport const b = 2;\nexport const b2 = 2;\n');
+  execFileSync('git', ['add', '.'], { cwd: dir });
+  execFileSync('git', ['commit', '-q', '-m', 'init'], { cwd: dir });
+}
+
 beforeEach(() => {
   base = mkdtempSync(join(tmpdir(), 'codechart-mapcheck-'));
   repo = join(base, 'repo');
   mkdirSync(join(repo, 'src'), { recursive: true });
-  git('init', '-q');
-  git('config', 'user.email', 't@example.com');
-  git('config', 'user.name', 'T');
-  git('config', 'commit.gpgsign', 'false');
-  writeFileSync(join(repo, 'src/a.ts'), 'export const a = 1;\nexport const b = 2;\nexport const b2 = 2;\n');
-  git('add', '.');
-  git('commit', '-q', '-m', 'init');
+  repoFromTemplate(repo, seed);
 });
 afterEach(() => rmSync(base, { recursive: true, force: true }));
 

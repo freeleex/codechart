@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { buildProgram, runProgram, type ProgramOptions } from '../../src/program.js';
@@ -30,7 +30,7 @@ export function makeSandbox(prefix: string, o: SandboxOptions = {}): Sandbox {
   mkdirSync(o.htmlOut || o.configDir ? join(sb.home, '.config', 'codechart') : sb.home, { recursive: true });
   if (o.htmlOut) writeFileSync(join(sb.home, '.config', 'codechart', 'config.yaml'), `web:\n  outDir: ${sb.out}\n`);
   if (o.repo !== false) mkdirSync(o.git === 'dir' ? join(sb.repo, '.git') : sb.repo, { recursive: true });
-  if (o.git === 'init') gitInit(sb.repo);
+  if (o.git === 'init') repoFromTemplate(sb.repo);
   process.exitCode = undefined;
   return sb;
 }
@@ -49,6 +49,26 @@ export function gitInit(dir: string): void {
   git(dir, 'config', 'user.email', 't@example.com');
   git(dir, 'config', 'user.name', 'T');
   git(dir, 'config', 'commit.gpgsign', 'false');
+}
+
+const templates = new Map<(repo: string) => void, string>();
+const noSeed = () => {};
+
+/**
+ * Copies into `dir` a repo built once per test file: gitInit, then `seed` (a module-level function, the cache key).
+ * Git processes are slow to start on Windows; a copy needs none.
+ */
+export function repoFromTemplate(dir: string, seed: (repo: string) => void = noSeed): void {
+  let src = templates.get(seed);
+  if (!src) {
+    const tmp = makeTempDir('template');
+    process.once('exit', () => removeTempDir(tmp));
+    src = join(tmp, 'repo');
+    gitInit(src);
+    seed(src);
+    templates.set(seed, src);
+  }
+  cpSync(src, dir, { recursive: true });
 }
 
 /** Runs the CLI in-process with the given options and returns what it printed. */

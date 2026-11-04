@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { changedFiles, turnUsedCodechart } from '../../src/commands/hook.js';
 import { addReminder, installClaudeHooks, REMINDER, removeClaudeHooks, removeReminder } from '../../src/commands/nudges.js';
 import { buildProgram, runProgram } from '../../src/program.js';
-import { git, gitInit, makeSandbox, removeSandbox, runCli } from '../helpers/sandbox.js';
+import { git, gitInit, makeSandbox, removeSandbox, runCli, repoFromTemplate } from '../helpers/sandbox.js';
 
 let tmp: string;
 let home: string;
@@ -180,16 +180,19 @@ describe('turnUsedCodechart', () => {
   });
 });
 
+function seedHookRepo(dir: string) {
+  for (const f of ['a.ts', 'b.ts', 'c.ts', 'mine.ts']) writeFileSync(join(dir, f), `${f} seed\n`);
+  git(dir, 'add', '.');
+  git(dir, 'commit', '-q', '-m', 'init');
+}
+
 describe('codechart hook', () => {
   const sh = (...args: string[]) => git(repo, ...args);
   const input = (extra: Record<string, unknown> = {}) => JSON.stringify({ session_id: 's1', cwd: repo, ...extra });
   const write = (...files: string[]) => files.forEach((f) => writeFileSync(join(repo, f), `${f} ${Math.random()}\n`));
 
   beforeEach(() => {
-    gitInit(repo);
-    write('a.ts', 'b.ts', 'c.ts', 'mine.ts');
-    sh('add', '.');
-    sh('commit', '-q', '-m', 'init');
+    repoFromTemplate(repo, seedHookRepo);
     write('mine.ts');
   });
 

@@ -7,6 +7,7 @@ import { checkMapNodes, diffOf } from '../../src/render/check.js';
 import { nodePreviews, parseDiff } from '../../src/render/preview.js';
 import { diffRange, gitFiles, type GitSelection } from '../../src/rules/selection.js';
 import type { Spec, SpecNode } from '../../src/spec/schema.js';
+import { repoFromTemplate } from '../helpers/sandbox.js';
 
 let tmp: string;
 let repo: string;
@@ -23,10 +24,7 @@ beforeEach(() => {
   tmp = mkdtempSync(join(tmpdir(), 'codechart-preview-'));
   repo = join(tmp, 'repo');
   mkdirSync(join(repo, 'src'), { recursive: true });
-  git('init', '-q');
-  git('config', 'user.email', 't@example.com');
-  git('config', 'user.name', 'T');
-  git('config', 'commit.gpgsign', 'false');
+  repoFromTemplate(repo);
 });
 afterEach(() => rmSync(tmp, { recursive: true, force: true }));
 

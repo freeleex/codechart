@@ -7,23 +7,24 @@ import { checkMapNodes, diffOf } from '../../src/render/check.js';
 import { nodePreviews } from '../../src/render/preview.js';
 import { diffRange, gitFiles } from '../../src/rules/selection.js';
 import type { Spec } from '../../src/spec/schema.js';
+import { repoFromTemplate } from '../helpers/sandbox.js';
 
 let tmp: string;
 let repo: string;
 
 const git = (...args: string[]) => execFileSync('git', args, { cwd: repo, stdio: 'pipe' }).toString().trim();
 
+function seed(dir: string) {
+  writeFileSync(join(dir, 'seed'), 'x');
+  execFileSync('git', ['add', '-A'], { cwd: dir });
+  execFileSync('git', ['commit', '-q', '-m', 'seed'], { cwd: dir });
+}
+
 beforeEach(() => {
   tmp = mkdtempSync(join(tmpdir(), 'codechart-secret-'));
   repo = join(tmp, 'repo');
   mkdirSync(repo);
-  git('init', '-q');
-  git('config', 'user.email', 't@example.com');
-  git('config', 'user.name', 'T');
-  git('config', 'commit.gpgsign', 'false');
-  writeFileSync(join(repo, 'seed'), 'x');
-  git('add', '-A');
-  git('commit', '-q', '-m', 'seed');
+  repoFromTemplate(repo, seed);
 });
 afterEach(() => rmSync(tmp, { recursive: true, force: true }));
 

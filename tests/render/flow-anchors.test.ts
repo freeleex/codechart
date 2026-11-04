@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { checkFlowAnchors } from '../../src/render/flow/anchors.js';
 import { type FlowSpec, validateFlowSpec } from '../../src/spec/flow.js';
+import { repoFromTemplate } from '../helpers/sandbox.js';
 
 let base: string;
 let repo: string;
@@ -12,7 +13,7 @@ beforeEach(() => {
   base = mkdtempSync(join(tmpdir(), 'codechart-anchors-'));
   repo = join(base, 'repo');
   mkdirSync(join(repo, 'src'), { recursive: true });
-  execFileSync('git', ['init', '-q'], { cwd: repo });
+  repoFromTemplate(repo);
   writeFileSync(join(repo, 'src/a.ts'), Array.from({ length: 20 }, (_, i) => `line ${i + 1}`).join('\n') + '\n');
   writeFileSync(join(base, 'secret.txt'), 'secret TOPSECRET\n');
 });

@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { buildProgram, runProgram } from '../../src/program.js';
+import { repoFromTemplate } from '../helpers/sandbox.js';
 
 let tmp: string;
 let home: string;
@@ -26,16 +27,15 @@ function git(cwd: string, ...args: string[]) {
 
 function makeRepo(): string {
   const repo = join(tmp, 'repo');
-  mkdirSync(repo);
-  git(repo, 'init', '-q');
-  git(repo, 'config', 'user.email', 't@example.com');
-  git(repo, 'config', 'user.name', 'T');
-  git(repo, 'config', 'commit.gpgsign', 'false');
-  writeFileSync(join(repo, 'a.txt'), 'a');
-  writeFileSync(join(repo, 'old.txt'), 'old');
-  git(repo, 'add', '.');
-  git(repo, 'commit', '-q', '-m', 'init');
+  repoFromTemplate(repo, seed);
   return repo;
+}
+
+function seed(dir: string) {
+  writeFileSync(join(dir, 'a.txt'), 'a');
+  writeFileSync(join(dir, 'old.txt'), 'old');
+  git(dir, 'add', '.');
+  git(dir, 'commit', '-q', '-m', 'init');
 }
 
 // check prints unmatched files only when something is excluded; a catch-all rule echoes every file.
