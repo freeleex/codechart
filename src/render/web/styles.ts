@@ -39,7 +39,8 @@ aside .snippet code{display:grid;grid-template-columns:auto minmax(0,1fr);column
 aside .snippet .ln{min-width:3ch;color:var(--muted);text-align:right;user-select:none}
 aside .d-add{color:var(--add)}aside .d-del{color:var(--rem)}aside .d-hunk{color:var(--muted)}
 aside .mismatch-note{color:var(--rem);margin:6px 0}
-header .check{font-size:11px;color:var(--new-t)}header .check.bad{color:var(--rem);font-weight:600}
+aside .mismatch-why{color:var(--muted);font-size:11.5px;margin:0 0 6px}
+header .check{font-size:11px;color:var(--new-t)}header .check.bad{color:var(--rem);font-weight:600;font-family:inherit;background:none;border:0;padding:0;cursor:pointer;text-decoration:underline dotted}
 .node .flag{fill:var(--rem);font-size:13px;font-weight:700;text-anchor:middle}
 .group rect{fill:none;stroke:var(--line);stroke-dasharray:4 3}
 .group text{fill:var(--muted);font-size:10px;text-transform:uppercase}

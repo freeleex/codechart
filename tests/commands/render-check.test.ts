@@ -106,7 +106,10 @@ describe('render: map checks', () => {
     const r = await run(['render', specFile(spec), '--git', '--output', 'web']);
     expect(r.out).toMatch(/^✗ 1 claim doesn't match the code: ~Status not in diff\nfull map → file:/);
     const html = htmlFile();
-    expect(html).toContain('<span class="check bad">✗ 1 of 2 nodes doesn&#39;t match the code</span>');
+    expect(html).toMatch(/<button type="button" class="check bad" aria-controls="page-info"[^>]*>✗ 1 of 2 nodes doesn&#39;t match the code<\/button>/);
+    expect(html).toContain('codechart checked what the agent drew');
+    expect(html).toContain('<p class="mismatch-why">The agent says this changed, but git shows no change to its file');
+    expect(html).toMatch(/data-id="Status"[^>]*><title>✗ marked changed, but app\/status.py isn&#39;t in the diff\. The agent says/);
     expect(html).toContain('aria-label="Status (changed model, doesn&#39;t match the code)"');
     expect(html).toContain('class="flag"');
     expect(html).toContain('app/<wbr>orders.py:2');

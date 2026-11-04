@@ -3,7 +3,7 @@ import { headerHeight, KIND_ROW, LABEL_LINE_HEIGHT, labelLines, wrapSummary, typ
 import type { MapCheck } from '../check.js';
 import { codeRow, pathHtml, snippetHtml } from '../flow/html.js';
 import type { Preview } from '../preview.js';
-import { flagMark, isFlagged, mismatchNote } from './check-html.js';
+import { flagMark, flagTitle, mismatchNote } from './check-html.js';
 import { gapsHtml, infoButton, pageInfoSection, renderDiagramPage, renderEdgeSvg } from './diagram.js';
 import { CHANGE_ARROWS, esc, list, num, type HtmlMeta } from './page.js';
 import { edgeChange, edgeOn, fieldsOn, hasNowAfter, nodeOn, SIDE_KEY, type Side } from './states.js';
@@ -71,7 +71,9 @@ function cardShape(shape: Shape, { x, y, w, h }: Box, head: number): string {
   return shape === 'data' ? card + `<line class="head" x1="${x}" y1="${y + head - 3}" x2="${r}" y2="${y + head - 3}"/>` : card;
 }
 
-function renderNode(n: SpecNode, box: Box, flagged: boolean, fields: Field[]): string {
+/** `flag`: the hover title of a box that doesn't match the code, else empty. */
+function renderNode(n: SpecNode, box: Box, flag: string, fields: Field[]): string {
+  const flagged = flag !== '';
   const x = Math.round(box.x * 10) / 10;
   const y = Math.round(box.y * 10) / 10;
   const w = box.w;
@@ -92,6 +94,7 @@ function renderNode(n: SpecNode, box: Box, flagged: boolean, fields: Field[]): s
   const top = y + 18 + KIND_ROW;
   return (
     `<g class="node status-${n.status} shape-${shape}" data-id="${esc(n.id)}" tabindex="0" role="button" aria-label="${esc(`${n.label} (${nodeWhat(n)}${flagged ? ", doesn't match the code" : ''})`)}">` +
+    flag +
     cardShape(shape, { x, y, w, h: height }, head) +
     `<line class="head" x1="${x}" y1="${y + head}" x2="${x + w}" y2="${y + head}"/>` +
     (n.kind === 'other' ? '' : `<text class="kind" x="${x + 8}" y="${y + 12}">${n.kind}</text>`) +
@@ -170,7 +173,7 @@ function viewport(spec: Spec, layout: Layout, check: MapCheck | undefined, side?
   const nodes = shown
     .map((n) => {
       const b = boxes.get(n.id);
-      return b ? renderNode(n, b, isFlagged(check, n.id), side ? fieldsOn(side, n) : (n.fields ?? [])) : '';
+      return b ? renderNode(n, b, flagTitle(check, n.id), side ? fieldsOn(side, n) : (n.fields ?? [])) : '';
     })
     .join('');
   const edges = layout.edges

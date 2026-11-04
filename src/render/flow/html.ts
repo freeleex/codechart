@@ -1,6 +1,6 @@
 import { isPlannedLink, isRemovedLink, type FlowLink, type FlowSpec, type FlowStep } from '../../spec/flow.js';
 import type { CheckSummary } from '../terminal/check-lines.js';
-import { flagMark, isFlagged, mismatchNote } from '../web/check-html.js';
+import { flagMark, flagTitle, mismatchNote } from '../web/check-html.js';
 import { infoButton, gapsHtml, pageInfoSection, renderDiagramPage, renderEdgeSvg } from '../web/diagram.js';
 import { arrowMarker, CHANGE_ARROWS, esc, num, type HtmlMeta } from '../web/page.js';
 import type { Side } from '../web/states.js';
@@ -45,7 +45,9 @@ function shape(step: FlowStep, b: FlowLayoutNode): string {
   return `<rect class="shape" x="${num(b.x)}" y="${num(b.y)}" width="${num(b.w)}" height="${num(b.h)}" rx="${num(rx)}"/>`;
 }
 
-function renderStep(step: FlowStep, b: FlowLayoutNode, flagged: boolean, side?: Side): string {
+/** `flag`: the hover title of a step that doesn't match the code, else empty. */
+function renderStep(step: FlowStep, b: FlowLayoutNode, flag: string, side?: Side): string {
+  const flagged = flag !== '';
   const cx = num(b.x + b.w / 2);
   const content = b.lines.length * LINE_HEIGHT + (b.badge ? BADGE_HEIGHT : 0);
   let y = b.y + (b.h - content) / 2;
@@ -63,6 +65,7 @@ function renderStep(step: FlowStep, b: FlowLayoutNode, flagged: boolean, side?: 
   }
   return (
     `<g class="node type-${step.type} status-${status}" data-id="${esc(step.id)}" tabindex="0" role="button" aria-label="${esc(`${step.label} (${step.status} ${step.type}${flagged ? ", doesn't match the code" : ''})`)}">` +
+    flag +
     shape(step, b) +
     text +
     (flagged ? flagMark(b.x + b.w, b.y) : '') +
@@ -151,7 +154,7 @@ function viewport(spec: FlowSpec, layout: FlowLayout, check: CheckSummary | unde
     .filter((s) => !side || stepOn(side, s))
     .map((s) => {
       const b = boxes.get(s.id);
-      return b ? renderStep(s, b, isFlagged(check, s.id), side) : '';
+      return b ? renderStep(s, b, flagTitle(check, s.id), side) : '';
     })
     .join('');
   return `${edges}${nodes}`;

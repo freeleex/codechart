@@ -10,9 +10,15 @@ const validated = validateSpec(raw);
 if (!validated.ok) throw new Error(validated.errors.join('\n'));
 if (validated.spec.diagram === 'flow') throw new Error('expected map spec');
 const spec = validated.spec;
-const page = await renderHtml(spec, await layoutSpec(spec), {
-  generatedAt: new Date('2026-10-27T12:00:00Z'),
-  repo: 'demo',
+const layout = await layoutSpec(spec);
+const meta = { generatedAt: new Date('2026-10-27T12:00:00Z'), repo: 'demo' };
+const page = await renderHtml(spec, layout, meta);
+const flagged = await renderHtml(spec, layout, meta, {
+  checked: 1,
+  unit: 'node',
+  mismatches: [{ id: 'tbl.orders', label: 'orders', short: 'file missing', detail: 'db/orders.sql does not exist' }],
+  matches: new Map(),
+  found: new Map(),
 });
 
 const q = <T extends Element>(sel: string) => document.querySelector(sel) as T;
@@ -21,14 +27,18 @@ const panel = () => q<HTMLElement>('#panel');
 const info = () => q<HTMLElement>('#page-info');
 const toggle = () => q<HTMLElement>('#info-toggle');
 
+function mount(html: string): void {
+  document.documentElement.innerHTML = html.replace(/^[\s\S]*?<html[^>]*>/i, '').replace(/<\/html>\s*$/i, '');
+  const scripts = [...document.querySelectorAll('script')].filter((s) => s.type !== 'application/json');
+  expect(scripts.length).toBeGreaterThan(0);
+  for (const s of scripts) new Function(s.textContent ?? '')();
+}
+
 beforeEach(() => {
   if (!('escape' in CSS)) {
     (CSS as { escape?: (s: string) => string }).escape = (s) => s.replace(/([^\w-])/g, '\\$1');
   }
-  document.documentElement.innerHTML = page.replace(/^[\s\S]*?<html[^>]*>/i, '').replace(/<\/html>\s*$/i, '');
-  const scripts = [...document.querySelectorAll('script')].filter((s) => s.type !== 'application/json');
-  expect(scripts.length).toBeGreaterThan(0);
-  for (const s of scripts) new Function(s.textContent ?? '')();
+  mount(page);
 });
 
 describe('client panel switching', () => {
@@ -70,6 +80,17 @@ describe('client panel switching', () => {
     expect(panel().hidden).toBe(true);
     expect(document.querySelectorAll('.node.selected')).toHaveLength(0);
     expect(toggle().getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('a flagged map: the header check line returns to the explanation; the node panel says what the mismatch means', () => {
+    mount(flagged);
+    expect(info().textContent).toContain("the path is wrong, or the file was renamed or deleted");
+    node('tbl.orders').dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(panel().querySelector('.mismatch-note')?.textContent).toBe('✗ db/orders.sql does not exist');
+    expect(panel().querySelector('.mismatch-why')?.textContent).toContain('Treat the box as unverified');
+    q<HTMLElement>('header .check.bad').dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(info().hidden).toBe(false);
+    expect(document.querySelectorAll('.node.selected')).toHaveLength(0);
   });
 
   it('dragging the handle resizes the panel within 300px and 80% of the window, and remembers it', () => {
