@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { buildProgram, runProgram } from '../../src/program.js';
+import { repoFromTemplate } from '../helpers/sandbox.js';
 
 let tmp: string;
 let home: string;
@@ -25,10 +26,7 @@ beforeEach(() => {
   repo = join(tmp, 'repo');
   mkdirSync(home);
   mkdirSync(repo);
-  git('init', '-q');
-  git('config', 'user.email', 't@example.com');
-  git('config', 'user.name', 'T');
-  git('config', 'commit.gpgsign', 'false');
+  repoFromTemplate(repo);
   process.exitCode = undefined;
 });
 

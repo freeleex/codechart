@@ -1,4 +1,3 @@
-import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -8,12 +7,13 @@ import { renderFlowHtml } from '../../src/render/flow/html.js';
 import { layoutFlow } from '../../src/render/flow/layout.js';
 import { renderFlowTree } from '../../src/render/flow/tree.js';
 import { validateFlowSpec } from '../../src/spec/flow.js';
+import { repoFromTemplate } from '../helpers/sandbox.js';
 
 let repo: string;
 beforeEach(() => {
   repo = mkdtempSync(join(tmpdir(), 'codechart-ids-'));
   mkdirSync(join(repo, 'src'));
-  execFileSync('git', ['init', '-q'], { cwd: repo });
+  repoFromTemplate(repo);
   writeFileSync(join(repo, 'src/a.ts'), 'one\ntwo\nthree\n');
 });
 afterEach(() => rmSync(repo, { recursive: true, force: true }));

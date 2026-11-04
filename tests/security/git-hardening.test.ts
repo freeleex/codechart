@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { gitChangedFiles, gitDirtyHashes, gitFileDiff, repoDiffOverrides } from '../../src/rules/git-files.js';
 import { diffRange } from '../../src/rules/selection.js';
+import { repoFromTemplate } from '../helpers/sandbox.js';
 
 let tmp: string;
 let repo: string;
@@ -20,10 +21,7 @@ beforeEach(() => {
   tmp = mkdtempSync(join(tmpdir(), 'codechart-gith-'));
   repo = join(tmp, 'repo');
   mkdirSync(repo);
-  git('init', '-q');
-  git('config', 'user.email', 't@example.com');
-  git('config', 'user.name', 'T');
-  git('config', 'commit.gpgsign', 'false');
+  repoFromTemplate(repo);
 });
 afterEach(() => rmSync(tmp, { recursive: true, force: true }));
 

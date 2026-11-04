@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { buildProgram, runProgram } from '../../src/program.js';
 import { repoFolder } from '../../src/render/output-path.js';
+import { repoFromTemplate } from '../helpers/sandbox.js';
 
 let tmp: string;
 let home: string;
@@ -12,6 +13,15 @@ let repo: string;
 let out: string;
 
 const git = (...args: string[]) => execFileSync('git', args, { cwd: repo, stdio: 'pipe' }).toString();
+
+function seed(dir: string) {
+  mkdirSync(join(dir, 'app'));
+  writeFileSync(join(dir, 'app/orders.py'), 'class Order:\n    pass\n');
+  writeFileSync(join(dir, 'app/status.py'), 'class Status:\n    pass\n');
+  writeFileSync(join(dir, 'app/old.py'), 'class Old:\n    pass\n');
+  execFileSync('git', ['add', '.'], { cwd: dir });
+  execFileSync('git', ['commit', '-q', '-m', 'init'], { cwd: dir });
+}
 
 beforeEach(() => {
   tmp = mkdtempSync(join(tmpdir(), 'codechart-render-check-'));
@@ -21,15 +31,7 @@ beforeEach(() => {
   mkdirSync(join(home, '.config', 'codechart'), { recursive: true });
   writeFileSync(join(home, '.config', 'codechart', 'config.yaml'), `web:\n  outDir: ${out}\n`);
   mkdirSync(join(repo, 'app'), { recursive: true });
-  git('init', '-q');
-  git('config', 'user.email', 't@example.com');
-  git('config', 'user.name', 'T');
-  git('config', 'commit.gpgsign', 'false');
-  writeFileSync(join(repo, 'app/orders.py'), 'class Order:\n    pass\n');
-  writeFileSync(join(repo, 'app/status.py'), 'class Status:\n    pass\n');
-  writeFileSync(join(repo, 'app/old.py'), 'class Old:\n    pass\n');
-  git('add', '.');
-  git('commit', '-q', '-m', 'init');
+  repoFromTemplate(repo, seed);
   writeFileSync(join(repo, 'app/orders.py'), 'class Order:\n    coupon = Column(Text)\n');
   process.exitCode = undefined;
 });

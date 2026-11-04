@@ -8,6 +8,7 @@ import { nodePreviews, parseDiff } from '../../src/render/preview.js';
 import { gitFileDiffs } from '../../src/rules/git-files.js';
 import { diffRange, gitFiles } from '../../src/rules/selection.js';
 import type { Spec } from '../../src/spec/schema.js';
+import { repoFromTemplate } from '../helpers/sandbox.js';
 
 const calls = vi.hoisted(() => ({ list: [] as string[][] }));
 vi.mock('node:child_process', async (orig) => {
@@ -35,10 +36,7 @@ beforeEach(() => {
   tmp = mkdtempSync(join(tmpdir(), 'codechart-batch-'));
   repo = join(tmp, 'repo');
   mkdirSync(repo);
-  git('init', '-q');
-  git('config', 'user.email', 't@example.com');
-  git('config', 'user.name', 'T');
-  git('config', 'commit.gpgsign', 'false');
+  repoFromTemplate(repo);
 });
 // Windows keeps a repo git just wrote hundreds of files in locked for seconds; the runner's temp dir is thrown away anyway
 afterEach(() => {
