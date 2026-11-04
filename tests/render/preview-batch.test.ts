@@ -156,7 +156,6 @@ describe('gitFileDiffs', () => {
     expect(countOf('diff')).toBe(1);
   });
 
-  // 1001 file writes and a commit take ~10s on Windows runners.
   it('splits requested paths across several calls', () => {
     for (let i = 0; i < 1001; i++) write(`d/f${i}.txt`, 'a\n');
     git('add', '-A');
@@ -168,7 +167,7 @@ describe('gitFileDiffs', () => {
     expect(countOf('diff')).toBe(3);
     expect(rels.filter((r) => out.get(r) !== '')).toEqual(rels.slice(0, 700));
     expect(out.get('d/f5.txt')).toContain('+b');
-  }, 30_000);
+  });
 
   it('gives up when a section is not a requested file', () => {
     write('d/a.txt', 'a\n');
