@@ -70,8 +70,8 @@ describe('layoutSpec', () => {
     const a = layout.nodes.find((n) => n.id === 'a')!;
     const b = layout.nodes.find((n) => n.id === 'b')!;
     expect(b.h).toBeGreaterThan(a.h);
-    expect(a.h).toBe(28);
-    expect(b.h).toBe(28 + 16 * 6);
+    expect(a.h).toBe(38);
+    expect(b.h).toBe(38 + 16 * 6);
     expect(a.w).toBe(220);
   });
 
@@ -104,9 +104,9 @@ describe('layoutSpec', () => {
       edges: [],
     });
     const h = async (s: string) => (await layoutSpec(mk(s))).nodes[0]!.h;
-    expect(await h('short')).toBe(28 + 16);
-    expect(await h('word '.repeat(10).trim())).toBe(28 + 16 * 2);
-    expect(await h('word '.repeat(60).trim())).toBe(28 + 16 * SUMMARY_MAX_LINES);
+    expect(await h('short')).toBe(38 + 16);
+    expect(await h('word '.repeat(10).trim())).toBe(38 + 16 * 2);
+    expect(await h('word '.repeat(60).trim())).toBe(38 + 16 * SUMMARY_MAX_LINES);
   });
 
   it.each([
@@ -182,6 +182,7 @@ describe('labelLines', () => {
     ['aws_s3_bucket_lifecycle_configuration.logs', ['aws_s3_bucket_', 'lifecycle_configuration.logs']],
     ['Deployment api-gateway-internal', ['Deployment api-', 'gateway-internal']],
     ['abcdefghijklmnopqrstuvwxyz', ['abcdefghijklmnopqrstuv', 'wxyz']],
+    ['CapabilityReliabilityProfile', ['CapabilityReliability', 'Profile']],
     ['aws_iam_role_policy_attachment.this_is_a_very_long_name', ['aws_iam_role_policy_', 'attachment.this_is_a_very_lon…']],
   ])('%s', (label, lines) => {
     expect(labelLines(label)).toEqual(lines);

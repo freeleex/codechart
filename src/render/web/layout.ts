@@ -39,7 +39,9 @@ export interface Layout {
 }
 
 const NODE_WIDTH = 220;
-const HEADER_HEIGHT = 28;
+/** Room for the kind tag above the title. */
+export const KIND_ROW = 10;
+const HEADER_HEIGHT = 28 + KIND_ROW;
 const LINE_HEIGHT = 16;
 const LAYER_PREFIX = 'layer:';
 
@@ -92,11 +94,12 @@ const LABEL_MORE_CHARS = 30;
 export const LABEL_LINE_HEIGHT = 14;
 const LABEL_BREAKS = ['_', '.', '/', '-', ' '];
 
-/** A card title on one line, or two broken after `_ . / -` or a space, so `aws_s3_bucket_lifecycle_configuration.logs` stays whole. */
+/** A card title on one line, or two broken after `_ . / -`, a space or between camelCase words, so `aws_s3_bucket_lifecycle_configuration.logs` stays whole. */
 export function labelLines(label: string): string[] {
   if (label.length <= LABEL_CHARS) return [label];
   const head = label.slice(0, LABEL_CHARS);
-  const cut = Math.max(...LABEL_BREAKS.map((c) => head.lastIndexOf(c))) + 1;
+  const camel = [...head.matchAll(/[a-z\d](?=[A-Z])/g)].map((m) => m.index);
+  const cut = Math.max(...LABEL_BREAKS.map((c) => head.lastIndexOf(c)), ...camel) + 1;
   const at = cut >= LABEL_CHARS / 2 ? cut : LABEL_CHARS;
   const rest = label.slice(at).trim();
   return [label.slice(0, at).trimEnd(), rest.length > LABEL_MORE_CHARS ? rest.slice(0, LABEL_MORE_CHARS - 1) + '…' : rest];

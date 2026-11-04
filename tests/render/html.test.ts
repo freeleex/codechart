@@ -55,8 +55,8 @@ describe('renderHtml', () => {
     const spec = loadFixture();
     spec.nodes[0]!.status = 'removed';
     const out = await html(spec);
-    expect(out).toMatch(new RegExp(`<g class="node status-removed" data-id="${spec.nodes[0]!.id}"[^>]*>.*?<text class="badge"[^>]*>removed</text>`));
-    expect(out).toContain('.status-removed .card{stroke:var(--rem)}');
+    expect(out).toMatch(new RegExp(`<g class="node status-removed shape-[a-z]+" data-id="${spec.nodes[0]!.id}"[^>]*>.*?<text class="badge"[^>]*>removed</text>`));
+    expect(out).toContain('.status-removed :is(.card,.fold){stroke:var(--rem)}');
     expect(out).toContain('.status-removed .badge{fill:var(--rem)}');
     expect(out).toContain('.status-removed .label{text-decoration:line-through}');
   });
@@ -175,6 +175,22 @@ describe('renderHtml', () => {
     expect(height(out)).toBe(height(before) + 14);
   });
 
+  it.each([
+    ['file', 'file', /<path class="fold"/],
+    ['config', 'file', /<path class="fold"/],
+    ['model', 'data', /<line class="head"[^>]*\/><line class="head"/],
+    ['endpoint', 'symbol', /<rect class="card"(?![^>]*rx=)/],
+    ['other', 'other', /<rect class="card"[^>]*rx="6"/],
+  ] as const)('a %s node draws as the %s shape', async (kind, shape, outline) => {
+    const spec = loadFixture();
+    spec.nodes[0] = { ...spec.nodes[0]!, kind, status: 'changed' };
+    const out = await html(spec);
+    const g = out.match(new RegExp(`<g class="node status-changed shape-${shape}" data-id="${spec.nodes[0].id}".*?</g>`))![0];
+    expect(g).toMatch(outline);
+    if (kind === 'other') expect(g).not.toContain('class="kind"');
+    else expect(g).toMatch(new RegExp(`class="kind"[^>]*>${kind}<`));
+  });
+
   it('the panel title names the kind, except other', async () => {
     const spec = loadFixture();
     spec.nodes[0] = { ...spec.nodes[0]!, label: 'aws_lb.api', kind: 'other', status: 'changed' };
@@ -190,7 +206,7 @@ describe('renderHtml', () => {
     const tag = out.match(new RegExp('<g class="node[^>]*data-id="' + n.id + '"[^>]*>'))![0];
     expect(tag).toContain('tabindex="0"');
     expect(tag).toContain('role="button"');
-    expect(tag).toContain(`aria-label="${n.label} (${n.status})"`);
+    expect(tag).toContain(`aria-label="${n.label} (${n.status} ${n.kind})"`);
     expect(out).toContain('.node:focus-visible .card{');
   });
 

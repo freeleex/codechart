@@ -107,7 +107,7 @@ describe('render: map checks', () => {
     expect(r.out).toMatch(/^✗ 1 claim doesn't match the code: ~Status not in diff\nfull map → file:/);
     const html = htmlFile();
     expect(html).toContain('<span class="check bad">✗ 1 of 2 nodes doesn&#39;t match the code</span>');
-    expect(html).toContain('aria-label="Status (changed, doesn&#39;t match the code)"');
+    expect(html).toContain('aria-label="Status (changed model, doesn&#39;t match the code)"');
     expect(html).toContain('class="flag"');
     expect(html).toContain('app/<wbr>orders.py:2');
     expect(html).toContain('coupon = Column(Text)');
