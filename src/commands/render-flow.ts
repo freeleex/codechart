@@ -4,14 +4,14 @@ import { renderFlowHtml } from '../render/flow/html.js';
 import { layoutFlow } from '../render/flow/layout.js';
 import { hasFlowNowAfter } from '../render/flow/states.js';
 import { flowKey, flowMarkdown, renderFlowTree } from '../render/flow/tree.js';
-import { alertLine } from '../render/terminal/check-lines.js';
+import { webAlert } from '../render/terminal/check-lines.js';
 import { fullMapLine } from '../render/terminal/render.js';
 import type { FlowSpec } from '../spec/flow.js';
 import { chooseOutput, type RenderContext, type Rendered } from './choose-output.js';
 
 export async function renderFlow(spec: FlowSpec, anchors: { snippets: FlowSnippets; checked: number }, ctx: RenderContext): Promise<Rendered> {
   const { snippets, checked } = anchors;
-  const check = checkFlowDiff(spec, snippets, checked, ctx.root, ctx.diff);
+  const check = { ...checkFlowDiff(spec, snippets, checked, ctx.root, ctx.diff), ...(ctx.diffUnchecked && { diffUnchecked: true }) };
   const tree = { maxNodes: ctx.maxNodes, width: ctx.width, color: ctx.color, md: ctx.md, check };
   const chosen = await chooseOutput(
     ctx.output,
@@ -21,7 +21,7 @@ export async function renderFlow(spec: FlowSpec, anchors: { snippets: FlowSnippe
     () => ctx.write(async (meta) => renderFlowHtml(spec, await layoutFlow(spec), snippets, meta, check)),
   );
   if (chosen.kind === 'terminal') return { text: chosen.text, check, html: chosen.html };
-  const alert = alertLine(check, ctx.width);
+  const alert = webAlert(check, ctx.width);
   const text = ctx.md
     ? flowMarkdown(spec.title, alert || undefined, { width: ctx.width, htmlPath: chosen.html.file }, flowKey(spec))
     : `${alert ? `${alert}\n` : ''}${fullMapLine(chosen.html.file)}\n`;

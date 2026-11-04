@@ -8,10 +8,11 @@ import { diffOf, type Diff } from '../render/check.js';
 import { checkFlowAnchors, type FlowSnippets } from '../render/flow/anchors.js';
 import { openBlockedNote } from '../render/markdown.js';
 import { fileSlug } from '../render/output-path.js';
+import { flagged } from '../render/terminal/check-lines.js';
 import { defaultWidth } from '../render/terminal/render.js';
 import { writeHtml } from '../render/web/write.js';
 import { resolveCommit } from '../rules/git-files.js';
-import { unionOutputs } from '../rules/resolve.js';
+import { unionOutputs, unmappedFiles } from '../rules/resolve.js';
 import { gitFiles, hasGitSelection, selectionError, type GitSelection } from '../rules/selection.js';
 import type { FlowSpec } from '../spec/flow.js';
 import { validateSpec, type Spec } from '../spec/schema.js';
@@ -136,6 +137,8 @@ async function renderSpec(arg: string, o: RenderFlags, opts: CommandOptions, cwd
     cwd: resolve(cwd),
     at,
     diff,
+    unmapped: unmappedFiles(config),
+    diffUnchecked: spec.kind === 'summary' && !diff && repoRoot !== undefined,
     selection: o,
     write: (build) =>
       writeHtml(build, {
@@ -155,7 +158,7 @@ async function renderSpec(arg: string, o: RenderFlags, opts: CommandOptions, cwd
   const print = (s: string) => opts.stdout(ctx.md ? `${s}\n` : s);
   print(text);
   if (html?.openFailed) print(openBlockedNote(html.file, ctx.md));
-  if (o.strict && check.mismatches.length > 0) process.exitCode = 1;
+  if (o.strict && flagged(check)) process.exitCode = 1;
 }
 
 export function renderCommand(opts: CommandOptions): Command {

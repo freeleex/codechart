@@ -40,7 +40,7 @@ codechart render --md - <<'EOF'
 EOF
 ```
 
-For a change summary, add the same `--git`/`--since`/`--commit`/`--head` you gave `check`. Commit or branch not checked out: add `--at '<sha or branch>'` so anchors are read from it. On errors, fix the spec and rerun. A `✗` line is a claim that doesn't match the code: if your spec was wrong (status, path), fix it and rerender; if the change really differs from what you said, keep the `✗` and say so. Stderr `no map drawn`/`no flow drawn`: skip it silently. Rare cases: [spec-guide.md](spec-guide.md), [flow-guide.md](flow-guide.md), `codechart schema [--flow]`.
+For a change summary, add the same `--git`/`--since`/`--commit`/`--head` you gave `check`. Commit or branch not checked out: add `--at '<sha or branch>'` so anchors are read from it. On errors, fix the spec and rerun. A `✗` line is a claim that doesn't match the code: if your spec was wrong (status, path), fix it and rerender; if the change really differs from what you said, keep the `✗` and say so. `✗ … not on map`: add a node or name the file in `omitted`. A summary footer saying `diff not checked`: you left out the flag, rerender with it. Stderr `no map drawn`/`no flow drawn`: skip it silently. Rare cases: [spec-guide.md](spec-guide.md), [flow-guide.md](flow-guide.md), `codechart schema [--flow]`.
 
 ### Flow (one behaviour each)
 
@@ -81,7 +81,7 @@ Draw only branches you saw in the code or (plan) will build; unverified ones go 
   "gaps": ["users: columns not read"] }
 ```
 
-- One node per table, model, file, service or endpoint, never merged: `new`, `changed`, `removed`, `config` (config/env), `context` (untouched neighbour the reader needs). Under 15; tests and docs go in `omitted`.
+- One node per table, model, file, service or endpoint, never merged: `new`, `changed`, `removed`, `config` (config/env), `context` (untouched neighbour the reader needs). Under 15; tests and docs go in `omitted`, naming each changed file by path, file name, `folder/` or glob (`"tests: test_teams.py"`); lockfiles and generated files need neither.
 - Infrastructure: one node per resource, module or Kubernetes object, labelled as the code names it (`aws_s3_bucket.logs`, `module.vpc`, `Deployment api`), `kind` `other`, `path` the file that declares it; variables and values `config`; `terraform plan not run` goes in `gaps`. See [spec-guide.md](spec-guide.md#infrastructure).
 - `layer` required, from a small set. `kind`: `table` `enum` `model` `service` `endpoint` `component` `file` (default with `path`) `config` `other`. Migration label: `migration: <what it does>`.
 - `fields`: all you read, `change`: `added`/`removed`/`modified`; `fieldsComplete: true` only if you read the whole definition.

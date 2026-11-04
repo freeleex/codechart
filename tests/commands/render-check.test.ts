@@ -96,9 +96,10 @@ describe('render: map checks', () => {
 
   it('a staged rename puts the old path in the diff for a removed node', async () => {
     git('mv', 'app/old.py', 'app/new.py');
-    const r = await run(['render', specFile(map(node('Old', 'removed', 'app/old.py'), node('New', 'new', 'app/new.py'))), '--git', '--output', 'cli']);
+    const spec = map(node('Old', 'removed', 'app/old.py'), node('New', 'new', 'app/new.py'), node('Order', 'changed', 'app/orders.py'));
+    const r = await run(['render', specFile(spec), '--git', '--output', 'cli']);
     expect(r.out).not.toContain('✗');
-    expect(r.out).toContain('✓ 2 checked');
+    expect(r.out).toContain('✓ 3 checked');
   });
 
   it('web output: the alert comes before the link; the HTML has the headline, the flag and the matched line', async () => {
@@ -133,13 +134,90 @@ describe('render: map checks', () => {
   });
 
   it('--md web output keeps the alert in a fence', async () => {
-    const r = await run(['render', '--md', specFile(map(node('Status', 'changed', 'app/status.py'))), '--git', '--output', 'web']);
+    const spec = map(node('Status', 'changed', 'app/status.py'), node('Order', 'changed', 'app/orders.py'));
+    const r = await run(['render', '--md', specFile(spec), '--git', '--output', 'web']);
     expect(r.out).toContain("```text\n✗ 1 claim doesn't match the code: ~Status not in diff\n```");
   });
 
-  it('--commit checks against that commit', async () => {
-    const r = await run(['render', specFile(map(node('Status', 'new', 'app/status.py'))), '--commit', 'HEAD', '--output', 'cli']);
+  it('--commit checks against that commit; a folder node covers the files under it', async () => {
+    const r = await run(['render', specFile(map(node('Status', 'new', 'app/status.py'), node('App', 'context', 'app'))), '--commit', 'HEAD', '--output', 'cli']);
     expect(r.out).not.toContain('✗');
+  });
+
+  it('a changed file no node covers is its own ✗ line, and --strict fails on it', async () => {
+    const r = await run(['render', specFile(map(node('Status', 'context', 'app/status.py'))), '--git', '--strict', '--output', 'cli']);
+    expect(r.out.split('\n')[0]).toBe('✗ 1 changed file not on map: app/orders.py');
+    expect(r.out).toContain('· ✓ 1 checked\n');
+    expect(r.code).toBe(1);
+  });
+
+  it('an omitted entry naming the file explains it', async () => {
+    const spec = { ...map(node('Status', 'context', 'app/status.py')), omitted: ['model tweak: orders.py'] };
+    const r = await run(['render', specFile(spec), '--git', '--output', 'cli']);
+    expect(r.out).not.toContain('✗');
+  });
+
+  it('lockfiles, generated files and files a map rule sends to output none are never flagged', async () => {
+    writeFileSync(join(repo, '.codechart.yaml'), 'rules:\n  - name: gen\n    paths: ["gen/**"]\n    output: none\n');
+    git('add', '.codechart.yaml');
+    git('commit', '-q', '-m', 'config', '--', '.codechart.yaml');
+    mkdirSync(join(repo, 'gen'));
+    mkdirSync(join(repo, 'web/__snapshots__'), { recursive: true });
+    writeFileSync(join(repo, 'gen/api.py'), 'x\n');
+    writeFileSync(join(repo, 'package-lock.json'), '{}\n');
+    writeFileSync(join(repo, 'web/app.min.js'), 'x\n');
+    writeFileSync(join(repo, 'web/__snapshots__/a.snap'), 'x\n');
+    const r = await run(['render', specFile(map(node('Order', 'changed', 'app/orders.py'))), '--git', '--output', 'cli']);
+    expect(r.out).not.toContain('✗');
+  });
+
+  it("a moved file's old path is covered by the node at its new path", async () => {
+    mkdirSync(join(repo, 'lib'));
+    git('mv', 'app/old.py', 'lib/old.py');
+    const r = await run(['render', specFile(map(node('Old', 'changed', 'lib/old.py'), node('Order', 'changed', 'app/orders.py'))), '--git', '--output', 'cli']);
+    expect(r.out).not.toContain('✗');
+  });
+
+  it('web output lists uncovered files in the HTML', async () => {
+    const r = await run(['render', specFile(map(node('Status', 'context', 'app/status.py'))), '--git', '--output', 'web']);
+    expect(r.out).toMatch(/^✗ 1 changed file not on map: app\/orders.py\nfull map → file:/);
+    const html = htmlFile();
+    expect(html).toMatch(/<button type="button" class="check bad"[^>]*>✓ 1 node checked against the code · ✗ 1 changed file not on map<\/button>/);
+    expect(html).toContain('The map may leave out part of the change.');
+    expect(html).toContain('<h3>Changed, not on map</h3>');
+    expect(html).toContain('<li>app/orders.py</li>');
+  });
+
+  it('plans are never checked for uncovered files', async () => {
+    const r = await run(['render', specFile({ ...map(node('Status', 'context', 'app/status.py')), kind: 'plan' }), '--git', '--output', 'cli']);
+    expect(r.out).not.toContain('✗');
+  });
+});
+
+describe('render: diff not checked', () => {
+  it('a summary in a repo without a diff flag says so in the footer, the stdout above a web link and the HTML', async () => {
+    const spec = specFile(map(node('Order', 'changed', 'app/orders.py')));
+    expect((await run(['render', spec, '--output', 'cli'])).out).toContain('1 nodes · 0 new · 1 changed · 0 config · ✓ 1 checked · diff not checked\n');
+    const web = await run(['render', spec, '--output', 'web']);
+    expect(web.out).toMatch(/^diff not checked\nfull map → file:/);
+    expect(htmlFile()).toMatch(/<span class="check" title="Rendered without --git[^"]*">✓ 1 node checked against the code · diff not checked<\/span>/);
+  });
+
+  it('not with a diff flag, for a plan, or outside a repo', async () => {
+    const summary = map(node('Order', 'changed', 'app/orders.py'));
+    expect((await run(['render', specFile(summary), '--git', '--output', 'cli'])).out).not.toContain('diff not checked');
+    expect((await run(['render', specFile({ ...summary, kind: 'plan' }), '--output', 'cli'])).out).not.toContain('diff not checked');
+    const outside = join(tmp, 'plain');
+    mkdirSync(outside);
+    let stdout = '';
+    const program = buildProgram({ cwd: outside, home, env: {}, stdout: (s) => (stdout += s), stderr: () => {}, isTTY: false, open: () => {} });
+    await runProgram(program, ['render', specFile({ ...summary, nodes: [] }), '--output', 'cli'], 'user');
+    expect(stdout).not.toContain('diff not checked');
+  });
+
+  it('flows say it too', async () => {
+    const flow = { kind: 'summary', title: 'f', start: 'a', steps: [{ id: 'a', label: 'add coupon', status: 'changed', source: 'app/orders.py:2' }], links: [] };
+    expect((await run(['render', specFile(flow), '--output', 'cli'])).out).toContain('✓ 1 anchor checked · diff not checked');
   });
 
   it('selection usage errors exit 2', async () => {

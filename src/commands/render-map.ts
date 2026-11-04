@@ -1,6 +1,6 @@
 import { checkMapNodes } from '../render/check.js';
 import { fullMapLine, KEY, renderTerminalDetailed } from '../render/terminal/render.js';
-import { alertLine } from '../render/terminal/check-lines.js';
+import { alertLine, webAlert } from '../render/terminal/check-lines.js';
 import { selectTerminalNodes } from '../render/terminal/select.js';
 import { markdownBlock } from '../render/markdown.js';
 import { nodePreviews } from '../render/preview.js';
@@ -21,7 +21,7 @@ const needsWeb = (spec: Spec, hidden: number, minNodes: number): boolean => hidd
 
 export async function renderMap(spec: Spec, ctx: RenderContext): Promise<Rendered> {
   const { root, diff } = ctx;
-  const check = checkMapNodes(spec, root, { at: ctx.at, cwd: ctx.cwd, diff });
+  const check = { ...checkMapNodes(spec, root, { at: ctx.at, cwd: ctx.cwd, diff, ignored: ctx.unmapped }), ...(ctx.diffUnchecked && { diffUnchecked: true }) };
   const { hidden } = selectTerminalNodes(spec, ctx.maxNodes);
   const termOpts = { maxNodes: ctx.maxNodes, keyLine: !ctx.md, color: ctx.color, width: ctx.width, check };
   const previews = () => (diff ? nodePreviews(spec, root, diff, diffRange(root, ctx.selection), check.found, ctx.cwd) : undefined);
@@ -32,10 +32,10 @@ export async function renderMap(spec: Spec, ctx: RenderContext): Promise<Rendere
     (htmlPath) => renderTerminalDetailed(spec, { ...termOpts, htmlPath }),
     () => ctx.write(async (meta) => renderHtml(spec, await layoutSpec(spec, canvases), meta, check, previews())),
   );
-  const alert = alertLine(check, ctx.width);
   if (chosen.kind === 'web') {
+    const alert = webAlert(check, ctx.width);
     const text = ctx.md ? markdown(undefined, chosen.html.file, alert) : `${alert ? `${alert}\n` : ''}${fullMapLine(chosen.html.file)}\n`;
     return { text, check, html: chosen.html };
   }
-  return { text: ctx.md ? markdown(chosen.text, chosen.html?.file, alert) : chosen.text, check, html: chosen.html };
+  return { text: ctx.md ? markdown(chosen.text, chosen.html?.file, alertLine(check, ctx.width)) : chosen.text, check, html: chosen.html };
 }

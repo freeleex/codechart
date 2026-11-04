@@ -53,6 +53,40 @@ const MAP_RULES: Rule[] = [
   },
 ];
 
+/** Lockfiles and generated files: a change summary's map need not show them. */
+export const GENERATED_PATHS = [
+  '**/package-lock.json',
+  '**/npm-shrinkwrap.json',
+  '**/yarn.lock',
+  '**/pnpm-lock.yaml',
+  '**/bun.lock',
+  '**/bun.lockb',
+  '**/Cargo.lock',
+  '**/Gemfile.lock',
+  '**/poetry.lock',
+  '**/uv.lock',
+  '**/Pipfile.lock',
+  '**/composer.lock',
+  '**/go.sum',
+  '**/mix.lock',
+  '**/pubspec.lock',
+  '**/Podfile.lock',
+  '**/packages.lock.json',
+  '**/flake.lock',
+  '**/.terraform.lock.hcl',
+  '**/*.min.js',
+  '**/*.min.css',
+  '**/*.js.map',
+  '**/*.css.map',
+  '**/__snapshots__/**',
+  '**/*.snap',
+  '**/*_pb2.py',
+  '**/*_pb2_grpc.py',
+  '**/*.pb.go',
+  '**/*.generated.*',
+  '**/*.g.dart',
+];
+
 const FLOW_WHEN: Record<Exclude<Flows, 'request'>, string> = {
   auto: 'the change adds or alters behaviour with at least 2 decisions or edge cases a reader would want to see',
   always: 'the change adds or alters any behaviour with at least one decision',

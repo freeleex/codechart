@@ -16,6 +16,10 @@ export interface RenderContext {
   cwd: string;
   at?: string;
   diff?: Diff;
+  /** Changed files a summary map need not show. */
+  unmapped?: (file: string) => boolean;
+  /** A summary rendered in a repo without a diff flag. */
+  diffUnchecked?: boolean;
   selection: GitSelection;
   write: WriteHtml;
 }
