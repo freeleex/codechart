@@ -1,3 +1,7 @@
+import { lstatSync } from 'node:fs';
+import { join } from 'node:path';
+import { readRegularFile } from '../read-regular.js';
+
 // User-level skills folders from each agent's docs (2026-10). `reads` lists other folders the agent also loads skills from.
 export interface AgentPreset {
   name: string;
@@ -37,4 +41,11 @@ export function skillFolders(agents: AgentPreset[]): { folder: string; agents: A
     else groups.push({ folder: a.skills, agents: [a] });
   }
   return groups;
+}
+
+/** A folder whose SKILL.md is a regular file naming the codechart skill; only such folders are updated or removed. */
+export function isCodechartSkill(dir: string): boolean {
+  const skill = join(dir, 'SKILL.md');
+  const text = lstatSync(skill, { throwIfNoEntry: false })?.isFile() ? readRegularFile(skill, (s) => s.isFile()) : undefined;
+  return text !== undefined && /^---\r?\n(?:.*\r?\n)*?name: codechart\r?\n/.test(text);
 }

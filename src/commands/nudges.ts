@@ -28,13 +28,12 @@ function blockAt(text: string): [number, number] | undefined {
   return end > at ? [at, end + END.length] : undefined;
 }
 
-/** Adds the reminder between codechart markers once; `force` replaces a different one. */
-export function addReminder(file: string, force: boolean): 'added' | 'updated' | 'present' | 'outdated' {
+/** Adds the reminder between codechart markers once; a different one between the markers is replaced. */
+export function addReminder(file: string): 'added' | 'updated' | 'present' {
   const { path, text = '' } = readRegular(file);
   const block = blockAt(text);
   if (block) {
     if (text.slice(...block) === BLOCK) return 'present';
-    if (!force) return 'outdated';
     writeFileSync(path, text.slice(0, block[0]) + BLOCK + text.slice(block[1]));
     return 'updated';
   }

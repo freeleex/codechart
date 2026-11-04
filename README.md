@@ -83,18 +83,18 @@ That's it. Open your coding agent in any repo and try:
 > show me the flow of accepting an invite
 ```
 
-Needs Node 22.12+. `install-skill` finds the agents you use and asks which ones get the skill. Existing installs are skipped (`--force` updates them). Skip the question with `--agent codex,gemini`, or use `--dir <skills folder>` for anything else.
+Needs Node 22.12+. `install-skill` finds the agents you use and asks which ones get the skill. An older codechart copy is updated; a folder holding something else is skipped (`--force` overwrites it). Skip the question with `--agent codex,gemini`, or use `--dir <skills folder>` for anything else.
 
 **Works with** any agent that supports [Agent Skills](https://agentskills.io): Claude Code, Codex, Gemini CLI, GitHub Copilot, Cursor, OpenCode, Goose, Amp, Windsurf, Cline, Roo Code, Kiro, Junie and Factory Droid.
 
 Already use the [skills CLI](https://skills.sh)? `npx skills add freeleex/codechart` installs the skill, but not the CLI it runs: add `npm i -g codechart` too. Pick one way to install the skill, so your agent doesn't load it twice.
 
-### Optional: help agents remember it
+### Help agents remember it
 
-Agents load a skill only when they think of it, and in long sessions they sometimes don't. `install-skill` then offers two opt-ins (both off by default; flags skip the question):
+Agents load a skill only when they think of it, and in long sessions they sometimes don't. `install-skill` also adds two helpers, pre-checked in its question and on without one. `--no-reminder` / `--no-hook` leave one out; `--reminder` or `--hook` adds only that one. They cost tokens only when they work: the reminder line is about 40 tokens per session, and the hook costs nothing until it sends Claude back for a map.
 
-- **Reminder line** (`--reminder`): one line in your agents' global instructions file (`~/.claude/CLAUDE.md`, `~/.config/opencode/AGENTS.md`, `~/.codex/AGENTS.md`, `~/.gemini/GEMINI.md`) asking them to use codechart for changes that touch 3+ files or add branching behaviour. It sits between `<!-- codechart -->` markers.
-- **Claude Code hook** (`--hook`): adds `codechart hook prompt` (UserPromptSubmit) and `codechart hook stop` (Stop) to `~/.claude/settings.json`. When a turn changed 3+ files and the reply has no diagram, Claude is asked once to follow the skill. Files you had already changed before the turn don't count.
+- **Reminder line**: one line in your agents' global instructions file (`~/.claude/CLAUDE.md`, `~/.config/opencode/AGENTS.md`, `~/.codex/AGENTS.md`, `~/.gemini/GEMINI.md`) asking them to use codechart for changes that touch 3+ files or add branching behaviour. It sits between `<!-- codechart -->` markers; an older line there is replaced.
+- **Claude Code hook** (only when Claude Code gets the skill): adds `codechart hook prompt` (UserPromptSubmit) and `codechart hook stop` (Stop) to `~/.claude/settings.json`. When a turn changed 3+ files and the reply has no diagram, Claude is asked once to follow the skill. Files you had already changed before the turn don't count.
 
 Remove everything later with [one command](#uninstall).
 
@@ -247,7 +247,7 @@ Rules have a `name` plus exactly one of `paths` (globs: `*`, `**`, `?`, `[..]`; 
 | `codechart schema` | Spec JSON schema; `--flow` for flow specs, `--config` for the config file |
 | `codechart config` | Config in effect and where each value comes from (`--json`) |
 | `codechart init` | Write a commented starter `.codechart.yaml` at the git root (`--force` to overwrite) |
-| `codechart install-skill` | Install the skill for the agents found in your home folder. `--agent <names>`, `--dir <path>`, `--force` to overwrite, `--reminder`, `--hook` |
+| `codechart install-skill` | Install the skill for the agents found in your home folder. `--agent <names>`, `--dir <path>`, `--force` to overwrite a folder that isn't an older codechart copy, `--no-reminder`, `--no-hook` (or `--reminder`, `--hook` for only one) |
 | `codechart uninstall` | Remove the skill, reminder lines and hooks; `--skill`, `--reminder`, `--hook` to pick some |
 | `codechart hook prompt\|stop` | Run by the Claude Code hook; reads the hook's JSON on stdin |
 

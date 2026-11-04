@@ -64,7 +64,7 @@ Result: 21 findings after dedup. 0 Critical, 0 High, 3 Medium, 15 Low, 3 Info. F
 - Prune: symlink named like the pattern removes the link only; a directory with the pattern name untouched; `.HTML` and names with `\n` not matched; only `outDir/<repo>-<hash>/` listed.
 - `outDir` `~` writes only `~/<repo>-<hash>/`; `/` errors with nothing written.
 - `web.open` (auto-open in VS Code-based editors, detected by `VSCODE_PID` or `TERM_PROGRAM=vscode`) is global-only, so a repo can't make pages pop up; it opens only the file codechart just wrote, via the same opener as `--open`.
-- `install-skill` refuses existing files without `--force`; targets are agent skills folders under the user's home, or a `--dir` the user passes.
+- `install-skill` overwrites existing files without `--force` only in a folder whose `SKILL.md` is a regular file saying `name: codechart` (an older copy; same check as `uninstall`); anything else needs `--force`. Targets are agent skills folders under the user's home, or a `--dir` the user passes.
 
 ### Area 4: subprocesses
 - Only two child processes exist: `git status` and the `--open` opener. Both use argument arrays, no shell.
