@@ -146,12 +146,13 @@ function show(id: string): void {
 }
 
 function initPanel(): void {
-  if (infoBtn) {
-    infoBtn.addEventListener('click', () => {
-      select(null);
-      setInfo(true);
-    });
-  }
+  const showInfo = () => {
+    select(null);
+    setInfo(true);
+  };
+  if (infoBtn) infoBtn.addEventListener('click', showInfo);
+  const checkBtn = document.querySelector('header .check.bad');
+  if (checkBtn) checkBtn.addEventListener('click', showInfo);
   setInfo(true);
   document.querySelectorAll<SVGGElement>('.node').forEach((g) => {
     g.addEventListener('click', () => {

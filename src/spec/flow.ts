@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { hasHiddenChars } from '../render/strip.js';
-import { formatIssues, ident, labelIssues, long, pathStr, short, SHORT, shortOpt, type ValidationResult } from './shared.js';
+import { codeLabelIssue, formatIssues, ident, labelIssues, long, pathStr, short, SHORT, shortOpt, type ValidationResult } from './shared.js';
 
 const STEP_TYPES = ['step', 'decision', 'end'] as const;
 type StepType = (typeof STEP_TYPES)[number];
@@ -182,6 +182,8 @@ function linkIssues(spec: FlowInput, facts: Facts, issue: Issue): void {
       if (!facts.byId.has(link[end])) issue(['links', i, end], `unknown step "${link[end]}"`);
     }
     for (const [path, m] of linkFlagIssues(spec, link, facts)) issue(['links', i, ...path], m);
+    const code = link.label && codeLabelIssue(link.label, 'no coupon');
+    if (code) issue(['links', i, 'label'], code);
     if (leavesDecision(facts, link) && !isPlannedLink(spec, link) && !link.source) {
       issue(['links', i, 'source'], `required for a non-planned branch leaving a decision ${ANCHOR}`);
     }

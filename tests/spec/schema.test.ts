@@ -57,8 +57,27 @@ describe('validateSpec', () => {
       expect(errorsOf(withLabel('User + Project'))).toHaveLength(1);
     });
 
+    it.each(['_l(["rag"])', 'items[0]', "status: 'paid'", 'x = 1', 'save ...'])('rejects code %s', (label) => {
+      expect(errorsOf(withLabel(label))[0]).toBe(
+        `nodes[0].label: reads as code ("${label}"); name it in plain words (e.g. "migration: add invoices") and render again`,
+      );
+    });
+
+    it('rejects a code edge label and asks for plain words', () => {
+      const s = load();
+      s.edges[0].label = '_l([...])';
+      expect(errorsOf(s)).toEqual([
+        'edges[0].label: reads as code ("_l([...])"); name it in plain words (e.g. "additional_training (now a list)") and render again',
+      ]);
+    });
+
     it.each([
       'GET /users/{id}',
+      'list_projects()',
+      'values[]',
+      'additional_training (now a list)',
+      "user's teams",
+      'total >= 100',
       'C++',
       'user.py',
       'migration: add teams',

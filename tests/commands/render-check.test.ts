@@ -107,8 +107,11 @@ describe('render: map checks', () => {
     const r = await run(['render', specFile(spec), '--git', '--output', 'web']);
     expect(r.out).toMatch(/^✗ 1 claim doesn't match the code: ~Status not in diff\nfull map → file:/);
     const html = htmlFile();
-    expect(html).toContain('<span class="check bad">✗ 1 of 2 nodes doesn&#39;t match the code</span>');
-    expect(html).toContain('aria-label="Status (changed, doesn&#39;t match the code)"');
+    expect(html).toMatch(/<button type="button" class="check bad" aria-controls="page-info"[^>]*>✗ 1 of 2 nodes doesn&#39;t match the code<\/button>/);
+    expect(html).toContain('codechart checked what the agent drew');
+    expect(html).toContain('<p class="mismatch-why">The agent says this changed, but git shows no change to its file');
+    expect(html).toMatch(/data-id="Status"[^>]*><title>✗ marked changed, but app\/status.py isn&#39;t in the diff\. The agent says/);
+    expect(html).toContain('aria-label="Status (changed model, doesn&#39;t match the code)"');
     expect(html).toContain('class="flag"');
     expect(html).toContain('app/<wbr>orders.py:2');
     expect(html).toContain('coupon = Column(Text)');
@@ -179,7 +182,8 @@ describe('render: map checks', () => {
     const r = await run(['render', specFile(map(node('Status', 'context', 'app/status.py'))), '--git', '--output', 'web']);
     expect(r.out).toMatch(/^✗ 1 changed file not on map: app\/orders.py\nfull map → file:/);
     const html = htmlFile();
-    expect(html).toContain('<span class="check bad">✓ 1 node checked against the code · ✗ 1 changed file not on map</span>');
+    expect(html).toMatch(/<button type="button" class="check bad"[^>]*>✓ 1 node checked against the code · ✗ 1 changed file not on map<\/button>/);
+    expect(html).toContain('The map may leave out part of the change.');
     expect(html).toContain('<h3>Changed, not on map</h3>');
     expect(html).toContain('<li>app/orders.py</li>');
   });
@@ -196,7 +200,7 @@ describe('render: diff not checked', () => {
     expect((await run(['render', spec, '--output', 'cli'])).out).toContain('1 nodes · 0 new · 1 changed · 0 config · ✓ 1 checked · diff not checked\n');
     const web = await run(['render', spec, '--output', 'web']);
     expect(web.out).toMatch(/^diff not checked\nfull map → file:/);
-    expect(htmlFile()).toContain('<span class="check">✓ 1 node checked against the code · diff not checked</span>');
+    expect(htmlFile()).toMatch(/<span class="check" title="Rendered without --git[^"]*">✓ 1 node checked against the code · diff not checked<\/span>/);
   });
 
   it('not with a diff flag, for a plan, or outside a repo', async () => {

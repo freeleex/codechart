@@ -39,7 +39,8 @@ aside .snippet code{display:grid;grid-template-columns:auto minmax(0,1fr);column
 aside .snippet .ln{min-width:3ch;color:var(--muted);text-align:right;user-select:none}
 aside .d-add{color:var(--add)}aside .d-del{color:var(--rem)}aside .d-hunk{color:var(--muted)}
 aside .mismatch-note{color:var(--rem);margin:6px 0}
-header .check{font-size:11px;color:var(--new-t)}header .check.bad{color:var(--rem);font-weight:600}
+aside .mismatch-why{color:var(--muted);font-size:11.5px;margin:0 0 6px}
+header .check{font-size:11px;color:var(--new-t)}header .check.bad{color:var(--rem);font-weight:600;font-family:inherit;background:none;border:0;padding:0;cursor:pointer;text-decoration:underline dotted}
 .node .flag{fill:var(--rem);font-size:13px;font-weight:700;text-anchor:middle}
 .group rect{fill:none;stroke:var(--line);stroke-dasharray:4 3}
 .group text{fill:var(--muted);font-size:10px;text-transform:uppercase}
@@ -51,7 +52,9 @@ header .check{font-size:11px;color:var(--new-t)}header .check.bad{color:var(--re
 .edge-removed path{stroke:var(--rem);stroke-dasharray:5 3}.edge-removed text{fill:var(--rem)}#arrow-removed path{fill:var(--rem);stroke:none}
 .node{cursor:pointer}
 .node .card{fill:var(--card);stroke:var(--line);stroke-width:1}
+.node .fold{fill:none;stroke:var(--line);stroke-width:1}
 .node .head{stroke:var(--line);stroke-width:1}
+.node .kind{fill:var(--muted);font-size:8px;letter-spacing:.06em;text-transform:uppercase}
 .node .label{fill:var(--text);font-size:11px;font-weight:600}
 .node .badge{font-size:8.5px;text-transform:uppercase;text-anchor:end}
 .node .summary{fill:var(--muted);font-size:10.5px;font-style:italic}
@@ -62,10 +65,10 @@ header .check{font-size:11px;color:var(--new-t)}header .check.bad{color:var(--re
 .node.selected .card{stroke-width:2.5}
 .node:focus{outline:none}
 .node:focus-visible .card{stroke:var(--edge);stroke-width:3.5}
-.status-new .card{stroke:var(--new)}.status-new .badge{fill:var(--new-t)}
-.status-changed .card{stroke:var(--chg)}.status-changed .badge{fill:var(--chg-t)}
-.status-removed .card{stroke:var(--rem)}.status-removed .badge{fill:var(--rem)}.status-removed .label{text-decoration:line-through}
-.status-config .card{stroke:var(--cfg)}.status-config .badge{fill:var(--cfg-t)}
+.status-new :is(.card,.fold){stroke:var(--new)}.status-new .badge{fill:var(--new-t)}
+.status-changed :is(.card,.fold){stroke:var(--chg)}.status-changed .badge{fill:var(--chg-t)}
+.status-removed :is(.card,.fold){stroke:var(--rem)}.status-removed .badge{fill:var(--rem)}.status-removed .label{text-decoration:line-through}
+.status-config :is(.card,.fold){stroke:var(--cfg)}.status-config .badge{fill:var(--cfg-t)}
 .status-context .card{stroke-dasharray:4 3}.status-context{opacity:.75}.status-context .badge{fill:var(--muted)}
 .field-added-t{color:var(--add)}.field-removed-t{color:var(--muted);text-decoration:line-through}.field-modified-t{color:var(--chg-t)}
 

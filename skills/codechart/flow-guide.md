@@ -14,7 +14,7 @@ An invented branch is the worst failure: it destroys the user's trust in the too
 ## Steps
 
 - `type`: `step` (does something), `decision` (a question the code branches on, label ends in `?`), `end` (returns, raises, exits). Leave it out and it is inferred from the outgoing links: none → `end`, one → `step`, two or more → `decision`. A label ending in `?` with fewer than 2 links fails the render. `diagram: "flow"` is inferred from `steps` too.
-- `label`: verb + object, aim for 30 characters or fewer (`look up invite by token`, `expired?`), not a sentence or a function name. Longer labels are cut at the terminal width; details belong in your prose or the anchored code. One action per step: ` / ` or ` + ` fails validation.
+- `label`: verb + object, aim for 30 characters or fewer (`look up invite by token`, `expired?`), not a sentence or a function name. Longer labels are cut at the terminal width; details belong in your prose or the anchored code. One action per step: ` / ` or ` + ` fails validation. Step and link labels are plain words, never code: quotes, a call with arguments, `[...]` with something inside, `=` or `...` fails validation (`reads as code`); rename it and render again.
 - **No hidden decisions:** a label with "if", "else", "or" or `;` hides a branch. Make it a decision with labelled branches, or put it in `gaps` if you didn't verify it.
 - Decision labels are unique: one decision per question; if two really differ, say how (`map spec?`, `flow anchors valid?`).
 - `start`: the id of the first step.

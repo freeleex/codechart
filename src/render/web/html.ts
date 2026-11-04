@@ -1,9 +1,9 @@
-import type { Field, Spec, SpecEdge, SpecNode } from '../../spec/schema.js';
-import { headerHeight, LABEL_LINE_HEIGHT, labelLines, wrapSummary, type Layout, type LayoutEdge } from './layout.js';
+import type { Field, NodeKind, Spec, SpecEdge, SpecNode } from '../../spec/schema.js';
+import { headerHeight, KIND_ROW, LABEL_LINE_HEIGHT, labelLines, wrapSummary, type Layout, type LayoutEdge } from './layout.js';
 import type { MapCheck } from '../check.js';
 import { codeRow, pathHtml, snippetHtml } from '../flow/html.js';
 import type { Preview } from '../preview.js';
-import { flagMark, isFlagged, mismatchNote } from './check-html.js';
+import { flagMark, flagTitle, mismatchNote } from './check-html.js';
 import { gapsHtml, infoButton, pageInfoSection, renderDiagramPage, renderEdgeSvg } from './diagram.js';
 import { CHANGE_ARROWS, esc, list, num, type HtmlMeta } from './page.js';
 import { edgeChange, edgeOn, fieldsOn, hasNowAfter, nodeOn, SIDE_KEY, type Side } from './states.js';
@@ -15,6 +15,8 @@ const FIELD_CHARS = 34;
 function clip(s: string, max: number): string {
   return s.length > max ? s.slice(0, max - 1) + '…' : s;
 }
+
+const nodeWhat = (n: SpecNode): string => (n.kind === 'other' ? n.status : `${n.status} ${n.kind}`);
 
 const FIELD_MARK = { added: '+ ', removed: '- ', modified: '~ ' } as const;
 
@@ -33,7 +35,45 @@ function renderEdge(e: LayoutEdge, change: SpecEdge['change']): string {
   });
 }
 
-function renderNode(n: SpecNode, box: { x: number; y: number; w: number; h: number }, flagged: boolean, fields: Field[]): string {
+type Shape = 'file' | 'data' | 'symbol' | 'other';
+
+const SHAPE: Record<NodeKind, Shape> = {
+  file: 'file',
+  config: 'file',
+  table: 'data',
+  enum: 'data',
+  model: 'data',
+  service: 'symbol',
+  endpoint: 'symbol',
+  component: 'symbol',
+  other: 'other',
+};
+
+const FOLD = 12;
+
+interface Box {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** The card outline: a file folds its corner, a data type doubles its header line, a code symbol has square corners. */
+function cardShape(shape: Shape, { x, y, w, h }: Box, head: number): string {
+  const r = x + w;
+  if (shape === 'file') {
+    return (
+      `<path class="card" d="M${x},${y} H${r - FOLD} L${r},${y + FOLD} V${y + h} H${x} Z"/>` +
+      `<path class="fold" d="M${r - FOLD},${y} V${y + FOLD} H${r}"/>`
+    );
+  }
+  const card = `<rect class="card" x="${x}" y="${y}" width="${w}" height="${h}"${shape === 'symbol' ? '' : ' rx="6"'}/>`;
+  return shape === 'data' ? card + `<line class="head" x1="${x}" y1="${y + head - 3}" x2="${r}" y2="${y + head - 3}"/>` : card;
+}
+
+/** `flag`: the hover title of a box that doesn't match the code, else empty. */
+function renderNode(n: SpecNode, box: Box, flag: string, fields: Field[]): string {
+  const flagged = flag !== '';
   const x = Math.round(box.x * 10) / 10;
   const y = Math.round(box.y * 10) / 10;
   const w = box.w;
@@ -50,14 +90,18 @@ function renderNode(n: SpecNode, box: { x: number; y: number; w: number; h: numb
   }
   // The layout sized the card for every field on both sides; keep that so edges still meet it.
   const height = Math.max(row, Math.round(box.h * 10) / 10);
+  const shape = SHAPE[n.kind];
+  const top = y + 18 + KIND_ROW;
   return (
-    `<g class="node status-${n.status}" data-id="${esc(n.id)}" tabindex="0" role="button" aria-label="${esc(`${n.label} (${n.status}${flagged ? ", doesn't match the code" : ''})`)}">` +
-    `<rect class="card" x="${x}" y="${y}" width="${w}" height="${height}" rx="6"/>` +
+    `<g class="node status-${n.status} shape-${shape}" data-id="${esc(n.id)}" tabindex="0" role="button" aria-label="${esc(`${n.label} (${nodeWhat(n)}${flagged ? ", doesn't match the code" : ''})`)}">` +
+    flag +
+    cardShape(shape, { x, y, w, h: height }, head) +
     `<line class="head" x1="${x}" y1="${y + head}" x2="${x + w}" y2="${y + head}"/>` +
-    labelLines(n.label).map((l, i) => `<text class="label" x="${x + 8}" y="${y + 18 + i * LABEL_LINE_HEIGHT}">${esc(l)}</text>`).join('') +
-    `<text class="badge" x="${x + w - 8}" y="${y + 18}">${esc(n.status)}</text>` +
+    (n.kind === 'other' ? '' : `<text class="kind" x="${x + 8}" y="${y + 12}">${n.kind}</text>`) +
+    labelLines(n.label).map((l, i) => `<text class="label" x="${x + 8}" y="${top + i * LABEL_LINE_HEIGHT}">${esc(l)}</text>`).join('') +
+    `<text class="badge" x="${x + w - 8}" y="${top}">${esc(n.status)}</text>` +
     lines.join('') +
-    (flagged ? flagMark(x + w, y) : '') +
+    (flagged ? flagMark(shape === 'file' ? x + w - FOLD - 6 : x + w, y) : '') +
     `</g>`
   );
 }
@@ -90,7 +134,7 @@ function fieldsHtml(n: SpecNode, sides: boolean): string {
 }
 
 function cardPanel(n: SpecNode, check: MapCheck | undefined, previews: Map<string, Preview> | undefined, sides: boolean): string {
-  let out = `<h2>${esc(`${n.label} (${n.kind === 'other' ? n.status : `${n.status} ${n.kind}`})`)}</h2>`;
+  let out = `<h2>${esc(`${n.label} (${nodeWhat(n)})`)}</h2>`;
   out += mismatchNote(check, n.id);
   const match = check?.matches.get(n.id);
   if (match) out += snippetHtml(match);
@@ -129,7 +173,7 @@ function viewport(spec: Spec, layout: Layout, check: MapCheck | undefined, side?
   const nodes = shown
     .map((n) => {
       const b = boxes.get(n.id);
-      return b ? renderNode(n, b, isFlagged(check, n.id), side ? fieldsOn(side, n) : (n.fields ?? [])) : '';
+      return b ? renderNode(n, b, flagTitle(check, n.id), side ? fieldsOn(side, n) : (n.fields ?? [])) : '';
     })
     .join('');
   const edges = layout.edges

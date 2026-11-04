@@ -86,7 +86,7 @@ Draw only branches you saw in the code or (plan) will build; unverified ones go 
 - `layer` required, from a small set. `kind`: `table` `enum` `model` `service` `endpoint` `component` `file` (default with `path`) `config` `other`. Migration label: `migration: <what it does>`.
 - `fields`: all you read, `change`: `added`/`removed`/`modified`; `fieldsComplete: true` only if you read the whole definition.
 - Optional on a `new`/`changed` node with `path`: `match`, a distinctive piece of one line from the diff, as proof (shown in the HTML).
-- Edges: dependent → dependency, labelled with the column, method or key; only ones you saw or will build. `kind`: `fk` `calls` `imports` `reads` `writes` `renders` `configures` `other`. Plan: a link moved between existing nodes gets `"change": "added"`/`"removed"`; a field whose type changes gets `was` (old type).
+- Edges: dependent → dependency, labelled in plain words with the column, method or key (`team_id`, `additional_training (now a list)`), never pasted code (`_l(["rag"])` fails the render); only ones you saw or will build. `kind`: `fk` `calls` `imports` `reads` `writes` `renders` `configures` `other`. Plan: a link moved between existing nodes gets `"change": "added"`/`"removed"`; a field whose type changes gets `was` (old type).
 - Context `short`: only what you read in this task, unread goes in `gaps`; `full`: also read the definitions of entities on the map.
 
 ## 3. Reply
