@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { matchSchema, validateFlowSpec, type FlowSpec } from './flow.js';
-import { formatIssues, ident, labelIssues, long, pathStr, short, shortOpt, type ValidationResult as Result } from './shared.js';
+import { codeLabelIssue, formatIssues, ident, labelIssues, long, pathStr, short, shortOpt, type ValidationResult as Result } from './shared.js';
 
 export const STATUSES = ['new', 'changed', 'removed', 'context', 'config'] as const;
 export const NODE_KINDS = [
@@ -41,6 +41,7 @@ const edgeSchema = z.strictObject({
 });
 
 const MAX_NODES = 500;
+const EDGE_LABEL_EXAMPLE = 'additional_training (now a list)';
 const MAX_EDGES = 1000;
 
 const specSchema = z
@@ -104,6 +105,8 @@ const specSchema = z
           });
         }
       }
+      const code = edge.label && codeLabelIssue(edge.label, EDGE_LABEL_EXAMPLE);
+      if (code) ctx.addIssue({ code: 'custom', path: ['edges', i, 'label'], message: code });
       const ends = [statusOf.get(edge.from), statusOf.get(edge.to)];
       if (spec.kind === 'plan' && ends.includes('new') && ends.includes('removed')) {
         ctx.addIssue({ code: 'custom', path: ['edges', i], message: 'joins a new and a removed node, which never exist at the same time' });

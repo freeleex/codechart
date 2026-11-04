@@ -287,6 +287,16 @@ describe('validateSpec: flow', () => {
 
     it('allows plain labels', () => {
       expect(validateSpec(withLabel('GET /users/{id}')).ok).toBe(true);
+      expect(validateSpec(withLabel('total >= 100?')).ok).toBe(true);
+    });
+
+    it('rejects code in a step or link label', () => {
+      expect(errorsOf(withLabel('raise NotFound(token)'))[0]).toContain('steps[0].label: reads as code ("raise NotFound(token)")');
+      const s = example();
+      s.links[1]!.label = 'mode == "none"';
+      expect(errorsOf(s)).toEqual([
+        'links[1].label: reads as code ("mode == \"none\""); name it in plain words (e.g. "no coupon") and render again',
+      ]);
     });
   });
 

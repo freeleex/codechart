@@ -19,8 +19,25 @@ function hashToken(label: string): string | undefined {
     .find((t) => /^[0-9a-f]{7,}$/i.test(t) && /\d/.test(t) && /[a-f]/i.test(t));
 }
 
+// `list_projects()`, `values[]`, `{id}` and `>=` stay allowed: a reader still sees what they name.
+const CODE_PATTERNS = [
+  /[\w$.]\([^)]/, // a call with arguments
+  /\[[^\]]/, // an index or list literal
+  /["`]|(?:^|\W)'[^']*'/, // a string literal
+  /\.\.\./,
+  /(?:^|[^<>=!])=(?!=)/, // an assignment
+];
+
+/** A label that pastes code (`_l(["rag"])`) instead of naming the thing in words. */
+export function codeLabelIssue(label: string, example: string): string | undefined {
+  const hit = CODE_PATTERNS.some((p) => p.test(label));
+  return hit ? `reads as code ("${label}"); name it in plain words (e.g. "${example}") and render again` : undefined;
+}
+
 export function labelIssues(label: string, noun: string, fileField: string, example: string): string[] {
   const issues: string[] = [];
+  const code = codeLabelIssue(label, example);
+  if (code) issues.push(code);
   const hash = hashToken(label);
   if (hash) {
     issues.push(

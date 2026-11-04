@@ -101,7 +101,7 @@ Warnings, not failures (`--strict` makes them exit 1). Each mismatch is named in
 ```
 
 - Direction: from the thing that depends to the thing it depends on (FK holder → referenced table; caller → callee; reader → config).
-- `label`: the column, method or key that makes the link (`team_id`, `list_projects()`, `reads DEFAULT_CURRENCY`). Short.
+- `label`: the column, method or key that makes the link, in plain words (`team_id`, `list_projects()`, `reads DEFAULT_CURRENCY`, `additional_training (now a list)`). Short. Never a code expression from the diff: a node or edge label with quotes, a call with arguments, `[...]` with something inside, `=` or `...` fails validation (`reads as code`); rename it and render again.
 - `kind`: fk, calls, imports, reads, writes, renders, configures, other. Use `writes` for a migration that creates or alters a table, and `other` for a model's `maps` edge to its table.
 - Only edges you saw in code, or (in a plan) ones you are committing to build.
 - In a plan, `change` marks a link that moves between nodes existing before and after: `"added"` for one the plan builds, `"removed"` for one it drops. Leave it out on edges to a `new` or `removed` node; their status already says it. The HTML then shows the plan as Now and After side by side.

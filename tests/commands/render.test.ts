@@ -391,7 +391,7 @@ describe('codechart render', () => {
 
   it('--md fence grows past backticks in the map', async () => {
     const s = spec(2);
-    s.nodes[0]!.label = 'a ``` b';
+    Object.assign(s.nodes[0]!, { fields: [{ name: 'a ``` b' }], fieldsComplete: true });
     const r = await run(['render', specFile(s), '--output', 'cli', '--md']);
     expect(r.out.startsWith(`${HEADER}\n\`\`\`\`text\n`)).toBe(true);
     expect(r.out.endsWith('\n````\n\n')).toBe(true);
