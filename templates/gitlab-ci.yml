@@ -4,6 +4,8 @@
 # Developer role (CI_JOB_TOKEN can't edit MRs or upload files).
 codechart-map:
   image: node:22
+  # A newer pipeline cancels this one (with "Auto-cancel redundant pipelines", on by default); pr-sync also skips saving if the MR moved on.
+  interruptible: true
   variables:
     GIT_DEPTH: 0
   rules:

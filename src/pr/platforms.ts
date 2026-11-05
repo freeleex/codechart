@@ -6,8 +6,10 @@ import { gitBinary } from '../rules/git-files.js';
 export interface Review {
   name: string;
   base: string;
+  /** The commit this run checks; a later push makes it stale. */
   head: string;
-  body(): Promise<string>;
+  /** The description and head commit as they are now, not as the run started. */
+  current(): Promise<{ body: string; head: string }>;
   setBody(body: string): Promise<void>;
   /** Stores the SVG where the description can load it, for readers with access to the repo; returns its URL. */
   publish(svg: string): Promise<string>;
@@ -44,7 +46,10 @@ export function githubReview(env: Env, cwd: string, fetchFn: Fetch = fetch): Rev
     name: `PR #${pr.number}`,
     base: pr.base.sha,
     head: pr.head.sha,
-    body: async () => ((await (await call(fetchFn, api, { headers }, 'reading the PR')).json()) as { body: string | null }).body ?? '',
+    current: async () => {
+      const now = (await (await call(fetchFn, api, { headers }, 'reading the PR')).json()) as { body: string | null; head: { sha: string } };
+      return { body: now.body ?? '', head: now.head.sha };
+    },
     setBody: async (body) => {
       await call(fetchFn, api, { method: 'PATCH', headers, body: JSON.stringify({ body }) }, 'updating the PR');
     },
@@ -68,7 +73,10 @@ export function gitlabReview(env: Env, fetchFn: Fetch = fetch): Review {
     name: `MR !${iid}`,
     base: need(env, 'CI_MERGE_REQUEST_DIFF_BASE_SHA'),
     head: need(env, 'CI_COMMIT_SHA'),
-    body: async () => ((await (await call(fetchFn, mr, { headers }, 'reading the MR')).json()) as { description: string | null }).description ?? '',
+    current: async () => {
+      const now = (await (await call(fetchFn, mr, { headers }, 'reading the MR')).json()) as { description: string | null; sha: string };
+      return { body: now.description ?? '', head: now.sha };
+    },
     setBody: async (description) => {
       await call(fetchFn, mr, { method: 'PUT', headers: { ...headers, 'content-type': 'application/json' }, body: JSON.stringify({ description }) }, 'updating the MR');
     },

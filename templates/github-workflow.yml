@@ -4,6 +4,10 @@ name: codechart map
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+# A newer push cancels the run still drawing the older one; pr-sync also skips saving if the PR moved on.
+concurrency:
+  group: codechart-map-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 permissions:
   contents: write # pushes the map image to refs/codechart/pr-<n>, not to a branch
   pull-requests: write

@@ -86,6 +86,11 @@ describe('prBlock', () => {
     expect(out).toContain('&lt;script&gt;x&lt;/script&gt;');
   });
 
+  it('brackets in the title cannot end the image text', () => {
+    const spec: Spec = { title: 'Orders] and [x', kind: 'summary', nodes: [node('a')], edges: [] };
+    expect(prBlock(spec, undefined, 'u.svg')).toContain('[![Orders\\] and \\[x](u.svg)](u.svg)');
+  });
+
   it('a backslash in agent text cannot undo the ~ escape', () => {
     const spec: Spec = { title: 't', kind: 'summary', nodes: [node('a \\~~struck~~')], edges: [] };
     expect(prBlock(spec, undefined, 'x')).toContain('**+ a \\\\\\~\\~struck\\~\\~**');
