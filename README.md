@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  <a href="#install">Install</a> · <a href="#what-you-get">What you get</a> · <a href="#why-you-can-trust-the-diagram">Trust</a> · <a href="#cost">Cost</a> · <a href="#configure">Configure</a> · <a href="#faq">FAQ</a>
+  <a href="#install">Install</a> · <a href="#what-you-get">What you get</a> · <a href="#why-you-can-trust-the-diagram">Trust</a> · <a href="#cost">Cost</a> · <a href="docs/configuration.md">Configure</a> · <a href="docs/README.md">Docs</a>
 </p>
 
 <p align="center">
@@ -85,20 +85,7 @@ That's it. Open your coding agent in any repo and try:
 > show me the flow of accepting an invite
 ```
 
-Needs Node 22.12+. `install-skill` finds the agents you use and asks which ones get the skill. An older codechart copy is updated; a folder holding something else is skipped (`--force` overwrites it). Skip the question with `--agent codex,gemini`, or use `--dir <skills folder>` for anything else.
-
-**Works with** any agent that supports [Agent Skills](https://agentskills.io): Claude Code, Codex, Gemini CLI, GitHub Copilot, Cursor, OpenCode, Goose, Amp, Windsurf, Cline, Roo Code, Kiro, Junie and Factory Droid.
-
-Already use the [skills CLI](https://skills.sh)? `npx skills add freeleex/codechart` installs the skill, but not the CLI it runs: add `npm i -g codechart` too. Pick one way to install the skill, so your agent doesn't load it twice.
-
-### Help agents remember it
-
-Agents load a skill only when they think of it, and in long sessions they sometimes don't. `install-skill` also adds two helpers, pre-checked in its question and on without one. `--no-reminder` / `--no-hook` leave one out; `--reminder` or `--hook` adds only that one. They cost tokens only when they work: the reminder line is about 40 tokens per session, and the hook costs nothing until it sends Claude back for a map.
-
-- **Reminder line**: one line in your agents' global instructions file (`~/.claude/CLAUDE.md`, `~/.config/opencode/AGENTS.md`, `~/.codex/AGENTS.md`, `~/.gemini/GEMINI.md`) asking them to use codechart for changes that touch 3+ files or add branching behaviour. It sits between `<!-- codechart -->` markers; an older line there is replaced.
-- **Claude Code hook** (only when Claude Code gets the skill): adds `codechart hook prompt` (UserPromptSubmit) and `codechart hook stop` (Stop) to `~/.claude/settings.json`. When a turn changed 3+ files and the reply has no diagram, Claude is asked once to follow the skill. Files you had already changed before the turn don't count.
-
-Remove everything later with [one command](#uninstall).
+Works with Claude Code, Codex, Gemini CLI, GitHub Copilot, Cursor, OpenCode and any other agent that supports [Agent Skills](https://agentskills.io). `install-skill` asks which agents get the skill, and adds a reminder line and a Claude Code hook so agents don't forget it in long sessions. Details, other agents and uninstalling: [Install and agents](docs/install.md).
 
 ## What you get
 
@@ -166,40 +153,17 @@ On the full page, a changed resource shows its HCL diff and changed attributes (
 
 ### Terminal first, page when it helps
 
-Small diagrams stay in the reply. Big ones, or rules you mark `output: both`, also get the self-contained HTML page: zoom, pan, light and dark themes, a resizable node panel with back/forward through the nodes you opened, *Not on map / gaps* one click away, nothing loaded from the internet. Each map is laid out top-down or left-to-right, whichever fits a laptop screen better. In a change summary, a node's diff is read from git when the page is built, so the agent spends no tokens on it.
+Small diagrams stay in the reply. Big ones also get a self-contained HTML page: zoom, pan, light and dark themes, a node panel with back/forward through the nodes you opened, nothing loaded from the internet. In a change summary, a node's diff is read from git when the page is built, so the agent spends no tokens on it.
 
-### Maps in pull requests and merge requests
+### Maps in pull requests
 
-Reviewers get the map too. With one CI file in the repo, the agent puts a collapsed **Map** section at the end of the PR or MR description, and CI redraws it on every push:
-
-- **The image is the map from the HTML page** (same layout, kind tags, status colours and ✗ flags), following the reader's light or dark mode. Click it for full size.
-- **Below it, the check in words:** ✗ claims grouped by reason with what each means, changed files not on the map, what the agent left out or didn't read, and the details of every node, collapsed.
-- **Kept current:** on each push CI re-checks the map against the PR's diff and latest commit, so a file added later shows up as `✗ changed, not on map` until the agent updates the map.
-- **No AI in CI, no tokens:** the map spec is stored hidden in the description; CI only re-checks and redraws it.
+Reviewers get the map too. Turn it on once per repo (`codechart setup-pr-maps`, or ask your agent): it shows the CI file and asks before writing anything. From then on, PR and MR descriptions the agent writes end with a collapsed map, and CI redraws it on every push, so new ✗ flags appear when the code moves on. No AI or tokens in CI. [How it works and setup for GitHub and GitLab](docs/pr-maps.md).
 
 ![PR description with the Map section open: check line, the map image, what was left out or not read, collapsed node details and the key](docs/images/pr-map.png)
 
-**Turn it on**, once per repo. It's off until you do, and nothing touches your repo without you saying yes. In the repo, ask your agent to *set up codechart PR maps*, or run:
+### When it fires, and when it stays quiet
 
-```bash
-codechart setup-pr-maps          # shows the file it would add and what runs, then asks
-codechart setup-pr-maps --pr     # same, but opens a pull/merge request you merge to turn it on
-```
-
-It reads `origin` to tell GitHub from GitLab (`--host` when the URL says neither), shows the whole file and the token it uses, and writes only after you answer yes (`--yes` skips the question). Without `--pr` the file lands in your work tree, uncommitted, for you to review and commit. With `--pr` it opens a pull or merge request through `gh` or `glab` and leaves your work tree and branch alone: merge it to turn PR maps on, close it to say no. The CI job runs the codechart version you have installed, pinned, so an upgrade is a change you review.
-
-- **GitHub:** adds `.github/workflows/codechart.yml`. It uses the built-in token, no secret to add; PRs from forks are skipped, their token can't edit the PR. The image is stored as a commit on `refs/codechart/pr-<number>`, not on a branch, and loads only for people who can see the repo.
-- **GitLab:** appends a `codechart-map` job to `.gitlab-ci.yml` (or creates it). Then add a masked CI/CD variable `CODECHART_GITLAB_TOKEN`: an access token with `api` scope from a user with at least the Developer role (GitLab's job token can't edit an MR or upload files). The command prints both links. The image is a project upload, visible to project members.
-
-By hand instead: copy `templates/github-workflow.yml` or the job in `templates/gitlab-ci.yml` from the package (`npm root -g`), and replace `codechart@latest` with a version to pin it.
-
-To turn it off, delete the file (or the GitLab job). Without the CI file, agents paste the plain map into PR descriptions and mention once that PR maps exist.
-
-Once the file is in, agents with the skill add the section when they write a PR or MR description. To add one by hand: `codechart render <spec> --since main --pr` prints it. A description without the section is left alone, and editing text outside it is safe.
-
-### When it fires — and when it stays quiet
-
-Before drawing anything, the agent runs `codechart check` on the changed files. Built-in rules cover the common cases: migrations and ORM models, infrastructure files, 3+ changed files that depend on each other (map), and changes with 2+ decisions or edge cases (flow). One-file text, comment, formatting or version-bump changes are skipped. Your own rules in `.codechart.yaml` run first — see [Configure](#configure).
+The skill fires when the agent summarizes a change, writes a plan or explains how code behaves. Built-in rules decide: migrations and models, infrastructure files, 3+ related files (map), 2+ decisions or edge cases (flow). One-file text, comment, formatting or version-bump changes are skipped. Your own rules in `.codechart.yaml` run first: [Configuration](docs/configuration.md).
 
 ## Why you can trust the diagram
 
@@ -224,99 +188,26 @@ The CLI is small: a 74.2 kB package, 5 runtime dependencies, and a cold start ar
 
 ## Safe to run
 
-- No network calls, no telemetry. The exceptions are opt-in [PR maps](#maps-in-pull-requests-and-merge-requests): `codechart pr-sync`, which runs only in the CI job you add, reads and edits that PR or MR's description through the GitHub or GitLab API and publishes the map image; `codechart setup-pr-maps --pr` pushes one branch and opens a PR with your `gh`/`glab`.
-- No shell: only read-only `git` and your OS opener, called with argument arrays. `pr-sync` on GitHub also writes one commit with the image and pushes it to `refs/codechart/pr-<number>`.
-- HTML pages load nothing external, and all text is escaped. They're saved to `~/.cache/codechart`, never to your repo, like the map image of `render --pr`.
-- A summary page rendered with `--git`, `--since` or `--commit` holds your code: each changed node's panel shows the start of its diff. Share such a page only where you'd share the diff.
-- The optional hook keeps, per session, the names and content hashes of your changed files in `~/.cache/codechart/turns` (removed after 7 days), never their contents.
-- Audited before release across 8 areas, including untrusted repos and prompt-injected specs. See [docs/security-review.md](docs/security-review.md) and [SECURITY.md](SECURITY.md).
+- No network calls, no telemetry, no shell: only read-only `git` and your OS opener. The exception is opt-in [PR maps](docs/pr-maps.md), whose CI job edits the PR description and publishes the map image.
+- HTML pages load nothing external, all text is escaped, and they're saved to `~/.cache/codechart`, never to your repo. A summary page holds your diff: share it only where you'd share the diff.
+- Audited before release across 8 areas, including untrusted repos and prompt-injected specs: [SECURITY.md](SECURITY.md) and [docs/security-review.md](docs/security-review.md).
 
 ## Configure
 
-Works with zero config. To tune it, run `codechart init` to write a commented `.codechart.yaml`, then add rules for your repo:
-
-```yaml
-rules:
-  - name: models
-    paths: ["app/models/**"]   # always map model changes
-    output: both               # terminal + HTML page
-    context: full              # may read referenced definitions
-  - name: frontend-models
-    when: "a frontend data model, store, or shared API type changed"
-  - name: api-flows
-    diagram: flow
-    paths: ["app/api/**"]
-```
-
-`codechart config` shows the config in effect and where each value comes from.
-
-<details>
-<summary><b>All config keys</b></summary>
-
-Repo `.codechart.yaml` and global `~/.config/codechart/config.yaml`. Editor schema: `codechart schema --config` or `config.schema.json`.
-
-| Key | Values | Default |
-|---|---|---|
-| `defaults.output` | `auto`, `cli`, `web`, `both`, `none` | `auto` (terminal map; HTML only when the map is too big) |
-| `defaults.context` | `short` (map what the agent already read), `full` (may read referenced definitions) | `short` |
-| `defaults.flows` | `auto` (2+ decisions or edge cases), `always`, `request` | `auto` |
-| `defaults.terminalMaxNodes` | number | `15` |
-| `web.theme` | `auto`, `light`, `dark` | `auto` |
-| `web.minNodes` | HTML from this many nodes on | `8` |
-| `useBuiltinRules` | built-in migration/model/infrastructure path rules, `related-files`, `behaviour-flow` | `true` |
-| `rules` | your own, run before the built-ins | none |
-
-Global only: `web.outDir` (`~/.cache/codechart`), `web.keep` (`20`), `web.maxAgeDays` (`7`), `web.open` (`auto`: new pages open in your browser when running inside a VS Code-based editor; `always`, `never`).
-
-Rules have a `name` plus exactly one of `paths` (globs: `*`, `**`, `?`, `[..]`; no braces) or `when` (a sentence the agent judges). Optional: `output`, `context` (map rules), `diagram: map|flow`. Per diagram type and file, the first matching path rule wins. `output: none` excludes files.
-
-</details>
-
-<details>
-<summary><b>CLI commands</b> (the skill calls these; you rarely need to)</summary>
-
-| Command | Purpose |
-|---|---|
-| `codechart check` | Which rules apply to changed files. `--files <csv>`, `--git`, `--commit <sha>`, `--since <base>` (+ `--head <ref>`), `--matched <csv>` |
-| `codechart render <spec>` | Render a spec (JSON file or `-` for stdin). `--output auto\|cli\|web\|both`, `--theme auto\|light\|dark`, `--open`, `--md` (paste-ready markdown), `--at <rev>`; `--git`, `--commit <sha>`, `--since <base>` (+ `--head <ref>`) to check claims against the diff; `--strict` to exit 1 on a mismatch; `--pr` prints a map's PR/MR description section and writes its SVG to the cache folder (`--svg <file>` writes it elsewhere, `--image-url <url>` sets where the description loads it) |
-| `codechart setup-pr-maps` | Add the CI job for [PR maps](#maps-in-pull-requests-and-merge-requests): shows the change and asks first. `--yes` (no question), `--pr` (open a pull/merge request instead of writing to the work tree), `--host github\|gitlab` |
-| `codechart pr-sync` | In CI: redraw the map section of this PR or MR's description against its latest commit (see [PR maps](#maps-in-pull-requests-and-merge-requests)) |
-| `codechart schema` | Spec JSON schema; `--flow` for flow specs, `--config` for the config file |
-| `codechart config` | Config in effect and where each value comes from (`--json`) |
-| `codechart init` | Write a commented starter `.codechart.yaml` at the git root (`--force` to overwrite) |
-| `codechart install-skill` | Install the skill for the agents found in your home folder. `--agent <names>`, `--dir <path>`, `--force` to overwrite a folder that isn't an older codechart copy, `--no-reminder`, `--no-hook` (or `--reminder`, `--hook` for only one) |
-| `codechart uninstall` | Remove the skill, reminder lines and hooks; `--skill`, `--reminder`, `--hook` to pick some |
-| `codechart hook prompt\|stop` | Run by the Claude Code hook; reads the hook's JSON on stdin |
-
-</details>
-
-## Uninstall
-
-```bash
-codechart uninstall && npm uninstall -g codechart
-```
-
-`codechart uninstall` removes the skill, the reminder lines and the hooks (`--skill`, `--reminder`, `--hook` to pick some). npm can't run it for you: it has no uninstall scripts since v7. Skill folders holding other files keep them.
+Works with zero config. `codechart init` writes a commented `.codechart.yaml` for your own rules ("always map `app/models/**`", "draw a flow for API changes"), and `codechart config` shows what's in effect. Every key: [Configuration](docs/configuration.md). Every command: [CLI](docs/cli.md).
 
 ## FAQ
-
-**My agent isn't on the list.**
-If it loads `SKILL.md` skills, run `codechart install-skill --dir <its skills folder>`. If not, the CLI still works for any agent that can run a command and write JSON: point it at `codechart schema` and `codechart render`.
-
-**My agent asks permission for every render, even though I allowed `codechart`.**
-The skill pipes the spec in with a heredoc (`codechart render --md - <<'EOF'`). In Claude Code, an allow rule like `Bash(codechart:*)` didn't cover that in our tests, so Claude Code asks before each render: approve it.
 
 **Will it draw a diagram for every tiny change?**
 No. One-file text, comment, formatting or version-bump changes are skipped. Flows only appear for logic with 2+ decisions or edge cases, or when you ask for one.
 
 **Does my code leave my machine?**
-Not because of codechart. It makes no network calls. The diagram is built from what your agent already read. Only if you add the [PR map](#maps-in-pull-requests-and-merge-requests) CI job does `pr-sync` send the map image and description to your own GitHub or GitLab, where the PR already lives.
+Not because of codechart. It makes no network calls, and the diagram is built from what your agent already read. Only with [PR maps](docs/pr-maps.md) on does CI send the map image and description to your own GitHub or GitLab, where the PR already lives.
 
 **Where do the HTML pages go?**
 `~/.cache/codechart`. It keeps the newest 20 per repo, plus anything under 7 days old.
 
-**I use VS Code, Cursor, Windsurf or Antigravity, and "Open full map" shows HTML source.**
-Those editors open file links as text. codechart detects them and opens new pages in your browser instead. Where the editor doesn't allow that (Antigravity sandboxes agent commands), the reply includes the page's address to paste into your browser. Turn auto-open off with `web.open: never` in `~/.config/codechart/config.yaml`.
+More questions (permissions prompts, editors that open HTML as text, agents not on the list): [Install and agents](docs/install.md). All docs: [docs/](docs/README.md).
 
 ## License
 

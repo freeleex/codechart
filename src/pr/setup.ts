@@ -85,7 +85,7 @@ export function buildPlan(remote: Remote, version: string, read: (file: string) 
 }
 
 function conflict(file: string): never {
-  throw new Error(`${file} already exists and is not codechart's; move it or set PR maps up by hand (see the README)`);
+  throw new Error(`${file} already exists and is not codechart's; move it or set PR maps up by hand: https://github.com/freeleex/codechart/blob/main/docs/pr-maps.md#by-hand`);
 }
 
 export const SETUP_BRANCH = 'codechart/pr-maps';

@@ -10,4 +10,4 @@ Only when the user asks for it ("set up codechart PR maps", "keep the map in my 
 4. GitLab: the job needs a masked CI/CD variable `CODECHART_GITLAB_TOKEN`. Give the user the two links the command printed (create an access token with `api` scope, then add it under Settings > CI/CD > Variables). Never ask for the token or set it yourself.
 5. Say what happens next: from then on, PR/MR descriptions you write for a mapped change get the map section (SKILL.md step 4), and CI redraws it on every push.
 
-Output `PR maps are already set up`: tell the user, nothing to do. `can't tell whether … is GitHub or GitLab`: ask which, then add `--host github` or `--host gitlab`. `… already exists and is not codechart's`: show the message; the user sets it up by hand (README, "Maps in pull requests and merge requests").
+Output `PR maps are already set up`: tell the user, nothing to do. `can't tell whether … is GitHub or GitLab`: ask which, then add `--host github` or `--host gitlab`. `… already exists and is not codechart's`: show the message; the user sets it up by hand: https://github.com/freeleex/codechart/blob/main/docs/pr-maps.md#by-hand
