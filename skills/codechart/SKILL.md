@@ -96,3 +96,11 @@ Draw only branches you saw in the code or (plan) will build; unverified ones go 
 3. Prose: plan steps, tests, risks, open questions. The map replaces a list of changed files.
 
 Every diagram in the reply is the exact text of one successful render: never typed, redrawn or edited by hand. Copy every character, line break and space, the key too (keep entries that don't apply, like `? planned`). Never re-wrap, trim, unescape or summarise, and add no `**Map**`/`**Flow**` line of your own. Looks wrong or render fails: fix the spec and rerender; if you can't, say there is no diagram.
+
+## 4. PR or MR description
+
+Writing or updating one for a change you mapped: check whether the repo redraws maps in CI (`grep -rls 'codechart pr-sync' .github/workflows .gitlab-ci.yml`).
+- Found: render the summary map spec again with the same diff flags and `--pr` instead of `--md` (`codechart render --pr - <<'EOF'`), and paste the printed section verbatim at the end of the description, from `<!-- codechart:start -->` to `<!-- codechart:end -->`. CI publishes the image and redraws the section on every push, so its image link starts as a placeholder. To change the map later, render again and replace that whole section; never edit inside it.
+- Not found: paste the `--md` map as in step 3.
+
+`--pr` draws maps only: a flow goes in as its `--md` text. Never put a plan's Now/After map in a PR.

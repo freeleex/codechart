@@ -220,8 +220,10 @@ Last updated after the 0.3.0 review.
 
 **How.** Three independent reviewers. Each finding was reproduced against the built CLI before it was reported. The full report, with every finding, its status and what was checked clean, is in `docs/security-review.md`.
 
+**Since the 0.3.0 review:** `codechart pr-sync` (PR #33) is the first command that talks to the network and writes outside the machine, opt-in through a CI template: GitHub/GitLab API calls for the PR/MR description, an image push to `refs/codechart/pr-<n>` or a GitLab upload. Its description text is HTML-escaped and Markdown-escaped (backticks, `~`, `\`, brackets), the hidden spec escapes `<` and `>` so it cannot close its comment, and only the marked section is replaced. Not yet covered by a full review; the guarantees below are for every other command.
+
 **Guarantees that hold today** (each verified clean by the audit):
-- No network calls at runtime. A runtime trap saw zero network events across `render` (map, flow, `--open`) and `check --git`. `src/` imports no network module, and git is not allowed to fetch (a partial clone's missing objects fail instead).
+- No network calls at runtime (every command except `pr-sync`). A runtime trap saw zero network events across `render` (map, flow, `--open`) and `check --git`. `src/` imports no network module, and git is not allowed to fetch (a partial clone's missing objects fail instead).
 - No shell. The only child processes are read-only `git` commands (`status`, `rev-parse`, `rev-list`, `diff --name-only`, `diff-tree`, `ls-tree`, `cat-file`, `config`) and the OS opener, all started with argument arrays (on Windows by absolute path). File names from git are read with `-z` and never passed back to git. Refs are validated before use. Git runs with fsmonitor, optional locks, lazy fetch and all transports off, the work tree pinned to the repo root, and filter drivers and diff funcname patterns from the repo's own config blanked; preview diffs treat files over 5 MB as binary.
 - Generated HTML loads nothing external (no fonts, scripts, styles, images or links).
 - All HTML output is escaped in every context (text, attributes, inline JSON, templates, SVG, snippets). No spec data reaches a URL sink. Injected markup and `javascript:` payloads did not execute in the page's own client code.

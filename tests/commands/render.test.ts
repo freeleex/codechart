@@ -584,3 +584,34 @@ describe('codechart schema', () => {
     expect(schema.properties.defaults.properties.output.enum).toContain('auto');
   });
 });
+
+describe('codechart render --pr', () => {
+  it('prints the description section and writes the SVG to the private cache folder, never a shared temp path', async () => {
+    const r = await run(['render', specFile(spec(3)), '--pr']);
+    expect(r.code).toBeUndefined();
+    expect(r.out).toMatch(/^<!-- codechart:start -->\n<details><summary>Map: Teams table!!<\/summary>/);
+    expect(r.out).toContain('[![Teams table!!](teams-table.svg)](teams-table.svg)');
+    expect(written()).toEqual(['teams-table.svg']);
+    expect(readFileSync(join(repoOut(), 'teams-table.svg'), 'utf8')).toMatch(/^<svg /);
+  });
+
+  it('--svg writes it where asked, --image-url sets the link', async () => {
+    const file = join(tmp, 'map.svg');
+    const r = await run(['render', specFile(spec(3)), '--pr', '--svg', file, '--image-url', 'https://x/map.svg']);
+    expect(r.out).toContain('(https://x/map.svg)');
+    expect(readFileSync(file, 'utf8')).toMatch(/^<svg /);
+    expect(written()).toEqual([]);
+  });
+
+  it('--svg and --image-url need --pr', async () => {
+    const r = await run(['render', specFile(spec(3)), '--svg', join(tmp, 'map.svg')]);
+    expect(r.code).toBe(2);
+    expect(r.err).toContain('--svg and --image-url need --pr');
+  });
+
+  it('draws maps only', async () => {
+    const r = await run(['render', specFile(sampleFlow()), '--pr']);
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('--pr draws maps only');
+  });
+});

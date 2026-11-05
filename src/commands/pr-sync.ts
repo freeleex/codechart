@@ -25,7 +25,7 @@ async function render(spec: unknown, review: Review, placeholder: string, opts: 
   try {
     const cmd = renderCommand({ ...opts, cwd, stdout: (s) => (block += s), stderr: (s) => (errors += s), stdin: async () => JSON.stringify(spec) });
     // --at: the checkout may be a merge commit, but paths and anchors must match the commit the diff ends at.
-    await cmd.parseAsync(['-', '--since', review.base, '--head', review.head, '--at', review.head, '--pr', file, '--image-url', placeholder], { from: 'user' });
+    await cmd.parseAsync(['-', '--since', review.base, '--head', review.head, '--at', review.head, '--pr', '--svg', file, '--image-url', placeholder], { from: 'user' });
     if (!block && errors.includes(NOT_DRAWN)) return undefined;
     if (!block) throw new Error(errors.trim() || 'render printed nothing');
     return { block, svg: readFileSync(file, 'utf8') };

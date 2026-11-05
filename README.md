@@ -168,6 +168,28 @@ On the full page, a changed resource shows its HCL diff and changed attributes (
 
 Small diagrams stay in the reply. Big ones, or rules you mark `output: both`, also get the self-contained HTML page: zoom, pan, light and dark themes, a resizable node panel with back/forward through the nodes you opened, *Not on map / gaps* one click away, nothing loaded from the internet. Each map is laid out top-down or left-to-right, whichever fits a laptop screen better. In a change summary, a node's diff is read from git when the page is built, so the agent spends no tokens on it.
 
+### Maps in pull requests and merge requests
+
+Reviewers get the map too. With one CI file in the repo, the agent puts a collapsed **Map** section at the end of the PR or MR description, and CI redraws it on every push:
+
+- **The image is the map from the HTML page** (same layout, kind tags, status colours and ✗ flags), following the reader's light or dark mode. Click it for full size.
+- **Below it, the check in words:** ✗ claims grouped by reason with what each means, changed files not on the map, what the agent left out or didn't read, and the details of every node, collapsed.
+- **Kept current:** on each push CI re-checks the map against the PR's diff and latest commit, so a file added later shows up as `✗ changed, not on map` until the agent updates the map.
+- **No AI in CI, no tokens:** the map spec is stored hidden in the description; CI only re-checks and redraws it.
+
+**GitHub.** Copy the workflow (it uses the built-in token; PRs from forks are skipped, their token can't edit the PR):
+
+```bash
+mkdir -p .github/workflows
+cp "$(npm root -g)/codechart/templates/github-workflow.yml" .github/workflows/codechart.yml
+```
+
+The image is stored as a commit on `refs/codechart/pr-<number>`, not on a branch, and loads only for people who can see the repo.
+
+**GitLab.** Add the job from `"$(npm root -g)/codechart/templates/gitlab-ci.yml"` to your `.gitlab-ci.yml`, then add a masked CI/CD variable `CODECHART_GITLAB_TOKEN`: an access token with `api` scope from a user with at least the Developer role (GitLab's job token can't edit an MR or upload files). The image is a project upload, visible to project members.
+
+Once the file is in, agents with the skill add the section when they write a PR or MR description. To add one by hand: `codechart render <spec> --since main --pr` prints it. A description without the section is left alone, and editing text outside it is safe.
+
 ### When it fires — and when it stays quiet
 
 Before drawing anything, the agent runs `codechart check` on the changed files. Built-in rules cover the common cases: migrations and ORM models, infrastructure files, 3+ changed files that depend on each other (map), and changes with 2+ decisions or edge cases (flow). One-file text, comment, formatting or version-bump changes are skipped. Your own rules in `.codechart.yaml` run first — see [Configure](#configure).
@@ -195,9 +217,9 @@ The CLI is small: a 74.2 kB package, 5 runtime dependencies, and a cold start ar
 
 ## Safe to run
 
-- No network calls, no telemetry.
-- No shell: only read-only `git` and your OS opener, called with argument arrays.
-- HTML pages load nothing external, and all text is escaped. They're saved to `~/.cache/codechart`, never to your repo.
+- No network calls, no telemetry. The one exception is `codechart pr-sync`, which runs only in the CI job you add for [PR maps](#maps-in-pull-requests-and-merge-requests): it reads and edits that PR or MR's description through the GitHub or GitLab API and publishes the map image.
+- No shell: only read-only `git` and your OS opener, called with argument arrays. `pr-sync` on GitHub also writes one commit with the image and pushes it to `refs/codechart/pr-<number>`.
+- HTML pages load nothing external, and all text is escaped. They're saved to `~/.cache/codechart`, never to your repo, like the map image of `render --pr`.
 - A summary page rendered with `--git`, `--since` or `--commit` holds your code: each changed node's panel shows the start of its diff. Share such a page only where you'd share the diff.
 - The optional hook keeps, per session, the names and content hashes of your changed files in `~/.cache/codechart/turns` (removed after 7 days), never their contents.
 - Audited before release across 8 areas, including untrusted repos and prompt-injected specs. See [docs/security-review.md](docs/security-review.md) and [SECURITY.md](SECURITY.md).
@@ -249,7 +271,8 @@ Rules have a `name` plus exactly one of `paths` (globs: `*`, `**`, `?`, `[..]`; 
 | Command | Purpose |
 |---|---|
 | `codechart check` | Which rules apply to changed files. `--files <csv>`, `--git`, `--commit <sha>`, `--since <base>` (+ `--head <ref>`), `--matched <csv>` |
-| `codechart render <spec>` | Render a spec (JSON file or `-` for stdin). `--output auto\|cli\|web\|both`, `--theme auto\|light\|dark`, `--open`, `--md` (paste-ready markdown), `--at <rev>`; `--git`, `--commit <sha>`, `--since <base>` (+ `--head <ref>`) to check claims against the diff; `--strict` to exit 1 on a mismatch |
+| `codechart render <spec>` | Render a spec (JSON file or `-` for stdin). `--output auto\|cli\|web\|both`, `--theme auto\|light\|dark`, `--open`, `--md` (paste-ready markdown), `--at <rev>`; `--git`, `--commit <sha>`, `--since <base>` (+ `--head <ref>`) to check claims against the diff; `--strict` to exit 1 on a mismatch; `--pr` prints a map's PR/MR description section and writes its SVG to the cache folder (`--svg <file>` writes it elsewhere, `--image-url <url>` sets where the description loads it) |
+| `codechart pr-sync` | In CI: redraw the map section of this PR or MR's description against its latest commit (see [PR maps](#maps-in-pull-requests-and-merge-requests)) |
 | `codechart schema` | Spec JSON schema; `--flow` for flow specs, `--config` for the config file |
 | `codechart config` | Config in effect and where each value comes from (`--json`) |
 | `codechart init` | Write a commented starter `.codechart.yaml` at the git root (`--force` to overwrite) |
@@ -279,7 +302,7 @@ The skill pipes the spec in with a heredoc (`codechart render --md - <<'EOF'`). 
 No. One-file text, comment, formatting or version-bump changes are skipped. Flows only appear for logic with 2+ decisions or edge cases, or when you ask for one.
 
 **Does my code leave my machine?**
-Not because of codechart. It makes no network calls. The diagram is built from what your agent already read.
+Not because of codechart. It makes no network calls. The diagram is built from what your agent already read. Only if you add the [PR map](#maps-in-pull-requests-and-merge-requests) CI job does `pr-sync` send the map image and description to your own GitHub or GitLab, where the PR already lives.
 
 **Where do the HTML pages go?**
 `~/.cache/codechart`. It keeps the newest 20 per repo, plus anything under 7 days old.

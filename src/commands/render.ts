@@ -1,5 +1,5 @@
 import { constants, closeSync, fstatSync, openSync, readSync } from 'node:fs';
-import { basename, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { Command, Option } from 'commander';
 import { findRepoRoot, loadConfig } from '../config/load.js';
 import { THEMES, type Config, type Diagram, type Output, type Theme } from '../config/schema.js';
@@ -7,10 +7,10 @@ import type { CommandOptions } from '../program.js';
 import { diffOf, type Diff } from '../render/check.js';
 import { checkFlowAnchors, type FlowSnippets } from '../render/flow/anchors.js';
 import { openBlockedNote } from '../render/markdown.js';
-import { fileSlug } from '../render/output-path.js';
+import { fileSlug, repoFolder } from '../render/output-path.js';
 import { flagged } from '../render/terminal/check-lines.js';
 import { defaultWidth } from '../render/terminal/render.js';
-import { writeHtml } from '../render/web/write.js';
+import { privateDir, writeHtml } from '../render/web/write.js';
 import { resolveCommit } from '../rules/git-files.js';
 import { unionOutputs, unmappedFiles } from '../rules/resolve.js';
 import { gitFiles, hasGitSelection, selectionError, type GitSelection } from '../rules/selection.js';
@@ -85,7 +85,8 @@ interface RenderFlags extends GitSelection {
   theme?: Theme;
   open?: boolean;
   md?: boolean;
-  pr?: string;
+  pr?: boolean;
+  svg?: string;
   imageUrl?: string;
   at?: string;
   strict?: boolean;
@@ -110,15 +111,20 @@ function selectedDiff(o: RenderFlags, repoRoot: string | undefined, root: string
   return diffOf(gitFiles(root, o, true));
 }
 
-const prTarget = (o: RenderFlags, cwd: string): RenderContext['pr'] =>
-  o.pr === undefined ? undefined : { svg: resolve(cwd, o.pr), imageUrl: o.imageUrl ?? basename(o.pr) };
+/** Without `--svg`, the image goes to the private cache folder: a fixed path in a shared temp dir could be a planted symlink. */
+function prTarget(o: RenderFlags, cwd: string, cacheFile: string): RenderContext['pr'] {
+  if (!o.pr) return undefined;
+  if (o.svg !== undefined) return { svg: resolve(cwd, o.svg), imageUrl: o.imageUrl ?? basename(o.svg) };
+  privateDir(dirname(cacheFile));
+  return { svg: cacheFile, imageUrl: o.imageUrl ?? basename(cacheFile) };
+}
 
 async function renderSpec(arg: string, o: RenderFlags, opts: CommandOptions, cwd: string): Promise<void> {
   const spec = await readSpec(arg, cwd, opts.stdin ?? (() => readStdin(MAX_SPEC_BYTES, new Error(TOO_BIG))));
   const repoRoot = findRepoRoot(cwd);
   const root = repoRoot ?? resolve(cwd);
   const at = resolveAt(o, repoRoot, root);
-  const target = targetOf(spec, root, at, resolve(cwd), o.pr !== undefined);
+  const target = targetOf(spec, root, at, resolve(cwd), o.pr === true);
   const diff = selectedDiff(o, repoRoot, root);
   const config = loadConfig({ cwd, home: opts.home, env: opts.env, warn: (l) => opts.stderr(`codechart: ${l}\n`) });
   const rules = spec.rules ?? [];
@@ -139,7 +145,7 @@ async function renderSpec(arg: string, o: RenderFlags, opts: CommandOptions, cwd
     width: defaultWidth({ isTTY: opts.isTTY ?? process.stdout.isTTY, columns: process.stdout.columns }, env),
     color: !o.md && (opts.isTTY ?? process.stdout.isTTY === true),
     md: o.md === true,
-    pr: prTarget(o, cwd),
+    pr: prTarget(o, cwd, join(config.web.outDir, repoFolder(root), `${slug}.svg`)),
     root,
     cwd: resolve(cwd),
     at,
@@ -177,7 +183,8 @@ export function renderCommand(opts: CommandOptions): Command {
     .addOption(new Option('--theme <theme>', 'HTML theme').choices(THEMES))
     .option('--open', 'open the HTML file in the browser')
     .option('--md', 'print a paste-ready markdown block (no color)')
-    .option('--pr <svg>', 'write the map as an SVG file and print a collapsed section for a PR or MR description (maps only)')
+    .option('--pr', 'print a collapsed section for a PR or MR description and write the map as an SVG (maps only)')
+    .option('--svg <file>', 'with --pr: write the SVG here instead of the private cache folder')
     .option('--image-url <url>', 'with --pr: where the description loads the SVG from (default: its file name)')
     .option('--at <rev>', 'check anchors and node paths against the files at this commit instead of the working tree')
     .option('--git', "check a summary's new, changed and removed claims against staged, unstaged and untracked files")
@@ -186,7 +193,7 @@ export function renderCommand(opts: CommandOptions): Command {
     .option('--head <ref>', 'with --since: compare <base>...<ref> instead of HEAD')
     .option('--strict', "exit 1 when a claim doesn't match the code")
     .action(async (arg: string, o: RenderFlags, cmd: Command) => {
-      const usage = renderSelectionError(o);
+      const usage = renderSelectionError(o) ?? (!o.pr && (o.svg !== undefined || o.imageUrl !== undefined) ? '--svg and --image-url need --pr' : undefined);
       if (usage) cmd.error(usage, { exitCode: 2 });
       try {
         await renderSpec(arg, o, opts, cwd);
