@@ -42,6 +42,9 @@ export interface Env {
 const CLAUDE_PROVIDER = 'claude-code';
 const MAX_HANDLED = 500;
 
+/** Sessions the plugin leaves alone: sub-agents, and those whose own hooks already run (`providerID` is the last reply's, when the session names no model). */
+const skipped = (s: SessionInfo, providerID?: string) => Boolean(s.parentID) || (s.model?.providerID ?? providerID) === CLAUDE_PROVIDER;
+
 const rootOf = (s: SessionInfo) => findRepoRoot(join(s.location.directory, s.subpath ?? ''));
 
 const sameLocation = (a: Location, b: Location) => resolve(a.directory) === resolve(b.directory) && a.workspaceID === b.workspaceID;
@@ -60,7 +63,8 @@ const turnFile = (s: State, sessionID: string) => join(s.dir, `${sessionID}.json
 
 async function onPrompt(s: State, sessionID: string): Promise<void> {
   if (!SESSION_ID.test(sessionID)) return;
-  const root = rootOf(await s.ctx.session.get({ sessionID }));
+  const session = await s.ctx.session.get({ sessionID });
+  const root = skipped(session) ? undefined : rootOf(session);
   if (!root) return;
   const at = s.now();
   try {
@@ -77,10 +81,10 @@ async function onPrompt(s: State, sessionID: string): Promise<void> {
 async function check(s: State, sessionID: string, succeeded: boolean): Promise<void> {
   if (!SESSION_ID.test(sessionID)) return;
   const session = await s.ctx.session.get({ sessionID });
-  if (session.parentID || !sameLocation(session.location, s.ctx.location)) return;
+  if (skipped(session) || !sameLocation(session.location, s.ctx.location)) return;
   const turn = viewTurn(await s.ctx.session.context({ sessionID }));
   if (!turn || !(succeeded || (turn.outcome ?? session.outcome) === 'succeeded')) return;
-  if ((session.model?.providerID ?? turn.providerID) === CLAUDE_PROVIDER) return;
+  if (skipped(session, turn.providerID)) return;
   const key = `${sessionID}:${turn.userID}`;
   if (turn.nudged || s.handled.has(key)) return;
   if (s.handled.size >= MAX_HANDLED) s.handled.clear();

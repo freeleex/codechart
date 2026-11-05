@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { latestRecord } from '../../src/commands/hook-record.js';
@@ -70,6 +70,14 @@ describe('prompt', () => {
     const outside = setup({ session: { location: { directory: sb.tmp } } });
     await outside.handlers.onPrompt('ses_other');
     expect(latestRecord(turnsDir(), sb.tmp)).toBeUndefined();
+  });
+
+  it('skips child sessions and claude-code ones: no snapshot, no record', async () => {
+    for (const session of [{ parentID: 'ses_parent' }, { model: { providerID: 'claude-code' } }]) {
+      await setup({ session }).handlers.onPrompt(SID);
+      expect(existsSync(join(turnsDir(), `${SID}.json`))).toBe(false);
+      expect(record()).toBeUndefined();
+    }
   });
 
   it('uses the session subpath for the repo lookup', async () => {
