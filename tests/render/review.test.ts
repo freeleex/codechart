@@ -181,6 +181,22 @@ describe('remembering ticks', () => {
     expect(JSON.parse(localStorage.getItem('codechart.reviewed:demo')!)).toEqual([['elsewhere', '']]);
   });
 
+  it('ticking one node leaves every other saved entry alone: older diffs, ticks from another tab', () => {
+    mount(shopWith(diff('new code')));
+    localStorage.setItem('codechart.reviewed:demo', JSON.stringify([['tbl.orders', 'oldhash'], ['tbl.customers', '']]));
+    mount(shopWith(diff('new code')), false);
+    expect(reviewed()).toEqual(['tbl.customers']);
+    const saved = () => JSON.parse(localStorage.getItem('codechart.reviewed:demo')!) as [string, string][];
+    const other = [...saved(), ['tbl.invoices', 'abc']];
+    localStorage.setItem('codechart.reviewed:demo', JSON.stringify(other));
+    click(tick('enum.order_status'));
+    expect(saved()).toEqual([...other, ['enum.order_status', '']]);
+    click(tick('enum.order_status'));
+    expect(saved()).toEqual(other);
+    click(tick('tbl.customers'));
+    expect(saved()).toEqual(other.filter(([id]) => id !== 'tbl.customers'));
+  });
+
   it('ignores damaged storage', () => {
     for (const bad of ['{nope', '{"a":1}', '[["x",1],"y",null]']) {
       localStorage.setItem('codechart.reviewed:demo', bad);

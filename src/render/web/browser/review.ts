@@ -42,12 +42,10 @@ export function initReview(repo: string, goTo: (id: string) => void): Review {
   };
   const toggle = (id: string) => {
     if (!done.delete(id)) done.add(id);
-    // Keeps what other pages of this repo saved; only this page's ids are rewritten.
+    // Re-read so ticks saved meanwhile (another tab, another page, an older diff) stay; only this node's entry changes.
     const all = savedTicks(key);
-    for (const [n, rev] of revs) {
-      if (done.has(n)) all.set(n, rev);
-      else all.delete(n);
-    }
+    if (done.has(id)) all.set(id, revs.get(id)!);
+    else all.delete(id);
     save(key, JSON.stringify([...all]));
     paint();
   };
