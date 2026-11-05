@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { installedBy, spawnOptions } from '../../src/commands/update.js';
 import { checkAllowed, currentVersion, isNewer, knownUpdate, readState, updateNotice, type NoticeContext } from '../../src/update/check.js';
@@ -202,7 +203,7 @@ describe('notices from other commands', () => {
     expect(first.err).toContain(`codechart ${NEXT} is available`);
     const second = await runCli(opts, ['render', join(sb.tmp, 'spec.json'), '--output', 'web']);
     expect(second.err).not.toContain('is available');
-    const page = readFileSync(second.out.match(/file:\/\/(\S+\.html)/)![1]!, 'utf8');
+    const page = readFileSync(fileURLToPath(second.out.match(/file:\/\/\S+\.html/)![0]), 'utf8');
     expect(page).toContain(`codechart ${NEXT} is out: run <code>codechart update</code>`);
   });
 

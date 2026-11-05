@@ -1,7 +1,7 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { dirname, join, sep } from 'node:path';
+import { dirname, join, resolve, sep } from 'node:path';
 import { Command } from 'commander';
 import { packageFile } from '../assets.js';
 import { loadConfig } from '../config/load.js';
@@ -37,7 +37,7 @@ const defaultRunner: Runner = {
 
 /** How this copy of codechart was installed: npm global, or a hint for anything else. */
 export function installedBy(installDir: string, npmRoot: string | undefined): { npm: true } | { npm: false; hint: string } {
-  const real = (p: string) => (existsSync(p) ? realpathSync(p) : p);
+  const real = (p: string) => (existsSync(p) ? realpathSync(p) : resolve(p));
   if (npmRoot && real(installDir) === real(join(npmRoot, 'codechart'))) return { npm: true };
   if (/[\\/]_npx[\\/]/.test(installDir)) return { npm: false, hint: 'npx runs the newest codechart already; nothing to update' };
   if (installDir.includes(`${sep}pnpm${sep}`) || installDir.includes('/pnpm/')) return { npm: false, hint: 'update it with: pnpm add -g codechart@latest' };
