@@ -10,7 +10,8 @@ import { currentVersion, fetchLatest, isNewer, readState, skillDirs, writeState 
 import { AGENTS, isCodechartSkill } from './agents.js';
 import { installCopy, skillFiles } from './install-skill.js';
 import { refreshReminder } from './nudges.js';
-import { opencodeConfigFile, pluginSpec, refreshPlugin } from './opencode-plugin.js';
+import { opencodeConfigFile, pluginSpec, pluginSpecs, refreshPlugin } from './opencode-plugin.js';
+import { pluginBlocker } from './opencode-version.js';
 
 const RELEASES = 'https://github.com/freeleex/codechart/releases';
 
@@ -72,7 +73,16 @@ function refreshInstalls(home: string, opts: CommandOptions): void {
     if (refreshReminder(join(home, a.instructions)) === 'updated') opts.stdout(`reminder updated: ${join(home, a.instructions)}\n`);
   }
   const config = opencodeConfigFile(home);
-  if (refreshPlugin(config, currentVersion()) === 'updated') opts.stdout(`plugin updated: ${pluginSpec(currentVersion())} in ${config}\n`);
+  const stale = (() => {
+    try {
+      return pluginSpecs(config).some((s) => s !== pluginSpec(currentVersion()));
+    } catch {
+      return false;
+    }
+  })();
+  const blocker = stale ? pluginBlocker(opts, home) : undefined;
+  if (blocker) opts.stdout(`OpenCode plugin skipped: ${blocker}\n`);
+  else if (refreshPlugin(config, currentVersion()) === 'updated') opts.stdout(`plugin updated: ${pluginSpec(currentVersion())} in ${config}\n`);
 }
 
 async function update(o: { check?: boolean }, opts: CommandOptions, runner: Runner): Promise<void> {

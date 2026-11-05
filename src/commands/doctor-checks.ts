@@ -6,6 +6,7 @@ import { AGENTS, isCodechartSkill, skillFolders, type AgentPreset } from './agen
 import { installCopy, skillFiles, skillIsCurrent } from './install-skill.js';
 import { addReminder, claudeHookEvents, installClaudeHooks, reminderState } from './nudges.js';
 import { opencodeConfigFile, pinPlugin, pluginSpec, pluginSpecs } from './opencode-plugin.js';
+import { pluginBlocker } from './opencode-version.js';
 import { cacheDirOf, runUpdate } from './update.js';
 
 export interface Item {
@@ -145,6 +146,8 @@ function pluginItem(home: string, opts: CommandOptions): Item {
     return { level: 'bad', text: `plugin: ${(e as Error).message}` };
   }
   if (specs.length === 1 && specs[0] === want) return { level: 'ok', text: `plugin: ${want} in ${file}` };
+  const blocker = pluginBlocker(opts, home);
+  if (blocker) return { level: 'warn', text: `plugin: skipped, ${blocker}` };
   if (!specs.length) return { level: 'warn', text: `plugin: not added to ${file}`, fix: 'codechart install-skill --agent opencode --plugin' };
   const pins = specs.map((s) => (s.includes('@') ? `pinned to ${s.slice(s.indexOf('@') + 1)}` : 'not pinned'));
   return {

@@ -158,3 +158,72 @@ describe('doctor --last for OpenCode', () => {
     expect((await run(['doctor', '--last'])).out).toContain('the plugin left no decision');
   });
 });
+
+describe('OpenCode 2 guard', () => {
+  const tools = {
+    v1: (c: string) => {
+      if (c === 'opencode') return 'opencode 1.18.29\n';
+      throw new Error('x');
+    },
+    gone: () => {
+      throw new Error('ENOENT');
+    },
+    junk: (c: string) => {
+      if (c === 'opencode') return 'hello\n';
+      throw new Error('x');
+    },
+  };
+  const OLD = '{ "plugins": ["codechart@0.0.1"] }';
+
+  it('install-skill leaves opencode.json alone on OpenCode 1, when not found, or when unreadable', async () => {
+    const expected = { v1: 'found 1.x', gone: 'not found', junk: 'not found' } as const;
+    for (const k of ['v1', 'gone', 'junk'] as const) {
+      const r = await run(['install-skill', '--agent', 'opencode'], { tool: tools[k] });
+      expect(r.out).toContain(`OpenCode plugin skipped: needs OpenCode 2 (${expected[k]})\n`);
+      expect(existsSync(json())).toBe(false);
+      expect(r.code).toBeUndefined();
+    }
+  });
+
+  it('falls back to ~/.opencode/bin/opencode when PATH has none', async () => {
+    const seen: string[] = [];
+    await run(['install-skill', '--agent', 'opencode'], {
+      tool: (c) => {
+        seen.push(c);
+        if (c === 'opencode') throw new Error('ENOENT');
+        return 'opencode v2.2.5';
+      },
+    });
+    expect(seen[1]).toBe(join(sb.home, '.opencode', 'bin', 'opencode'));
+    expect(plugins()).toEqual([PIN]);
+  });
+
+  it('update does not rewrite an old pin on OpenCode 1', async () => {
+    writeFileSync(json(), OLD);
+    const r = await run(['update', '--skills-only'], { tool: tools.v1 });
+    expect(r.out).toContain('OpenCode plugin skipped: needs OpenCode 2 (found 1.x)');
+    expect(readFileSync(json(), 'utf8')).toBe(OLD);
+  });
+
+  it('doctor shows a ⚠, not a ✗, and --fix leaves the file alone', async () => {
+    writeFileSync(json(), OLD);
+    const d = await run(['doctor', '--fix'], { tool: tools.v1 });
+    expect(d.out).toContain('⚠ plugin: skipped, needs OpenCode 2 (found 1.x)');
+    expect(d.out).not.toContain('✗ plugin');
+    expect(readFileSync(json(), 'utf8')).toBe(OLD);
+    rmSync(json());
+    expect((await run(['doctor'], { tool: tools.gone })).out).toContain('⚠ plugin: skipped, needs OpenCode 2 (not found)');
+  });
+
+  it('a pin that is already current stays ✓ on any OpenCode', async () => {
+    writeFileSync(json(), `{ "plugins": ["${PIN}"] }`);
+    expect((await run(['doctor'], { tool: tools.v1 })).out).toContain(`✓ plugin: ${PIN}`);
+  });
+
+  it('uninstall removes an existing entry whatever OpenCode is', async () => {
+    writeFileSync(json(), OLD);
+    const r = await run(['uninstall', '--plugin'], { tool: tools.v1 });
+    expect(r.out).toContain('removed plugin:');
+    expect(plugins()).toEqual([]);
+  });
+});

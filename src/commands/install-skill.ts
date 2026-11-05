@@ -11,6 +11,7 @@ import { AGENTS, isCodechartSkill, skillFolders, type AgentPreset } from './agen
 import { copyFiles } from './copy-file.js';
 import { addReminder, installClaudeHooks } from './nudges.js';
 import { opencodeConfigFile, pinPlugin, pluginSpec } from './opencode-plugin.js';
+import { pluginBlocker } from './opencode-version.js';
 import { terminalPicker } from './picker.js';
 
 const NAMES = AGENTS.map((a) => a.name).join(', ');
@@ -112,7 +113,9 @@ function installExtras(extras: Extras, agents: AgentPreset[], home: string, opts
   }
   if (extras.plugin) {
     const file = opencodeConfigFile(home);
-    report('plugin', () => {
+    const blocker = pluginBlocker(opts, home);
+    if (blocker) opts.stdout(`OpenCode plugin skipped: ${blocker}\n`);
+    else report('plugin', () => {
       const r = pinPlugin(file, currentVersion());
       return r === 'present' ? `plugin already ${pluginSpec(currentVersion())} in ${file}` : `plugin ${r}: ${pluginSpec(currentVersion())} in ${file}`;
     });
