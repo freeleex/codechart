@@ -85,7 +85,7 @@ That's it. Open your coding agent in any repo and try:
 > show me the flow of accepting an invite
 ```
 
-Works with Claude Code, Codex, Gemini CLI, GitHub Copilot, Cursor, OpenCode and any other agent that supports [Agent Skills](https://agentskills.io). `install-skill` asks which agents get the skill, and adds a reminder line and a Claude Code hook so agents don't forget it in long sessions. Details, other agents and uninstalling: [Install and agents](docs/install.md).
+Works with Claude Code, Codex, Gemini CLI, GitHub Copilot, Cursor, OpenCode and any other agent that supports [Agent Skills](https://agentskills.io). `install-skill` asks which agents get the skill, and adds a reminder line and a Claude Code hook so agents don't forget it in long sessions. `codechart update` brings everything up to date, and codechart tells you once a day when there's a new version. Details, other agents, updating and uninstalling: [Install and agents](docs/install.md).
 
 ## What you get
 
@@ -188,7 +188,7 @@ The CLI is small: a 74.2 kB package, 5 runtime dependencies, and a cold start ar
 
 ## Safe to run
 
-- No network calls, no telemetry, no shell: only read-only `git` and your OS opener. The exception is opt-in [PR maps](docs/pr-maps.md), whose CI job edits the PR description and publishes the map image.
+- No telemetry, no shell: only read-only `git` and your OS opener. The only network calls are a once-a-day version check to npm ([off with one setting](docs/install.md#updating)) and opt-in [PR maps](docs/pr-maps.md), whose CI job edits the PR description and publishes the map image.
 - HTML pages load nothing external, all text is escaped, and they're saved to `~/.cache/codechart`, never to your repo. A summary page holds your diff: share it only where you'd share the diff.
 - Audited before release across 8 areas, including untrusted repos and prompt-injected specs: [SECURITY.md](SECURITY.md) and [docs/security-review.md](docs/security-review.md).
 
@@ -202,7 +202,7 @@ Works with zero config. `codechart init` writes a commented `.codechart.yaml` fo
 No. One-file text, comment, formatting or version-bump changes are skipped. Flows only appear for logic with 2+ decisions or edge cases, or when you ask for one.
 
 **Does my code leave my machine?**
-Not because of codechart. It makes no network calls, and the diagram is built from what your agent already read. Only with [PR maps](docs/pr-maps.md) on does CI send the map image and description to your own GitHub or GitLab, where the PR already lives.
+Not because of codechart. The diagram is built from what your agent already read, and the daily version check sends nothing but the request for the newest version number. Only with [PR maps](docs/pr-maps.md) on does CI send the map image and description to your own GitHub or GitLab, where the PR already lives.
 
 **Where do the HTML pages go?**
 `~/.cache/codechart`. It keeps the newest 20 per repo, plus anything under 7 days old.

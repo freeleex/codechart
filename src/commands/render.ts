@@ -12,6 +12,7 @@ import { flagged } from '../render/terminal/check-lines.js';
 import { defaultWidth } from '../render/terminal/render.js';
 import { privateDir, writeHtml } from '../render/web/write.js';
 import { resolveCommit } from '../rules/git-files.js';
+import { checkAllowed, knownUpdate } from '../update/check.js';
 import { unionOutputs, unmappedFiles } from '../rules/resolve.js';
 import { gitFiles, hasGitSelection, selectionError, type GitSelection } from '../rules/selection.js';
 import type { FlowSpec } from '../spec/flow.js';
@@ -164,6 +165,7 @@ async function renderSpec(arg: string, o: RenderFlags, opts: CommandOptions, cwd
         inEditor: inCodeEditor(env),
         open: opts.open ?? openInBrowser,
         stderr: opts.stderr,
+        update: checkAllowed({ enabled: config.updateCheck, env: { ...process.env, ...env } }) ? knownUpdate(config.web.outDir) : undefined,
       }),
   };
   const { text, check, html } = target.diagram === 'flow' ? await renderFlow(target.spec, target, ctx) : await renderMap(target.spec, ctx);

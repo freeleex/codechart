@@ -14,6 +14,7 @@ body{margin:0;height:100vh;display:flex;flex-direction:column;background:var(--b
 header{padding:8px 14px;border-bottom:1px solid var(--line);background:var(--panel);display:flex;gap:12px;align-items:baseline}
 header h1{margin:0;font-size:15px}
 header .meta{color:var(--muted);font-size:11px;margin-right:auto}
+header .update{font-size:11px;color:var(--chg-t)}header .update code{font:11px ui-monospace,monospace}
 main{flex:1;display:flex;min-height:0}
 .canvas{flex:1;min-width:0;min-height:0;cursor:grab;overflow:hidden;touch-action:none}
 .canvas.drag{cursor:grabbing}

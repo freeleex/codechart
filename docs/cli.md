@@ -12,5 +12,6 @@ The skill calls these; you rarely need to. `codechart <command> --help` lists ev
 | `codechart config` | Config in effect and where each value comes from (`--json`) |
 | `codechart init` | Write a commented starter `.codechart.yaml` at the git root (`--force` to overwrite) |
 | `codechart install-skill` | Install the skill for the agents found in your home folder. `--agent <names>`, `--dir <path>`, `--force` to overwrite a folder that isn't an older codechart copy, `--no-reminder`, `--no-hook` (or `--reminder`, `--hook` for only one). See [Install and agents](install.md) |
+| `codechart update` | Install the newest codechart with npm and refresh the skill copies and reminder lines you have; `--check` only reports. See [Updating](install.md#updating) |
 | `codechart uninstall` | Remove the skill, reminder lines and hooks; `--skill`, `--reminder`, `--hook` to pick some |
 | `codechart hook prompt\|stop` | Run by the Claude Code hook; reads the hook's JSON on stdin |

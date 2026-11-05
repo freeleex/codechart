@@ -58,8 +58,8 @@ describe('web output settings are global-only (S-4)', () => {
 
   it('check and config warn too', async () => {
     writeFileSync(repoFile, 'web:\n  keep: 1\n');
-    expect((await run(['check', '--files', 'a.py'])).err).toContain('web.keep are global-only');
-    expect((await run(['config'])).err).toContain('web.keep are global-only');
+    expect((await run(['check', '--files', 'a.py'])).err).toContain('web.keep is global-only');
+    expect((await run(['config'])).err).toContain('web.keep is global-only');
   });
 
   it('codechart config marks them global-only', async () => {

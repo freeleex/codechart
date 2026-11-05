@@ -334,7 +334,7 @@ describe('codechart render', () => {
     config('  open: always\n');
     const repoSet = await run(['render', specFile(spec(2)), '--output', 'web']);
     expect(repoSet.opened).toEqual([]);
-    expect(repoSet.err).toContain('web.open are global-only; ignored');
+    expect(repoSet.err).toContain('web.open is global-only; ignored');
   });
 
   it('color only when stdout is a TTY', async () => {

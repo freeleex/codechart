@@ -97,7 +97,7 @@ function installExtras(extras: Extras, agents: AgentPreset[], home: string, opts
 
 // An older codechart copy is updated so description fixes reach users; a folder that isn't ours needs --force.
 // True when the folder ends up holding this version of the skill.
-function installCopy(dir: string, who: string, files: string[], force: boolean, opts: CommandOptions): boolean {
+export function installCopy(dir: string, who: string, files: string[], force: boolean, opts: CommandOptions): boolean {
   const pairs = files.map((f) => ({ source: packageFile(`skills/codechart/${f}`), target: join(dir, f) }));
   let update = force;
   if (!force && hasAny(pairs.map((p) => p.target))) {
