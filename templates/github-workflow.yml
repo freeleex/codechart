@@ -1,0 +1,28 @@
+# Copy to .github/workflows/codechart.yml. On every push to a PR, redraws the codechart map in its
+# description against the PR's latest commits. Does nothing for PRs without a codechart section.
+name: codechart map
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+# A newer push cancels the run still drawing the older one; pr-sync also skips saving if the PR moved on.
+concurrency:
+  group: codechart-map-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+permissions:
+  contents: write # pushes the map image to refs/codechart/pr-<n>, not to a branch
+  pull-requests: write
+jobs:
+  map:
+    # A fork's token is read-only: it can neither push the image nor edit the PR.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - run: npx --yes codechart@latest pr-sync
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

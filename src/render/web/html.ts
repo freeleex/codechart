@@ -16,11 +16,11 @@ function clip(s: string, max: number): string {
   return s.length > max ? s.slice(0, max - 1) + '…' : s;
 }
 
-const nodeWhat = (n: SpecNode): string => (n.kind === 'other' ? n.status : `${n.status} ${n.kind}`);
+export const nodeWhat = (n: SpecNode): string => (n.kind === 'other' ? n.status : `${n.status} ${n.kind}`);
 
 const FIELD_MARK = { added: '+ ', removed: '- ', modified: '~ ' } as const;
 
-function fieldText(f: Field): string {
+export function fieldText(f: Field): string {
   const type = f.was !== undefined ? `${f.was} → ${f.type ?? '?'}` : f.type;
   return `${f.change ? FIELD_MARK[f.change] : ''}${f.name}${type ? ': ' + type : ''}${f.note ? ' (' + f.note + ')' : ''}`;
 }
@@ -156,7 +156,7 @@ function pageInfo(spec: Spec, check: MapCheck | undefined, sides: boolean): stri
 }
 
 /** Without `side`: the plan or summary as one picture, both states overlaid. */
-function viewport(spec: Spec, layout: Layout, check: MapCheck | undefined, side?: Side): string {
+export function viewport(spec: Spec, layout: Layout, check: MapCheck | undefined, side?: Side): string {
   const boxes = new Map(layout.nodes.map((n) => [n.id, n]));
   const statusOf = new Map(spec.nodes.map((n) => [n.id, n.status]));
   const shown = spec.nodes.filter((n) => !side || nodeOn(side, n.status));

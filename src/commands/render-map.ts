@@ -3,9 +3,11 @@ import { fullMapLine, KEY, renderTerminalDetailed } from '../render/terminal/ren
 import { alertLine, webAlert } from '../render/terminal/check-lines.js';
 import { selectTerminalNodes } from '../render/terminal/select.js';
 import { markdownBlock } from '../render/markdown.js';
+import { writeFileSync } from 'node:fs';
+import { prBlock, renderSvg } from '../render/pr.js';
 import { nodePreviews } from '../render/preview.js';
 import { renderHtml } from '../render/web/html.js';
-import { layoutSpec, PANE_CANVASES } from '../render/web/layout.js';
+import { DESCRIPTION_CANVASES, layoutSpec, PANE_CANVASES } from '../render/web/layout.js';
 import { hasNowAfter } from '../render/web/states.js';
 import { diffRange } from '../rules/selection.js';
 import type { Spec } from '../spec/schema.js';
@@ -22,6 +24,10 @@ const needsWeb = (spec: Spec, hidden: number, minNodes: number): boolean => hidd
 export async function renderMap(spec: Spec, ctx: RenderContext): Promise<Rendered> {
   const { root, diff } = ctx;
   const check = { ...checkMapNodes(spec, root, { at: ctx.at, cwd: ctx.cwd, diff, ignored: ctx.unmapped }), ...(ctx.diffUnchecked && { diffUnchecked: true }) };
+  if (ctx.pr) {
+    writeFileSync(ctx.pr.svg, renderSvg(spec, await layoutSpec(spec, DESCRIPTION_CANVASES), check));
+    return { text: prBlock(spec, check, ctx.pr.imageUrl), check };
+  }
   const { hidden } = selectTerminalNodes(spec, ctx.maxNodes);
   const termOpts = { maxNodes: ctx.maxNodes, keyLine: !ctx.md, color: ctx.color, width: ctx.width, check };
   const previews = () => (diff ? nodePreviews(spec, root, diff, diffRange(root, ctx.selection), check.found, ctx.cwd) : undefined);

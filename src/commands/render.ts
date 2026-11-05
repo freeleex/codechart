@@ -1,5 +1,5 @@
 import { constants, closeSync, fstatSync, openSync, readSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { basename, resolve } from 'node:path';
 import { Command, Option } from 'commander';
 import { findRepoRoot, loadConfig } from '../config/load.js';
 import { THEMES, type Config, type Diagram, type Output, type Theme } from '../config/schema.js';
@@ -72,8 +72,9 @@ async function readSpec(arg: string, cwd: string, stdin: () => Promise<string>):
 
 type Target = { diagram: 'flow'; spec: FlowSpec; snippets: FlowSnippets; checked: number } | { diagram: 'map'; spec: Spec };
 
-function targetOf(spec: Spec | FlowSpec, root: string, at: string | undefined, cwd: string): Target {
+function targetOf(spec: Spec | FlowSpec, root: string, at: string | undefined, cwd: string, pr: boolean): Target {
   if (spec.diagram !== 'flow') return { diagram: 'map', spec };
+  if (pr) throw new Error('--pr draws maps only');
   const anchors = checkFlowAnchors(spec, root, at, cwd);
   if (!anchors.ok) throw new InvalidSpec(anchors.errors);
   return { diagram: 'flow', spec, snippets: anchors.snippets, checked: anchors.checked };
@@ -84,6 +85,8 @@ interface RenderFlags extends GitSelection {
   theme?: Theme;
   open?: boolean;
   md?: boolean;
+  pr?: string;
+  imageUrl?: string;
   at?: string;
   strict?: boolean;
 }
@@ -107,12 +110,15 @@ function selectedDiff(o: RenderFlags, repoRoot: string | undefined, root: string
   return diffOf(gitFiles(root, o, true));
 }
 
+const prTarget = (o: RenderFlags, cwd: string): RenderContext['pr'] =>
+  o.pr === undefined ? undefined : { svg: resolve(cwd, o.pr), imageUrl: o.imageUrl ?? basename(o.pr) };
+
 async function renderSpec(arg: string, o: RenderFlags, opts: CommandOptions, cwd: string): Promise<void> {
   const spec = await readSpec(arg, cwd, opts.stdin ?? (() => readStdin(MAX_SPEC_BYTES, new Error(TOO_BIG))));
   const repoRoot = findRepoRoot(cwd);
   const root = repoRoot ?? resolve(cwd);
   const at = resolveAt(o, repoRoot, root);
-  const target = targetOf(spec, root, at, resolve(cwd));
+  const target = targetOf(spec, root, at, resolve(cwd), o.pr !== undefined);
   const diff = selectedDiff(o, repoRoot, root);
   const config = loadConfig({ cwd, home: opts.home, env: opts.env, warn: (l) => opts.stderr(`codechart: ${l}\n`) });
   const rules = spec.rules ?? [];
@@ -133,6 +139,7 @@ async function renderSpec(arg: string, o: RenderFlags, opts: CommandOptions, cwd
     width: defaultWidth({ isTTY: opts.isTTY ?? process.stdout.isTTY, columns: process.stdout.columns }, env),
     color: !o.md && (opts.isTTY ?? process.stdout.isTTY === true),
     md: o.md === true,
+    pr: prTarget(o, cwd),
     root,
     cwd: resolve(cwd),
     at,
@@ -170,6 +177,8 @@ export function renderCommand(opts: CommandOptions): Command {
     .addOption(new Option('--theme <theme>', 'HTML theme').choices(THEMES))
     .option('--open', 'open the HTML file in the browser')
     .option('--md', 'print a paste-ready markdown block (no color)')
+    .option('--pr <svg>', 'write the map as an SVG file and print a collapsed section for a PR or MR description (maps only)')
+    .option('--image-url <url>', 'with --pr: where the description loads the SVG from (default: its file name)')
     .option('--at <rev>', 'check anchors and node paths against the files at this commit instead of the working tree')
     .option('--git', "check a summary's new, changed and removed claims against staged, unstaged and untracked files")
     .option('--commit <sha>', 'check claims against the files one commit changed')
