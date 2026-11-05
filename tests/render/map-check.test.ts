@@ -56,7 +56,7 @@ describe('checkMapNodes: file exists', () => {
       { status: 'config', path: 'gone.ts' },
       { status: 'removed', path: 'gone.ts' },
     );
-    expect(shorts(s)).toEqual(['+node0 file missing', '~node1 file missing', '·node2 file missing', '◆node3 file missing']);
+    expect(shorts(s)).toEqual(['+node0 file missing', '~node1 file missing', 'node2 file missing', '◆node3 file missing']);
   });
 
   it('plan: a new file need not exist yet; every other status needs it', () => {

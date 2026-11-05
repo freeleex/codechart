@@ -76,7 +76,7 @@ describe('render: map checks', () => {
     const r = await run(['render', '--md', specFile(map(node('Order', 'changed', 'app/orders.py'), node('Status', 'changed', 'app/status.py'))), '--git', '--output', 'cli']);
     const lines = r.out.split('\n');
     expect(lines[0]).toMatch(/^\*\*Map\*\*/);
-    expect(lines[1]).toBe('```text');
+    expect(lines[1]).toBe('```diff');
     expect(lines[2]).toBe("✗ 1 claim doesn't match the code: ~Status not in diff");
     expect(r.out).toContain('· ✓ 1 of 2 checked');
     expect(r.code).toBeUndefined();
@@ -93,7 +93,7 @@ describe('render: map checks', () => {
 
   it('without a diff flag only checks files', async () => {
     const r = await run(['render', specFile(map(node('Status', 'changed', 'app/status.py'), node('Gone', 'context', 'app/gone.py'))), '--output', 'cli']);
-    expect(r.out.split('\n')[0]).toBe("✗ 1 claim doesn't match the code: ·Gone file missing");
+    expect(r.out.split('\n')[0]).toBe("✗ 1 claim doesn't match the code: Gone file missing");
   });
 
   it('a staged rename puts the old path in the diff for a removed node', async () => {
@@ -138,7 +138,7 @@ describe('render: map checks', () => {
   it('--md web output keeps the alert in a fence', async () => {
     const spec = map(node('Status', 'changed', 'app/status.py'), node('Order', 'changed', 'app/orders.py'));
     const r = await run(['render', '--md', specFile(spec), '--git', '--output', 'web']);
-    expect(r.out).toContain("```text\n✗ 1 claim doesn't match the code: ~Status not in diff\n```");
+    expect(r.out).toContain("```diff\n✗ 1 claim doesn't match the code: ~Status not in diff\n```");
   });
 
   it('--commit checks against that commit; a folder node covers the files under it', async () => {

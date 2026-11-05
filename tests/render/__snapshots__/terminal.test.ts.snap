@@ -2,30 +2,30 @@
 
 exports[`renderTerminal > shop grouped list 1`] = `
 "database
-  ~orders ─customer_id─▶ ·customers
-          ─status──────▶ ~enum order_status
-  +invoices ─order_id─▶ ~orders
-            ─method───▶ ~enum payment_method
+~ orders ─customer_id─▶ customers
+         ─status──────▶ enum order_status
+    +coupon_code text · ~status order_status
++ invoices ─order_id─▶ orders
+           ─method───▶ enum payment_method
+    id uuid · +order_id uuid · +number text
+~ enum order_status
+    +refunded
+~ enum payment_method
+    +bank_transfer
 
 backend
-  ~OrderStatus ─mirrors─▶ ~enum order_status
-  +Invoice ─maps─▶ +invoices
-  +POST /orders/{id}/refund ─sets refunded─▶ ~model OrderStatus
-  ~PaymentMethod ─mirrors─▶ ~enum payment_method
+~ model OrderStatus ─mirrors─▶ enum order_status
++ model Invoice ─maps─▶ invoices
++ endpoint POST /orders/{id}/refund ─sets refunded─▶ model OrderStatus
+~ model PaymentMethod ─mirrors─▶ enum payment_method
 
 config
-  +migration: backfill invoices fo… ─backfills─▶ +invoices
-  ◆INVOICE_PREFIX ─read by─▶ +migration: backfill invoices for paid orders
-  ◆feature flag refundsEnabled ─gates─▶ +endpoint POST /orders/{id}/refund
-
-fields:
-~orders          +coupon_code text · ~status order_status
-+invoices        id uuid · +order_id uuid · +number text
-~order_status    +refunded
-~payment_method  +bank_transfer
++ migration: backfill invoices for… ─backfills─▶ invoices
+◆ INVOICE_PREFIX ─read by─▶ migration: backfill invoices for paid orders
+◆ feature flag refundsEnabled ─gates─▶ endpoint POST /orders/{id}/refund
 
 12 nodes · 4 new · 5 changed · 2 config
-key: + new  - removed  ~ changed  · context  ◆ config
+key: + new  ~ changed  - removed  ◆ config · unmarked = unchanged
 gaps: customers: columns besides id not read
 not on map: tests: test_invoice_backfill.py · docs: CHANGELOG.md, .env.example
 "
@@ -33,30 +33,30 @@ not on map: tests: test_invoice_backfill.py · docs: CHANGELOG.md, .env.example
 
 exports[`renderTerminal > shop plain at width 80 1`] = `
 "database
-  ~orders ─customer_id─▶ ·customers
-          ─status──────▶ ~enum order_status
-  +invoices ─order_id─▶ ~orders
-            ─method───▶ ~enum payment_method
+~ orders ─customer_id─▶ customers
+         ─status──────▶ enum order_status
+    +coupon_code text · ~status order_status
++ invoices ─order_id─▶ orders
+           ─method───▶ enum payment_method
+    id uuid · +order_id uuid · +number text
+~ enum order_status
+    +refunded
+~ enum payment_method
+    +bank_transfer
 
 backend
-  ~OrderStatus ─mirrors─▶ ~enum order_status
-  +Invoice ─maps─▶ +invoices
-  +POST /orders/{id}/refund ─sets refunded─▶ ~model OrderStatus
-  ~PaymentMethod ─mirrors─▶ ~enum payment_method
+~ model OrderStatus ─mirrors─▶ enum order_status
++ model Invoice ─maps─▶ invoices
++ endpoint POST /orders/{id… ─sets refunded─▶ model OrderStatus
+~ model PaymentMethod ─mirrors─▶ enum payment_method
 
 config
-  +migration: backfill invo… ─backfills─▶ +invoices
-  ◆INVOICE_PREFIX ─read by─▶ +migration: backfill invoices for paid orders
-  ◆feature flag refundsEnab… ─gates─▶ +endpoint POST /orders/{id}/refund
-
-fields:
-~orders          +coupon_code text · ~status order_status
-+invoices        id uuid · +order_id uuid · +number text
-~order_status    +refunded
-~payment_method  +bank_transfer
++ migration: backfill invoi… ─backfills─▶ invoices
+◆ INVOICE_PREFIX ─read by─▶ migration: backfill invoices for paid orders
+◆ feature flag refundsEnabl… ─gates─▶ endpoint POST /orders/{id}/refund
 
 12 nodes · 4 new · 5 changed · 2 config
-key: + new  - removed  ~ changed  · context  ◆ config
+key: + new  ~ changed  - removed  ◆ config · unmarked = unchanged
 gaps: customers: columns besides id not read
 not on map: tests: test_invoice_backfill.py · docs: CHANGELOG.md, .env.example
 "
@@ -64,30 +64,30 @@ not on map: tests: test_invoice_backfill.py · docs: CHANGELOG.md, .env.example
 
 exports[`renderTerminal > width 60 → every line ≤ 60 1`] = `
 "database
-  ~orders ─customer_id─▶ ·customers
-          ─status──────▶ ~enum order_status
-  +invoices ─order_id─▶ ~orders
-            ─method───▶ ~enum payment_method
+~ orders ─customer_id─▶ customers
+         ─status──────▶ enum order_status
+    +coupon_code text · ~status order_status
++ invoices ─order_id─▶ orders
+           ─method───▶ enum payment_method
+    id uuid · +order_id uuid · +number text
+~ enum order_status
+    +refunded
+~ enum payment_method
+    +bank_transfer
 
 backend
-  ~OrderStatus ─mirrors─▶ ~enum order_status
-  +Invoice ─maps─▶ +invoices
-  +POST /orders/{id}/… ─sets refunded─▶ ~model OrderStatus
-  ~PaymentMethod ─mirrors─▶ ~enum payment_method
+~ model OrderStatus ─mirrors─▶ enum order_status
++ model Invoice ─maps─▶ invoices
++ endpoint POST /orde… ─sets refunded─▶ model OrderStatus
+~ model PaymentMethod ─mirrors─▶ enum payment_method
 
 config
-  +migration: backfil… ─backfills─▶ +invoices
-  ◆INVOICE_PREFIX ─read by─▶ +migration: backfill invoices …
-  ◆feature flag refun… ─gates─▶ +endpoint POST /orders/{id}…
-
-fields:
-~orders          +coupon_code text · ~status order_status
-+invoices        id uuid · +order_id uuid · +number text
-~order_status    +refunded
-~payment_method  +bank_transfer
++ migration: backfill… ─backfills─▶ invoices
+◆ INVOICE_PREFIX ─read by─▶ migration: backfill invoices fo…
+◆ feature flag refund… ─gates─▶ endpoint POST /orders/{id}/…
 
 12 nodes · 4 new · 5 changed · 2 config
-key: + new  - removed  ~ changed  · context  ◆ config
+key: + new  ~ changed  - removed  ◆ config · unmarked = unc…
 gaps: customers: columns besides id not read
 not on map: tests: test_invoice_backfill.py
             docs: CHANGELOG.md, .env.example

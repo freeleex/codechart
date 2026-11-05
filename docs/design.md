@@ -195,7 +195,7 @@ Validation errors (unknown edge endpoints, duplicate ids, bad enums) are printed
 `render` loads the same config as `check`, which gives it the `web` settings, `terminalMaxNodes` and the rules.
 
 - **Output:** by default it resolves from the spec's `rules` field, the rule names `check` returned. With no `rules` field, it uses `defaults.output`. `--output` overrides both. When the output resolves to `none`, `render` prints nothing on stdout and one line on stderr saying why (`codechart: no map drawn: its rules (gen) resolve to output none`, or `… defaults.output is none`), exit 0, so the agent knows the empty result is deliberate.
-- **`--md`:** prints the whole paste-ready reply block, so the agent never rearranges it: `**Map** _(key: + new  - removed  ~ changed  · context  ◆ config)_`, the terminal map in a ```text block without the key and `full map → …` lines, a blank line, then `[Open full map](file:///…)` on its own line when HTML was written. With output `web`, the header, a blank line and the link. Followed by one blank line, so two renders in one Bash call never glue (a trailing blank line is not part of the paste). Never colored. The link uses the percent-encoded file URL, wrapped in `<…>` when it contains parentheses.
+- **`--md`:** prints the whole paste-ready reply block, so the agent never rearranges it: `**Map** _(key: + new  ~ changed  - removed  ◆ config · unmarked = unchanged)_`, the terminal map in a ```diff block without the key and `full map → …` lines, a blank line, then `[Open full map](file:///…)` on its own line when HTML was written. With output `web`, the header, a blank line and the link. Followed by one blank line, so two renders in one Bash call never glue (a trailing blank line is not part of the paste). Never colored. The link uses the percent-encoded file URL, wrapped in `<…>` when it contains parentheses.
 - **`auto` (the default):** the terminal map is always printed. The HTML file is written only when the terminal map can't show everything: nodes were hidden ("+N more in web view"), any text was cut with `…` (label, edge label, target, layer header or field name), or the spec has at least `web.minNodes` nodes (default 8), or it is a plan with Now and After panes (below). `cli` keeps cutting without a file. Small changes therefore produce no file at all.
 - **Diff coverage (2026-11-04):** with `--git`/`--since`/`--commit`, a summary map's check also runs diff → nodes: a changed file no node `path` covers (folder paths cover what is under them) and no `omitted` entry names (repo path, file name, `folder/` or glob token in its free text) is a `✗ N changed files not on map` line; `--strict` fails on it. A rename's old path counts as covered when a node points at a file of the same name and the old path is gone. Never flagged: lockfiles and generated files (`GENERATED_PATHS`) and files whose first matching map path rule has output `none`. Plans and flows are not checked this way. *design call:* `omitted` stays free text so existing specs keep working.
 - **`diff not checked` (2026-11-04):** a summary map or flow rendered in a git repo without a diff flag ends its count line (and the HTML check note, and the stdout above a web-only link) with `diff not checked`, so it never looks as verified as one with a diff. Outside a repo it says nothing. *design call:* footer only; defaulting summaries to `--git` would pick the wrong scope for commit or branch summaries.
@@ -203,32 +203,34 @@ Validation errors (unknown edge endpoints, duplicate ids, bad enums) are printed
 ### Terminal
 
 - Built from new, changed and removed nodes, plus `config` nodes, plus the edges between them. Context nodes only appear when an edge needs them as an endpoint.
-- Labels are prefixed by a status marker, so the map reads without color (2026-10-28: agents paste the map into markdown, where ANSI color never renders): `+new`, `-removed`, `~changed`, `·context`, `◆config`, no space.
-  - Link targets carry the same marker (`─maps─▶ +invoices`). Field markers (`+` `-` `~`) in the fields section mean added, removed, modified; a field with `was` reads `~role text → enum`.
+- **Marker gutter** (2026-11-05, P29 spike): every node that changed opens a headline with its status marker in the first column, a space, then its kind (unless table, file, other or config) and label: `+ invoices`, `~ enum order_status`, `- coupons`, `◆ INVOICE_PREFIX`. Unchanged nodes carry no marker, as unchanged lines in a diff carry none, and a context node that only receives links is named only where the arrows point. The map reads without color (agents paste it into markdown, where ANSI never renders), and in `--md` the block is a ```diff fence, so every host tested (Claude Code, OpenCode, Codex, Gemini CLI, Cursor, VS Code, GitHub) colors the `+` headlines green and the `-` ones red by itself; `~` and `◆` stay plain. Nothing in the block may start with `+`, `-`, `---`, `+++`, `index` or `diff --git` unless it means that, which is why the footer says `3 more not shown` rather than `+3 more`.
+  - Link targets carry no marker (`─maps─▶ invoices`): their own headline shows their status. Field markers (`+` `-` `~`) mean added, removed, modified; a field with `was` reads `~role text → enum`.
   - A plan edge with `change` gets `+` or `-` before its label (`─+reads─▶`).
-  - ANSI color is added to labels when stdout is a TTY.
+  - ANSI color is added to headlines and targets when stdout is a TTY.
   - Width math counts emoji and wide CJK as 2 columns, since labels may contain them.
-- **Layout: one grouped link list per layer** (changed after dogfooding, 2026-10-28):
-  - Each layer is a header line, with a blank line before every layer but the first, and under it each source node is written once, in spec order, with its outgoing links indented under it.
+  - *Rejected in the spike:* `<details>` (renders only on GitHub and in OpenChamber; raw text in every TUI), tables (Claude Code transposes a wide one into key/value records at 80 columns), markdown lists (no alignment, no color, agents retype them), box-drawing graphs (three times wider, wrapping destroys them), emoji markers (double-width glyphs misalign the arrows outside true monospace), per-node summaries (+34% tokens; the reply's prose already carries them).
+- **Layout: one block per node, grouped by layer** (2026-10-28, reshaped 2026-11-05):
+  - Each layer is a header line, with a blank line before every layer but the first, and under it each node is written once, in spec order: its headline, its outgoing links indented under it on aligned arrows, then its changed fields indented four columns.
   - Each link shows its label on the arrow, and the arrows are aligned within a source.
-  - Every link appears exactly once, with no legend and no separate "text" section.
+  - Every link appears exactly once, with no legend and no separate "text" or "fields" section. The indented lines are the console's version of an expandable section: scan the gutter, read the details only under the headline you care about.
   - Earlier, ascii-dag drawings, its "Edge labels:" legend and a "text" section showed the same kind of information in three places, which confused readers. The real diagram is the HTML.
 
   ```
   database
-    +migration: add invoices ─creates─▶ +invoices
-                             ─alters──▶ ~orders
-    ~orders ─customer_id─▶ ·customers
+  + migration: add invoices ─creates─▶ invoices
+                            ─alters──▶ orders
+  ~ orders ─customer_id─▶ customers
+      +coupon_code text · ~status order_status
   ```
-- **Fitting the width:** source labels longer than a third of the width, and link labels that would overflow, are cut with `…`; the full text is in the HTML.
+- **Fitting the width:** names of nodes with links longer than a third of the width, and link labels that would overflow, are cut with `…`; the full text is in the HTML.
   - When stdout is not a terminal (an agent running codechart), the width is `$COLUMNS` if set, otherwise 80, because the reader's pane is usually narrower than 100.
   - The width is never below 20; narrower requests render at 20.
   - Wrapped lines never split a status marker from its label, and color is applied after wrapping, so escapes never count toward the width.
-- **Too many nodes:** keep the most relevant nodes, by status tier (new/changed/removed, then config, then context) then degree, up to `terminalMaxNodes`, and list the rest as "+N more in web view".
-- **Fields section** when no HTML is written. Removed nodes list no fields.
+- **Too many nodes:** keep the most relevant nodes, by status tier (new/changed/removed, then config, then context) then degree, up to `terminalMaxNodes`, and list the rest as "N more in web view".
+- **Field lines** under each node only when no HTML is written. Removed nodes list no fields.
 - **Footer:**
   - `N nodes · X new · Y changed · Z config`, with `· R removed` after changed only when R > 0;
-  - a key line: `key: + new  - removed  ~ changed  · context  ◆ config`;
+  - a key line: `key: + new  ~ changed  - removed  ◆ config · unmarked = unchanged` (in `--md` it is the header instead);
   - a gaps line;
   - a `not on map:` line (the spec field `omitted`);
   - `full map → file://…`
