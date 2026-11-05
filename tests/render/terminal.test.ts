@@ -302,6 +302,16 @@ describe('renderTerminal', () => {
     }
   });
 
+  it('an unchanged node is headlined unless a shown link names it', () => {
+    const lone = renderTerminal(makeSpec({ x: 'context' }, []), { maxNodes: 20, width: 100, color: false });
+    expect(lone).toContain('l\n  x\n\n1 nodes');
+    const named = renderTerminal(makeSpec({ a: 'new', x: 'context', y: 'context' }, [['a', 'x']]), { maxNodes: 20, width: 100, color: false });
+    expect(named).toContain('l\n+ a ──▶ x\n\n');
+    expect(named).not.toContain('\n  x\n');
+    const hiddenLink = renderTerminal(makeSpec({ x: 'context', y: 'context' }, [['y', 'x']]), { maxNodes: 1, width: 100, color: false });
+    expect(hiddenLink).toContain('\n  x\n');
+  });
+
   it('selected nodes with no shown link get a headline in their layer', () => {
     const spec = {
       ...teams,

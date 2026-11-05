@@ -60,6 +60,7 @@ function blockLines(node: SpecNode, links: SpecEdge[], fields: Field[], byId: Ma
 export function renderBlocks(spec: Spec, ids: Set<string>, ctx: TermCtx, withFields: boolean): string {
   const byId = new Map(spec.nodes.map((n) => [n.id, n]));
   const links = linksAmong(spec, ids);
+  const named = new Set(links.map((e) => e.to));
   const layers = [...new Set(spec.nodes.map((n) => n.layer))];
   const sections = layers.flatMap((layer) => {
     const blocks = spec.nodes
@@ -68,7 +69,7 @@ export function renderBlocks(spec: Spec, ids: Set<string>, ctx: TermCtx, withFie
         const own = links.filter((e) => e.from === n.id);
         const fields = withFields ? shownFields(n) : [];
         // An unchanged node that only receives links is named where the arrows point.
-        if (own.length === 0 && fields.length === 0 && n.status === 'context') return [];
+        if (own.length === 0 && fields.length === 0 && n.status === 'context' && named.has(n.id)) return [];
         return blockLines(n, own, fields, byId, ctx);
       });
     return blocks.length > 0 ? [[truncate(flat(layer), ctx.width, ctx.cuts), ...blocks].join('\n')] : [];
