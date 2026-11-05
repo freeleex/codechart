@@ -146,6 +146,14 @@ describe('idle', () => {
     expect(synthetic).toHaveBeenCalledTimes(1);
   });
 
+  it('an execution reported as succeeded needs no outcome on the session', async () => {
+    const s = setup({ session: { outcome: undefined }, messages: [user(), assistant()] });
+    await s.handlers.onPrompt(SID);
+    edit('a.ts', 'b.ts', 'c.ts');
+    await s.handlers.onIdle(SID, true);
+    expect(s.synthetic).toHaveBeenCalledTimes(1);
+  });
+
   it('skips child sessions', async () => {
     expect((await turn({ session: { parentID: 'ses_parent' } })).synthetic).not.toHaveBeenCalled();
   });
@@ -246,7 +254,7 @@ describe('plugin', () => {
     let signal: AbortSignal | undefined;
     (ctx.event.subscribe as ReturnType<typeof vi.fn>).mockImplementation((o: { types: string[]; signal: AbortSignal }) => {
       signal = o.signal;
-      expect(o.types).toEqual(['session.idle']);
+      expect(o.types).toEqual(['session.idle', 'session.execution.succeeded']);
       return (async function* () {
         yield { data: { sessionID: SID } };
       })();

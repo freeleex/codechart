@@ -28,7 +28,7 @@ export interface Context {
     hook: (name: 'prompt', callback: (event: { sessionID: string }) => Promise<void> | void) => Promise<{ dispose: () => Promise<void> }>;
   };
   event: {
-    subscribe: (options: { types: string[]; signal: AbortSignal }) => AsyncIterable<{ data?: { sessionID?: string } }>;
+    subscribe: (options: { types: string[]; signal: AbortSignal }) => AsyncIterable<{ type?: string; data?: { sessionID?: string } }>;
   };
 }
 
@@ -74,12 +74,12 @@ async function onPrompt(s: State, sessionID: string): Promise<void> {
   }
 }
 
-async function check(s: State, sessionID: string): Promise<void> {
+async function check(s: State, sessionID: string, succeeded: boolean): Promise<void> {
   if (!SESSION_ID.test(sessionID)) return;
   const session = await s.ctx.session.get({ sessionID });
   if (session.parentID || !sameLocation(session.location, s.ctx.location)) return;
   const turn = viewTurn(await s.ctx.session.context({ sessionID }));
-  if (!turn || (turn.outcome ?? session.outcome) !== 'succeeded') return;
+  if (!turn || !(succeeded || (turn.outcome ?? session.outcome) === 'succeeded')) return;
   if ((session.model?.providerID ?? turn.providerID) === CLAUDE_PROVIDER) return;
   const key = `${sessionID}:${turn.userID}`;
   if (turn.nudged || s.handled.has(key)) return;
@@ -98,11 +98,11 @@ async function check(s: State, sessionID: string): Promise<void> {
   }
 }
 
-async function onIdle(s: State, sessionID: string): Promise<void> {
+async function onIdle(s: State, sessionID: string, succeeded: boolean): Promise<void> {
   if (s.running.has(sessionID)) return;
   s.running.add(sessionID);
   try {
-    await check(s, sessionID);
+    await check(s, sessionID, succeeded);
   } catch (e) {
     s.fail('idle', e);
   } finally {
@@ -121,5 +121,5 @@ export function createHandlers(ctx: Context, env: Env = {}) {
     handled: new Set(),
     running: new Set(),
   };
-  return { onPrompt: (id: string) => onPrompt(s, id), onIdle: (id: string) => onIdle(s, id), fail: s.fail };
+  return { onPrompt: (id: string) => onPrompt(s, id), onIdle: (id: string, succeeded = false) => onIdle(s, id, succeeded), fail: s.fail };
 }

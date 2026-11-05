@@ -7,8 +7,9 @@ async function setup(ctx: Context): Promise<() => Promise<void>> {
   try {
     registration = await ctx.session.hook('prompt', (event) => handlers.onPrompt(event.sessionID).catch((e) => handlers.fail('prompt', e)));
     void (async () => {
-      for await (const event of ctx.event.subscribe({ types: ['session.idle'], signal: abort.signal })) {
-        if (event.data?.sessionID) void handlers.onIdle(event.data.sessionID);
+      // OpenCode 2.2 emits session.execution.succeeded; session.idle is the documented name. A turn is judged once either way.
+      for await (const event of ctx.event.subscribe({ types: ['session.idle', 'session.execution.succeeded'], signal: abort.signal })) {
+        if (event.data?.sessionID) void handlers.onIdle(event.data.sessionID, event.type === 'session.execution.succeeded');
       }
     })().catch((e) => handlers.fail('events', e));
   } catch (e) {
