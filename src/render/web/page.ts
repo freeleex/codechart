@@ -9,7 +9,10 @@ export type { Theme };
 
 export interface HtmlMeta {
   generatedAt: Date;
+  /** Shown in the header. */
   repo: string;
+  /** What saved ticks are filed under; unlike `repo`, tells same-named repos apart. Defaults to `repo`. */
+  repoKey?: string;
   theme?: Theme;
   /** A newer codechart version, known from the last daily check. */
   update?: string;
@@ -77,6 +80,8 @@ interface PageParts {
   infoButton: string;
   /** Escaped already. */
   headerNote?: string;
+  /** The row under the header: status chips and review progress, already HTML. */
+  toolbar?: string;
   viewport: string;
   /** Instead of `viewport`: canvases side by side that pan and zoom together while linked. */
   panes?: { title: string; key: KeyPart[]; viewport: string }[];
@@ -91,7 +96,7 @@ const CSP = `default-src 'none'; style-src 'unsafe-inline'; script-src 'sha256-$
 
 export function renderPage(p: PageParts): string {
   const theme: Theme = p.meta.theme && THEMES.includes(p.meta.theme) ? p.meta.theme : 'auto';
-  const data = { width: p.width, height: p.height };
+  const data = { width: p.width, height: p.height, repoKey: p.meta.repoKey ?? p.meta.repo };
   const defs = `<defs>${arrowMarker('arrow')}${p.extraDefs ?? ''}</defs>`;
   // Ids are document-wide, so the second pane's url(#arrow) finds the first pane's defs.
   const canvas = (viewport: string, i: number) =>
@@ -106,7 +111,7 @@ export function renderPage(p: PageParts): string {
 <style>${CSS}${p.extraCss ?? ''}</style></head>
 <body>
 <header><h1>${esc(p.title)}</h1>${p.headerNote ?? ''}<span class="meta">${esc(p.meta.repo)} · ${esc(p.meta.generatedAt.toISOString())}</span>${p.meta.update ? `<span class="update" title="A newer codechart is out">codechart ${esc(p.meta.update)} is out: run <code>codechart update</code></span>` : ''}${p.infoButton}${p.panes ? '<button id="link-toggle" type="button" title="Linked: panning or zooming one pane moves both"></button>' : ''}<button id="theme-toggle" type="button" title="Cycle theme: auto, light, dark"></button></header>
-<main>
+${p.toolbar ? `<div id="toolbar">${p.toolbar}</div>\n` : ''}<main>
 ${body}
 <div id="resize" role="separator" aria-orientation="vertical" aria-label="Resize panel" tabindex="0" title="Drag to resize the panel"></div>
 <aside><nav id="panel-nav" aria-label="Panel history"><button id="nav-back" type="button" disabled aria-label="Back" title="Back (Alt+←)">←</button><button id="nav-forward" type="button" disabled aria-label="Forward" title="Forward (Alt+→)">→</button></nav>${p.aside}</aside>

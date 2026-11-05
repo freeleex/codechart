@@ -1,9 +1,10 @@
 import { isPlannedLink, isRemovedLink, type FlowLink, type FlowSpec, type FlowStep } from '../../spec/flow.js';
 import type { CheckSummary } from '../terminal/check-lines.js';
 import { flagMark, flagTitle, mismatchNote } from '../web/check-html.js';
-import { infoButton, gapsHtml, pageInfoSection, renderDiagramPage, renderEdgeSvg } from '../web/diagram.js';
+import { edgeEnds, infoButton, gapsHtml, pageInfoSection, renderDiagramPage, renderEdgeSvg, type EdgeEnds } from '../web/diagram.js';
 import { arrowMarker, CHANGE_ARROWS, esc, num, type HtmlMeta } from '../web/page.js';
 import type { Side } from '../web/states.js';
+import { relationsHtml, relationsOf, tickRow, tickSvg } from '../web/tools.js';
 import { FLOW_SIDE_KEY, hasFlowNowAfter, isAltered, linkOn, linkTone, stepOn } from './states.js';
 import type { FlowSnippets, Snippet } from './anchors.js';
 import { BADGE_HEIGHT, LINE_HEIGHT, type FlowLayout, type FlowLayoutEdge, type FlowLayoutNode } from './layout.js';
@@ -64,17 +65,19 @@ function renderStep(step: FlowStep, b: FlowLayoutNode, flag: string, side?: Side
     y += LINE_HEIGHT;
   }
   return (
-    `<g class="node type-${step.type} status-${status}" data-id="${esc(step.id)}" tabindex="0" role="button" aria-label="${esc(`${step.label} (${step.status} ${step.type}${flagged ? ", doesn't match the code" : ''})`)}">` +
+    `<g class="node type-${step.type} status-${status}" data-id="${esc(step.id)}" data-status="${step.status}" tabindex="0" role="button" aria-label="${esc(`${step.label} (${step.status} ${step.type}${flagged ? ", doesn't match the code" : ''})`)}">` +
     flag +
     shape(step, b) +
     text +
+    tickSvg(b.x, b.y) +
     (flagged ? flagMark(b.x + b.w, b.y) : '') +
     `</g>`
   );
 }
 
-function renderLink(link: FlowLink, e: FlowLayoutEdge, tone: 'planned' | 'removed' | undefined): string {
+function renderLink(link: FlowLink, e: FlowLayoutEdge, tone: 'planned' | 'removed' | undefined, ends: EdgeEnds): string {
   return renderEdgeSvg({
+    ends,
     points: e.points,
     marker: `arrow${tone ? `-${tone}` : ''}`,
     cls: `edge${tone === 'planned' ? ' planned' : tone === 'removed' ? ' edge-removed' : ''}`,
@@ -102,7 +105,7 @@ export function snippetHtml(s: Snippet): string {
 const tag = (status: string) => `<span class="tag tag-${esc(status)}">${esc(status)}</span>`;
 
 function stepPanel(spec: FlowSpec, step: FlowStep, snippets: FlowSnippets, byId: Map<string, FlowStep>, check: CheckSummary | undefined): string {
-  let out = `<h2>${esc(step.label)}</h2>`;
+  let out = `<h2>${esc(step.label)}</h2>${tickRow(step.id)}`;
   out += `<div class="status">${tag(step.status)} ${esc(step.type)}</div>`;
   out += mismatchNote(check, step.id);
   const snip = snippets.steps.get(step.id);
@@ -127,6 +130,8 @@ function stepPanel(spec: FlowSpec, step: FlowStep, snippets: FlowSnippets, byId:
     });
     out += `<h3>Next</h3><ul class="branches">${items.join('')}</ul>`;
   }
+  const links = spec.links.map((l) => ({ from: l.from, to: l.to, label: l.label }));
+  out += relationsHtml(relationsOf(step.id, links, (id) => byId.get(id)?.label ?? id));
   return `<template class="card-panel" data-for="${esc(step.id)}">${out}</template>`;
 }
 
@@ -147,7 +152,7 @@ function viewport(spec: FlowSpec, layout: FlowLayout, check: CheckSummary | unde
   const edges = spec.links
     .map((l, i) => {
       if (!layout.edges[i] || (side && !linkOn(side, spec, l, byId))) return '';
-      return renderLink(l, layout.edges[i], linkTone(side, spec, l));
+      return renderLink(l, layout.edges[i], linkTone(side, spec, l), edgeEnds(l.from, l.to, (id) => byId.get(id)?.label ?? id));
     })
     .join('');
   const nodes = spec.steps
@@ -172,6 +177,7 @@ export function renderFlowHtml(spec: FlowSpec, layout: FlowLayout, snippets: Flo
       mismatch: { label: 'Check / gaps', title: "Show what doesn't match the code and what the agent did not check" },
       info: { label: 'Gaps', title: 'Show what the agent did not check' },
     }),
+    statuses: spec.steps.map((s) => s.status),
     sides,
     paneKey: FLOW_SIDE_KEY,
     viewport: (side) => viewport(spec, layout, check, side),
