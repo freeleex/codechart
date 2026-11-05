@@ -328,6 +328,18 @@ describe('codechart hook', () => {
       expect(await stop()).toBe('other-root');
     });
 
+    it('a turn that changed nothing does not read the transcript', async () => {
+      await run(['hook', 'prompt'], input());
+      const t = transcript({ type: 'tool_use', name: 'Skill', input: { skill: 'codechart' } });
+      await run(['hook', 'stop'], input({ transcript_path: t }));
+      expect(rec()).toMatchObject({ decision: 'few-files', files: [] });
+      expect(rec()?.skill).toBeUndefined();
+      expect(rec()?.cli).toBeUndefined();
+      write('a.ts');
+      await run(['hook', 'stop'], input({ transcript_path: t }));
+      expect(rec()).toMatchObject({ decision: 'few-files', skill: true });
+    });
+
     it('a transcript that cannot be read stays silent, as before', async () => {
       await run(['hook', 'prompt'], input());
       write('a.ts', 'b.ts', 'c.ts');

@@ -123,7 +123,8 @@ function onStop({ root, file, input, scan }: Turn): Outcome {
 function record(turn: Turn, now: Date, outcome?: Outcome): void {
   try {
     let seen: TurnScan | undefined;
-    if (outcome) {
+    // A turn that changed nothing skips the transcript read.
+    if (outcome?.files?.length) {
       try {
         seen = turn.scan();
       } catch {

@@ -17,9 +17,10 @@ function show(sections: Section[], home: string, opts: CommandOptions): void {
   opts.stdout(`\nTo test, paste into your agent:\n  ${TEST_PROMPT}\nA codechart map should follow the reply.\n`);
 }
 
-const bad = (sections: Section[]): Item[] => sections.flatMap((s) => s.items).filter((i) => i.level === 'bad');
+const items = (sections: Section[]): Item[] => sections.flatMap((s) => s.items);
+const bad = (sections: Section[]): Item[] => items(sections).filter((i) => i.level === 'bad' && !i.same);
 
-/** Fixes what it can, without --force: a skill folder that is not codechart's stays as it is. */
+/** Fixes the ✗ items it can, without --force: a skill folder that is not codechart's stays as it is. Opt-in ⚠ items are only named. */
 async function fix(sections: Section[], opts: CommandOptions): Promise<void> {
   const ordered = [...sections.filter((s) => s.first), ...sections.filter((s) => !s.first)];
   for (const item of bad(ordered)) {
@@ -30,6 +31,7 @@ async function fix(sections: Section[], opts: CommandOptions): Promise<void> {
       opts.stderr(`codechart: ${item.text}: ${e instanceof Error ? e.message : String(e)}\n`);
     }
   }
+  for (const item of items(sections)) if (item.level === 'warn' && item.fix) opts.stdout(`not added (opt-in): ${item.fix}\n`);
 }
 
 export function doctorCommand(opts: CommandOptions): Command {

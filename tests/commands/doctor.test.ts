@@ -40,21 +40,59 @@ describe('doctor', () => {
     const r = await run(['doctor']);
     expect(r.code).toBeUndefined();
     expect(r.out).toContain('Claude Code\n  ✓ skill: ~/.claude/skills/codechart (current)\n  ✓ reminder: ~/.claude/CLAUDE.md\n  ✓ hook: Stop and prompt hooks in ~/.claude/settings.json\n');
-    expect(r.out).toContain('Codex\n  ✓ skill: ~/.agents/skills/codechart (current)\n  ✓ reminder: ~/.codex/AGENTS.md\n  ⚠ hook: none, Codex has no hook support');
+    expect(r.out).toContain('Codex\n  ✓ skill: ~/.agents/skills/codechart (current)\n  ✓ reminder: ~/.codex/AGENTS.md\n  ⚠ hook: no codechart hook for Codex yet\n');
     expect(r.out).toContain(`  ✓ on PATH: ${join(sb.tmp, 'bin', 'codechart')}\n  ✓ version ${currentVersion()} (npm not checked yet)\n`);
     expect(r.out).toContain('To test, paste into your agent:');
     expect(lines(r.out).some((l) => l.includes('✗'))).toBe(false);
   });
 
-  it('a missing skill, reminder and hook each say the fix command; exit 1', async () => {
+  it('a missing skill is a ✗; a missing reminder or hook is a ⚠ (may be opted out), all with the fix command', async () => {
     mkdirSync(home('.claude'));
     mkdirSync(home('.codex'));
     const r = await run(['doctor']);
     expect(r.code).toBe(1);
     expect(r.out).toContain('✗ skill: missing (~/.claude/skills/codechart): run codechart install-skill --agent claude\n');
     expect(r.out).toContain('✗ skill: missing (~/.agents/skills/codechart): run codechart install-skill --agent codex\n');
-    expect(r.out).toContain('✗ reminder: missing in ~/.claude/CLAUDE.md: run codechart install-skill --agent claude --reminder\n');
-    expect(r.out).toContain('✗ hook: Stop and UserPromptSubmit missing in ~/.claude/settings.json: run codechart install-skill --agent claude --hook\n');
+    expect(r.out).toContain('⚠ reminder: missing in ~/.claude/CLAUDE.md: run codechart install-skill --agent claude --reminder\n');
+    expect(r.out).toContain('⚠ hook: missing in ~/.claude/settings.json: run codechart install-skill --agent claude --hook\n');
+  });
+
+  it('only opted-out extras missing: warnings, exit 0', async () => {
+    mkdirSync(home('.claude'));
+    await run(['install-skill', '--agent', 'claude', '--no-reminder', '--no-hook']);
+    const r = await run(['doctor']);
+    expect(r.code).toBeUndefined();
+    expect(r.out).toContain('⚠ reminder: missing');
+    expect(r.out).toContain('⚠ hook: missing');
+    expect(r.out).not.toContain('✗');
+  });
+
+  it('a hook with only one of the two events is a ✗', async () => {
+    await install('claude');
+    const file = home('.claude', 'settings.json');
+    const s = JSON.parse(readFileSync(file, 'utf8'));
+    delete s.hooks.Stop;
+    writeFileSync(file, JSON.stringify(s));
+    const r = await run(['doctor']);
+    expect(r.code).toBe(1);
+    expect(r.out).toContain('✗ hook: Stop missing in ~/.claude/settings.json: run codechart install-skill --agent claude --hook\n');
+  });
+
+  it('agents sharing a skill folder: the ✗ and fix once, "same copy as" for the rest', async () => {
+    mkdirSync(home('.codex'));
+    mkdirSync(home('.gemini'));
+    const missing = await run(['doctor']);
+    expect(missing.out).toContain('Codex\n  ✗ skill: missing (~/.agents/skills/codechart): run codechart install-skill --agent codex\n');
+    expect(missing.out).toContain('Gemini CLI\n  ✗ skill: same copy as Codex\n');
+    expect(missing.out.match(/install-skill --agent gemini\n/g)).toBeNull();
+    await install('codex');
+    writeFileSync(home('.agents', 'skills', 'codechart', 'SKILL.md'), '---\nname: codechart\n---\nold\n');
+    const stale = await run(['doctor']);
+    expect(stale.out).toContain('Codex\n  ✗ skill: outdated at ~/.agents/skills/codechart: run codechart install-skill --agent codex\n');
+    expect(stale.out).toContain('Gemini CLI\n  ✗ skill: same copy as Codex\n');
+    expect(stale.code).toBe(1);
+    const fixed = await run(['doctor', '--fix']);
+    expect(fixed.out.match(/updated for/g)).toHaveLength(1);
   });
 
   it('an older codechart copy and an older reminder are outdated', async () => {
@@ -119,18 +157,30 @@ describe('doctor', () => {
 });
 
 describe('doctor --fix', () => {
-  it('repairs a missing skill, reminder and hook, says what it did, and exits 0', async () => {
+  it('repairs a missing skill only; a missing reminder or hook is named, not added', async () => {
     mkdirSync(home('.claude'));
     mkdirSync(home('.codex'));
     const r = await run(['doctor', '--fix']);
     expect(r.out).toContain(`installed for Claude Code: ${home('.claude', 'skills', 'codechart')}`);
-    expect(r.out).toContain(`reminder added: ${home('.claude', 'CLAUDE.md')}`);
-    expect(r.out).toContain(`hook added: ${home('.claude', 'settings.json')}`);
-    expect(r.out).toContain(`reminder added: ${home('.codex', 'AGENTS.md')}`);
+    expect(r.out).toContain('not added (opt-in): codechart install-skill --agent claude --reminder\n');
+    expect(r.out).toContain('not added (opt-in): codechart install-skill --agent claude --hook\n');
+    expect(r.out).toContain('not added (opt-in): codechart install-skill --agent codex --reminder\n');
     expect(r.out).not.toContain('✗');
     expect(r.code).toBeUndefined();
     expect(existsSync(home('.agents', 'skills', 'codechart', 'SKILL.md'))).toBe(true);
-    expect((await run(['doctor'])).code).toBeUndefined();
+    expect(existsSync(home('.claude', 'CLAUDE.md'))).toBe(false);
+    expect(existsSync(home('.claude', 'settings.json'))).toBe(false);
+  });
+
+  it('completes a half-installed hook', async () => {
+    await install('claude');
+    const file = home('.claude', 'settings.json');
+    const s = JSON.parse(readFileSync(file, 'utf8'));
+    delete s.hooks.Stop;
+    writeFileSync(file, JSON.stringify(s));
+    const r = await run(['doctor', '--fix']);
+    expect(r.out).toContain(`hook added: ${file}`);
+    expect(r.code).toBeUndefined();
   });
 
   it('updates an older copy and reminder', async () => {
