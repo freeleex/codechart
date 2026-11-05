@@ -296,6 +296,17 @@ describe('doctor --last', () => {
     expect(r.out).toContain('Decision: diagram-in-reply: the reply already had a codechart diagram.');
   });
 
+  it('a newer prompt without a Stop, or a later turn that changed nothing, is noted; the decided turn is still explained', async () => {
+    record({ decision: 'nudged', files: ['a.ts', 'b.ts', 'c.ts'], pendingAt: '2026-11-05T11:00:00.000Z' });
+    const pending = await run(['doctor', '--last']);
+    expect(pending.out).toContain('A newer prompt (2026-11-05T11:00:00.000Z) has no Stop decision yet');
+    expect(pending.out).toContain('Decision: nudged');
+    record({ decision: 'nudged', files: ['a.ts', 'b.ts', 'c.ts'], quietAt: '2026-11-05T12:00:00.000Z' });
+    const quiet = await run(['doctor', '--last']);
+    expect(quiet.out).toContain('A later turn (2026-11-05T12:00:00.000Z) changed no files');
+    expect(quiet.out).toContain('Changed files: 3');
+  });
+
   it('explains each decision in words', async () => {
     const said = async (decision: TurnRecord['decision']) => {
       record({ decision, files: ['a.ts', 'b.ts', 'c.ts'] });

@@ -63,6 +63,8 @@ export function explainLast(cwd: string, home: string, opts: CommandOptions): bo
     say('The prompt hook ran, but the Stop hook left no decision: it did not run (or the turn is still going).');
     return true;
   }
+  if (rec.pendingAt) say(`A newer prompt (${rec.pendingAt}) has no Stop decision yet: it is the current turn, or the Stop hook did not run for it. Showing the turn before it.`);
+  if (rec.quietAt) say(`A later turn (${rec.quietAt}) changed no files, so there was nothing to map. Showing the last turn that did.`);
   say(`Decision: ${rec.decision}: ${WHY[rec.decision]}.`);
   say(`Changed files: ${rec.files?.length ?? 0}${rec.files?.length ? ` (${rec.files.slice(0, 5).join(', ')}${rec.files.length > 5 ? ', …' : ''})` : ''}`);
   for (const line of rulesLines(rec, root, opts, home)) say(line);

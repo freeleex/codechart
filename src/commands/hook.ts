@@ -5,7 +5,7 @@ import { Argument, Command } from 'commander';
 import { findRepoRoot } from '../config/load.js';
 import type { CommandOptions } from '../program.js';
 import { gitDiffFiles, gitDirtyHashes, gitHead, gitListFiles } from '../rules/git-files.js';
-import { type Decision, turnsDir, writeRecord } from './hook-record.js';
+import { type Decision, recordPrompt, recordStop, turnsDir } from './hook-record.js';
 import { readStdin } from './stdin.js';
 import { DIAGRAM, scanTurn, type TurnScan } from './transcript.js';
 
@@ -121,22 +121,20 @@ function onStop({ root, file, input, scan }: Turn): Outcome {
 }
 
 function record(turn: Turn, now: Date, outcome?: Outcome): void {
+  const at = now.toISOString();
+  const session = String(turn.input.session_id);
   try {
+    if (!outcome) return recordPrompt(turn.dir, turn.root, session, at);
     let seen: TurnScan | undefined;
     // A turn that changed nothing skips the transcript read.
-    if (outcome?.files?.length) {
+    if (outcome.files?.length) {
       try {
         seen = turn.scan();
       } catch {
         seen = undefined;
       }
     }
-    writeRecord(turn.dir, {
-      at: now.toISOString(),
-      root: turn.root,
-      session: String(turn.input.session_id),
-      ...(outcome && { decision: outcome.decision, files: outcome.files, skill: seen?.skill, cli: seen?.cli }),
-    });
+    recordStop(turn.dir, { at, root: turn.root, session, decision: outcome.decision, files: outcome.files, skill: seen?.skill, cli: seen?.cli });
   } catch {
     // The log is for doctor --last; it must never get in the way of the hook.
   }

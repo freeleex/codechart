@@ -328,6 +328,27 @@ describe('codechart hook', () => {
       expect(await stop()).toBe('other-root');
     });
 
+    it('a later question keeps the decided turn: pending until its Stop, then marked quiet', async () => {
+      await run(['hook', 'prompt'], input());
+      write('a.ts', 'b.ts', 'new.ts');
+      await run(['hook', 'stop'], input());
+      await run(['hook', 'prompt'], input());
+      expect(rec()).toMatchObject({ decision: 'nudged', files: ['a.ts', 'b.ts', 'new.ts'] });
+      expect(rec()?.pendingAt).toBeDefined();
+      await run(['hook', 'stop'], input());
+      expect(rec()).toMatchObject({ decision: 'nudged', files: ['a.ts', 'b.ts', 'new.ts'] });
+      expect(rec()?.pendingAt).toBeUndefined();
+      expect(rec()?.quietAt).toBeDefined();
+    });
+
+    it('the repeat stop after a nudge keeps the files', async () => {
+      await run(['hook', 'prompt'], input());
+      write('a.ts', 'b.ts', 'new.ts');
+      await run(['hook', 'stop'], input());
+      await run(['hook', 'stop'], input({ stop_hook_active: true }));
+      expect(rec()).toMatchObject({ decision: 'nudged', files: ['a.ts', 'b.ts', 'new.ts'] });
+    });
+
     it('a turn that changed nothing does not read the transcript', async () => {
       await run(['hook', 'prompt'], input());
       const t = transcript({ type: 'tool_use', name: 'Skill', input: { skill: 'codechart' } });
