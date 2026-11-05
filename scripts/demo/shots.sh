@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Regenerates the README feature screenshots in docs/images (map, flow,
 # plan-map, plan-flow, infra). Needs a built dist/ and network for npm.
+# pr-map.png is not made here: it is a GitHub PR whose description holds the
+# `render --pr` section for tests/fixtures/shop.spec.json on the make-repo.sh
+# repo, captured with Playwright (element screenshot of .comment-body, dark, 2x).
 set -euo pipefail
 demo="$(cd "$(dirname "$0")" && pwd)"
 root="$(cd "$demo/../.." && pwd)"

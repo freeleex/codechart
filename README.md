@@ -177,6 +177,8 @@ Reviewers get the map too. With one CI file in the repo, the agent puts a collap
 - **Kept current:** on each push CI re-checks the map against the PR's diff and latest commit, so a file added later shows up as `✗ changed, not on map` until the agent updates the map.
 - **No AI in CI, no tokens:** the map spec is stored hidden in the description; CI only re-checks and redraws it.
 
+![PR description with the Map section open: check line, the map image, what was left out or not read, collapsed node details and the key](docs/images/pr-map.png)
+
 **GitHub.** Copy the workflow (it uses the built-in token; PRs from forks are skipped, their token can't edit the PR):
 
 ```bash
