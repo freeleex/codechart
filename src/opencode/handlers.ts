@@ -46,67 +46,80 @@ const rootOf = (s: SessionInfo) => findRepoRoot(join(s.location.directory, s.sub
 
 const sameLocation = (a: Location, b: Location) => resolve(a.directory) === resolve(b.directory) && a.workspaceID === b.workspaceID;
 
+interface State {
+  ctx: Context;
+  dir: string;
+  now: () => Date;
+  fail: (what: string, e: unknown) => void;
+  /** `session:user message` keys already judged. */
+  handled: Set<string>;
+  running: Set<string>;
+}
+
+const turnFile = (s: State, sessionID: string) => join(s.dir, `${sessionID}.json`);
+
+async function onPrompt(s: State, sessionID: string): Promise<void> {
+  if (!SESSION_ID.test(sessionID)) return;
+  const root = rootOf(await s.ctx.session.get({ sessionID }));
+  if (!root) return;
+  const at = s.now();
+  try {
+    saveSnapshot(s.dir, turnFile(s, sessionID), root, at);
+  } finally {
+    try {
+      recordPrompt(s.dir, root, sessionID, at.toISOString(), 'opencode');
+    } catch (e) {
+      s.fail('record', e);
+    }
+  }
+}
+
+async function check(s: State, sessionID: string): Promise<void> {
+  if (!SESSION_ID.test(sessionID)) return;
+  const session = await s.ctx.session.get({ sessionID });
+  if (session.parentID || !sameLocation(session.location, s.ctx.location)) return;
+  const turn = viewTurn(await s.ctx.session.context({ sessionID }));
+  if (!turn || (turn.outcome ?? session.outcome) !== 'succeeded') return;
+  if ((session.model?.providerID ?? turn.providerID) === CLAUDE_PROVIDER) return;
+  const key = `${sessionID}:${turn.userID}`;
+  if (turn.nudged || s.handled.has(key)) return;
+  if (s.handled.size >= MAX_HANDLED) s.handled.clear();
+  s.handled.add(key);
+  const root = rootOf(session);
+  if (!root) return;
+  const outcome = judgeTurn(root, turnFile(s, sessionID), turn.reply, () => turn);
+  if (outcome.decision === 'nudged') {
+    await s.ctx.session.synthetic({ sessionID, text: nudge(outcome.files?.length ?? 0), metadata: { codechart: 'nudge' }, resume: true });
+  }
+  try {
+    recordStop(s.dir, { at: s.now().toISOString(), root, session: sessionID, decision: outcome.decision, files: outcome.files, cli: turn.cli, agent: 'opencode' });
+  } catch (e) {
+    s.fail('record', e);
+  }
+}
+
+async function onIdle(s: State, sessionID: string): Promise<void> {
+  if (s.running.has(sessionID)) return;
+  s.running.add(sessionID);
+  try {
+    await check(s, sessionID);
+  } catch (e) {
+    s.fail('idle', e);
+  } finally {
+    s.running.delete(sessionID);
+  }
+}
+
 export function createHandlers(ctx: Context, env: Env = {}) {
-  const dir = turnsDir(env.home ?? homedir());
-  const now = () => env.now?.() ?? new Date();
-  const handled = new Set<string>();
-  const running = new Set<string>();
-  const fail = (what: string, e: unknown) => {
-    if (env.debug) console.error(`codechart: opencode ${what}: ${e instanceof Error ? e.message : String(e)}`);
+  const s: State = {
+    ctx,
+    dir: turnsDir(env.home ?? homedir()),
+    now: () => env.now?.() ?? new Date(),
+    fail: (what, e) => {
+      if (env.debug) console.error(`codechart: opencode ${what}: ${e instanceof Error ? e.message : String(e)}`);
+    },
+    handled: new Set(),
+    running: new Set(),
   };
-
-  async function onPrompt(sessionID: string): Promise<void> {
-    if (!SESSION_ID.test(sessionID)) return;
-    const root = rootOf(await ctx.session.get({ sessionID }));
-    if (!root) return;
-    const at = now();
-    try {
-      saveSnapshot(dir, join(dir, `${sessionID}.json`), root, at);
-    } finally {
-      try {
-        recordPrompt(dir, root, sessionID, at.toISOString(), 'opencode');
-      } catch (e) {
-        fail('record', e);
-      }
-    }
-  }
-
-  async function check(sessionID: string): Promise<void> {
-    if (!SESSION_ID.test(sessionID)) return;
-    const session = await ctx.session.get({ sessionID });
-    if (session.parentID || !sameLocation(session.location, ctx.location)) return;
-    const messages = await ctx.session.context({ sessionID });
-    const turn = viewTurn(messages);
-    if (!turn || (turn.outcome ?? session.outcome) !== 'succeeded') return;
-    if ((session.model?.providerID ?? turn.providerID) === CLAUDE_PROVIDER) return;
-    const key = `${sessionID}:${turn.userID}`;
-    if (turn.nudged || handled.has(key)) return;
-    if (handled.size >= MAX_HANDLED) handled.clear();
-    handled.add(key);
-    const root = rootOf(session);
-    if (!root) return;
-    const outcome = judgeTurn(root, join(dir, `${sessionID}.json`), turn.reply, () => turn);
-    if (outcome.decision === 'nudged') {
-      await ctx.session.synthetic({ sessionID, text: nudge(outcome.files?.length ?? 0), metadata: { codechart: 'nudge' }, resume: true });
-    }
-    try {
-      recordStop(dir, { at: now().toISOString(), root, session: sessionID, decision: outcome.decision, files: outcome.files, cli: turn.cli, agent: 'opencode' });
-    } catch (e) {
-      fail('record', e);
-    }
-  }
-
-  async function onIdle(sessionID: string): Promise<void> {
-    if (running.has(sessionID)) return;
-    running.add(sessionID);
-    try {
-      await check(sessionID);
-    } catch (e) {
-      fail('idle', e);
-    } finally {
-      running.delete(sessionID);
-    }
-  }
-
-  return { onPrompt, onIdle, fail };
+  return { onPrompt: (id: string) => onPrompt(s, id), onIdle: (id: string) => onIdle(s, id), fail: s.fail };
 }
