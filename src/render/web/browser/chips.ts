@@ -39,7 +39,11 @@ export function initChips(): void {
   chips.forEach((c) =>
     c.addEventListener('click', () => {
       const status = statusOf(c);
-      if (!faded.delete(status)) faded.add(status);
+      if (c.hasAttribute('data-delta')) {
+        const was = faded.size === 1 && faded.has(status);
+        faded.clear();
+        if (!was) faded.add(status);
+      } else if (!faded.delete(status)) faded.add(status);
       save(KEY, JSON.stringify([...faded]));
       apply();
     }),

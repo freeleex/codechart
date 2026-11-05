@@ -72,6 +72,23 @@ describe('status chips', () => {
     expect(pressed(delta())).toBe('false');
   });
 
+  it('"Δ changes only" not pressed fades exactly context, un-fading the rest; pressed it clears every fade', () => {
+    mount(shopPage);
+    click(chip('new'));
+    click(chip('config'));
+    click(delta());
+    expect(fadedIds()).toEqual(withStatus('context'));
+    expect(pressed(chip('new'))).toBe('false');
+    expect(pressed(chip('config'))).toBe('false');
+    expect(pressed(delta())).toBe('true');
+    click(chip('new'));
+    click(delta());
+    expect(fadedIds()).toEqual(withStatus('context'));
+    click(delta());
+    expect(fadedIds()).toEqual([]);
+    expect(JSON.parse(localStorage.getItem('codechart.faded')!)).toEqual([]);
+  });
+
   it('flows fade their unchanged steps with the same chip', () => {
     mount(flowPage);
     click(delta());
