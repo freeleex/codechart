@@ -107,7 +107,7 @@ export function renderPage(p: PageParts): string {
 <main>
 ${body}
 <div id="resize" role="separator" aria-orientation="vertical" aria-label="Resize panel" tabindex="0" title="Drag to resize the panel"></div>
-<aside>${p.aside}</aside>
+<aside><nav id="panel-nav" aria-label="Panel history"><button id="nav-back" type="button" disabled aria-label="Back" title="Back (Alt+←)">←</button><button id="nav-forward" type="button" disabled aria-label="Forward" title="Forward (Alt+→)">→</button></nav>${p.aside}</aside>
 </main>
 <script type="application/json" id="spec-data">${jsonForScript(data)}</script>
 <script>${CLIENT_JS}</script>

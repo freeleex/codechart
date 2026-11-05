@@ -166,7 +166,7 @@ On the full page, a changed resource shows its HCL diff and changed attributes (
 
 ### Terminal first, page when it helps
 
-Small diagrams stay in the reply. Big ones, or rules you mark `output: both`, also get the self-contained HTML page: zoom, pan, light and dark themes, a resizable node panel, *Not on map / gaps* one click away, nothing loaded from the internet. Each map is laid out top-down or left-to-right, whichever fits a laptop screen better. In a change summary, a node's diff is read from git when the page is built, so the agent spends no tokens on it.
+Small diagrams stay in the reply. Big ones, or rules you mark `output: both`, also get the self-contained HTML page: zoom, pan, light and dark themes, a resizable node panel with back/forward through the nodes you opened, *Not on map / gaps* one click away, nothing loaded from the internet. Each map is laid out top-down or left-to-right, whichever fits a laptop screen better. In a change summary, a node's diff is read from git when the page is built, so the agent spends no tokens on it.
 
 ### When it fires — and when it stays quiet
 
