@@ -3,6 +3,7 @@ import { checkCommand } from './commands/check.js';
 import { configCommand } from './commands/config.js';
 import { hookCommand } from './commands/hook.js';
 import { initCommand } from './commands/init.js';
+import { prSyncCommand } from './commands/pr-sync.js';
 import { installSkillCommand } from './commands/install-skill.js';
 import { renderCommand } from './commands/render.js';
 import { schemaCommand } from './commands/schema.js';
@@ -39,6 +40,7 @@ export function buildProgram(opts: ProgramOptions = {}): Command {
   program.addCommand(installSkillCommand(cmdOpts));
   program.addCommand(uninstallCommand(cmdOpts));
   program.addCommand(hookCommand(cmdOpts));
+  program.addCommand(prSyncCommand(cmdOpts));
   // addCommand does not inherit these settings
   for (const c of [program, ...program.commands]) {
     c.exitOverride().configureOutput({ writeOut: stdout, writeErr: stderr });

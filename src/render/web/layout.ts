@@ -121,6 +121,11 @@ const FIT_CANVASES: Canvases = [
   [1140, 800],
   [420, 800],
 ];
+/** A PR or MR description: about 880px wide, and a reader scrolls down more readily than across. */
+export const DESCRIPTION_CANVASES: Canvases = [
+  [880, 1600],
+  [880, 2600],
+];
 /** Each of the Now and After panes, side by side on that laptop canvas. */
 export const PANE_CANVASES: Canvases = [
   [560, 770],

@@ -2,7 +2,7 @@ import { checkHeadline, flagged, type CheckSummary, type Mismatch } from '../ter
 import { esc, num } from './page.js';
 
 /** What each kind of mismatch means for someone reading the diagram, keyed by `Mismatch.short`. */
-const MEANING: Record<string, string> = {
+export const MEANING: Record<string, string> = {
   'file missing': "The agent pointed this box at a file that isn't in the repo: the path is wrong, or the file was renamed or deleted. Treat the box as unverified.",
   'not in diff': 'The agent says this changed, but git shows no change to its file in the checked range. The box may describe the change wrongly.',
   'match not found': "The agent quoted a line from this file as proof, but the file doesn't contain it. The box may describe code that isn't there.",
@@ -13,10 +13,10 @@ const MEANING: Record<string, string> = {
 const CHECK_INTRO =
   "codechart checked what the agent drew against the repo's files and, when given one, the git diff. A ✗ marks a claim the code doesn't back up:";
 
-const UNCOVERED_WHY =
+export const UNCOVERED_WHY =
   'The diff changes these files, but no box covers them and the agent didn\'t list them under "Not on map". The map may leave out part of the change.';
 
-const UNCHECKED_WHY =
+export const UNCHECKED_WHY =
   "Rendered without --git, --since or --commit, so codechart checked the files but not which ones this change touched.";
 
 const meaning = (m: Mismatch): string => MEANING[m.short] ?? '';
