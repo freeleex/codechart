@@ -193,6 +193,22 @@ describe('codechart render', () => {
     expect(readdirSync(join(out, repoFolder(other)))).toHaveLength(1);
   });
 
+  it('a page embeds its repo folder (name plus path hash) as the key for saved ticks', async () => {
+    const other = join(tmp, 'elsewhere', 'myrepo');
+    mkdirSync(join(other, '.git'), { recursive: true });
+    config('', other);
+    await run(['render', specFile(spec(2)), '--output', 'web']);
+    await run(['render', specFile(spec(2)), '--output', 'web'], { cwd: other });
+    const keyOf = (root: string) => {
+      const dir = join(out, repoFolder(root));
+      const page = readFileSync(join(dir, readdirSync(dir)[0]!), 'utf8');
+      return (JSON.parse(/id="spec-data">(.*?)<\/script>/.exec(page)![1]!) as { repoKey: string }).repoKey;
+    };
+    expect(keyOf(repo)).toBe(repoFolder(repo));
+    expect(keyOf(other)).toBe(repoFolder(other));
+    expect(keyOf(repo)).not.toBe(keyOf(other));
+  });
+
   it('relative spec path resolves against cwd', async () => {
     specFile(spec(2), repo);
     const r = await run(['render', 'spec.json', '--output', 'cli']);

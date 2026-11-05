@@ -169,6 +169,16 @@ describe('remembering ticks', () => {
     expect(reviewed()).toEqual(['tbl.orders']);
   });
 
+  it('two repos with the same name keep separate ticks when their keys differ', () => {
+    mount(shopWith(diff('a'), 'app', 'app-11111111'));
+    click(tick('tbl.orders'));
+    mount(shopWith(diff('a'), 'app', 'app-22222222'), false);
+    expect(reviewed()).toEqual([]);
+    mount(shopWith(diff('a'), 'app', 'app-11111111'), false);
+    expect(reviewed()).toEqual(['tbl.orders']);
+    expect(localStorage.getItem('codechart.reviewed:app-11111111')).not.toBeNull();
+  });
+
   it("saving leaves another page's ticks of the repo alone", () => {
     localStorage.setItem('codechart.reviewed:demo', JSON.stringify([['elsewhere', '']]));
     mount(shopPage, false);

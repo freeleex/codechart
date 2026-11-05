@@ -9,7 +9,10 @@ export type { Theme };
 
 export interface HtmlMeta {
   generatedAt: Date;
+  /** Shown in the header. */
   repo: string;
+  /** What saved ticks are filed under; unlike `repo`, tells same-named repos apart. Defaults to `repo`. */
+  repoKey?: string;
   theme?: Theme;
   /** A newer codechart version, known from the last daily check. */
   update?: string;
@@ -93,7 +96,7 @@ const CSP = `default-src 'none'; style-src 'unsafe-inline'; script-src 'sha256-$
 
 export function renderPage(p: PageParts): string {
   const theme: Theme = p.meta.theme && THEMES.includes(p.meta.theme) ? p.meta.theme : 'auto';
-  const data = { width: p.width, height: p.height, repo: p.meta.repo };
+  const data = { width: p.width, height: p.height, repoKey: p.meta.repoKey ?? p.meta.repo };
   const defs = `<defs>${arrowMarker('arrow')}${p.extraDefs ?? ''}</defs>`;
   // Ids are document-wide, so the second pane's url(#arrow) finds the first pane's defs.
   const canvas = (viewport: string, i: number) =>

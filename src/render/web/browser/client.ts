@@ -23,7 +23,7 @@ interface Drag {
 
 const THEMES = ['auto', 'light', 'dark'];
 
-const data = JSON.parse(document.getElementById('spec-data')!.textContent!) as { width: number; height: number; repo: string };
+const data = JSON.parse(document.getElementById('spec-data')!.textContent!) as { width: number; height: number; repoKey: string };
 const canvases = [...document.querySelectorAll<HTMLElement>('.canvas')];
 const vps = [...document.querySelectorAll<SVGGElement>('.viewport')];
 const panel = document.getElementById('panel')!;
@@ -269,5 +269,5 @@ window.addEventListener('resize', fit);
 fit();
 dismissFocus(canvases, () => moved);
 initChips();
-const review = initReview(data.repo, goTo);
+const review = initReview(data.repoKey, goTo);
 initPanel();

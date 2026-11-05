@@ -538,7 +538,7 @@ export const CLIENT_JS = [
   "fit();",
   "dismissFocus(canvases, () => moved);",
   "initChips();",
-  "const review = initReview(data.repo, goTo);",
+  "const review = initReview(data.repoKey, goTo);",
   "initPanel();",
   "})();",
   "",

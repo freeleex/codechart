@@ -40,7 +40,7 @@ export function privateDir(dir: string): void {
 export async function writeHtml(build: (meta: HtmlMeta) => Promise<string>, o: HtmlWriteOptions): Promise<WrittenHtml> {
   const { config, now } = o;
   const file = htmlOutputPath(config, repoFolder(o.root), o.slug, now);
-  const html = await build({ generatedAt: now, repo: basename(o.root), theme: o.theme, ...(o.update && { update: o.update }) });
+  const html = await build({ generatedAt: now, repo: basename(o.root), repoKey: repoFolder(o.root), theme: o.theme, ...(o.update && { update: o.update }) });
   const dir = dirname(file);
   privateDir(dir);
   writeFileSync(file, html, { mode: 0o600 });

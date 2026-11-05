@@ -21,7 +21,8 @@ const shopLayout = await layoutSpec(shop);
 /** A one-pane map: new, changed, context and config nodes. */
 export const shopPage = renderHtml(shop, shopLayout, meta);
 /** The same map for another repo, with node diffs. */
-export const shopWith = (previews: Map<string, Preview>, repo = 'demo') => renderHtml(shop, shopLayout, { ...meta, repo }, undefined, previews);
+export const shopWith = (previews: Map<string, Preview>, repo = 'demo', repoKey?: string) =>
+  renderHtml(shop, shopLayout, { ...meta, repo, ...(repoKey && { repoKey }) }, undefined, previews);
 
 const plan = mapSpec({
   title: 'Users join teams',
