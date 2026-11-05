@@ -161,14 +161,18 @@ describe('codechart update', () => {
 
 describe('notices from other commands', () => {
   let sb: Sandbox;
-  let saved: string | undefined;
+  const keys = ['CODECHART_NO_UPDATE_CHECK', 'CI'] as const;
+  let saved: Partial<Record<(typeof keys)[number], string>>;
   beforeEach(() => {
     sb = makeSandbox('notice-cli', { htmlOut: true, git: 'init' });
-    saved = process.env.CODECHART_NO_UPDATE_CHECK;
-    delete process.env.CODECHART_NO_UPDATE_CHECK;
+    saved = {};
+    for (const k of keys) {
+      saved[k] = process.env[k];
+      delete process.env[k];
+    }
   });
   afterEach(() => {
-    if (saved !== undefined) process.env.CODECHART_NO_UPDATE_CHECK = saved;
+    for (const k of keys) if (saved[k] !== undefined) process.env[k] = saved[k];
     removeSandbox(sb.tmp);
   });
 
