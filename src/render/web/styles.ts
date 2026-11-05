@@ -28,8 +28,8 @@ main{flex:1;display:flex;min-height:0}
 aside{width:clamp(300px,35vw,600px);min-width:300px;max-width:80vw;border-left:1px solid var(--line);background:var(--panel);overflow:auto;padding:10px 14px}
 #resize{flex:none;width:5px;margin-right:-5px;position:relative;z-index:1;cursor:col-resize;touch-action:none}
 #resize:hover,#resize:focus-visible,#resize.drag{background:var(--edge);outline:none}
-#panel-nav{position:sticky;top:-10px;z-index:1;display:flex;gap:4px;margin:-10px -14px 8px;padding:6px 14px;background:var(--panel);border-bottom:1px solid var(--line)}
-#panel-nav button{padding:0 8px;font:13px/20px system-ui,sans-serif;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:10px;cursor:pointer}
+#panel-nav{float:right;display:flex;gap:4px;margin:0 0 4px 8px}
+#panel-nav button{padding:0 7px;font:13px/20px system-ui,sans-serif;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:10px;cursor:pointer}
 #panel-nav button:hover:not(:disabled){border-color:var(--edge)}#panel-nav button:disabled{opacity:.4;cursor:default}
 aside h2{margin:0 0 6px;font-size:13px;overflow-wrap:anywhere}
 aside h3{margin:12px 0 4px;font-size:11px;text-transform:uppercase;color:var(--muted)}
