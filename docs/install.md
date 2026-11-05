@@ -42,7 +42,7 @@ Agents load a skill only when they think of it, and in long sessions they someti
 - **Reminder line**: one line in your agents' global instructions file (`~/.claude/CLAUDE.md`, `~/.config/opencode/AGENTS.md`, `~/.codex/AGENTS.md`, `~/.gemini/GEMINI.md`) asking them to use codechart for changes that touch 3+ files or add branching behaviour. It sits between `<!-- codechart -->` markers; an older line there is replaced.
 - **Claude Code hook** (only when Claude Code gets the skill): adds `codechart hook prompt` (UserPromptSubmit) and `codechart hook stop` (Stop) to `~/.claude/settings.json`. When a turn changed 3+ files and the reply has no diagram, Claude is asked once to follow the skill. Files you had already changed before the turn don't count. If `settings.json` isn't valid JSON, codechart leaves it alone: add the two hooks by hand.
 
-The hook keeps, per session, the names and content hashes of your changed files in `~/.cache/codechart/turns` (removed after 7 days), never their contents.
+The hook keeps, per session, the names and content hashes of your changed files in `~/.cache/codechart/turns` (removed after 7 days), never their contents. It also logs there what it decided each turn (and whether the transcript showed the skill loaded), which `codechart doctor --last` reads.
 
 ## Common questions
 
@@ -51,6 +51,12 @@ The skill pipes the spec in with a heredoc (`codechart render --md - <<'EOF'`). 
 
 **I use VS Code, Cursor, Windsurf or Antigravity, and "Open full map" shows HTML source.**
 Those editors open file links as text. codechart detects them and opens new pages in your browser instead. Where the editor doesn't allow that (Antigravity sandboxes agent commands), the reply includes the page's address to paste into your browser. Turn auto-open off with `web.open: never` in `~/.config/codechart/config.yaml` (see [Configuration](configuration.md)).
+
+## No diagram appeared
+
+Run `codechart doctor`. It checks, for each agent it finds, that the skill is installed and current, the reminder line is there and (Claude Code) the hooks are set, and that `codechart` is on PATH and not behind the newest version. Each problem ends with the command that fixes it. A ✗ (skill missing or outdated, outdated reminder, CLI off PATH or behind) makes it exit 1; a missing reminder or hook is only a ⚠, because you may have left it out with `--no-reminder` / `--no-hook`. `codechart doctor --fix` runs the ✗ fixes and checks again; the ⚠ ones it only names (add them with the command shown). A skill folder that isn't codechart's is only reported, never overwritten. It ends with a short prompt to paste into the agent as a test.
+
+Everything checks out but a turn still got no diagram? Run `codechart doctor --last` in that repo (Claude Code only for now). It reads what the hooks logged for the latest turn and says in plain words what the Stop hook decided, which rule would fire on the changed files, where the hook's 3-file threshold and the rules disagree, and whether the skill was loaded (not recorded for a turn that changed no files). No log at all means the hooks never ran: sessions hosted by the Claude Agent SDK sometimes load none ([anthropics/claude-code#87657](https://github.com/anthropics/claude-code/issues/87657)); start a new session after fixing what `doctor` shows.
 
 ## Uninstall
 

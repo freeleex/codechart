@@ -54,6 +54,19 @@ export function addReminder(file: string): 'added' | 'updated' | 'present' {
   return 'added';
 }
 
+/** How the reminder line in `file` looks, without touching it. */
+export function reminderState(file: string): 'present' | 'outdated' | 'missing' {
+  let text: string | undefined;
+  try {
+    text = readRegular(file).text;
+  } catch {
+    return 'missing';
+  }
+  const block = text === undefined ? undefined : blockAt(text);
+  if (!text || !block) return 'missing';
+  return text.slice(...block) === BLOCK ? 'present' : 'outdated';
+}
+
 /** Removes the reminder and the blank line added before it; the file stays, even when left empty. */
 export function removeReminder(file: string): 'removed' | 'absent' {
   const { path, text } = readRegular(file);
@@ -72,6 +85,22 @@ const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'obj
 
 const isCodechartHook = (h: unknown) => isObject(h) && typeof h.command === 'string' && h.command.startsWith('codechart hook ');
 
+const runs = (command: string) => (h: unknown) => isObject(h) && h.command === command;
+
+const hasHook = (groups: unknown[], is: (h: unknown) => boolean) => groups.some((g) => isObject(g) && Array.isArray(g.hooks) && g.hooks.some(is));
+
+/** Drops the codechart hooks (right or wrong command) from `groups`, and any group they leave empty. */
+function withoutCodechart(groups: unknown[]): { kept: unknown[]; removed: boolean } {
+  let removed = false;
+  const kept = groups.flatMap((g) => {
+    if (!isObject(g) || !Array.isArray(g.hooks) || !g.hooks.some(isCodechartHook)) return [g];
+    removed = true;
+    const hooks = g.hooks.filter((h) => !isCodechartHook(h));
+    return hooks.length ? [{ ...g, hooks }] : [];
+  });
+  return { kept, removed };
+}
+
 function readSettings(file: string): { path: string; settings: Record<string, unknown> & { hooks: Record<string, unknown> } } {
   const { path, text } = readRegular(file);
   let settings: unknown;
@@ -86,15 +115,15 @@ function readSettings(file: string): { path: string; settings: Record<string, un
   return { path, settings: settings as Record<string, unknown> & { hooks: Record<string, unknown> } };
 }
 
-/** Adds the codechart hooks to a Claude Code settings.json, keeping everything else. */
+/** Adds the codechart hooks to a Claude Code settings.json, keeping everything else; a codechart hook with another command for an event is replaced. */
 export function installClaudeHooks(file: string): 'added' | 'present' {
   const { path, settings } = readSettings(file);
   let added = false;
   for (const [event, command] of Object.entries(HOOK_COMMANDS) as [keyof typeof HOOK_COMMANDS, string][]) {
     const groups = (settings.hooks[event] ??= []);
     if (!Array.isArray(groups)) throw new Error(`${file}: "hooks.${event}" is not a list`);
-    if (groups.some((g) => isObject(g) && Array.isArray(g.hooks) && g.hooks.some(isCodechartHook))) continue;
-    groups.push({ hooks: [{ type: 'command', command, timeout: TIMEOUTS[event] }] });
+    if (hasHook(groups, runs(command))) continue;
+    settings.hooks[event] = [...withoutCodechart(groups).kept, { hooks: [{ type: 'command', command, timeout: TIMEOUTS[event] }] }];
     added = true;
   }
   if (!added) return 'present';
@@ -103,19 +132,31 @@ export function installClaudeHooks(file: string): 'added' | 'present' {
   return 'added';
 }
 
+/**
+ * Per event (UserPromptSubmit, Stop) of a Claude Code settings.json: `ok` runs the command install writes, `wrong` has a codechart hook with another one.
+ * Throws like installClaudeHooks on a file it can't read.
+ */
+export function claudeHookEvents(file: string): { ok: string[]; wrong: string[] } {
+  const { settings } = readSettings(file);
+  const state = { ok: [] as string[], wrong: [] as string[] };
+  for (const [event, command] of Object.entries(HOOK_COMMANDS)) {
+    const groups = settings.hooks[event];
+    if (!Array.isArray(groups)) continue;
+    if (hasHook(groups, runs(command))) state.ok.push(event);
+    else if (hasHook(groups, isCodechartHook)) state.wrong.push(event);
+  }
+  return state;
+}
+
 /** Removes only the codechart hooks, then any group or event they leave empty. */
 export function removeClaudeHooks(file: string): 'removed' | 'absent' {
   const { path, settings } = readSettings(file);
   let removed = false;
   for (const [event, groups] of Object.entries(settings.hooks)) {
     if (!Array.isArray(groups)) continue;
-    const kept = groups.flatMap((g) => {
-      if (!isObject(g) || !Array.isArray(g.hooks) || !g.hooks.some(isCodechartHook)) return [g];
-      removed = true;
-      const hooks = g.hooks.filter((h) => !isCodechartHook(h));
-      return hooks.length ? [{ ...g, hooks }] : [];
-    });
-    if (kept.length) settings.hooks[event] = kept;
+    const out = withoutCodechart(groups);
+    removed ||= out.removed;
+    if (out.kept.length) settings.hooks[event] = out.kept;
     else delete settings.hooks[event];
   }
   if (!removed) return 'absent';

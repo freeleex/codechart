@@ -5,7 +5,9 @@ import { Argument, Command } from 'commander';
 import { findRepoRoot } from '../config/load.js';
 import type { CommandOptions } from '../program.js';
 import { gitDiffFiles, gitDirtyHashes, gitHead, gitListFiles } from '../rules/git-files.js';
+import { type Decision, recordPrompt, recordStop, turnsDir } from './hook-record.js';
 import { readStdin } from './stdin.js';
+import { DIAGRAM, scanTurn, type TurnScan } from './transcript.js';
 
 const MIN_FILES = 3;
 const MAX_INPUT = 1024 * 1024;
@@ -13,7 +15,6 @@ const MAX_TRANSCRIPT_TAIL = 8 * 1024 * 1024;
 const MAX_DIRTY = 5000;
 const KEEP_DAYS = 7;
 const SESSION_ID = /^[A-Za-z0-9_-]{1,128}$/;
-const DIAGRAM = /\*\*(Map|Flow)\*\*/;
 
 export interface Snapshot {
   head?: string;
@@ -28,36 +29,6 @@ export function changedFiles(before: Snapshot, now: Snapshot, diff: (from: strin
   }
   if (now.head && before.head !== now.head) for (const f of diff(before.head, now.head)) changed.add(f);
   return [...changed].sort();
-}
-
-type Entry = { type?: string; isMeta?: boolean; message?: { content?: unknown } };
-type Block = { type?: string; text?: string; input?: { command?: unknown } };
-
-const blocks = (e: Entry): Block[] => (Array.isArray(e.message?.content) ? (e.message.content as Block[]) : []);
-
-/** A prompt the user typed, not a tool result or an injected note. */
-const isPrompt = (e: Entry) =>
-  e.type === 'user' && !e.isMeta && (typeof e.message?.content === 'string' || (blocks(e).length > 0 && !blocks(e).some((b) => b.type === 'tool_result')));
-
-const CODECHART_RUN = /\bcodechart\s+(check|render)\b/;
-
-const showsCodechart = (b: Block) =>
-  (b.type === 'text' && DIAGRAM.test(b.text ?? '')) || (b.type === 'tool_use' && typeof b.input?.command === 'string' && CODECHART_RUN.test(b.input.command));
-
-/** Whether the agent, since the last prompt, showed a diagram or ran codechart (which may have said no diagram applies). */
-export function turnUsedCodechart(jsonl: string): boolean {
-  let used = false;
-  for (const line of jsonl.split('\n')) {
-    let e: Entry;
-    try {
-      e = JSON.parse(line) as Entry;
-    } catch {
-      continue;
-    }
-    if (isPrompt(e)) used = false;
-    else if (e.type === 'assistant' && blocks(e).some(showsCodechart)) used = true;
-  }
-  return used;
 }
 
 function readTail(file: string, max: number): string {
@@ -104,6 +75,14 @@ interface Turn {
   dir: string;
   file: string;
   input: Record<string, unknown>;
+  /** The transcript tail read once, only when something asks. */
+  scan: () => TurnScan | undefined;
+}
+
+interface Outcome {
+  decision: Decision;
+  files?: string[];
+  reminder?: string;
 }
 
 function onPrompt({ root, dir, file }: Turn, now: Date): void {
@@ -114,21 +93,51 @@ function onPrompt({ root, dir, file }: Turn, now: Date): void {
   else unlinkSync(file);
 }
 
-/** The reminder to print, or undefined when the turn needs none. */
-function onStop({ root, file, input }: Turn): string | undefined {
-  if (input.stop_hook_active === true) return undefined;
-  const before = JSON.parse(readFileSync(file, 'utf8')) as Snapshot & { root?: string };
-  if (before.root !== root) return undefined;
+function readSnapshot(file: string): (Snapshot & { root?: string }) | undefined {
+  try {
+    return JSON.parse(readFileSync(file, 'utf8')) as Snapshot & { root?: string };
+  } catch {
+    return undefined;
+  }
+}
+
+/** What the Stop hook decides, with the reminder to print when it asks for a diagram. */
+function onStop({ root, file, input, scan }: Turn): Outcome {
+  if (input.stop_hook_active === true) return { decision: 'stop_hook_active' };
+  const before = readSnapshot(file);
+  if (!before) return { decision: 'no-snapshot' };
+  if (before.root !== root) return { decision: 'other-root' };
   const now = snapshot(root);
-  if (!now) return undefined;
+  if (!now) return { decision: 'no-snapshot' };
   const files = changedFiles(before, now, (a, b) => (a ? gitDiffFiles(root, a, b) : gitListFiles(root, b)));
-  if (files.length < MIN_FILES) return undefined;
+  if (files.length < MIN_FILES) return { decision: 'few-files', files };
   const last = input.last_assistant_message;
-  if (typeof last === 'string' && DIAGRAM.test(last)) return undefined;
+  if (typeof last === 'string' && DIAGRAM.test(last)) return { decision: 'diagram-in-reply', files };
   // The transcript may lag the final reply (hence last_assistant_message), but holds the turn's earlier tool calls.
-  const transcript = input.transcript_path;
-  if (typeof transcript === 'string' && turnUsedCodechart(readTail(transcript, MAX_TRANSCRIPT_TAIL))) return undefined;
-  return `${JSON.stringify({ hookSpecificOutput: { hookEventName: 'Stop', additionalContext: nudge(files.length) } })}\n`;
+  const used = scan();
+  if (used && (used.diagram || used.cli)) return { decision: 'codechart-used', files };
+  const reminder = `${JSON.stringify({ hookSpecificOutput: { hookEventName: 'Stop', additionalContext: nudge(files.length) } })}\n`;
+  return { decision: 'nudged', files, reminder };
+}
+
+function record(turn: Turn, now: Date, outcome?: Outcome): void {
+  const at = now.toISOString();
+  const session = String(turn.input.session_id);
+  try {
+    if (!outcome) return recordPrompt(turn.dir, turn.root, session, at);
+    let seen: TurnScan | undefined;
+    // A turn that changed nothing skips the transcript read.
+    if (outcome.files?.length) {
+      try {
+        seen = turn.scan();
+      } catch {
+        seen = undefined;
+      }
+    }
+    recordStop(turn.dir, { at, root: turn.root, session, decision: outcome.decision, files: outcome.files, skill: seen?.skill, cli: seen?.cli });
+  } catch {
+    // The log is for doctor --last; it must never get in the way of the hook.
+  }
 }
 
 async function runHook(event: 'prompt' | 'stop', opts: CommandOptions): Promise<void> {
@@ -138,13 +147,23 @@ async function runHook(event: 'prompt' | 'stop', opts: CommandOptions): Promise<
   if (typeof id !== 'string' || !SESSION_ID.test(id) || typeof cwd !== 'string') return;
   const root = findRepoRoot(cwd);
   if (!root) return;
-  const dir = join(opts.home ?? homedir(), '.cache', 'codechart', 'turns');
-  const turn = { root, dir, file: join(dir, `${id}.json`), input };
-  if (event === 'prompt') onPrompt(turn, opts.now?.() ?? new Date());
-  else {
-    const reminder = onStop(turn);
-    if (reminder) opts.stdout(reminder);
+  const dir = turnsDir(opts.home ?? homedir());
+  const path = input.transcript_path;
+  let scanned: TurnScan | undefined;
+  const scan = () => (scanned ??= typeof path === 'string' ? scanTurn(readTail(path, MAX_TRANSCRIPT_TAIL)) : undefined);
+  const turn = { root, dir, file: join(dir, `${id}.json`), input, scan };
+  const now = opts.now?.() ?? new Date();
+  if (event === 'prompt') {
+    try {
+      onPrompt(turn, now);
+    } finally {
+      record(turn, now);
+    }
+    return;
   }
+  const outcome = onStop(turn);
+  record(turn, now, outcome);
+  if (outcome.reminder) opts.stdout(outcome.reminder);
 }
 
 export function hookCommand(opts: CommandOptions): Command {

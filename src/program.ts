@@ -1,6 +1,7 @@
 import { Command, CommanderError } from 'commander';
 import { checkCommand } from './commands/check.js';
 import { configCommand } from './commands/config.js';
+import { doctorCommand } from './commands/doctor.js';
 import { hookCommand } from './commands/hook.js';
 import { initCommand } from './commands/init.js';
 import { prSyncCommand } from './commands/pr-sync.js';
@@ -36,7 +37,7 @@ export interface ProgramOptions {
 }
 
 // Run by hooks and CI, or checking on their own.
-const NO_NOTICE = new Set(['hook', 'pr-sync', 'update', 'uninstall']);
+const NO_NOTICE = new Set(['hook', 'pr-sync', 'update', 'uninstall', 'doctor']);
 
 async function noticeAfter(name: string, opts: ProgramOptions, stderr: (s: string) => void): Promise<void> {
   if (opts.updateCheck === false || NO_NOTICE.has(name)) return;
@@ -77,6 +78,7 @@ export function buildProgram(opts: ProgramOptions = {}): Command {
   program.addCommand(prSyncCommand(cmdOpts));
   program.addCommand(setupPrMapsCommand(cmdOpts));
   program.addCommand(updateCommand(cmdOpts));
+  program.addCommand(doctorCommand(cmdOpts));
   program.hook('postAction', (_program, action) => noticeAfter(action.name(), cmdOpts, stderr));
   // addCommand does not inherit these settings
   for (const c of [program, ...program.commands]) {
