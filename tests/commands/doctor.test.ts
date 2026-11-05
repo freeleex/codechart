@@ -15,14 +15,19 @@ beforeEach(() => {
   sb = makeSandbox('doctor', { git: 'init' });
   const bin = join(sb.tmp, 'bin');
   mkdirSync(bin);
-  writeFileSync(join(bin, 'codechart'), '#!/bin/sh\n');
+  for (const name of ['codechart', 'codechart.cmd']) writeFileSync(join(bin, name), '#!/bin/sh\n');
   chmodSync(join(bin, 'codechart'), 0o755);
   env = { PATH: bin };
 });
 
 afterEach(() => removeSandbox(sb.tmp));
 
-const run = (args: string[], extra: Parameters<typeof runCli>[0] = {}) => runCli({ cwd: sb.repo, home: sb.home, env, ...extra }, args);
+// Paths print natively (like install-skill); tests compare with the home folder as ~ and / separators.
+const norm = (s: string) => s.split(sb.home).join('~').replaceAll('\\', '/');
+const run = async (args: string[], extra: Parameters<typeof runCli>[0] = {}) => {
+  const r = await runCli({ cwd: sb.repo, home: sb.home, env, ...extra }, args);
+  return { ...r, out: norm(r.out), err: norm(r.err) };
+};
 const home = (...p: string[]) => join(sb.home, ...p);
 const install = (...agents: string[]) => {
   for (const a of agents) mkdirSync(home(a === 'claude' ? '.claude' : `.${a}`), { recursive: true });
@@ -41,7 +46,8 @@ describe('doctor', () => {
     expect(r.code).toBeUndefined();
     expect(r.out).toContain('Claude Code\n  ✓ skill: ~/.claude/skills/codechart (current)\n  ✓ reminder: ~/.claude/CLAUDE.md\n  ✓ hook: Stop and prompt hooks in ~/.claude/settings.json\n');
     expect(r.out).toContain('Codex\n  ✓ skill: ~/.agents/skills/codechart (current)\n  ✓ reminder: ~/.codex/AGENTS.md\n  ⚠ hook: no codechart hook for Codex yet\n');
-    expect(r.out).toContain(`  ✓ on PATH: ${join(sb.tmp, 'bin', 'codechart')}\n  ✓ version ${currentVersion()} (npm not checked yet)\n`);
+    expect(r.out).toContain(`  ✓ on PATH: ${norm(join(sb.tmp, 'bin'))}/codechart`);
+    expect(r.out).toContain(`\n  ✓ version ${currentVersion()} (npm not checked yet)\n`);
     expect(r.out).toContain('To test, paste into your agent:');
     expect(lines(r.out).some((l) => l.includes('✗'))).toBe(false);
   });
@@ -161,7 +167,7 @@ describe('doctor --fix', () => {
     mkdirSync(home('.claude'));
     mkdirSync(home('.codex'));
     const r = await run(['doctor', '--fix']);
-    expect(r.out).toContain(`installed for Claude Code: ${home('.claude', 'skills', 'codechart')}`);
+    expect(r.out).toContain(`installed for Claude Code: ${norm(home('.claude', 'skills', 'codechart'))}`);
     expect(r.out).toContain('not added (opt-in): codechart install-skill --agent claude --reminder\n');
     expect(r.out).toContain('not added (opt-in): codechart install-skill --agent claude --hook\n');
     expect(r.out).toContain('not added (opt-in): codechart install-skill --agent codex --reminder\n');
@@ -179,7 +185,7 @@ describe('doctor --fix', () => {
     delete s.hooks.Stop;
     writeFileSync(file, JSON.stringify(s));
     const r = await run(['doctor', '--fix']);
-    expect(r.out).toContain(`hook added: ${file}`);
+    expect(r.out).toContain(`hook added: ${norm(file)}`);
     expect(r.code).toBeUndefined();
   });
 

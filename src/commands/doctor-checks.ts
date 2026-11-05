@@ -1,5 +1,5 @@
 import { existsSync, lstatSync } from 'node:fs';
-import { delimiter, join, win32 } from 'node:path';
+import { join, posix, win32 } from 'node:path';
 import type { CommandOptions } from '../program.js';
 import { currentVersion, isNewer, readState } from '../update/check.js';
 import { AGENTS, isCodechartSkill, skillFolders, type AgentPreset } from './agents.js';
@@ -28,13 +28,13 @@ export interface Section {
 /** The first `codechart` on PATH, as a shell would find it. */
 export function findOnPath(env: NodeJS.ProcessEnv, platform: NodeJS.Platform = process.platform, exists: (p: string) => boolean = existsSync): string | undefined {
   const win = platform === 'win32';
-  const dirs = (win ? (env.PATH ?? env.Path ?? '') : (env.PATH ?? '')).split(win ? ';' : delimiter);
+  const dirs = (win ? (env.PATH ?? env.Path ?? '') : (env.PATH ?? '')).split(win ? ';' : ':');
   const names = win ? (env.PATHEXT ?? '.COM;.EXE;.BAT;.CMD').split(';').map((e) => `codechart${e.toLowerCase()}`) : ['codechart'];
   for (const raw of dirs) {
     const dir = win ? raw.replace(/^"(.*)"$/, '$1') : raw;
     if (!dir) continue;
     for (const name of names) {
-      const file = win ? win32.join(dir, name) : join(dir, name);
+      const file = (win ? win32 : posix).join(dir, name);
       if (exists(file)) return file;
     }
   }

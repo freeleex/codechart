@@ -8,11 +8,10 @@ const MARK = { ok: '✓', warn: '⚠', bad: '✗' } as const;
 
 const TEST_PROMPT = 'Add a constant to one file, use it in two other files, then summarize what changed.';
 
-function show(sections: Section[], home: string, opts: CommandOptions): void {
-  const short = (s: string) => s.split(home).join('~');
+function show(sections: Section[], opts: CommandOptions): void {
   for (const { title, items } of sections) {
     opts.stdout(`${title}\n`);
-    for (const i of items) opts.stdout(`  ${MARK[i.level]} ${short(i.text)}${i.fix ? `: run ${i.fix}` : ''}\n`);
+    for (const i of items) opts.stdout(`  ${MARK[i.level]} ${i.text}${i.fix ? `: run ${i.fix}` : ''}\n`);
   }
   opts.stdout(`\nTo test, paste into your agent:\n  ${TEST_PROMPT}\nA codechart map should follow the reply.\n`);
 }
@@ -47,7 +46,7 @@ export function doctorCommand(opts: CommandOptions): Command {
       }
       if (o.fix) await fix(runChecks(home, opts), opts);
       const sections = runChecks(home, opts);
-      show(sections, home, opts);
+      show(sections, opts);
       if (bad(sections).length) process.exitCode = 1;
     });
 }
