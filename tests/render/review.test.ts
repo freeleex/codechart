@@ -88,6 +88,16 @@ describe('progress and next unreviewed', () => {
     expect(count()).toBe('2/12 reviewed');
   });
 
+  it('fills a progress bar in step with the count', () => {
+    mount(shopPage);
+    const fill = () => q<HTMLElement>('#review-bar i').style.width;
+    expect(fill()).toBe('0%');
+    click(tick('tbl.orders'));
+    click(tick('tbl.customers'));
+    click(tick('tbl.invoices'));
+    expect(fill()).toBe('25%');
+  });
+
   it('selects the next unticked node after the selected one and wraps round', () => {
     mount(shopPage);
     const ids = qa('.node').map((g) => g.getAttribute('data-id')!);

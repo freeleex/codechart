@@ -28,6 +28,20 @@ describe('status chips', () => {
     expect(shopPage).toContain('opacity:calc(var(--base,1)*var(--fade,1)*var(--dim,1))');
   });
 
+  it('chips and review progress share one slim row under the header, for the whole page', () => {
+    for (const html of [shopPage, panesPage, flowPage]) {
+      mount(html);
+      const row = qa('#toolbar');
+      expect(row).toHaveLength(1);
+      expect(row[0]!.previousElementSibling?.tagName).toBe('HEADER');
+      expect(row[0]!.nextElementSibling?.tagName).toBe('MAIN');
+      expect(row[0]!.querySelector('#chips .chip')).not.toBeNull();
+      expect(row[0]!.querySelector('#review-count')).not.toBeNull();
+      expect(q('header #chips, header #review')).toBeNull();
+    }
+    expect(qa('#chips')).toHaveLength(1);
+  });
+
   it('chips carry the status colour class', () => {
     mount(shopPage);
     expect(chip('new').className).toContain('chip-new');

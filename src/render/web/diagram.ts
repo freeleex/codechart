@@ -85,7 +85,7 @@ export function renderDiagramPage(p: DiagramPage): string {
     meta: p.meta,
     infoButton: p.infoButton,
     headerNote: checkNote(p.check),
-    headerTools: statusChips(p.statuses) + reviewControls(p.statuses.length),
+    toolbar: statusChips(p.statuses) + reviewControls(p.statuses.length),
     viewport: p.sides ? '' : p.viewport(),
     ...(p.sides ? { panes: SIDES.map((side) => ({ title: SIDE_TITLE[side], key: p.paneKey[side], viewport: p.viewport(side) })) } : {}),
     aside: p.aside,

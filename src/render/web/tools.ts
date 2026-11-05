@@ -7,7 +7,7 @@ const CHIP_MARK: Record<string, string> = { new: '+', changed: '~', removed: '�
 /** The statuses a "Δ changes only" chip fades. */
 const UNCHANGED = ['context', 'existing'];
 
-/** The header's status key and filter: a chip per status present, led by "Δ changes only" when unchanged nodes exist. */
+/** The toolbar's status key and filter: a chip per status present, led by "Δ changes only" when unchanged nodes exist. */
 export function statusChips(statuses: string[]): string {
   const counts = new Map<string, number>();
   for (const s of statuses) counts.set(s, (counts.get(s) ?? 0) + 1);
@@ -21,11 +21,11 @@ export function statusChips(statuses: string[]): string {
       `<button type="button" class="chip chip-delta" data-delta="${unchanged}" aria-pressed="false" title="Fade ${unchanged} nodes, leaving only the changes">Δ changes only</button>`,
     );
   }
-  return chips.length ? `<span id="chips" role="group" aria-label="Status filter">${chips.join('')}</span>` : '';
+  return chips.length ? `<div id="chips" role="group" aria-label="Status filter">${chips.join('')}</div>` : '';
 }
 
 export const reviewControls = (total: number): string =>
-  `<span id="review"><span id="review-count">0/${total} reviewed</span><button id="next-unreviewed" type="button" title="Next unreviewed: select the next node not ticked as reviewed" aria-label="Next unreviewed">Next ▸</button></span>`;
+  `<div id="review"><span id="review-count">0/${total} reviewed</span><span id="review-bar" aria-hidden="true"><i></i></span><button id="next-unreviewed" type="button" title="Next unreviewed: select the next node not ticked as reviewed" aria-label="Next unreviewed">Next ▸</button></div>`;
 
 /** Ties a node's tick to its code: the hash changes when the node's diff does. */
 export const diffRev = (p: Preview | undefined): string | undefined =>

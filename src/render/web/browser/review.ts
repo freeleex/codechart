@@ -29,6 +29,7 @@ export function initReview(repo: string, goTo: (id: string) => void): Review {
   const saved = savedTicks(key);
   const done = new Set(ids.filter((id) => saved.get(id) === revs.get(id)));
   const count = document.getElementById('review-count');
+  const bar = document.querySelector<HTMLElement>('#review-bar i');
   const next = document.getElementById('next-unreviewed') as HTMLButtonElement | null;
   const paint = () => {
     document.querySelectorAll('.node').forEach((g) => g.classList.toggle('reviewed', done.has(g.getAttribute('data-id')!)));
@@ -36,6 +37,7 @@ export function initReview(repo: string, goTo: (id: string) => void): Review {
       i.checked = done.has(i.getAttribute('data-tick-for')!);
     });
     if (count) count.textContent = `${done.size}/${ids.length} reviewed`;
+    if (bar) bar.style.width = `${(done.size / ids.length) * 100}%`;
     if (next) next.disabled = done.size === ids.length;
   };
   const toggle = (id: string) => {
