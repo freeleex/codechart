@@ -45,8 +45,10 @@ const alt = (key: string) => window.dispatchEvent(new KeyboardEvent('keydown', {
 const added: [string, EventListenerOrEventListenerObject][] = [];
 const addListener = window.addEventListener.bind(window);
 
-function mount(html: string, hash = ''): void {
-  history.replaceState(null, '', `/${hash}`);
+/** `hash` null: keep the current history entry, as a reload does. */
+function mount(html: string, hash: string | null = ''): void {
+  for (const [type, fn] of added.splice(0)) window.removeEventListener(type, fn);
+  if (hash !== null) history.replaceState(null, '', `/${hash}`);
   document.documentElement.innerHTML = html.replace(/^[\s\S]*?<html[^>]*>/i, '').replace(/<\/html>\s*$/i, '');
   for (const s of document.querySelectorAll('script')) if (s.type !== 'application/json') new Function(s.textContent ?? '')();
 }
@@ -122,6 +124,40 @@ describe('panel history', () => {
     expect(shown()).toBe('tbl.orders');
     alt('ArrowRight');
     expect(shown()).toBe('tbl.invoices');
+  });
+
+  it('Alt+← with nothing to go back to is left to the browser', () => {
+    mount(page);
+    const e = new KeyboardEvent('keydown', { key: 'ArrowLeft', altKey: true, cancelable: true });
+    window.dispatchEvent(e);
+    expect(e.defaultPrevented).toBe(false);
+    open('tbl.orders');
+    const e2 = new KeyboardEvent('keydown', { key: 'ArrowLeft', altKey: true, cancelable: true });
+    window.dispatchEvent(e2);
+    expect(e2.defaultPrevented).toBe(true);
+  });
+
+  it('after a reload Back and Forward still reach the visits around this one', () => {
+    mount(page);
+    open('tbl.orders');
+    open('tbl.invoices');
+    click(back());
+    mount(page, null);
+    expect(shown()).toBe('tbl.orders');
+    expect(back().disabled).toBe(false);
+    expect(forward().disabled).toBe(false);
+    click(forward());
+    expect(shown()).toBe('tbl.invoices');
+  });
+
+  it('following a #node= link in the same tab opens that node and Back returns', () => {
+    mount(page);
+    open('tbl.orders');
+    history.pushState(null, '', '#node=tbl.invoices');
+    window.dispatchEvent(new PopStateEvent('popstate', { state: null }));
+    expect(shown()).toBe('tbl.invoices');
+    click(back());
+    expect(shown()).toBe('tbl.orders');
   });
 
   it("the browser's own Back walks the same history", () => {

@@ -165,24 +165,24 @@ function reveal(v: Visit): void {
 function initPanel(): void {
   const backBtn = document.getElementById('nav-back') as HTMLButtonElement;
   const forwardBtn = document.getElementById('nav-forward') as HTMLButtonElement;
-  const asked = visitFromHash(location.hash);
-  const first = asked === undefined || (asked !== null && !panelFor(asked)) ? null : asked;
+  const asked = () => {
+    const v = visitFromHash(location.hash);
+    return v === undefined || (v !== null && !panelFor(v)) ? undefined : v;
+  };
   const visit = (v: Visit, travelled: boolean) => {
     open(v);
     if (travelled) reveal(v);
   };
-  const trail = startTrail(first, visit, (back, forward) => {
+  const trail = startTrail(asked, visit, (back, forward) => {
     backBtn.disabled = !back;
     forwardBtn.disabled = !forward;
   });
-  visit(first, true);
   backBtn.addEventListener('click', () => trail.back());
   forwardBtn.addEventListener('click', () => trail.forward());
   window.addEventListener('keydown', (e) => {
     if (!e.altKey || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return;
-    e.preventDefault();
-    if (e.key === 'ArrowLeft') trail.back();
-    else trail.forward();
+    // At either end the browser's own shortcut takes over, leaving the page.
+    if (e.key === 'ArrowLeft' ? trail.back() : trail.forward()) e.preventDefault();
   });
   const showInfo = () => trail.go(null);
   if (infoBtn) infoBtn.addEventListener('click', showInfo);
@@ -265,8 +265,8 @@ function initPanelResize(): void {
 
 initPanZoom();
 initPaneLink();
+initTheme();
+initPanelResize();
 window.addEventListener('resize', fit);
 fit();
 initPanel();
-initTheme();
-initPanelResize();

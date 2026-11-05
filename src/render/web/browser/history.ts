@@ -6,8 +6,9 @@ export type Visit = string | null;
 export interface Trail {
   /** Shows `v` as a new visit and drops anything ahead of it, like a browser. */
   go(v: Visit): void;
-  back(): void;
-  forward(): void;
+  /** False when there is nothing to go back to. */
+  back(): boolean;
+  forward(): boolean;
 }
 
 interface Entry {
@@ -42,20 +43,54 @@ function write(push: boolean, e: Entry): boolean {
   }
 }
 
-/** Starts on `first`; the browser's Back and Forward walk the same trail as the panel's buttons. */
-/** `open` gets `travelled` true when Back or Forward brought the visit back. */
-export function startTrail(first: Visit, open: (v: Visit, travelled: boolean) => void, moved: (back: boolean, forward: boolean) => void): Trail {
-  let saved: Entry | null = null;
+function savedEntry(): Entry | null {
   try {
-    saved = entryOf(history.state);
+    return entryOf(history.state);
   } catch {
-    // no history to resume
+    return null;
   }
-  // After a reload the earlier visits are still in the browser's history, behind this one.
+}
+
+// How far ahead the trail goes, per tab, so Forward survives a reload without rewriting entries after Back.
+const TOP_KEY = () => `codechart.trail:${location.pathname}`;
+
+function loadTop(): number {
+  try {
+    return Number(sessionStorage.getItem(TOP_KEY())) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+function saveTop(top: number): void {
+  try {
+    sessionStorage.setItem(TOP_KEY(), String(top));
+  } catch {
+    // Forward forgets the visits ahead after a reload
+  }
+}
+
+/**
+ * `asked`: the visit the URL names, if the page has it. The browser's Back and Forward walk the same trail as the
+ * panel's buttons; `open` gets `travelled` true when they brought the visit back rather than a new click.
+ */
+export function startTrail(asked: () => Visit | undefined, open: (v: Visit, travelled: boolean) => void, moved: (back: boolean, forward: boolean) => void): Trail {
+  const saved = savedEntry();
+  const first = asked() ?? null;
+  // After a reload the visits around this one are still in the browser's history.
   let at = saved ? saved.cc : 0;
-  const visits: Visit[] = new Array<Visit>(at).fill(null).concat(first);
-  let browser = write(false, { cc: at, v: first });
+  const visits: Visit[] = new Array<Visit>(Math.max(at, saved ? loadTop() : 0) + 1).fill(null);
+  visits[at] = first;
+  let browser = saved !== null || write(false, { cc: at, v: first });
   const report = () => moved(at > 0, at < visits.length - 1);
+  const add = (v: Visit, push: boolean) => {
+    at += 1;
+    visits.length = at;
+    visits.push(v);
+    if (browser) browser = write(push, { cc: at, v });
+    saveTop(at);
+    report();
+  };
   const step = (to: number) => {
     at = to;
     open(visits[at]!, true);
@@ -63,30 +98,37 @@ export function startTrail(first: Visit, open: (v: Visit, travelled: boolean) =>
   };
   window.addEventListener('popstate', (e) => {
     const s = entryOf(e.state);
-    if (!s) return;
-    visits[s.cc] = s.v;
-    step(s.cc);
+    if (s) {
+      visits[s.cc] = s.v;
+      step(s.cc);
+      return;
+    }
+    // A #node= link followed in this tab: the browser already made the entry.
+    const v = asked();
+    if (v === undefined) return;
+    add(v, false);
+    open(v, true);
   });
+  if (!saved) saveTop(0);
   report();
+  open(first, true);
   return {
     go(v) {
       if (v === visits[at]) return;
-      at += 1;
-      visits.length = at;
-      visits.push(v);
-      if (browser) browser = write(true, { cc: at, v });
+      add(v, true);
       open(v, false);
-      report();
     },
     back() {
-      if (at === 0) return;
+      if (at === 0) return false;
       if (browser) history.back();
       else step(at - 1);
+      return true;
     },
     forward() {
-      if (at === visits.length - 1) return;
+      if (at === visits.length - 1) return false;
       if (browser) history.forward();
       else step(at + 1);
+      return true;
     },
   };
 }
