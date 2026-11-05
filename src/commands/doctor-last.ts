@@ -33,7 +33,7 @@ function rulesLines(rec: TurnRecord, root: string, opts: CommandOptions, home: s
 
 function hasClaudeHooks(home: string): boolean {
   try {
-    return claudeHookEvents(join(home, '.claude', 'settings.json')).length === 2;
+    return claudeHookEvents(join(home, '.claude', 'settings.json')).ok.length === 2;
   } catch {
     return false;
   }

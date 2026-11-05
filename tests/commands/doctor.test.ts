@@ -84,6 +84,25 @@ describe('doctor', () => {
     expect(r.out).toContain('✗ hook: Stop missing in ~/.claude/settings.json: run codechart install-skill --agent claude --hook\n');
   });
 
+  it('hooks whose commands are swapped or misspelled are a ✗, and --fix replaces them', async () => {
+    await install('claude');
+    const file = home('.claude', 'settings.json');
+    const s = JSON.parse(readFileSync(file, 'utf8'));
+    s.hooks.UserPromptSubmit[0].hooks[0].command = 'codechart hook stop';
+    s.hooks.Stop[0].hooks[0].command = 'codechart hook stp';
+    s.hooks.Stop.push({ hooks: [{ type: 'command', command: 'mine' }] });
+    writeFileSync(file, JSON.stringify(s));
+    const r = await run(['doctor']);
+    expect(r.code).toBe(1);
+    expect(r.out).toContain('✗ hook: Stop runs the wrong command, UserPromptSubmit runs the wrong command in ~/.claude/settings.json: run codechart install-skill --agent claude --hook\n');
+    process.exitCode = undefined;
+    const fixed = await run(['doctor', '--fix']);
+    expect(fixed.code).toBeUndefined();
+    const after = JSON.parse(readFileSync(file, 'utf8'));
+    expect(JSON.stringify(after.hooks.UserPromptSubmit)).toBe(JSON.stringify([{ hooks: [{ type: 'command', command: 'codechart hook prompt', timeout: 10 }] }]));
+    expect(after.hooks.Stop).toEqual([{ hooks: [{ type: 'command', command: 'mine' }] }, { hooks: [{ type: 'command', command: 'codechart hook stop', timeout: 30 }] }]);
+  });
+
   it('agents sharing a skill folder: the ✗ and fix once, "same copy as" for the rest', async () => {
     mkdirSync(home('.codex'));
     mkdirSync(home('.gemini'));

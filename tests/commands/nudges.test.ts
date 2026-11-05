@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { changedFiles } from '../../src/commands/hook.js';
 import { latestRecord } from '../../src/commands/hook-record.js';
 import { scanTurn, turnUsedCodechart } from '../../src/commands/transcript.js';
-import { addReminder, installClaudeHooks, REMINDER, removeClaudeHooks, removeReminder } from '../../src/commands/nudges.js';
+import { addReminder, claudeHookEvents, installClaudeHooks, REMINDER, removeClaudeHooks, removeReminder } from '../../src/commands/nudges.js';
 import { buildProgram, runProgram } from '../../src/program.js';
 import { git, gitInit, makeSandbox, removeSandbox, runCli, repoFromTemplate } from '../helpers/sandbox.js';
 
@@ -71,6 +71,14 @@ describe('installClaudeHooks', () => {
     const text = readFileSync(file(), 'utf8');
     expect(installClaudeHooks(file())).toBe('present');
     expect(readFileSync(file(), 'utf8')).toBe(text);
+  });
+
+  it('claudeHookEvents tells the right command from a codechart hook with another one', () => {
+    mkdirSync(join(home, '.claude'));
+    writeFileSync(file(), JSON.stringify({ hooks: { UserPromptSubmit: [{ hooks: [{ command: 'codechart hook prompt' }] }], Stop: [{ hooks: [{ command: 'codechart hook prompt' }] }] } }));
+    expect(claudeHookEvents(file())).toEqual({ ok: ['UserPromptSubmit'], wrong: ['Stop'] });
+    expect(installClaudeHooks(file())).toBe('added');
+    expect(claudeHookEvents(file())).toEqual({ ok: ['UserPromptSubmit', 'Stop'], wrong: [] });
   });
 
   it('creates settings.json when missing', () => {

@@ -114,19 +114,21 @@ function reminderItem(a: AgentPreset & { instructions: string }, home: string, o
 
 function hookItem(home: string, opts: CommandOptions): Item {
   const file = join(home, '.claude', 'settings.json');
-  let events: string[];
+  let state: ReturnType<typeof claudeHookEvents>;
   try {
-    events = claudeHookEvents(file);
+    state = claudeHookEvents(file);
   } catch (e) {
     return { level: 'bad', text: `hook: ${(e as Error).message}` };
   }
-  if (events.length === 2) return { level: 'ok', text: `hook: Stop and prompt hooks in ${file}` };
+  if (state.ok.length === 2) return { level: 'ok', text: `hook: Stop and prompt hooks in ${file}` };
   const fix = 'codechart install-skill --agent claude --hook';
-  if (!events.length) return { level: 'warn', text: `hook: missing in ${file}`, fix };
-  const missing = ['Stop', 'UserPromptSubmit'].filter((e) => !events.includes(e)).join(' and ');
+  if (!state.ok.length && !state.wrong.length) return { level: 'warn', text: `hook: missing in ${file}`, fix };
+  const problems = ['Stop', 'UserPromptSubmit']
+    .filter((e) => !state.ok.includes(e))
+    .map((e) => `${e} ${state.wrong.includes(e) ? 'runs the wrong command' : 'missing'}`);
   return {
     level: 'bad',
-    text: `hook: ${missing} missing in ${file}`,
+    text: `hook: ${problems.join(', ')} in ${file}`,
     fix,
     run: () => opts.stdout(installClaudeHooks(file) === 'added' ? `hook added: ${file}\n` : `hook already in ${file}\n`),
   };
