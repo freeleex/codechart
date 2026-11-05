@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, expect, it } from 'vitest';
+import { relationsHtml, relationsOf } from '../../src/render/web/tools.js';
 import { click, flowPage, key, mount, node, panesPage, q, qa, shopPage, usePages } from '../helpers/page.js';
 
 usePages();
@@ -82,7 +83,7 @@ describe('relations in the panel', () => {
   it('lists outgoing and incoming links with their kind', () => {
     mount(panesPage);
     click(node('users'));
-    expect(rows()).toEqual(['← GET /users (reads)', '→ teams (fk)', '→ legacy_roles (fk)']);
+    expect(rows()).toEqual(['← GET /users (reads)', '→ teams (team_id)', '→ legacy_roles (role_id)']);
   });
 
   it('a row jumps to that node as a history visit', () => {
@@ -107,6 +108,23 @@ describe('relations in the panel', () => {
     mount(flowPage);
     click(node('mode'));
     expect(rows()).toEqual(['← read file or stdin', '→ print terminal map (cli)', '→ write html file (web)', '→ done (none)']);
+  });
+});
+
+describe('relation notes', () => {
+  const rows = (links: { from: string; to: string; label?: string; kind?: string }[]) =>
+    [...relationsHtml(relationsOf('a', links, (id) => id.toUpperCase())).matchAll(/>([→←][^<]*)</g)].map((m) => m[1]);
+
+  it('say the label, else the kind, and nothing for a bare "other"', () => {
+    expect(
+      rows([
+        { from: 'a', to: 'b', label: 'maps', kind: 'fk' },
+        { from: 'a', to: 'c', kind: 'reads' },
+        { from: 'd', to: 'a', kind: 'other' },
+        { from: 'a', to: 'e', label: 'x', kind: 'other' },
+        { from: 'a', to: 'f' },
+      ]),
+    ).toEqual(['→ B (maps)', '→ C (reads)', '← D', '→ E (x)', '→ F']);
   });
 });
 

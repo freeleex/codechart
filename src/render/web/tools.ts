@@ -25,7 +25,7 @@ export function statusChips(statuses: string[]): string {
 }
 
 export const reviewControls = (total: number): string =>
-  `<span id="review"><span id="review-count">0/${total} reviewed</span><button id="next-unreviewed" type="button" title="Select the next node not ticked as reviewed">Next unreviewed</button></span>`;
+  `<span id="review"><span id="review-count">0/${total} reviewed</span><button id="next-unreviewed" type="button" title="Next unreviewed: select the next node not ticked as reviewed" aria-label="Next unreviewed">Next ▸</button></span>`;
 
 /** Ties a node's tick to its code: the hash changes when the node's diff does. */
 export const diffRev = (p: Preview | undefined): string | undefined =>
@@ -46,13 +46,16 @@ interface Relation {
   kind?: string;
 }
 
+/** What a row says about the link: its label, else its kind unless that is "other". */
+const note = (l: { label?: string; kind?: string }) => l.label || (l.kind !== 'other' ? l.kind : undefined);
+
 /** The links of node `id`, each as the node on the other end. */
-export function relationsOf(id: string, links: { from: string; to: string; kind?: string }[], labelOf: (id: string) => string): Relation[] {
+export function relationsOf(id: string, links: { from: string; to: string; label?: string; kind?: string }[], labelOf: (id: string) => string): Relation[] {
   return links.flatMap((l) => {
     if (l.from !== id && l.to !== id) return [];
     const out = l.from === id;
     const other = out ? l.to : l.from;
-    return [{ out, id: other, label: labelOf(other), ...(l.kind ? { kind: l.kind } : {}) }];
+    return [{ out, id: other, label: labelOf(other), ...(note(l) ? { kind: note(l)! } : {}) }];
   });
 }
 

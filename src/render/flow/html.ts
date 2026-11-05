@@ -130,7 +130,7 @@ function stepPanel(spec: FlowSpec, step: FlowStep, snippets: FlowSnippets, byId:
     });
     out += `<h3>Next</h3><ul class="branches">${items.join('')}</ul>`;
   }
-  const links = spec.links.map((l) => ({ from: l.from, to: l.to, kind: l.label }));
+  const links = spec.links.map((l) => ({ from: l.from, to: l.to, label: l.label }));
   out += relationsHtml(relationsOf(step.id, links, (id) => byId.get(id)?.label ?? id));
   return `<template class="card-panel" data-for="${esc(step.id)}">${out}</template>`;
 }
