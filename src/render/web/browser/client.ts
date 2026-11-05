@@ -1,6 +1,8 @@
 // Runs in the generated page, not in node. `npm run gen:client` compiles it into ../client.ts,
 // which the page inlines (the CSP allows that one script by hash).
-import { startTrail, visitFromHash, type Visit } from './history.js';
+import { dismissFocus, focus } from './focus.js';
+import { startTrail, visitFromHash, type Trail, type Visit } from './history.js';
+import { load, save } from './store.js';
 
 interface View {
   x: number;
@@ -32,23 +34,7 @@ let linked = true;
 let last = 0;
 let drag: Drag | null = null;
 let moved = false;
-
-// Storage can be blocked (file://, privacy modes); the page then just forgets its settings.
-function load(key: string): string | null {
-  try {
-    return localStorage.getItem(key);
-  } catch {
-    return null;
-  }
-}
-
-function save(key: string, value: string): void {
-  try {
-    localStorage.setItem(key, value);
-  } catch {
-    // not remembered
-  }
-}
+let trail: Trail;
 
 function apply(): void {
   vps.forEach((vp, i) => {
@@ -141,6 +127,7 @@ const panelFor = (id: string) => document.querySelector<HTMLTemplateElement>(`te
 function open(v: Visit): void {
   const tpl = v === null ? null : panelFor(v);
   select(tpl ? v : null);
+  focus(tpl ? v : null);
   if (tpl) {
     panel.textContent = '';
     panel.appendChild(tpl.content.cloneNode(true));
@@ -162,6 +149,13 @@ function reveal(v: Visit): void {
   });
 }
 
+/** Opens the node as a visit and lights its relations. */
+function visit(id: string): void {
+  if (!panelFor(id)) return;
+  trail.go(id);
+  focus(id);
+}
+
 function initPanel(): void {
   const backBtn = document.getElementById('nav-back') as HTMLButtonElement;
   const forwardBtn = document.getElementById('nav-forward') as HTMLButtonElement;
@@ -169,11 +163,11 @@ function initPanel(): void {
     const v = visitFromHash(location.hash);
     return v === undefined || (v !== null && !panelFor(v)) ? undefined : v;
   };
-  const visit = (v: Visit, travelled: boolean) => {
+  const show = (v: Visit, travelled: boolean) => {
     open(v);
     if (travelled) reveal(v);
   };
-  const trail = startTrail(asked, visit, (back, forward) => {
+  trail = startTrail(asked, show, (back, forward) => {
     backBtn.disabled = !back;
     forwardBtn.disabled = !forward;
   });
@@ -184,14 +178,18 @@ function initPanel(): void {
     // At either end the browser's own shortcut takes over, leaving the page.
     if (e.key === 'ArrowLeft' ? trail.back() : trail.forward()) e.preventDefault();
   });
+  panel.addEventListener('click', (e) => {
+    const to = (e.target as Element).closest('[data-goto]')?.getAttribute('data-goto');
+    if (!to) return;
+    visit(to);
+    reveal(to);
+  });
   const showInfo = () => trail.go(null);
   if (infoBtn) infoBtn.addEventListener('click', showInfo);
   const checkBtn = document.querySelector('header .check.bad');
   if (checkBtn) checkBtn.addEventListener('click', showInfo);
   document.querySelectorAll<SVGGElement>('.node').forEach((g) => {
-    const go = () => {
-      if (panelFor(g.getAttribute('data-id')!)) trail.go(g.getAttribute('data-id'));
-    };
+    const go = () => visit(g.getAttribute('data-id')!);
     g.addEventListener('click', () => {
       if (!moved) go();
     });
@@ -269,4 +267,5 @@ initTheme();
 initPanelResize();
 window.addEventListener('resize', fit);
 fit();
+dismissFocus(canvases, () => moved);
 initPanel();

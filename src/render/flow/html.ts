@@ -1,9 +1,10 @@
 import { isPlannedLink, isRemovedLink, type FlowLink, type FlowSpec, type FlowStep } from '../../spec/flow.js';
 import type { CheckSummary } from '../terminal/check-lines.js';
 import { flagMark, flagTitle, mismatchNote } from '../web/check-html.js';
-import { infoButton, gapsHtml, pageInfoSection, renderDiagramPage, renderEdgeSvg } from '../web/diagram.js';
+import { edgeEnds, infoButton, gapsHtml, pageInfoSection, renderDiagramPage, renderEdgeSvg, type EdgeEnds } from '../web/diagram.js';
 import { arrowMarker, CHANGE_ARROWS, esc, num, type HtmlMeta } from '../web/page.js';
 import type { Side } from '../web/states.js';
+import { relationsHtml, relationsOf } from '../web/tools.js';
 import { FLOW_SIDE_KEY, hasFlowNowAfter, isAltered, linkOn, linkTone, stepOn } from './states.js';
 import type { FlowSnippets, Snippet } from './anchors.js';
 import { BADGE_HEIGHT, LINE_HEIGHT, type FlowLayout, type FlowLayoutEdge, type FlowLayoutNode } from './layout.js';
@@ -73,8 +74,9 @@ function renderStep(step: FlowStep, b: FlowLayoutNode, flag: string, side?: Side
   );
 }
 
-function renderLink(link: FlowLink, e: FlowLayoutEdge, tone: 'planned' | 'removed' | undefined): string {
+function renderLink(link: FlowLink, e: FlowLayoutEdge, tone: 'planned' | 'removed' | undefined, ends: EdgeEnds): string {
   return renderEdgeSvg({
+    ends,
     points: e.points,
     marker: `arrow${tone ? `-${tone}` : ''}`,
     cls: `edge${tone === 'planned' ? ' planned' : tone === 'removed' ? ' edge-removed' : ''}`,
@@ -127,6 +129,8 @@ function stepPanel(spec: FlowSpec, step: FlowStep, snippets: FlowSnippets, byId:
     });
     out += `<h3>Next</h3><ul class="branches">${items.join('')}</ul>`;
   }
+  const links = spec.links.map((l) => ({ from: l.from, to: l.to, kind: l.label }));
+  out += relationsHtml(relationsOf(step.id, links, (id) => byId.get(id)?.label ?? id));
   return `<template class="card-panel" data-for="${esc(step.id)}">${out}</template>`;
 }
 
@@ -147,7 +151,7 @@ function viewport(spec: FlowSpec, layout: FlowLayout, check: CheckSummary | unde
   const edges = spec.links
     .map((l, i) => {
       if (!layout.edges[i] || (side && !linkOn(side, spec, l, byId))) return '';
-      return renderLink(l, layout.edges[i], linkTone(side, spec, l));
+      return renderLink(l, layout.edges[i], linkTone(side, spec, l), edgeEnds(l.from, l.to, (id) => byId.get(id)?.label ?? id));
     })
     .join('');
   const nodes = spec.steps

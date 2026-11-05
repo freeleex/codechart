@@ -88,7 +88,7 @@ describe('renderFlowHtml', () => {
 
   it('labelled arrows', async () => {
     const out = await html();
-    const edges = [...out.matchAll(/<g class="edge[^"]*">(.*?)<\/g>/g)];
+    const edges = [...out.matchAll(/<g class="edge[^"]*"[^>]*>(.*?)<\/g>/g)];
     expect(edges).toHaveLength(5);
     expect(edges.every((e) => /marker-end="url\(#arrow(-planned)?\)"/.test(e[1]!))).toBe(true);
     expect(edges.filter((e) => /<text[^>]*>cli<\/text>/.test(e[1]!))).toHaveLength(1);
@@ -121,10 +121,10 @@ describe('renderFlowHtml', () => {
 
   it('planned links are dashed: planned flag or a planned endpoint', async () => {
     const out = await html();
-    const classes = [...out.matchAll(/<g class="(edge[^"]*)">/g)].map((m) => m[1]);
+    const classes = [...out.matchAll(/<g class="(edge[^"]*)"[^>]*>/g)].map((m) => m[1]);
     expect(classes).toEqual(['edge', 'edge', 'edge planned', 'edge planned', 'edge planned']);
     expect(out).toMatch(/\.edge\.planned path\{[^}]*stroke-dasharray/);
-    const markers = [...out.matchAll(/<g class="(edge[^"]*)"><path [^>]*marker-end="url\(#([\w-]+)\)"/g)];
+    const markers = [...out.matchAll(/<g class="(edge[^"]*)"[^>]*>(?:<title>[^<]*<\/title>)?<path [^>]*marker-end="url\(#([\w-]+)\)"/g)];
     expect(markers.map((m) => [m[1], m[2]])).toEqual([
       ['edge', 'arrow'],
       ['edge', 'arrow'],

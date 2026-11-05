@@ -4,9 +4,10 @@ import type { MapCheck } from '../check.js';
 import { codeRow, pathHtml, snippetHtml } from '../flow/html.js';
 import type { Preview } from '../preview.js';
 import { flagMark, flagTitle, mismatchNote } from './check-html.js';
-import { gapsHtml, infoButton, pageInfoSection, renderDiagramPage, renderEdgeSvg } from './diagram.js';
+import { edgeEnds, gapsHtml, infoButton, pageInfoSection, renderDiagramPage, renderEdgeSvg, type EdgeEnds } from './diagram.js';
 import { CHANGE_ARROWS, esc, list, num, type HtmlMeta } from './page.js';
 import { edgeChange, edgeOn, fieldsOn, hasNowAfter, nodeOn, SIDE_KEY, type Side } from './states.js';
+import { relationsHtml, relationsOf } from './tools.js';
 
 export { esc, type Theme } from './page.js';
 
@@ -25,8 +26,9 @@ export function fieldText(f: Field): string {
   return `${f.change ? FIELD_MARK[f.change] : ''}${f.name}${type ? ': ' + type : ''}${f.note ? ' (' + f.note + ')' : ''}`;
 }
 
-function renderEdge(e: LayoutEdge, change: SpecEdge['change']): string {
+function renderEdge(e: LayoutEdge, change: SpecEdge['change'], ends: EdgeEnds): string {
   return renderEdgeSvg({
+    ends,
     points: e.points,
     marker: `arrow${change ? `-${change}` : ''}`,
     cls: `edge${change ? ` edge-${change}` : ''}`,
@@ -133,7 +135,7 @@ function fieldsHtml(n: SpecNode, sides: boolean): string {
   return `<h3>Fields now</h3>${fieldList(now)}<h3>Fields after</h3>${fieldList(after)}`;
 }
 
-function cardPanel(n: SpecNode, check: MapCheck | undefined, previews: Map<string, Preview> | undefined, sides: boolean): string {
+function cardPanel(spec: Spec, n: SpecNode, check: MapCheck | undefined, previews: Map<string, Preview> | undefined, sides: boolean): string {
   let out = `<h2>${esc(`${n.label} (${nodeWhat(n)})`)}</h2>`;
   out += mismatchNote(check, n.id);
   const match = check?.matches.get(n.id);
@@ -147,8 +149,11 @@ function cardPanel(n: SpecNode, check: MapCheck | undefined, previews: Map<strin
     if (n.fieldsComplete === false) out += `<p class="fields-note">${FIELDS_NOTE}</p>`;
   }
   if (n.notes?.length) out += `<h3>Notes</h3>${list(n.notes)}`;
+  out += relationsHtml(relationsOf(n.id, spec.edges, labelOf(spec)));
   return `<template class="card-panel" data-for="${esc(n.id)}">${out}</template>`;
 }
+
+const labelOf = (spec: Spec) => (id: string) => spec.nodes.find((n) => n.id === id)?.label ?? id;
 
 function pageInfo(spec: Spec, check: MapCheck | undefined, sides: boolean): string {
   const hint = 'Click a node for details. Scroll to zoom, drag to pan';
@@ -181,7 +186,7 @@ export function viewport(spec: Spec, layout: Layout, check: MapCheck | undefined
       const edge = spec.edges[e.index]!;
       const change = side ? edgeChange(edge, statusOf) : edge.change;
       const drawn = !side || (edgeOn(side, change) && present.has(edge.from) && present.has(edge.to));
-      return drawn ? renderEdge(e, change) : '';
+      return drawn ? renderEdge(e, change, edgeEnds(edge.from, edge.to, labelOf(spec))) : '';
     })
     .join('');
   return `${groups}${edges}${nodes}`;
@@ -204,7 +209,7 @@ export function renderHtml(spec: Spec, layout: Layout, meta: HtmlMeta, check?: M
     sides,
     paneKey: SIDE_KEY,
     viewport: (side) => viewport(spec, layout, check, side),
-    aside: `${pageInfo(spec, check, sides)}<div id="panel" hidden></div>${spec.nodes.map((n) => cardPanel(n, check, previews, sides)).join('')}`,
+    aside: `${pageInfo(spec, check, sides)}<div id="panel" hidden></div>${spec.nodes.map((n) => cardPanel(spec, n, check, previews, sides)).join('')}`,
     width: layout.width,
     height: layout.height,
     extraDefs: CHANGE_ARROWS,

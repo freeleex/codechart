@@ -4,7 +4,17 @@ import { esc, list, midpoint, num, renderPage, type HtmlMeta, type KeyPart } fro
 import { SIDE_TITLE, SIDES, type Side } from './states.js';
 import type { Point } from './layout.js';
 
+/** The nodes an edge joins, for focus and the hover title. */
+export interface EdgeEnds {
+  from: string;
+  to: string;
+  title: string;
+}
+
+export const edgeEnds = (from: string, to: string, labelOf: (id: string) => string): EdgeEnds => ({ from, to, title: `${labelOf(from)} → ${labelOf(to)}` });
+
 interface EdgeParts {
+  ends: EdgeEnds;
   points: Point[];
   /** Arrowhead marker id. */
   marker: string;
@@ -27,7 +37,7 @@ export function renderEdgeSvg(e: EdgeParts): string {
       `<rect x="${num(m.x - w / 2)}" y="${num(m.y - e.lift)}" width="${num(w)}" height="12" rx="2"/>` +
       `<text x="${num(m.x)}" y="${num(m.y + 9 - e.lift)}">${esc(e.label)}</text>`;
   }
-  return `<g class="${e.cls}">${out}</g>`;
+  return `<g class="${e.cls}" data-from="${esc(e.ends.from)}" data-to="${esc(e.ends.to)}"><title>${esc(e.ends.title)}</title>${out}</g>`;
 }
 
 interface InfoButtonText {

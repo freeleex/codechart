@@ -153,7 +153,7 @@ On the full page, a changed resource shows its HCL diff and changed attributes (
 
 ### Terminal first, page when it helps
 
-Small diagrams stay in the reply. Big ones also get a self-contained HTML page: zoom, pan, light and dark themes, a node panel with back/forward through the nodes you opened, nothing loaded from the internet. In a change summary, a node's diff is read from git when the page is built, so the agent spends no tokens on it.
+Small diagrams stay in the reply. Big ones also get a self-contained HTML page: zoom, pan, light and dark themes, a node panel with back/forward through the nodes you opened and a list of the node's links (selecting a node dims all but it and its neighbours; Esc clears), nothing loaded from the internet. In a change summary, a node's diff is read from git when the page is built, so the agent spends no tokens on it.
 
 ### Maps in pull requests
 

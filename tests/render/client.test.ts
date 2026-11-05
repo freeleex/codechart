@@ -59,7 +59,7 @@ describe('client panel switching', () => {
     expect(node('tbl.orders').classList.contains('selected')).toBe(true);
     expect(toggle().getAttribute('aria-expanded')).toBe('false');
     expect(panel().querySelector('h2')?.textContent).toContain('orders');
-    const items = [...panel().querySelectorAll('li')].map((li) => li.textContent);
+    const items = [...panel().querySelectorAll('ul:not(.relations) li')].map((li) => li.textContent);
     expect(items).toHaveLength(3);
     expect(items.some((t) => t?.includes('coupon_code') && t.includes('+'))).toBe(true);
     expect(items.some((t) => t?.includes('status') && t.includes('~'))).toBe(true);

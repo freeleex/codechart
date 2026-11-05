@@ -3,7 +3,7 @@ import ts from 'typescript';
 
 export const CLIENT_SOURCE = 'src/render/web/browser/client.ts';
 /** Modules client.ts imports, in the order the page runs them. */
-export const CLIENT_DEPS = ['src/render/web/browser/history.ts'];
+export const CLIENT_DEPS = ['src/render/web/browser/store.ts', 'src/render/web/browser/history.ts', 'src/render/web/browser/focus.ts'];
 export const CLIENT_OUTPUT = 'src/render/web/client.ts';
 
 function transpile(file: string): string {
@@ -15,8 +15,9 @@ function transpile(file: string): string {
 /** The browser script as the generated module's text: src/render/web/browser/*.ts without types, as one IIFE. */
 export function buildClient(): string {
   // In the page the files share one scope, so their imports and exports go.
-  const deps = CLIENT_DEPS.map((f) => transpile(f).replace(/^export /gm, ''));
-  const main = transpile(CLIENT_SOURCE).replace(/^import [^\n]*\n/gm, '');
+  const unlink = (src: string) => src.replace(/^import [^\n]*\n/gm, '').replace(/^export /gm, '');
+  const deps = CLIENT_DEPS.map((f) => unlink(transpile(f)));
+  const main = unlink(transpile(CLIENT_SOURCE));
   if (main.includes('import ') || deps.some((d) => /^(import|export) /m.test(d))) {
     throw new Error(`${CLIENT_SOURCE}: imports and exports must each sit on one line`);
   }

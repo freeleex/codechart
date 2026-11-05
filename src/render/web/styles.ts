@@ -35,6 +35,8 @@ aside{width:clamp(300px,35vw,600px);min-width:300px;max-width:80vw;border-left:1
 aside h2{margin:0 0 6px;font-size:13px;overflow-wrap:anywhere}
 aside h3{margin:12px 0 4px;font-size:11px;text-transform:uppercase;color:var(--muted)}
 aside ul{margin:0;padding-left:18px}
+aside .relations{list-style:none;padding:0}
+aside .rel{padding:1px 0;font:inherit;color:var(--edge);background:none;border:0;cursor:pointer;text-align:left;overflow-wrap:anywhere}aside .rel:hover{text-decoration:underline}
 aside .fields-note{color:var(--muted);font-size:11.5px;font-style:italic;margin:6px 0 0}
 aside code{font-family:ui-monospace,monospace;font-size:11px;font-style:normal}
 aside .path{font-family:ui-monospace,monospace;font-size:11px;overflow-wrap:anywhere;color:var(--muted)}
@@ -55,6 +57,8 @@ header .check{font-size:11px;color:var(--new-t)}header .check.bad{color:var(--re
 .edge-added path{stroke:var(--new)}.edge-added text{fill:var(--new-t)}#arrow-added path{fill:var(--new)}
 .edge-removed path{stroke:var(--rem);stroke-dasharray:5 3}.edge-removed text{fill:var(--rem)}#arrow-removed path{fill:var(--rem);stroke:none}
 .node{cursor:pointer}
+.node,.edge{opacity:calc(var(--base,1)*var(--fade,1)*var(--dim,1))}
+body.focus .node:not(.lit),body.focus .edge:not(.lit){--dim:.25}
 .node .card{fill:var(--card);stroke:var(--line);stroke-width:1}
 .node .fold{fill:none;stroke:var(--line);stroke-width:1}
 .node .head{stroke:var(--line);stroke-width:1}
@@ -73,7 +77,7 @@ header .check{font-size:11px;color:var(--new-t)}header .check.bad{color:var(--re
 .status-changed :is(.card,.fold){stroke:var(--chg)}.status-changed .badge{fill:var(--chg-t)}
 .status-removed :is(.card,.fold){stroke:var(--rem)}.status-removed .badge{fill:var(--rem)}.status-removed .label{text-decoration:line-through}
 .status-config :is(.card,.fold){stroke:var(--cfg)}.status-config .badge{fill:var(--cfg-t)}
-.status-context .card{stroke-dasharray:4 3}.status-context{opacity:.75}.status-context .badge{fill:var(--muted)}
+.status-context .card{stroke-dasharray:4 3}.status-context{--base:.75}.status-context .badge{fill:var(--muted)}
 .field-added-t{color:var(--add)}.field-removed-t{color:var(--muted);text-decoration:line-through}.field-modified-t{color:var(--chg-t)}
 
 #info-toggle[aria-expanded="true"]{border-color:var(--edge)}
