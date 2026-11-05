@@ -72,7 +72,8 @@ export function gitlabReview(env: Env, fetchFn: Fetch = fetch): Review {
   return {
     name: `MR !${iid}`,
     base: need(env, 'CI_MERGE_REQUEST_DIFF_BASE_SHA'),
-    head: need(env, 'CI_COMMIT_SHA'),
+    // Merged-results and merge-train pipelines run on a temporary merge commit; this is the MR's own head there.
+    head: env.CI_MERGE_REQUEST_SOURCE_BRANCH_SHA || need(env, 'CI_COMMIT_SHA'),
     current: async () => {
       const now = (await (await call(fetchFn, mr, { headers }, 'reading the MR')).json()) as { description: string | null; sha: string };
       return { body: now.description ?? '', head: now.sha };

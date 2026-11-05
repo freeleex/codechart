@@ -192,6 +192,10 @@ describe('gitlabReview', () => {
     ]);
   });
 
+  it('in a merged-results pipeline, the MR head is the source branch commit, not the temporary merge commit', () => {
+    expect(gitlabReview({ ...env, CI_COMMIT_SHA: 'merge1', CI_MERGE_REQUEST_SOURCE_BRANCH_SHA: 'src1' }).head).toBe('src1');
+  });
+
   it('says which variable is missing', () => {
     expect(() => gitlabReview({ ...env, CODECHART_GITLAB_TOKEN: '' })).toThrow('CODECHART_GITLAB_TOKEN is not set');
   });
