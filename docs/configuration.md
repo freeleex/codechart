@@ -57,6 +57,7 @@ Global only:
 | `web.keep` | newest pages kept per repo | `20` |
 | `web.maxAgeDays` | pages younger than this are always kept | `7` |
 | `web.open` | `auto` (open new pages in your browser when running inside a VS Code-based editor), `always`, `never` | `auto` |
+| `updateCheck` | look up the newest codechart on npm at most once a day and say when there is one ([Updating](install.md#updating)) | `true` |
 
 `defaults.output: none` in a repo also turns off [PR maps](pr-maps.md) there: `pr-sync` leaves descriptions alone.
 

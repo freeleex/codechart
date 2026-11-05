@@ -7,6 +7,7 @@ const config: Config = {
   defaults: { output: 'both', context: 'short', flows: 'auto', terminalMaxNodes: 15 },
   web: { outDir: '/tmp/codechart', theme: 'auto', minNodes: 8, keep: 20, maxAgeDays: 7, open: 'auto' },
   useBuiltinRules: false,
+  updateCheck: false,
   rules: [
     { name: 'typeorm', paths: ['src/entities/**'], output: 'none' },
     { name: 'db', paths: ['**/entities/**', 'migrations/**'], output: 'both', context: 'full' },

@@ -40,7 +40,7 @@ codechart render --md - <<'EOF'
 EOF
 ```
 
-For a change summary, add the same `--git`/`--since`/`--commit`/`--head` you gave `check`. Commit or branch not checked out: add `--at '<sha or branch>'` so anchors are read from it. On errors, fix the spec and rerun. A `✗` line is a claim that doesn't match the code: if your spec was wrong (status, path), fix it and rerender; if the change really differs from what you said, keep the `✗` and say so. `✗ … not on map`: add a node or name the file in `omitted`. A summary footer saying `diff not checked`: you left out the flag, rerender with it. Stderr `no map drawn`/`no flow drawn`: skip it silently. Rare cases: [spec-guide.md](spec-guide.md), [flow-guide.md](flow-guide.md), `codechart schema [--flow]`.
+For a change summary, add the same `--git`/`--since`/`--commit`/`--head` you gave `check`. Commit or branch not checked out: add `--at '<sha or branch>'` so anchors are read from it. On errors, fix the spec and rerun. A `✗` line is a claim that doesn't match the code: if your spec was wrong (status, path), fix it and rerender; if the change really differs from what you said, keep the `✗` and say so. `✗ … not on map`: add a node or name the file in `omitted`. A summary footer saying `diff not checked`: you left out the flag, rerender with it. Stderr `no map drawn`/`no flow drawn`: skip it silently. Stderr `codechart <version> is available`: tell the user in one line at the end of your reply, once. Rare cases: [spec-guide.md](spec-guide.md), [flow-guide.md](flow-guide.md), `codechart schema [--flow]`.
 
 ### Flow (one behaviour each)
 

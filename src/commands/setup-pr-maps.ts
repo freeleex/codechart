@@ -1,13 +1,13 @@
 import { execFileSync } from 'node:child_process';
-import { closeSync, constants, lstatSync, mkdirSync, openSync, readFileSync, writeFileSync } from 'node:fs';
+import { closeSync, constants, lstatSync, mkdirSync, openSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { Command, Option } from 'commander';
-import { packageFile } from '../assets.js';
 import { findRepoRoot } from '../config/load.js';
 import type { CommandOptions } from '../program.js';
 import { readRegularFile } from '../read-regular.js';
 import { gitRun } from '../pr/git.js';
+import { currentVersion } from '../update/check.js';
 import { buildPlan, openSetupReview, parseRemote, prepareSetupReview, type Host, type Plan, type Remote, type Tool } from '../pr/setup.js';
 
 interface Flags {
@@ -15,8 +15,6 @@ interface Flags {
   pr?: boolean;
   host?: Host;
 }
-
-const version = (): string => (JSON.parse(readFileSync(packageFile('package.json'), 'utf8')) as { version: string }).version;
 
 function remoteOf(root: string, host: Host | undefined): Remote {
   let url: string;
@@ -102,7 +100,7 @@ async function agreed(o: Flags, opts: CommandOptions): Promise<boolean> {
 
 async function setup(o: Flags, opts: CommandOptions, root: string): Promise<void> {
   const remote = remoteOf(root, o.host);
-  const v = version();
+  const v = currentVersion();
   const done = () => opts.stdout(`codechart: PR maps are already set up in ${remote.path}.\n`);
   if (o.pr) {
     const prepared = prepareSetupReview(root, v, remote);

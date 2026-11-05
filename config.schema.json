@@ -81,6 +81,10 @@
     "useBuiltinRules": {
       "type": "boolean"
     },
+    "updateCheck": {
+      "description": "Global only: look up the newest codechart on npm at most once a day and say when there is one (default true)",
+      "type": "boolean"
+    },
     "rules": {
       "type": "array",
       "items": {

@@ -28,6 +28,17 @@ function blockAt(text: string): [number, number] | undefined {
   return end > at ? [at, end + END.length] : undefined;
 }
 
+/** Replaces an older reminder between codechart markers; a file without one is left alone. */
+export function refreshReminder(file: string): 'updated' | 'present' | 'absent' {
+  let text: string | undefined;
+  try {
+    text = readRegular(file).text;
+  } catch {
+    return 'absent';
+  }
+  return text !== undefined && blockAt(text) ? (addReminder(file) === 'updated' ? 'updated' : 'present') : 'absent';
+}
+
 /** Adds the reminder between codechart markers once; a different one between the markers is replaced. */
 export function addReminder(file: string): 'added' | 'updated' | 'present' {
   const { path, text = '' } = readRegular(file);

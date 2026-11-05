@@ -14,6 +14,19 @@ Then open your coding agent in any repo and try:
 > show me the flow of accepting an invite
 ```
 
+## Updating
+
+```bash
+codechart update          # installs the newest version and refreshes your skill copies
+codechart update --check  # only says whether there is one
+```
+
+`update` looks up the newest version on npm, runs `npm install -g codechart@<version>` when npm installed codechart (otherwise it says which command to run, e.g. for pnpm, Bun or Yarn), then lets the new version refresh the skill copies and reminder lines you already have, including copies installed with `install-skill --dir`. It doesn't add any you didn't install. What changed: [releases](https://github.com/freeleex/codechart/releases).
+
+**Knowing when there's one.** At most once a day, after a command finishes, codechart asks npm for the newest version (one request, 1-second limit, nothing sent but the request itself). When there's a newer one you hear it where it costs no tokens: a small note in the header of every HTML page until you update, and one line a day in your terminal when you run codechart yourself. In agent runs it prints one line on stderr at most once a day, and the skill asks the agent to pass it on in one line. It never checks in CI or under `npx`, which runs the newest version anyway. Turn it off with `updateCheck: false` in `~/.config/codechart/config.yaml`, or `CODECHART_NO_UPDATE_CHECK=1` / `NO_UPDATE_NOTIFIER=1`. The last result, and the `--dir` folders `update` refreshes, are kept in `~/.cache/codechart/update-check.json`.
+
+[PR map](pr-maps.md) CI jobs run the version pinned when you set them up: change the version in the CI file to move them on.
+
 ## Supported agents
 
 Any agent that supports [Agent Skills](https://agentskills.io): Claude Code, Codex, Gemini CLI, GitHub Copilot, Cursor, OpenCode, Goose, Amp, Windsurf, Cline, Roo Code, Kiro, Junie and Factory Droid.

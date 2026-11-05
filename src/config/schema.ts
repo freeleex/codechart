@@ -28,6 +28,8 @@ export interface Config {
   defaults: { output: Output; context: ContextMode; flows: Flows; terminalMaxNodes: number };
   web: { outDir: string; theme: Theme; minNodes: number; keep: number; maxAgeDays: number; open: OpenMode };
   useBuiltinRules: boolean;
+  /** Look up the newest codechart once a day and say when there is one. */
+  updateCheck: boolean;
   rules: Rule[];
 }
 
@@ -83,6 +85,7 @@ const configFileSchema = z.strictObject({
     })
     .optional(),
   useBuiltinRules: z.boolean().optional(),
+  updateCheck: z.boolean().optional().describe('Global only: look up the newest codechart on npm at most once a day and say when there is one (default true)'),
   rules: z.array(ruleSchema).optional(),
 });
 

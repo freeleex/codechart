@@ -5,11 +5,14 @@ import { hookCommand } from './commands/hook.js';
 import { initCommand } from './commands/init.js';
 import { prSyncCommand } from './commands/pr-sync.js';
 import { setupPrMapsCommand } from './commands/setup-pr-maps.js';
+import { updateCommand } from './commands/update.js';
 import { installSkillCommand } from './commands/install-skill.js';
 import { renderCommand } from './commands/render.js';
 import { schemaCommand } from './commands/schema.js';
 import { uninstallCommand } from './commands/uninstall.js';
+import { loadConfig } from './config/load.js';
 import { sanitizeText } from './render/strip.js';
+import { currentVersion, updateNotice } from './update/check.js';
 
 export interface ProgramOptions {
   cwd?: string;
@@ -25,8 +28,34 @@ export interface ProgramOptions {
   open?: (path: string) => string | void;
   /** Yes/no question; without it, commands that ask need --yes off a terminal. */
   confirm?: (question: string) => Promise<boolean>;
-  /** Runs gh or glab. */
+  /** Runs gh, glab or npm. */
   tool?: (command: string, args: string[]) => string;
+  fetch?: typeof fetch;
+  /** False turns off the daily new-version check (tests). */
+  updateCheck?: boolean;
+}
+
+// Run by hooks and CI, or checking on their own.
+const NO_NOTICE = new Set(['hook', 'pr-sync', 'update', 'uninstall']);
+
+async function noticeAfter(name: string, opts: ProgramOptions, stderr: (s: string) => void): Promise<void> {
+  if (opts.updateCheck === false || NO_NOTICE.has(name)) return;
+  try {
+    const env = opts.env ?? process.env;
+    const config = loadConfig({ cwd: opts.cwd ?? process.cwd(), home: opts.home, env });
+    const line = await updateNotice({
+      cacheDir: config.web.outDir,
+      enabled: config.updateCheck,
+      // An opt-out in the real environment counts even when a caller passes its own env.
+      env: { ...process.env, ...env },
+      terminal: opts.isTTY ?? (process.stdout.isTTY === true && process.stderr.isTTY === true),
+      now: opts.now?.().getTime() ?? Date.now(),
+      fetch: opts.fetch ?? fetch,
+    });
+    if (line) stderr(`${line}\n`);
+  } catch {
+    // A broken config is the command's to report, not the notice's.
+  }
 }
 
 export type CommandOptions = Required<Pick<ProgramOptions, 'stdout' | 'stderr'>> & ProgramOptions;
@@ -35,7 +64,7 @@ export function buildProgram(opts: ProgramOptions = {}): Command {
   const stdout = opts.stdout ?? ((s: string) => process.stdout.write(s));
   const rawStderr = opts.stderr ?? ((s: string) => process.stderr.write(s));
   const stderr = (s: string) => rawStderr(sanitizeText(s));
-  const program = new Command().name('codechart').version('0.3.1');
+  const program = new Command().name('codechart').version(currentVersion());
   const cmdOpts = { ...opts, stdout, stderr };
   program.addCommand(checkCommand(cmdOpts));
   program.addCommand(renderCommand(cmdOpts));
@@ -47,6 +76,8 @@ export function buildProgram(opts: ProgramOptions = {}): Command {
   program.addCommand(hookCommand(cmdOpts));
   program.addCommand(prSyncCommand(cmdOpts));
   program.addCommand(setupPrMapsCommand(cmdOpts));
+  program.addCommand(updateCommand(cmdOpts));
+  program.hook('postAction', (_program, action) => noticeAfter(action.name(), cmdOpts, stderr));
   // addCommand does not inherit these settings
   for (const c of [program, ...program.commands]) {
     c.exitOverride().configureOutput({ writeOut: stdout, writeErr: stderr });

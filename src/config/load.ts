@@ -11,7 +11,7 @@ const MAX_BYTES = 1024 * 1024;
 export const BUILTIN_DEFAULTS: Readonly<Config['defaults']> = { output: 'auto', context: 'short', flows: 'auto', terminalMaxNodes: 15 };
 
 // A cloned repo must not choose where HTML lands or what gets pruned.
-export const GLOBAL_ONLY = ['web.outDir', 'web.keep', 'web.maxAgeDays', 'web.open'] as const;
+export const GLOBAL_ONLY = ['web.outDir', 'web.keep', 'web.maxAgeDays', 'web.open', 'updateCheck'] as const;
 
 interface LoadOptions {
   cwd: string;
@@ -66,12 +66,14 @@ function readConfigFile(file: string, root?: string): ConfigFile | undefined {
   return result.config;
 }
 
+// A cloned repo must not change where pages go or whether codechart goes online.
 function dropGlobalOnly(file: ConfigFile | undefined, path: string, warn?: (line: string) => void): ConfigFile | undefined {
-  if (!file?.web) return file;
-  const { outDir, keep, maxAgeDays, open, ...web } = file.web;
-  const ignored = Object.entries({ outDir, keep, maxAgeDays, open }).filter(([, v]) => v !== undefined);
-  if (ignored.length) warn?.(`${path}: ${ignored.map(([k]) => `web.${k}`).join(', ')} are global-only; ignored`);
-  return { ...file, web };
+  if (!file) return file;
+  const { updateCheck, ...rest } = file;
+  const { outDir, keep, maxAgeDays, open, ...web } = file.web ?? {};
+  const ignored = [...Object.entries({ outDir, keep, maxAgeDays, open }).filter(([, v]) => v !== undefined).map(([k]) => `web.${k}`), ...(updateCheck === undefined ? [] : ['updateCheck'])];
+  if (ignored.length) warn?.(`${path}: ${ignored.join(', ')} ${ignored.length === 1 ? 'is' : 'are'} global-only; ignored`);
+  return file.web ? { ...rest, web } : rest;
 }
 
 function firstByName<T extends { rule: Rule }>(items: T[]): T[] {
@@ -122,6 +124,7 @@ export function loadConfigWithSources(opts: LoadOptions): ConfigWithSources {
   for (const key of Object.keys(defaults)) sources[`defaults.${key}`] = BUILTIN;
   for (const key of Object.keys(web)) sources[`web.${key}`] = BUILTIN;
   sources.useBuiltinRules = BUILTIN;
+  sources.updateCheck = global?.updateCheck === undefined ? BUILTIN : globalSource;
 
   for (const { file, source } of files) {
     Object.assign(defaults, file?.defaults);
@@ -143,7 +146,7 @@ export function loadConfigWithSources(opts: LoadOptions): ConfigWithSources {
   ]);
 
   return {
-    config: { defaults, web, useBuiltinRules, rules: tagged.map((t) => t.rule) },
+    config: { defaults, web, useBuiltinRules, updateCheck: global?.updateCheck !== false, rules: tagged.map((t) => t.rule) },
     sources,
     ruleSources: tagged.map((t) => t.source),
   };
