@@ -1,8 +1,9 @@
-import { existsSync, realpathSync } from 'node:fs';
+import { realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { parse } from 'yaml';
 import { readRegularFile } from '../read-regular.js';
+import { findRepoRoot } from './repo-root.js';
 import { builtinRules } from './builtin-rules.js';
 import { parseConfigFile, type Config, type ConfigFile, type Rule } from './schema.js';
 
@@ -13,21 +14,13 @@ export const BUILTIN_DEFAULTS: Readonly<Config['defaults']> = { output: 'auto', 
 // A cloned repo must not choose where HTML lands or what gets pruned.
 export const GLOBAL_ONLY = ['web.outDir', 'web.keep', 'web.maxAgeDays', 'web.open', 'updateCheck'] as const;
 
+export { findRepoRoot };
+
 interface LoadOptions {
   cwd: string;
   home?: string;
   env?: NodeJS.ProcessEnv;
   warn?: (line: string) => void;
-}
-
-export function findRepoRoot(cwd: string): string | undefined {
-  let dir = resolve(cwd);
-  for (;;) {
-    if (existsSync(join(dir, '.git'))) return dir;
-    const parent = dirname(dir);
-    if (parent === dir) return undefined;
-    dir = parent;
-  }
 }
 
 /** `root`: the file must resolve inside it (a repo can commit a symlink). */
