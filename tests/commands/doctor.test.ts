@@ -320,7 +320,9 @@ describe('doctor --last', () => {
     record({ decision: 'nudged', files: ['a.test.ts', 'b.test.ts', 'package-lock.json'] });
     const r = await run(['doctor', '--last']);
     expect(r.out).toContain('no rule fires (e.g. only tests or generated files changed)');
-    expect(r.out).toContain('it asked for a diagram, but no path rule fires');
+    expect(r.out).toContain('a nudge here is expected');
+    expect(r.out).toContain('judges related-files and behaviour-flow itself');
+    expect(r.out).not.toContain('disagree');
   });
 
   it('says whether the skill was loaded', async () => {

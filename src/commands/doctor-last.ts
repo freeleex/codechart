@@ -27,7 +27,7 @@ function rulesLines(rec: TurnRecord, root: string, opts: CommandOptions, home: s
   const lines = fired.map((m) => `rule ${m.rule} fires (${m.diagram}) on ${m.files.slice(0, 3).join(', ')}${m.files.length > 3 ? ', …' : ''}`);
   if (!fired.length) lines.push('no rule fires (e.g. only tests or generated files changed); the built-in rules are judged by the agent');
   if (fired.length && files.length < MIN_FILES) lines.push(`the hook and the rules disagree: a rule fires on ${plural(files.length, 'file')}, but the hook only asks from ${MIN_FILES}`);
-  if (!fired.length && rec.decision === 'nudged') lines.push('the hook and the rules disagree: it asked for a diagram, but no path rule fires (the agent may answer that none applies)');
+  if (!fired.length && rec.decision === 'nudged') lines.push('a nudge here is expected: with no path rule matching, the agent judges related-files and behaviour-flow itself, and may answer that no diagram applies');
   return lines;
 }
 
