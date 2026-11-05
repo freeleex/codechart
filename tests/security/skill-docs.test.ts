@@ -56,3 +56,13 @@ describe('guide and example specs pass validation', () => {
     }
   });
 });
+
+describe('SKILL.md PR description step', () => {
+  it("finds the CI job in both shipped templates with the grep it tells agents to run", () => {
+    const pattern = /grep -rls '([^']+)' \.github\/workflows \.gitlab-ci\.yml/.exec(read('SKILL.md'))?.[1];
+    expect(pattern).toBeDefined();
+    for (const template of ['templates/github-workflow.yml', 'templates/gitlab-ci.yml']) {
+      expect(readFileSync(template, 'utf8')).toContain(pattern);
+    }
+  });
+});
