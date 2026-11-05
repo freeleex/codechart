@@ -1,5 +1,6 @@
-# Copy to .github/workflows/codechart.yml. On every push to a PR, redraws the codechart map in its
-# description against the PR's latest commits. Does nothing for PRs without a codechart section.
+# codechart PR maps (written by `codechart setup-pr-maps`, or copy to .github/workflows/codechart.yml).
+# On every push to a PR, redraws the codechart map in its description against the PR's latest commits.
+# Does nothing for PRs without a codechart section.
 name: codechart map
 on:
   pull_request:

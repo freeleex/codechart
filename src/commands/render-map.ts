@@ -25,7 +25,7 @@ export async function renderMap(spec: Spec, ctx: RenderContext): Promise<Rendere
   const { root, diff } = ctx;
   const check = { ...checkMapNodes(spec, root, { at: ctx.at, cwd: ctx.cwd, diff, ignored: ctx.unmapped }), ...(ctx.diffUnchecked && { diffUnchecked: true }) };
   if (ctx.pr) {
-    writeFileSync(ctx.pr.svg, renderSvg(spec, await layoutSpec(spec, DESCRIPTION_CANVASES), check));
+    writeFileSync(ctx.pr.svg, renderSvg(spec, await layoutSpec(spec, DESCRIPTION_CANVASES), check), { mode: 0o600 });
     return { text: prBlock(spec, check, ctx.pr.imageUrl), check };
   }
   const { hidden } = selectTerminalNodes(spec, ctx.maxNodes);

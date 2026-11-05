@@ -1,5 +1,6 @@
-# Add to .gitlab-ci.yml (or include it). On every push to an MR, redraws the codechart map in its
-# description against the MR's latest commits. Does nothing for MRs without a codechart section.
+# codechart PR maps (added by `codechart setup-pr-maps`, or add it to .gitlab-ci.yml yourself).
+# On every push to an MR, redraws the codechart map in its description against the MR's latest commits.
+# Does nothing for MRs without a codechart section.
 # Needs a masked CI/CD variable CODECHART_GITLAB_TOKEN: an access token with api scope and at least
 # Developer role (CI_JOB_TOKEN can't edit MRs or upload files).
 codechart-map:

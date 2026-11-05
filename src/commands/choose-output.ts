@@ -12,7 +12,7 @@ export interface RenderContext {
   width: number;
   color: boolean;
   md: boolean;
-  /** `--pr`: write the map as an SVG to `svg` and print the PR or MR description section that shows it from `imageUrl`. */
+  /** `--pr`: write the map as an SVG to `svg` (`--svg`, else the cache folder) and print the PR or MR description section that shows it from `imageUrl`. */
   pr?: { svg: string; imageUrl: string };
   root: string;
   cwd: string;

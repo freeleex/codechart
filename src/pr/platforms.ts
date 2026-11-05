@@ -1,6 +1,5 @@
-import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
-import { gitBinary } from '../rules/git-files.js';
+import { gitRun as run } from './git.js';
 
 /** One PR or MR, as CI sees it: its diff range, its description, and where the map image goes. */
 export interface Review {
@@ -28,10 +27,6 @@ async function call(fetchFn: Fetch, url: string, init: RequestInit, what: string
   const res = await fetchFn(url, init);
   if (!res.ok) throw new Error(`${what} failed: HTTP ${res.status} ${(await res.text()).slice(0, 200)}`);
   return res;
-}
-
-function run(cwd: string, args: string[], input?: string): string {
-  return execFileSync(gitBinary(), args, { cwd, encoding: 'utf8', input, stdio: ['pipe', 'pipe', 'pipe'], timeout: 60_000 }).trim();
 }
 
 /** GitHub Actions on a pull_request event. The image is a commit on refs/codechart/pr-<n>, not a branch. */
