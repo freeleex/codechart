@@ -1,4 +1,4 @@
-import { existsSync, lstatSync } from 'node:fs';
+import { accessSync, constants, existsSync, lstatSync, statSync } from 'node:fs';
 import { join, posix, win32 } from 'node:path';
 import type { CommandOptions } from '../program.js';
 import { currentVersion, isNewer, readState } from '../update/check.js';
@@ -25,8 +25,19 @@ export interface Section {
   first?: boolean;
 }
 
+/** A file (symlinks followed) a shell could run: on POSIX with an execute bit, on Windows any file with a PATHEXT name. */
+const runnable = (win: boolean) => (p: string) => {
+  try {
+    if (!statSync(p).isFile()) return false;
+    if (!win) accessSync(p, constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 /** The first `codechart` on PATH, as a shell would find it. */
-export function findOnPath(env: NodeJS.ProcessEnv, platform: NodeJS.Platform = process.platform, exists: (p: string) => boolean = existsSync): string | undefined {
+export function findOnPath(env: NodeJS.ProcessEnv, platform: NodeJS.Platform = process.platform, usable: (p: string) => boolean = runnable(platform === 'win32')): string | undefined {
   const win = platform === 'win32';
   const dirs = (win ? (env.PATH ?? env.Path ?? '') : (env.PATH ?? '')).split(win ? ';' : ':');
   const names = win ? (env.PATHEXT ?? '.COM;.EXE;.BAT;.CMD').split(';').map((e) => `codechart${e.toLowerCase()}`) : ['codechart'];
@@ -35,7 +46,7 @@ export function findOnPath(env: NodeJS.ProcessEnv, platform: NodeJS.Platform = p
     if (!dir) continue;
     for (const name of names) {
       const file = (win ? win32 : posix).join(dir, name);
-      if (exists(file)) return file;
+      if (usable(file)) return file;
     }
   }
   return undefined;
@@ -71,11 +82,11 @@ function skillProblem(a: AgentPreset, dirs: string[], seen: Seen, item: Item): I
 function skillItem(a: AgentPreset, target: string, home: string, files: string[], opts: CommandOptions, seen: Seen): Item {
   const copies = [...new Set([a.skills, ...a.reads])].map((f) => join(home, f, 'codechart')).filter(present);
   const own = copies.filter(ours);
-  const current = own.find((d) => skillIsCurrent(d, files));
   const install = `codechart install-skill --agent ${a.name}`;
-  if (current) return { level: 'ok', text: `skill: ${current} (current)` };
-  if (own.length) {
-    const stale = own.filter((d) => !skillIsCurrent(d, files));
+  // The agent may load any folder it reads, so one old copy is a fault even beside a current one.
+  const stale = own.filter((d) => !skillIsCurrent(d, files));
+  if (own.length && !stale.length) return { level: 'ok', text: `skill: ${own.join(', ')} (current)` };
+  if (stale.length) {
     const fresh = stale.filter((d) => !seen.has(d));
     return skillProblem(a, stale, seen, {
       level: 'bad',

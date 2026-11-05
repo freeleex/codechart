@@ -1,4 +1,4 @@
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { findOnPath } from '../../src/commands/doctor-checks.js';
@@ -126,6 +126,20 @@ describe('doctor', () => {
     expect(r.out).toContain('Cursor\n  ✓ skill: ~/.claude/skills/codechart (current)\n');
   });
 
+  it('an old copy in an agent\'s own folder is a ✗ even beside a current shared one, and --fix updates it', async () => {
+    await install('codex');
+    mkdirSync(home('.gemini', 'skills', 'codechart'), { recursive: true });
+    const old = home('.gemini', 'skills', 'codechart', 'SKILL.md');
+    writeFileSync(old, '---\nname: codechart\n---\nold\n');
+    const r = await run(['doctor']);
+    expect(r.code).toBe(1);
+    expect(r.out).toContain('Gemini CLI\n  ✗ skill: outdated at ~/.gemini/skills/codechart: run codechart install-skill --agent gemini\n');
+    const fixed = await run(['doctor', '--fix']);
+    expect(fixed.out).toContain('updated for Gemini CLI');
+    expect(readFileSync(old, 'utf8')).not.toBe('---\nname: codechart\n---\nold\n');
+    expect((await run(['doctor'])).out).toContain('Gemini CLI\n  ✓ skill: ~/.gemini/skills/codechart, ~/.agents/skills/codechart (current)');
+  });
+
   it('settings.json that is not valid JSON is a ✗ with the reason', async () => {
     await install('claude');
     writeFileSync(home('.claude', 'settings.json'), '{ // c\n}');
@@ -250,6 +264,31 @@ describe('findOnPath', () => {
     expect(findOnPath({ Path: 'C:\\x;"C:\\npm"' }, 'win32', has('C:\\npm\\codechart.cmd'))).toBe('C:\\npm\\codechart.cmd');
     expect(findOnPath({ PATH: 'C:\\x', PATHEXT: '.EXE' }, 'win32', has('C:\\x\\codechart.cmd'))).toBeUndefined();
     expect(findOnPath({}, 'linux', () => true)).toBeUndefined();
+  });
+});
+
+describe.skipIf(process.platform === 'win32')('findOnPath on disk', () => {
+  const bin = (n: string) => join(sb.tmp, n);
+
+  it('skips a directory or a file without the execute bit, and follows a symlink to a runnable file', () => {
+    mkdirSync(join(bin('a'), 'codechart'), { recursive: true });
+    mkdirSync(bin('b'));
+    writeFileSync(join(bin('b'), 'codechart'), 'x');
+    chmodSync(join(bin('b'), 'codechart'), 0o644);
+    mkdirSync(bin('c'));
+    writeFileSync(join(bin('c'), 'real'), '#!/bin/sh\n');
+    chmodSync(join(bin('c'), 'real'), 0o755);
+    symlinkSync(join(bin('c'), 'real'), join(bin('c'), 'codechart'));
+    const path = [bin('a'), bin('b'), bin('c')].join(':');
+    expect(findOnPath({ PATH: path })).toBe(join(bin('c'), 'codechart'));
+    expect(findOnPath({ PATH: [bin('a'), bin('b')].join(':') })).toBeUndefined();
+  });
+
+  it('a doctor run reports a non-runnable codechart as not on PATH', async () => {
+    mkdirSync(home('.claude'));
+    const dead = bin('dead');
+    mkdirSync(join(dead, 'codechart'), { recursive: true });
+    expect((await run(['doctor'], { env: { PATH: dead } })).out).toContain("✗ not on PATH, so agents can't run it");
   });
 });
 
