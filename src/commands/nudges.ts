@@ -54,6 +54,19 @@ export function addReminder(file: string): 'added' | 'updated' | 'present' {
   return 'added';
 }
 
+/** How the reminder line in `file` looks, without touching it. */
+export function reminderState(file: string): 'present' | 'outdated' | 'missing' {
+  let text: string | undefined;
+  try {
+    text = readRegular(file).text;
+  } catch {
+    return 'missing';
+  }
+  const block = text === undefined ? undefined : blockAt(text);
+  if (!text || !block) return 'missing';
+  return text.slice(...block) === BLOCK ? 'present' : 'outdated';
+}
+
 /** Removes the reminder and the blank line added before it; the file stays, even when left empty. */
 export function removeReminder(file: string): 'removed' | 'absent' {
   const { path, text } = readRegular(file);
@@ -71,6 +84,8 @@ const TIMEOUTS = { UserPromptSubmit: 10, Stop: 30 } as const;
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 
 const isCodechartHook = (h: unknown) => isObject(h) && typeof h.command === 'string' && h.command.startsWith('codechart hook ');
+
+const hasCodechartHook = (groups: unknown[]) => groups.some((g) => isObject(g) && Array.isArray(g.hooks) && g.hooks.some(isCodechartHook));
 
 function readSettings(file: string): { path: string; settings: Record<string, unknown> & { hooks: Record<string, unknown> } } {
   const { path, text } = readRegular(file);
@@ -93,7 +108,7 @@ export function installClaudeHooks(file: string): 'added' | 'present' {
   for (const [event, command] of Object.entries(HOOK_COMMANDS) as [keyof typeof HOOK_COMMANDS, string][]) {
     const groups = (settings.hooks[event] ??= []);
     if (!Array.isArray(groups)) throw new Error(`${file}: "hooks.${event}" is not a list`);
-    if (groups.some((g) => isObject(g) && Array.isArray(g.hooks) && g.hooks.some(isCodechartHook))) continue;
+    if (hasCodechartHook(groups)) continue;
     groups.push({ hooks: [{ type: 'command', command, timeout: TIMEOUTS[event] }] });
     added = true;
   }
@@ -101,6 +116,15 @@ export function installClaudeHooks(file: string): 'added' | 'present' {
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, `${JSON.stringify(settings, null, 2)}\n`);
   return 'added';
+}
+
+/** The events (UserPromptSubmit, Stop) that have a codechart hook in a Claude Code settings.json; throws like installClaudeHooks on a file it can't read. */
+export function claudeHookEvents(file: string): string[] {
+  const { settings } = readSettings(file);
+  return Object.keys(HOOK_COMMANDS).filter((event) => {
+    const groups = settings.hooks[event];
+    return Array.isArray(groups) && hasCodechartHook(groups);
+  });
 }
 
 /** Removes only the codechart hooks, then any group or event they leave empty. */

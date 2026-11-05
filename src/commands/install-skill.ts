@@ -36,6 +36,13 @@ const sameFile = ({ source, target }: Pair) => {
   }
 };
 
+/** The skill's files, SKILL.md first; it links to the other files. */
+export const skillFiles = (): string[] => readdirSync(packageFile('skills/codechart')).sort((a, b) => Number(b === 'SKILL.md') - Number(a === 'SKILL.md'));
+
+/** Whether `dir` holds every file of this version's skill, byte for byte. */
+export const skillIsCurrent = (dir: string, files: string[]): boolean =>
+  files.every((f) => sameFile({ source: packageFile(`skills/codechart/${f}`), target: join(dir, f) }));
+
 interface Extras {
   reminder: boolean;
   hook: boolean;
@@ -139,7 +146,7 @@ export function installCopy(dir: string, who: string, files: string[], force: bo
   return true;
 }
 
-// complexity-ratchet: 40 -- install action picks agents and targets inline
+// complexity-ratchet: 39 -- install action picks agents and targets inline
 // eslint-disable-next-line max-lines-per-function -- ratchet: install action picks agents and targets inline
 export function installSkillCommand(opts: CommandOptions): Command {
   return new Command('install-skill')
@@ -193,8 +200,7 @@ export function installSkillCommand(opts: CommandOptions): Command {
           opts.stdout(`agents: ${agents.map((a) => a.label).join(', ')}\n`);
         }
       }
-      // SKILL.md first; it links to the other files.
-      const files = readdirSync(packageFile('skills/codechart')).sort((a, b) => Number(b === 'SKILL.md') - Number(a === 'SKILL.md'));
+      const files = skillFiles();
       const groups = skillFolders(agents);
       // Earlier installs in other folders these agents read would go stale, so report or update them too.
       for (const folder of new Set(agents.flatMap((a) => [a.skills, ...a.reads]))) {

@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, readdirSync, realpathSync } from 'node:fs';
+import { existsSync, realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve, sep } from 'node:path';
 import { Command } from 'commander';
@@ -8,7 +8,7 @@ import { loadConfig } from '../config/load.js';
 import type { CommandOptions } from '../program.js';
 import { currentVersion, fetchLatest, isNewer, readState, skillDirs, writeState } from '../update/check.js';
 import { AGENTS, isCodechartSkill } from './agents.js';
-import { installCopy } from './install-skill.js';
+import { installCopy, skillFiles } from './install-skill.js';
 import { refreshReminder } from './nudges.js';
 
 const RELEASES = 'https://github.com/freeleex/codechart/releases';
@@ -46,11 +46,11 @@ export function installedBy(installDir: string, npmRoot: string | undefined): { 
   return { npm: false, hint: `it isn't npm's global copy (${installDir}); update it the way you installed it` };
 }
 
-const cacheDirOf = (opts: CommandOptions) => loadConfig({ cwd: opts.cwd ?? process.cwd(), home: opts.home, env: opts.env }).web.outDir;
+export const cacheDirOf = (opts: CommandOptions) => loadConfig({ cwd: opts.cwd ?? process.cwd(), home: opts.home, env: opts.env }).web.outDir;
 
 /** Brings every codechart skill copy already installed, and reminder lines already added, up to this version. */
 function refreshInstalls(home: string, opts: CommandOptions): void {
-  const files = readdirSync(packageFile('skills/codechart')).sort((a, b) => Number(b === 'SKILL.md') - Number(a === 'SKILL.md'));
+  const files = skillFiles();
   const folders = [...new Set(AGENTS.flatMap((a) => [a.skills, ...a.reads]))];
   const dirs = [
     ...folders.map((folder) => ({ dir: join(home, folder, 'codechart'), who: AGENTS.filter((a) => [a.skills, ...a.reads].includes(folder)).map((a) => a.label).join(', ') })),
@@ -106,6 +106,12 @@ async function update(o: { check?: boolean }, opts: CommandOptions, runner: Runn
   opts.stdout(`codechart ${latest} installed. What changed: ${RELEASES}\n`);
 }
 
+/** The update command's work, for callers that handle its errors themselves. */
+export async function runUpdate(o: { check?: boolean }, opts: CommandOptions): Promise<void> {
+  const tool = opts.tool;
+  await update(o, opts, tool ? { capture: tool, show: (c, a) => void tool(c, a) } : defaultRunner);
+}
+
 export function updateCommand(opts: CommandOptions): Command {
   return new Command('update')
     .description('install the newest codechart with npm and refresh the skill copies and reminder lines you have')
@@ -114,8 +120,7 @@ export function updateCommand(opts: CommandOptions): Command {
     .action(async (o: { check?: boolean; skillsOnly?: boolean }) => {
       try {
         if (o.skillsOnly) return refreshInstalls(opts.home ?? homedir(), opts);
-        const tool = opts.tool;
-        await update(o, opts, tool ? { capture: tool, show: (c, a) => void tool(c, a) } : defaultRunner);
+        await runUpdate(o, opts);
       } catch (e) {
         opts.stderr(`codechart: ${e instanceof Error ? e.message : String(e)}\n`);
         process.exitCode = 1;
