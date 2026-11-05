@@ -159,7 +159,7 @@ read file or stdin → validate spec → load config
 - **Planned steps:** dashed outline and a "planned" badge.
 - **Now and After** (2026-11-03): a plan that removes a step or link, or alters an existing step (a `planned` step with a `source`), is drawn as two panes like a map plan: Now (existing, removed and altered steps; links whose ends are there, minus `planned: true` ones; removed ones red; altered steps amber, badge "will change") and After plan (all but removed; planned dashed). One layout, so steps keep their place; shared selection, and pan and zoom while "Panes: linked" (as maps); under `auto` the HTML is always written. A plan that only adds steps keeps one flow.
 - **Click a step:** a side panel shows its status, its `source` as `path:line` (for a content anchor, the line `match` resolved to), and the **code snippet** at that range (one line for a content anchor), read from disk at render time (up to 15 lines, each cut at 300 characters so a minified line can't flood the panel), so the user can check the anchor in seconds.
-- Same themes, toggle, pan/zoom, focus on a step's links (and a link list in its panel), status chips (`planned`, `existing`, ...), gaps list and self-contained single file as maps.
+- Same themes, toggle, pan/zoom, focus on a step's links (and a link list in its panel), status chips (`planned`, `existing`, ...), reviewed ticks (steps keyed by id), gaps list and self-contained single file as maps.
 
 ## 10. Agent integration (skill changes)
 

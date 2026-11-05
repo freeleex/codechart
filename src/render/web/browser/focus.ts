@@ -1,5 +1,12 @@
 // Runs in the generated page; scripts/client-build.ts puts it ahead of client.ts in the one inline script.
 
+/** Marks the node as the one the panel shows. */
+export function select(id: string | null): void {
+  document.querySelectorAll('.node.selected').forEach((g) => g.classList.remove('selected'));
+  if (id === null) return;
+  document.querySelectorAll(`.node[data-id="${CSS.escape(id)}"]`).forEach((g) => g.classList.add('selected'));
+}
+
 /** Lights the node, its edges and its neighbours and dims the rest; null lights everything again. */
 export function focus(id: string | null): void {
   document.body.classList.toggle('focus', id !== null);

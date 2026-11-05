@@ -93,7 +93,7 @@ const CSP = `default-src 'none'; style-src 'unsafe-inline'; script-src 'sha256-$
 
 export function renderPage(p: PageParts): string {
   const theme: Theme = p.meta.theme && THEMES.includes(p.meta.theme) ? p.meta.theme : 'auto';
-  const data = { width: p.width, height: p.height };
+  const data = { width: p.width, height: p.height, repo: p.meta.repo };
   const defs = `<defs>${arrowMarker('arrow')}${p.extraDefs ?? ''}</defs>`;
   // Ids are document-wide, so the second pane's url(#arrow) finds the first pane's defs.
   const canvas = (viewport: string, i: number) =>

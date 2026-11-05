@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach } from 'vitest';
 import { renderFlowHtml } from '../../src/render/flow/html.js';
 import { layoutFlow } from '../../src/render/flow/layout.js';
+import type { Preview } from '../../src/render/preview.js';
 import { renderHtml } from '../../src/render/web/html.js';
 import { layoutSpec, PANE_CANVASES } from '../../src/render/web/layout.js';
 import { validateSpec, type Spec } from '../../src/spec/schema.js';
@@ -16,8 +17,11 @@ function mapSpec(raw: unknown): Spec {
 
 const meta = { generatedAt: new Date('2026-11-05T12:00:00Z'), repo: 'demo' };
 const shop = mapSpec(JSON.parse(readFileSync('tests/fixtures/shop.spec.json', 'utf8')));
+const shopLayout = await layoutSpec(shop);
 /** A one-pane map: new, changed, context and config nodes. */
-export const shopPage = renderHtml(shop, await layoutSpec(shop), meta);
+export const shopPage = renderHtml(shop, shopLayout, meta);
+/** The same map for another repo, with node diffs. */
+export const shopWith = (previews: Map<string, Preview>, repo = 'demo') => renderHtml(shop, shopLayout, { ...meta, repo }, undefined, previews);
 
 const plan = mapSpec({
   title: 'Users join teams',

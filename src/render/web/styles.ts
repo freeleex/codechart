@@ -35,6 +35,7 @@ aside{width:clamp(300px,35vw,600px);min-width:300px;max-width:80vw;border-left:1
 aside h2{margin:0 0 6px;font-size:13px;overflow-wrap:anywhere}
 aside h3{margin:12px 0 4px;font-size:11px;text-transform:uppercase;color:var(--muted)}
 aside ul{margin:0;padding-left:18px}
+aside .tick-row{display:block;margin:0 0 6px;color:var(--muted)}
 aside .relations{list-style:none;padding:0}
 aside .rel{padding:1px 0;font:inherit;color:var(--edge);background:none;border:0;cursor:pointer;text-align:left;overflow-wrap:anywhere}aside .rel:hover{text-decoration:underline}
 aside .fields-note{color:var(--muted);font-size:11.5px;font-style:italic;margin:6px 0 0}
@@ -77,6 +78,11 @@ body.focus .node:not(.lit),body.focus .edge:not(.lit){--dim:.25}
 .node .field-added{fill:var(--add)}
 .node .field-removed{fill:var(--rem);text-decoration:line-through}
 .node .field-modified{fill:var(--chg-t)}
+.tick{cursor:pointer}.tick-hit{fill:transparent}
+.tick-box{fill:var(--card);stroke:var(--muted);stroke-width:1}
+.tick-mark{display:none;fill:none;stroke:var(--card);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.node.reviewed :is(.card,.fold,.shape){stroke:var(--muted)}
+.node.reviewed .tick-box{fill:var(--muted)}.node.reviewed .tick-mark{display:inline}
 .node.selected .card{stroke-width:2.5}
 .node:focus{outline:none}
 .node:focus-visible .card{stroke:var(--edge);stroke-width:3.5}
@@ -88,6 +94,8 @@ body.focus .node:not(.lit),body.focus .edge:not(.lit){--dim:.25}
 .field-added-t{color:var(--add)}.field-removed-t{color:var(--muted);text-decoration:line-through}.field-modified-t{color:var(--chg-t)}
 
 #info-toggle[aria-expanded="true"]{border-color:var(--edge)}
-#info-toggle,#link-toggle,#theme-toggle{align-self:center;padding:4px 10px;font:11px system-ui,sans-serif;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:12px;cursor:pointer}
-#info-toggle:hover,#link-toggle:hover,#theme-toggle:hover{border-color:var(--edge)}
+#review{display:flex;gap:8px;align-items:center;align-self:center;color:var(--muted);font-size:11px}
+#info-toggle,#link-toggle,#theme-toggle,#next-unreviewed{align-self:center;padding:4px 10px;font:11px system-ui,sans-serif;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:12px;cursor:pointer}
+#info-toggle:hover,#link-toggle:hover,#theme-toggle:hover,#next-unreviewed:hover:not(:disabled){border-color:var(--edge)}
+#next-unreviewed:disabled{opacity:.4;cursor:default}
 `;

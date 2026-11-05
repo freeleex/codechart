@@ -1,4 +1,6 @@
-import { esc } from './page.js';
+import { createHash } from 'node:crypto';
+import type { Preview } from '../preview.js';
+import { esc, num } from './page.js';
 
 const CHIP_ORDER = ['new', 'changed', 'removed', 'planned', 'config', 'context', 'existing'];
 const CHIP_MARK: Record<string, string> = { new: '+', changed: '~', removed: '−', planned: '○', config: '◆', context: '·', existing: '·' };
@@ -21,6 +23,21 @@ export function statusChips(statuses: string[]): string {
   }
   return chips.length ? `<span id="chips" role="group" aria-label="Status filter">${chips.join('')}</span>` : '';
 }
+
+export const reviewControls = (total: number): string =>
+  `<span id="review"><span id="review-count">0/${total} reviewed</span><button id="next-unreviewed" type="button" title="Select the next node not ticked as reviewed">Next unreviewed</button></span>`;
+
+/** Ties a node's tick to its code: the hash changes when the node's diff does. */
+export const diffRev = (p: Preview | undefined): string | undefined =>
+  p ? createHash('sha256').update(JSON.stringify(p)).digest('hex').slice(0, 12) : undefined;
+
+/** A tickbox centred on a node's top-left corner, clear of the label and badge. */
+export const tickSvg = (x: number, y: number): string =>
+  `<g class="tick" aria-hidden="true"><rect class="tick-hit" x="${num(x - 9)}" y="${num(y - 9)}" width="18" height="18"/>` +
+  `<rect class="tick-box" x="${num(x - 6)}" y="${num(y - 6)}" width="12" height="12" rx="2"/>` +
+  `<path class="tick-mark" d="M${num(x - 3)},${num(y)} L${num(x - 1)},${num(y + 3)} L${num(x + 3.5)},${num(y - 3)}"/></g>`;
+
+export const tickRow = (id: string): string => `<label class="tick-row"><input type="checkbox" data-tick-for="${esc(id)}"> Reviewed</label>`;
 
 interface Relation {
   out: boolean;

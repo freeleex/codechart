@@ -4,7 +4,7 @@ import { flagMark, flagTitle, mismatchNote } from '../web/check-html.js';
 import { edgeEnds, infoButton, gapsHtml, pageInfoSection, renderDiagramPage, renderEdgeSvg, type EdgeEnds } from '../web/diagram.js';
 import { arrowMarker, CHANGE_ARROWS, esc, num, type HtmlMeta } from '../web/page.js';
 import type { Side } from '../web/states.js';
-import { relationsHtml, relationsOf } from '../web/tools.js';
+import { relationsHtml, relationsOf, tickRow, tickSvg } from '../web/tools.js';
 import { FLOW_SIDE_KEY, hasFlowNowAfter, isAltered, linkOn, linkTone, stepOn } from './states.js';
 import type { FlowSnippets, Snippet } from './anchors.js';
 import { BADGE_HEIGHT, LINE_HEIGHT, type FlowLayout, type FlowLayoutEdge, type FlowLayoutNode } from './layout.js';
@@ -69,6 +69,7 @@ function renderStep(step: FlowStep, b: FlowLayoutNode, flag: string, side?: Side
     flag +
     shape(step, b) +
     text +
+    tickSvg(b.x, b.y) +
     (flagged ? flagMark(b.x + b.w, b.y) : '') +
     `</g>`
   );
@@ -104,7 +105,7 @@ export function snippetHtml(s: Snippet): string {
 const tag = (status: string) => `<span class="tag tag-${esc(status)}">${esc(status)}</span>`;
 
 function stepPanel(spec: FlowSpec, step: FlowStep, snippets: FlowSnippets, byId: Map<string, FlowStep>, check: CheckSummary | undefined): string {
-  let out = `<h2>${esc(step.label)}</h2>`;
+  let out = `<h2>${esc(step.label)}</h2>${tickRow(step.id)}`;
   out += `<div class="status">${tag(step.status)} ${esc(step.type)}</div>`;
   out += mismatchNote(check, step.id);
   const snip = snippets.steps.get(step.id);

@@ -1,8 +1,9 @@
 // Runs in the generated page, not in node. `npm run gen:client` compiles it into ../client.ts,
 // which the page inlines (the CSP allows that one script by hash).
 import { initChips } from './chips.js';
-import { dismissFocus, focus } from './focus.js';
+import { dismissFocus, focus, select } from './focus.js';
 import { startTrail, visitFromHash, type Trail, type Visit } from './history.js';
+import { initReview } from './review.js';
 import { load, save } from './store.js';
 
 interface View {
@@ -22,7 +23,7 @@ interface Drag {
 
 const THEMES = ['auto', 'light', 'dark'];
 
-const data = JSON.parse(document.getElementById('spec-data')!.textContent!) as { width: number; height: number };
+const data = JSON.parse(document.getElementById('spec-data')!.textContent!) as { width: number; height: number; repo: string };
 const canvases = [...document.querySelectorAll<HTMLElement>('.canvas')];
 const vps = [...document.querySelectorAll<SVGGElement>('.viewport')];
 const panel = document.getElementById('panel')!;
@@ -111,12 +112,6 @@ function initPaneLink(): void {
   linkBtn.addEventListener('click', () => setLinked(!linked, true));
 }
 
-function select(id: string | null): void {
-  document.querySelectorAll('.node.selected').forEach((g) => g.classList.remove('selected'));
-  if (id === null) return;
-  document.querySelectorAll(`.node[data-id="${CSS.escape(id)}"]`).forEach((g) => g.classList.add('selected'));
-}
-
 function setInfo(on: boolean): void {
   info.hidden = !on;
   panel.hidden = on;
@@ -134,6 +129,7 @@ function open(v: Visit): void {
     panel.appendChild(tpl.content.cloneNode(true));
   }
   setInfo(!tpl);
+  review.paint();
 }
 
 /** Pans so the node is in the middle of each pane it is outside of. */
@@ -155,6 +151,11 @@ function visit(id: string): void {
   if (!panelFor(id)) return;
   trail.go(id);
   focus(id);
+}
+
+function goTo(id: string): void {
+  visit(id);
+  reveal(id);
 }
 
 function initPanel(): void {
@@ -181,9 +182,7 @@ function initPanel(): void {
   });
   panel.addEventListener('click', (e) => {
     const to = (e.target as Element).closest('[data-goto]')?.getAttribute('data-goto');
-    if (!to) return;
-    visit(to);
-    reveal(to);
+    if (to) goTo(to);
   });
   const showInfo = () => trail.go(null);
   if (infoBtn) infoBtn.addEventListener('click', showInfo);
@@ -270,4 +269,5 @@ window.addEventListener('resize', fit);
 fit();
 dismissFocus(canvases, () => moved);
 initChips();
+const review = initReview(data.repo, goTo);
 initPanel();
