@@ -55,7 +55,7 @@ const repoOut = () => join(out, repoFolder(repo));
 const written = () => (existsSync(repoOut()) ? readdirSync(repoOut()) : []);
 const expectedFile = () => join(repoOut(), '20261028-090503-teams-table.html');
 
-const HEADER = '**Map** _(key: + new  - removed  ~ changed  · context  ◆ config)_';
+const HEADER = '**Map** _(key: + new  ~ changed  - removed  ◆ config · unmarked = unchanged)_';
 
 describe('codechart render', () => {
   it('invalid spec -> each error on stderr, exitCode 1, nothing written', async () => {
@@ -130,14 +130,14 @@ describe('codechart render', () => {
     const withFields = spec(2);
     (withFields.nodes[0] as Record<string, unknown>).fields = [{ name: 'id', type: 'uuid' }];
     (withFields.nodes[0] as Record<string, unknown>).fieldsComplete = true;
-    expect((await run(['render', specFile(withFields), '--output', 'cli'])).out).toContain('fields:\n+node0  id uuid');
-    expect((await run(['render', specFile(withFields), '--output', 'both'])).out).not.toMatch(/^fields:$/m);
+    expect((await run(['render', specFile(withFields), '--output', 'cli'])).out).toContain('+ node0 ──▶ node1\n    id uuid\n');
+    expect((await run(['render', specFile(withFields), '--output', 'both'])).out).not.toContain('    id uuid');
   });
 
-  it('--output cli with hidden nodes -> "+N more not shown"', async () => {
+  it('--output cli with hidden nodes -> "N more not shown"', async () => {
     config('defaults:\n  terminalMaxNodes: 3\n');
     const r = await run(['render', specFile(spec(5)), '--output', 'cli']);
-    expect(r.out).toContain('+2 more not shown');
+    expect(r.out).toContain('\n2 more not shown');
   });
 
   it('no rules field -> defaults.output', async () => {
@@ -234,7 +234,7 @@ describe('codechart render', () => {
     config('defaults:\n  terminalMaxNodes: 3\n');
     const r = await run(['render', specFile(spec(5))]);
     expect(written()).toHaveLength(1);
-    expect(r.out).toContain('+2 more in web view');
+    expect(r.out).toContain('\n2 more in web view');
   });
 
   describe('auto when the terminal map cuts text', () => {
@@ -344,11 +344,11 @@ describe('codechart render', () => {
     expect(tty.out).toContain('\u001b[');
   });
 
-  it('--md: Map label, text block, link outside the block when HTML is written', async () => {
+  it('--md: Map label, diff block, link outside the block when HTML is written', async () => {
     const plain = await run(['render', specFile(spec(2)), '--output', 'both']);
     const r = await run(['render', specFile(spec(2)), '--output', 'both', '--md']);
     const map = plain.out.split('\n').filter((l) => !l.startsWith('full map → ') && !l.startsWith('key: ')).join('\n');
-    expect(r.out).toBe(`${HEADER}\n\`\`\`text\n${map}\`\`\`\n\n[Open full map](${pathToFileURL(expectedFile()).href})\n\n`);
+    expect(r.out).toBe(`${HEADER}\n\`\`\`diff\n${map}\`\`\`\n\n[Open full map](${pathToFileURL(expectedFile()).href})\n\n`);
     expect(r.out).not.toContain('full map →');
   });
 
@@ -360,7 +360,7 @@ describe('codechart render', () => {
   it('--md without HTML: no link line', async () => {
     const plain = await run(['render', specFile(spec(2)), '--output', 'cli']);
     const r = await run(['render', specFile(spec(2)), '--output', 'cli', '--md']);
-    expect(r.out).toBe(`${HEADER}\n\`\`\`text\n${plain.out.replace(/key: .*\n/, '')}\`\`\`\n\n`);
+    expect(r.out).toBe(`${HEADER}\n\`\`\`diff\n${plain.out.replace(/key: .*\n/, '')}\`\`\`\n\n`);
     expect(plain.out).toContain('key: + new');
     expect(written()).toEqual([]);
   });
@@ -393,7 +393,7 @@ describe('codechart render', () => {
     const s = spec(2);
     Object.assign(s.nodes[0]!, { fields: [{ name: 'a ``` b' }], fieldsComplete: true });
     const r = await run(['render', specFile(s), '--output', 'cli', '--md']);
-    expect(r.out.startsWith(`${HEADER}\n\`\`\`\`text\n`)).toBe(true);
+    expect(r.out.startsWith(`${HEADER}\n\`\`\`\`diff\n`)).toBe(true);
     expect(r.out.endsWith('\n````\n\n')).toBe(true);
   });
 

@@ -35,24 +35,26 @@ Every word is correct, and you still don't *see* it. Which of those are new, and
 
 With codechart, the same reply starts with this:
 
-**Map** _(key: + new  - removed  ~ changed  · context  ◆ config)_
-```text
+**Map** _(key: + new  ~ changed  - removed  ◆ config · unmarked = unchanged)_
+```diff
 database
-  ~orders ─customer_id─▶ ·customers
-          ─status──────▶ ~enum order_status
-  +invoices ─order_id─▶ ~orders
-            ─method───▶ ~enum payment_method
+~ orders ─customer_id─▶ customers
+         ─status──────▶ enum order_status
++ invoices ─order_id─▶ orders
+           ─method───▶ enum payment_method
+~ enum order_status
+~ enum payment_method
 
 backend
-  ~OrderStatus ─mirrors─▶ ~enum order_status
-  +Invoice ─maps─▶ +invoices
-  +POST /orders/{id}/refund ─sets refunded─▶ ~model OrderStatus
-  ~PaymentMethod ─mirrors─▶ ~enum payment_method
+~ model OrderStatus ─mirrors─▶ enum order_status
++ model Invoice ─maps─▶ invoices
++ endpoint POST /orders/{id… ─sets refunded─▶ model OrderStatus
+~ model PaymentMethod ─mirrors─▶ enum payment_method
 
 config
-  +migration: backfill invo… ─backfills─▶ +invoices
-  ◆INVOICE_PREFIX ─read by─▶ +migration: backfill invoices for paid orders
-  ◆feature flag refundsEnab… ─gates─▶ +endpoint POST /orders/{id}/refund
++ migration: backfill invoi… ─backfills─▶ invoices
+◆ INVOICE_PREFIX ─read by─▶ migration: backfill invoices for paid orders
+◆ feature flag refundsEnabl… ─gates─▶ endpoint POST /orders/{id}/refund
 
 12 nodes · 4 new · 5 changed · 2 config · ✓ 10 checked
 gaps: customers: columns besides id not read
@@ -61,7 +63,7 @@ not on map: tests: test_invoice_backfill.py · docs: CHANGELOG.md, .env.example
 
 Open full map
 
-New things are `+`, changed ones `~`, existing ones `·`, config `◆`. Layers are grouped, every relation is drawn, and `✓ 10 checked` means each claim on the map was verified against your files and the git diff. It takes ten seconds to read, and `gaps` tells you what the agent *didn't* look at.
+New things are `+`, changed ones `~`, removed ones `-`, config `◆`; anything unmarked already existed. The block is a `diff` fence, so Claude Code, OpenCode, Codex, Gemini CLI, Cursor and GitHub colour the new and removed lines on their own. Layers are grouped, every relation is drawn, and `✓ 10 checked` means each claim on the map was verified against your files and the git diff. It takes ten seconds to read, and `gaps` tells you what the agent *didn't* look at.
 
 **Open full map** opens an interactive page. Click any node for its summary, file, fields — and in a change summary, its diff, read straight from git:
 
@@ -140,15 +142,19 @@ A plan that changes existing behaviour gets the same treatment as a flow — the
 
 Terraform, OpenTofu, Helm, Kustomize and Kubernetes changes get a map of resources, modules and what they reference — built in, no rule to write:
 
-**Map** _(key: + new  - removed  ~ changed  · context  ◆ config)_
-```text
+**Map** _(key: + new  ~ changed  - removed  ◆ config · unmarked = unchanged)_
+```diff
 storage
-  +aws_s3_bucket_lifecycle_… ─bucket──────────▶ +aws_s3_bucket.logs
-                             ─expiration.days─▶ ◆var.log_retention_days
++ aws_s3_bucket.logs
++ aws_s3_bucket_lifecycle_c… ─bucket──────────▶ aws_s3_bucket.logs
+                             ─expiration.days─▶ var.log_retention_days
 
 network
-  ~aws_lb.api ─access_logs.bucket─▶ +aws_s3_bucket.logs
-              ─subnets────────────▶ ·module.vpc
+~ aws_lb.api ─access_logs.bucket─▶ aws_s3_bucket.logs
+             ─subnets────────────▶ module.vpc
+
+config
+◆ var.log_retention_days
 
 5 nodes · 2 new · 1 changed · 1 config · ✓ 5 checked
 gaps: terraform plan not run · module.vpc internals not read

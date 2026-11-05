@@ -3,10 +3,9 @@ import { pathToFileURL } from 'node:url';
 import type { Spec } from '../../spec/schema.js';
 import type { TermCtx } from './ctx.js';
 import { flat, truncate, wrapItems } from './wrap.js';
-import { renderFieldLines } from './fields.js';
+import { renderBlocks } from './blocks.js';
 import { selectTerminalNodes } from './select.js';
-import { marker, paint, plainLabel } from './labels.js';
-import { linksAmong, renderLinks } from './links.js';
+import { marker } from './labels.js';
 import { alertLine, countLines, type CheckSummary } from './check-lines.js';
 
 interface TerminalOptions {
@@ -22,8 +21,8 @@ export const MIN_WIDTH = 20;
 const MAX_WIDTH = 100;
 const NOT_TTY_WIDTH = 80;
 const MAX_ENV_WIDTH = 300;
-const KEY_ORDER = ['new', 'removed', 'changed', 'context', 'config'] as const;
-export const KEY = `key: ${KEY_ORDER.map((s) => `${marker(s)} ${s}`).join('  ')}`;
+const KEY_ORDER = ['new', 'changed', 'removed', 'config'] as const;
+export const KEY = `key: ${KEY_ORDER.map((s) => `${marker(s)} ${s}`).join('  ')} · unmarked = unchanged`;
 
 export const fullMapLine = (htmlPath: string): string => `full map → ${pathToFileURL(resolve(htmlPath)).href}`;
 
@@ -45,7 +44,8 @@ function footer(spec: Spec, hidden: number, { width, htmlPath, check }: TermCtx,
   if (keyLine) lines.push(truncate(KEY, width));
   if (spec.gaps?.length) lines.push(wrapItems('gaps: ', spec.gaps.map(flat), width));
   if (spec.omitted?.length) lines.push(wrapItems('not on map: ', spec.omitted.map(flat), width));
-  if (hidden > 0) lines.push(truncate(`+${hidden} more ${htmlPath ? 'in web view' : 'not shown'}`, width));
+  // No leading `+`: in a diff fence it would read as an addition.
+  if (hidden > 0) lines.push(truncate(`${hidden} more ${htmlPath ? 'in web view' : 'not shown'}`, width));
   // Never broken: a split URL stops being clickable.
   if (htmlPath) lines.push(fullMapLine(htmlPath));
   return lines.join('\n');
@@ -64,19 +64,9 @@ export function renderTerminalDetailed(spec: Spec, opts: TerminalOptions): { tex
   const sections: string[] = [];
   const alert = alertLine(opts.check, width);
   if (alert) sections.push(alert);
-  const links = renderLinks(spec, ids, ctx);
-  if (links) sections.push(links);
-  const shown = new Set(linksAmong(spec, ids).flatMap((e) => [e.from, e.to]));
-  const lone = spec.nodes.filter((n) => ids.has(n.id) && !shown.has(n.id));
-  const items = lone.map((n) => ({
-    text: plainLabel(n),
-    paint: opts.color ? (piece: string) => paint(n, piece) : undefined,
-  }));
-  if (items.length > 0) sections.push(wrapItems('also: ', items, width));
-  if (!opts.htmlPath) {
-    const fields = renderFieldLines(spec, ids, ctx);
-    if (fields) sections.push(fields);
-  }
+  // Field details live in the HTML when there is one.
+  const body = renderBlocks(spec, ids, ctx, !opts.htmlPath);
+  if (body) sections.push(body);
   sections.push(footer(spec, hidden, ctx, opts.keyLine ?? true));
   return { text: `${sections.join('\n\n')}\n`, truncated: ctx.cuts.truncated };
 }

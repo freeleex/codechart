@@ -4,7 +4,7 @@ import { pathToFileURL } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import type { Spec, Status } from '../../src/spec/schema.js';
 import { selectTerminalNodes } from '../../src/render/terminal/select.js';
-import { renderLinks } from '../../src/render/terminal/links.js';
+import { renderBlocks } from '../../src/render/terminal/blocks.js';
 import { columns, flat, truncate } from '../../src/render/terminal/wrap.js';
 import { defaultWidth, renderTerminal } from '../../src/render/terminal/render.js';
 
@@ -84,12 +84,13 @@ const linkSpec = (labels: (string | undefined)[], sourceLabel = 'src'): Spec => 
   kind: 'plan',
   nodes: [
     { id: 's', label: sourceLabel, kind: 'other', status: 'new', layer: 'database' },
-    ...labels.map((_, i) => ({ id: `t${i}`, label: `t${i}`, kind: 'table', status: 'changed', layer: 'database' }) as const),
+    ...labels.map((_, i) => ({ id: `t${i}`, label: `t${i}`, kind: 'table', status: 'context', layer: 'database' }) as const),
   ],
   edges: labels.map((label, i) => ({ from: 's', to: `t${i}`, ...(label !== undefined && { label }) })),
 });
 const ctx = (width: number, color = false) => ({ width, color, cuts: { truncated: false } });
 const allIds = (spec: Spec) => new Set(spec.nodes.map((n) => n.id));
+const renderLinks = (spec: Spec, ids: Set<string>, c: ReturnType<typeof ctx>) => renderBlocks(spec, ids, c, false);
 
 describe('renderLinks', () => {
   it('a source with 3 links → written once, arrows aligned', () => {
@@ -97,9 +98,9 @@ describe('renderLinks', () => {
     expect(renderLinks(spec, allIds(spec), ctx(100))).toBe(
       [
         'database',
-        '  +src ─adds is_deleted─▶ ~t0',
-        '       ─adds CHECK──────▶ ~t1',
-        '       ─────────────────▶ ~t2',
+        '+ src ─adds is_deleted─▶ t0',
+        '      ─adds CHECK──────▶ t1',
+        '      ─────────────────▶ t2',
       ].join('\n'),
     );
   });
@@ -108,7 +109,7 @@ describe('renderLinks', () => {
     const spec = makeSpec({ a: 'changed', b: 'context', c: 'context' }, [['a', 'b'], ['a', 'c']]);
     spec.edges[0] = { ...spec.edges[0]!, label: 'calls', change: 'added' };
     spec.edges[1] = { ...spec.edges[1]!, change: 'removed' };
-    expect(renderLinks(spec, allIds(spec), ctx(100))).toBe('l\n  ~a ─+calls─▶ ·b\n     ─-──────▶ ·c');
+    expect(renderLinks(spec, allIds(spec), ctx(100))).toBe('l\n~ a ─+calls─▶ b\n    ─-──────▶ c');
   });
 
   it('a modified field with was shows old → new type', () => {
@@ -119,29 +120,29 @@ describe('renderLinks', () => {
   });
 
   it('no-label link alone is ──▶', () => {
-    const spec = makeSpec({ a: 'new', b: 'changed' }, [['a', 'b']]);
-    expect(renderLinks(spec, allIds(spec), ctx(100))).toBe('l\n  +a ──▶ ~b');
+    const spec = makeSpec({ a: 'new', b: 'context' }, [['a', 'b']]);
+    expect(renderLinks(spec, allIds(spec), ctx(100))).toBe('l\n+ a ──▶ b');
   });
 
-  it('target shows kind except table/file/other/config; source never shows kind', () => {
+  it('kind before the label on both ends, except table/file/other/config; targets carry no marker', () => {
     const out = renderLinks(teams, allIds(teams), ctx(100));
-    expect(out).toContain('  ~orders ─customer_id─▶ ·customers\n          ─status──────▶ ~enum order_status');
-    expect(out).toContain('  +Invoice ─maps─▶ +invoices');
-    expect(out).toContain('  ◆feature flag refundsEnabled ─gates─▶ +endpoint POST /orders/{id}/refund');
-    expect(out).toContain('  +POST /orders/{id}/refund ─sets refunded─▶ ~model OrderStatus');
+    expect(out).toContain('~ orders ─customer_id─▶ customers\n         ─status──────▶ enum order_status');
+    expect(out).toContain('+ model Invoice ─maps─▶ invoices');
+    expect(out).toContain('◆ feature flag refundsEnabled ─gates─▶ endpoint POST /orders/{id}/refund');
+    expect(out).toContain('+ endpoint POST /orders/{id}/refund ─sets refunded─▶ model OrderStatus');
   });
 
-  it('link to a hidden node not shown', () => {
+  it('link to a hidden node not shown; a changed node with no shown link keeps its headline', () => {
     const spec = linkSpec(['a', 'b']);
     const out = renderLinks(spec, new Set(['s', 't0']), ctx(100));
-    expect(out).toBe('database\n  +src ─a─▶ ~t0');
-    expect(renderLinks(spec, new Set(['s']), ctx(100))).toBe('');
+    expect(out).toBe('database\n+ src ─a─▶ t0');
+    expect(renderLinks(spec, new Set(['s']), ctx(100))).toBe('database\n+ src');
   });
 
   it('long source label cut with …', () => {
     const spec = linkSpec(['x'], 'y'.repeat(40));
     const line = renderLinks(spec, allIds(spec), ctx(60)).split('\n')[1]!;
-    expect(line).toBe(`  +${'y'.repeat(18)}… ─x─▶ ~t0`);
+    expect(line).toBe(`+ ${'y'.repeat(19)}… ─x─▶ t0`);
   });
 
   it('long edge label cut with … then target cut, every line ≤ width', () => {
@@ -149,8 +150,8 @@ describe('renderLinks', () => {
     spec.nodes[2]!.label = 'T'.repeat(80);
     const out = renderLinks(spec, allIds(spec), ctx(40)).split('\n');
     for (const line of out) expect(columns(line)).toBeLessThanOrEqual(40);
-    expect(out[1]).toBe(`  +src ─${'l'.repeat(12)}…─▶ ~t0`);
-    expect(out[2]).toBe(`       ─short${'─'.repeat(9)}▶ ~${'T'.repeat(14)}…`);
+    expect(out[1]).toBe(`+ src ─${'l'.repeat(12)}…─▶ t0`);
+    expect(out[2]).toBe(`      ─short${'─'.repeat(9)}▶ ${'T'.repeat(16)}…`);
   });
 
   it('one arrow column per source even when a target overflows', () => {
@@ -167,20 +168,20 @@ describe('renderLinks', () => {
     const spec = makeSpec({ a: 'new', b: 'changed' }, [['a', 'b']]);
     spec.nodes[0]!.label = 'abcdef';
     const out = renderLinks(spec, allIds(spec), ctx(6, true)).split('\n')[1]!;
-    expect(out).toBe(`  ${ESC}[32m+…${ESC}[0m …`);
+    expect(out).toBe(`${ESC}[32m+ a…${ESC}[0m …`);
     expect(columns(out)).toBeLessThanOrEqual(6);
   });
 
   it('flattens control characters', () => {
-    const spec = makeSpec({ a: 'new', b: 'changed' }, [['a', 'b']]);
+    const spec = makeSpec({ a: 'new', b: 'context' }, [['a', 'b']]);
     spec.nodes[0]!.label = 'tab\there';
     spec.edges[0]!.label = 'reads\nconfig';
-    expect(renderLinks(spec, allIds(spec), ctx(100))).toBe('l\n  +tab here ─reads config─▶ ~b');
+    expect(renderLinks(spec, allIds(spec), ctx(100))).toBe('l\n+ tab here ─reads config─▶ b');
   });
 
-  it('color paints only labels', () => {
+  it('color paints only labels; a changed target is painted in the arrow line and headlined', () => {
     const spec = makeSpec({ a: 'new', b: 'changed' }, [['a', 'b']]);
-    expect(renderLinks(spec, allIds(spec), ctx(100, true))).toBe(`l\n  ${ESC}[32m+a${ESC}[0m ──▶ ${ESC}[33m~b${ESC}[0m`);
+    expect(renderLinks(spec, allIds(spec), ctx(100, true))).toBe(`l\n${ESC}[32m+ a${ESC}[0m ──▶ ${ESC}[33mb${ESC}[0m\n${ESC}[33m~ b${ESC}[0m`);
   });
 });
 
@@ -207,7 +208,7 @@ describe('renderTerminal', () => {
     const out = renderTerminal(teams, { maxNodes: 20, width: 100, color: false });
     expect(out).toMatchSnapshot();
     expect(out).toContain('12 nodes · 4 new · 5 changed · 2 config');
-    expect(out.startsWith('database\n  ~orders ')).toBe(true);
+    expect(out.startsWith('database\n~ orders ')).toBe(true);
   });
 
   it('no ascii-dag output (no "Edge labels:", no "--- text")', () => {
@@ -241,23 +242,16 @@ describe('renderTerminal', () => {
     }
   });
 
-  it('also: with color wraps by visible width and closes color on every line', () => {
+  it('a node with no shown link gets a headline of its own, cut to the width, color closed on every line', () => {
     const spec = makeSpec({ a: 'new', b: 'changed', c: 'removed' }, []);
     spec.nodes[0]!.label = 'app/services/invoice_numbering_service.py';
     spec.nodes[1]!.label = 'short one';
-    {
-      const out = renderTerminal(spec, { maxNodes: 20, width: 20, color: true });
-      const also = out.slice(out.indexOf('also:'), out.indexOf('\n\n', out.indexOf('also:'))).split('\n');
-      expect(also.length).toBeGreaterThan(1);
-      for (const line of also) {
-        expect(columns(line), line).toBeLessThanOrEqual(20);
-        expect(line.replace(/\u001b\[[0-9;]*m/g, ''), line).not.toContain(ESC);
-        const opens = line.match(/\u001b\[3\dm/g)?.length ?? 0;
-        expect(line.match(/\u001b\[0m/g)?.length ?? 0, line).toBe(opens);
-      }
-      expect(also.join('').replace(/\u001b\[[0-9;]*m/g, '').replace(/\s+/g, '')).toContain(
-        'app/services/invoice_numbering_service.py',
-      );
+    const out = renderTerminal(spec, { maxNodes: 20, width: 20, color: true });
+    expect(out).toContain(`l\n${ESC}[32m+ app/services/invo…${ESC}[0m\n${ESC}[33m~ short one${ESC}[0m\n${ESC}[31m- c${ESC}[0m\n`);
+    for (const line of out.split('\n')) {
+      expect(columns(line), line).toBeLessThanOrEqual(20);
+      const opens = line.match(/\u001b\[3\dm/g)?.length ?? 0;
+      expect(line.match(/\u001b\[0m/g)?.length ?? 0, line).toBe(opens);
     }
   });
 
@@ -275,10 +269,10 @@ describe('renderTerminal', () => {
 
   it('footer has the key line', () => {
     const out = renderTerminal(teams, { maxNodes: 20, width: 100, color: false });
-    expect(out).toContain('12 nodes · 4 new · 5 changed · 2 config\nkey: + new  - removed  ~ changed  · context  ◆ config\n');
+    expect(out).toContain('12 nodes · 4 new · 5 changed · 2 config\nkey: + new  ~ changed  - removed  ◆ config · unmarked = unchanged\n');
   });
 
-  it('footer lists gaps, omitted, "+N more in web view", "full map → file://…" when htmlPath set', () => {
+  it('footer lists gaps, omitted, "N more in web view", "full map → file://…" when htmlPath set', () => {
     const out = renderTerminal(teams, {
       maxNodes: 5,
       width: 100,
@@ -288,7 +282,7 @@ describe('renderTerminal', () => {
     expect(out).toContain('customers: columns besides id not read');
     expect(out).toContain('tests: test_invoice_backfill.py');
     expect(out).toContain('docs: CHANGELOG.md, .env.example');
-    expect(out).toMatch(/\+\d+ more in web view/);
+    expect(out).toMatch(/\n\d+ more in web view/);
     expect(out).toContain(`full map → ${pathToFileURL(resolve('out/shop.html')).href}`);
 
     const plain = renderTerminal(teams, { maxNodes: 20, width: 100, color: false });
@@ -296,9 +290,9 @@ describe('renderTerminal', () => {
     expect(plain).not.toContain('full map');
   });
 
-  it('hidden nodes without htmlPath -> "+N more not shown"', () => {
+  it('hidden nodes without htmlPath -> "N more not shown"', () => {
     const out = renderTerminal(teams, { maxNodes: 5, width: 100, color: false });
-    expect(out).toMatch(/\+\d+ more not shown/);
+    expect(out).toMatch(/\n\d+ more not shown/);
     expect(out).not.toContain('more in web view');
   });
 
@@ -308,7 +302,7 @@ describe('renderTerminal', () => {
     }
   });
 
-  it('lists selected nodes with no shown link on an "also" line', () => {
+  it('selected nodes with no shown link get a headline in their layer', () => {
     const spec = {
       ...teams,
       nodes: [
@@ -318,8 +312,7 @@ describe('renderTerminal', () => {
       ],
     } as Spec;
     const out = renderTerminal(spec, { maxNodes: 20, width: 100, color: false });
-    expect(out).toContain('\nalso: +lonely · ~solo\n');
-    expect(renderTerminal(teams, { maxNodes: 20, width: 100, color: false })).not.toContain('also:');
+    expect(out).toContain('\n+ lonely\n~ solo\n');
   });
 
   it('breaks a footer item longer than width at spaces, keeping the text', () => {
@@ -388,9 +381,10 @@ describe('markers', () => {
 
   it('plain markers and key line plain', () => {
     const out = renderTerminal(statusSpec(), { maxNodes: 20, width: 100, color: false });
-    expect(out).toContain('  +n ──▶ ~enum c\n     ──▶ -r\n');
-    expect(out).toContain('  ·x ──▶ ◆g');
-    expect(out).toContain('key: + new  - removed  ~ changed  · context  ◆ config\n');
+    expect(out).toContain('+ n ──▶ enum c\n    ──▶ r\n');
+    expect(out).toContain('\n- r\n');
+    expect(out).toContain('\n  x ──▶ g\n◆ g\n');
+    expect(out).toContain('key: + new  ~ changed  - removed  ◆ config · unmarked = unchanged\n');
     expect(out).not.toMatch(/[✅❌✏⚪⚙]/u);
   });
 
@@ -404,14 +398,14 @@ describe('markers', () => {
   it('removed nodes show no fields', () => {
     const spec = makeSpec({ r: 'removed' }, []);
     spec.nodes[0]!.fields = [{ name: 'gone', change: 'removed' }];
-    expect(renderTerminal(spec, { maxNodes: 20, width: 100, color: false })).not.toContain('fields:');
+    expect(renderTerminal(spec, { maxNodes: 20, width: 100, color: false })).not.toContain('gone');
   });
 
-  it('field markers and head label plain', () => {
+  it('field markers under the headline, both plain', () => {
     const spec = makeSpec({ c: 'changed' }, []);
     spec.nodes[0]!.fields = [{ name: 'a', change: 'added' }, { name: 'b', change: 'removed' }];
     const out = renderTerminal(spec, { maxNodes: 20, width: 100, color: false });
-    expect(out).toContain('fields:\n~c  +a · -b\n');
+    expect(out).toContain('~ c\n    +a · -b\n');
   });
 
   it('emoji in labels counted as 2 columns: arrows aligned, every line ≤ width', () => {
@@ -427,9 +421,8 @@ describe('markers', () => {
       for (const line of out.split('\n').filter((l) => !l.startsWith('full map'))) {
         expect(columns(line), line).toBeLessThanOrEqual(width);
       }
-      const blocks = out.split('\nfields:')[0]!.split('\n').filter((l) => l.startsWith('  '));
       const groups: string[][] = [];
-      for (const l of blocks) (l.startsWith('   ') ? groups.at(-1)! : (groups[groups.length] = [])).push(l);
+      for (const l of out.split('\n').filter((l) => l.includes('▶'))) (/^ {3}/.test(l) ? groups.at(-1)! : (groups[groups.length] = [])).push(l);
       for (const g of groups) {
         const at = g.map((l) => columns(l.slice(0, l.indexOf('▶'))));
         expect(new Set(at).size, g.join('\n')).toBe(1);
@@ -455,18 +448,18 @@ describe('fields section', () => {
   };
   const opts = { maxNodes: 20, width: 100, color: false };
 
-  it('no htmlPath → fields section lists new (all) and changed (changed only) fields', () => {
+  it('no htmlPath → under each node: new lists all fields, changed only the changed ones', () => {
     const out = renderTerminal(fieldSpec(), opts);
     expect(out).toContain(
-      'fields:\n+n  id uuid PK · name text unique · bare\n~c  +team_id uuid FK · -gone · ~role enum\n',
+      '+ n\n    id uuid PK · name text unique · bare\n~ c\n    +team_id uuid FK · -gone · ~role enum\n',
     );
-    expect(out.indexOf('fields:')).toBeLessThan(out.indexOf('4 nodes'));
+    expect(out).toContain('\n◆ k\n');
     expect(out).not.toContain('old');
     expect(out).not.toContain('cfg');
   });
 
-  it('htmlPath set → no fields section', () => {
-    expect(renderTerminal(fieldSpec(), { ...opts, htmlPath: 'out/x.html' })).not.toContain('fields:');
+  it('htmlPath set → no field lines', () => {
+    expect(renderTerminal(fieldSpec(), { ...opts, htmlPath: 'out/x.html' })).not.toContain('id uuid');
   });
 
   it('context node fields never shown', () => {
@@ -475,7 +468,7 @@ describe('fields section', () => {
 
   it('width 40 → wrapped, every line ≤ 40', () => {
     const out = renderTerminal(fieldSpec(), { ...opts, width: 40 });
-    expect(out).toContain('fields:');
+    expect(out).toContain('\n    id uuid PK');
     for (const line of out.split('\n')) expect(columns(line)).toBeLessThanOrEqual(40);
   });
 
@@ -483,23 +476,23 @@ describe('fields section', () => {
     const spec = fieldSpec();
     spec.nodes[0]!.label = 'x'.repeat(50);
     const out = renderTerminal(spec, { ...opts, width: 40 });
-    expect(out).toMatch(/\n\+x+…  id uuid PK/);
+    expect(out).toMatch(/\n\+ x{37}…\n    id uuid PK/);
     for (const line of out.split('\n')) expect(columns(line)).toBeLessThanOrEqual(40);
   });
 
-  it('tiny width → clamped to 20, fields header intact', () => {
+  it('tiny width → clamped to 20, field line intact', () => {
     const out = renderTerminal(fieldSpec(), { ...opts, width: 6 });
-    expect(out).toContain('\nfields:\n');
+    expect(out).toContain('\n    id uuid PK');
     for (const line of out.split('\n')) expect(columns(line)).toBeLessThanOrEqual(20);
   });
 
-  it('no node has fields → no section', () => {
-    expect(renderTerminal(makeSpec({ a: 'new' }, []), opts)).not.toContain('fields:');
+  it('no node has fields → no detail lines', () => {
+    expect(renderTerminal(makeSpec({ a: 'new' }, []), opts)).not.toMatch(/^ {4}/m);
   });
 
   it('color paints only the head label', () => {
     const out = renderTerminal(fieldSpec(), { ...opts, color: true });
-    expect(out).toContain(`${ESC}[32m+n${ESC}[0m  id uuid PK`);
+    expect(out).toContain(`${ESC}[32m+ n${ESC}[0m\n    id uuid PK`);
   });
 });
 

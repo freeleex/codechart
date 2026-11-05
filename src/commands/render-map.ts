@@ -13,7 +13,7 @@ import { chooseOutput, type RenderContext, type Rendered } from './choose-output
 
 function markdown(map: string | undefined, htmlPath: string | undefined, alert: string): string {
   const body = map !== undefined && htmlPath ? map.split('\n').filter((l) => l !== fullMapLine(htmlPath)).join('\n') : map;
-  return markdownBlock(`**Map** _(${KEY})_`, body ?? (alert || undefined), htmlPath);
+  return markdownBlock(`**Map** _(${KEY})_`, body ?? (alert || undefined), htmlPath, 'diff');
 }
 
 // Now and After side by side exist only in the HTML.
