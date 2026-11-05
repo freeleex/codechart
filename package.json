@@ -31,6 +31,10 @@
     "access": "public",
     "provenance": true
   },
+  "exports": {
+    "./server": "./dist/server.js",
+    "./package.json": "./package.json"
+  },
   "bin": {
     "codechart": "dist/cli.js"
   },
