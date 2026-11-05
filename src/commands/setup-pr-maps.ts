@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { closeSync, constants, lstatSync, mkdirSync, openSync, readFileSync, writeFileSync } from 'node:fs';
+import { closeSync, constants, lstatSync, mkdirSync, openSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { Command, Option } from 'commander';
