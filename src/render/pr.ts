@@ -27,8 +27,8 @@ export function renderSvg(spec: Spec, layout: Layout, check: MapCheck | undefine
   );
 }
 
-/** Text for Markdown: no HTML, nothing that opens a code span, and no `~` strikethrough (it also stops `**~ x**` going bold). */
-const md = (s: string): string => esc(flat(s)).replace(/`/g, "'").replace(/~/g, '\\~');
+/** Text for Markdown: no HTML, nothing that opens a code span, and no `~` strikethrough (it also stops `**~ x**` going bold); backslashes too, so `\~` cannot undo it. */
+const md = (s: string): string => esc(flat(s)).replace(/`/g, "'").replace(/[\\~]/g, '\\$&');
 
 const nodeName = (n: SpecNode): string => md(`${marker(n.status)} ${n.label}`.trimStart());
 

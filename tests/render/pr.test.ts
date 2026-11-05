@@ -86,6 +86,11 @@ describe('prBlock', () => {
     expect(out).toContain('&lt;script&gt;x&lt;/script&gt;');
   });
 
+  it('a backslash in agent text cannot undo the ~ escape', () => {
+    const spec: Spec = { title: 't', kind: 'summary', nodes: [node('a \\~~struck~~')], edges: [] };
+    expect(prBlock(spec, undefined, 'x')).toContain('**+ a \\\\\\~\\~struck\\~\\~**');
+  });
+
   it('the hidden spec cannot end its comment early, and reads back as the same spec', () => {
     const spec: Spec = { title: 't', kind: 'summary', nodes: [node('a --> b --!> c <!--')], edges: [] };
     const out = prBlock(spec, undefined, 'x');
