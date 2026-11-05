@@ -65,7 +65,7 @@ function renderStep(step: FlowStep, b: FlowLayoutNode, flag: string, side?: Side
     y += LINE_HEIGHT;
   }
   return (
-    `<g class="node type-${step.type} status-${status}" data-id="${esc(step.id)}" tabindex="0" role="button" aria-label="${esc(`${step.label} (${step.status} ${step.type}${flagged ? ", doesn't match the code" : ''})`)}">` +
+    `<g class="node type-${step.type} status-${status}" data-id="${esc(step.id)}" data-status="${step.status}" tabindex="0" role="button" aria-label="${esc(`${step.label} (${step.status} ${step.type}${flagged ? ", doesn't match the code" : ''})`)}">` +
     flag +
     shape(step, b) +
     text +
@@ -176,6 +176,7 @@ export function renderFlowHtml(spec: FlowSpec, layout: FlowLayout, snippets: Flo
       mismatch: { label: 'Check / gaps', title: "Show what doesn't match the code and what the agent did not check" },
       info: { label: 'Gaps', title: 'Show what the agent did not check' },
     }),
+    statuses: spec.steps.map((s) => s.status),
     sides,
     paneKey: FLOW_SIDE_KEY,
     viewport: (side) => viewport(spec, layout, check, side),

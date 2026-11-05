@@ -11,7 +11,7 @@ ${DARK_AUTO}
 ${DARK_FORCED}
 *{box-sizing:border-box}
 body{margin:0;height:100vh;display:flex;flex-direction:column;background:var(--bg);color:var(--text);font:13px system-ui,sans-serif}
-header{padding:8px 14px;border-bottom:1px solid var(--line);background:var(--panel);display:flex;gap:12px;align-items:baseline}
+header{padding:8px 14px;border-bottom:1px solid var(--line);background:var(--panel);display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline}
 header h1{margin:0;font-size:15px}
 header .meta{color:var(--muted);font-size:11px;margin-right:auto}
 header .update{font-size:11px;color:var(--chg-t)}header .update code{font:11px ui-monospace,monospace}
@@ -58,6 +58,13 @@ header .check{font-size:11px;color:var(--new-t)}header .check.bad{color:var(--re
 .edge-removed path{stroke:var(--rem);stroke-dasharray:5 3}.edge-removed text{fill:var(--rem)}#arrow-removed path{fill:var(--rem);stroke:none}
 .node{cursor:pointer}
 .node,.edge{opacity:calc(var(--base,1)*var(--fade,1)*var(--dim,1))}
+#chips{display:flex;flex-wrap:wrap;gap:6px;align-self:center}
+.chip{padding:1px 8px;font:11px system-ui,sans-serif;color:var(--muted);background:var(--panel);border:1px solid currentColor;border-radius:10px;cursor:pointer}
+.chip-new{color:var(--new-t)}.chip-changed{color:var(--chg-t)}.chip-removed{color:var(--rem)}.chip-planned,.chip-config{color:var(--cfg-t)}
+.chip-planned{border-style:dashed}.chip-delta{color:var(--text);border-color:var(--line)}
+.chip[aria-pressed="true"]{opacity:.5;text-decoration:line-through}
+.chip-delta[aria-pressed="true"]{opacity:1;text-decoration:none;border-color:var(--edge)}
+.node.faded,.edge.faded{--fade:.15}
 body.focus .node:not(.lit),body.focus .edge:not(.lit){--dim:.25}
 .node .card{fill:var(--card);stroke:var(--line);stroke-width:1}
 .node .fold{fill:none;stroke:var(--line);stroke-width:1}

@@ -3,6 +3,7 @@ import { checkNote, checkSection } from './check-html.js';
 import { esc, list, midpoint, num, renderPage, type HtmlMeta, type KeyPart } from './page.js';
 import { SIDE_TITLE, SIDES, type Side } from './states.js';
 import type { Point } from './layout.js';
+import { statusChips } from './tools.js';
 
 /** The nodes an edge joins, for focus and the hover title. */
 export interface EdgeEnds {
@@ -64,6 +65,8 @@ interface DiagramPage {
   meta: HtmlMeta;
   check: CheckSummary | undefined;
   infoButton: string;
+  /** The status of each node, for the header chips. */
+  statuses: string[];
   /** Two panes (Now / After) instead of one picture. */
   sides: boolean;
   paneKey: Record<Side, KeyPart[]>;
@@ -82,6 +85,7 @@ export function renderDiagramPage(p: DiagramPage): string {
     meta: p.meta,
     infoButton: p.infoButton,
     headerNote: checkNote(p.check),
+    headerTools: statusChips(p.statuses),
     viewport: p.sides ? '' : p.viewport(),
     ...(p.sides ? { panes: SIDES.map((side) => ({ title: SIDE_TITLE[side], key: p.paneKey[side], viewport: p.viewport(side) })) } : {}),
     aside: p.aside,

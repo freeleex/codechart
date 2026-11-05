@@ -95,7 +95,7 @@ function renderNode(n: SpecNode, box: Box, flag: string, fields: Field[]): strin
   const shape = SHAPE[n.kind];
   const top = y + 18 + KIND_ROW;
   return (
-    `<g class="node status-${n.status} shape-${shape}" data-id="${esc(n.id)}" tabindex="0" role="button" aria-label="${esc(`${n.label} (${nodeWhat(n)}${flagged ? ", doesn't match the code" : ''})`)}">` +
+    `<g class="node status-${n.status} shape-${shape}" data-id="${esc(n.id)}" data-status="${n.status}" tabindex="0" role="button" aria-label="${esc(`${n.label} (${nodeWhat(n)}${flagged ? ", doesn't match the code" : ''})`)}">` +
     flag +
     cardShape(shape, { x, y, w, h: height }, head) +
     `<line class="head" x1="${x}" y1="${y + head}" x2="${x + w}" y2="${y + head}"/>` +
@@ -206,6 +206,7 @@ export function renderHtml(spec: Spec, layout: Layout, meta: HtmlMeta, check?: M
       },
       info: { label: 'Not on map / gaps', title: 'Show what is not on the map and what the agent did not read' },
     }),
+    statuses: spec.nodes.map((n) => n.status),
     sides,
     paneKey: SIDE_KEY,
     viewport: (side) => viewport(spec, layout, check, side),

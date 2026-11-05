@@ -1,5 +1,6 @@
 // Runs in the generated page, not in node. `npm run gen:client` compiles it into ../client.ts,
 // which the page inlines (the CSP allows that one script by hash).
+import { initChips } from './chips.js';
 import { dismissFocus, focus } from './focus.js';
 import { startTrail, visitFromHash, type Trail, type Visit } from './history.js';
 import { load, save } from './store.js';
@@ -268,4 +269,5 @@ initPanelResize();
 window.addEventListener('resize', fit);
 fit();
 dismissFocus(canvases, () => moved);
+initChips();
 initPanel();
