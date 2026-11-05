@@ -9,7 +9,7 @@ const END = '<!-- /codechart -->';
 const BLOCK = `${START}\n${REMINDER}\n${END}`;
 
 // Instruction and settings files are often symlinks into a dotfiles repo, so reads and writes go to the target.
-function readRegular(file: string): { path: string; text?: string } {
+export function readRegular(file: string): { path: string; text?: string } {
   let path: string;
   try {
     path = realpathSync(file);
