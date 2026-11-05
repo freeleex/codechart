@@ -5,7 +5,7 @@ import { resolveRules } from '../rules/resolve.js';
 import { MIN_FILES } from './hook-core.js';
 import { latestRecord, turnsDir, type Decision, type TurnRecord } from './hook-record.js';
 import { claudeHookEvents } from './nudges.js';
-import { opencodeConfigFile, pluginSpecs } from './opencode-plugin.js';
+import { pluginFile, pluginState } from './opencode-plugin.js';
 
 const WHY: Record<Decision, string> = {
   stop_hook_active: 'the Stop hook had already asked once this turn, so it stayed quiet',
@@ -40,7 +40,7 @@ const attempt = (check: () => boolean) => {
 };
 
 const hasClaudeHooks = (home: string) => attempt(() => claudeHookEvents(join(home, '.claude', 'settings.json')).ok.length === 2);
-const hasOpencodePlugin = (home: string) => attempt(() => pluginSpecs(opencodeConfigFile(home)).length > 0);
+const hasOpencodePlugin = (home: string, opts: CommandOptions) => attempt(() => ['current', 'outdated'].includes(pluginState(pluginFile(home, opts.env ?? process.env))));
 
 /** Why the last turn in this repo got, or did not get, a diagram. Returns whether it could say. */
 export function explainLast(cwd: string, home: string, opts: CommandOptions): boolean {
@@ -51,7 +51,7 @@ export function explainLast(cwd: string, home: string, opts: CommandOptions): bo
     return false;
   }
   const claude = hasClaudeHooks(home);
-  if (!claude && !hasOpencodePlugin(home)) {
+  if (!claude && !hasOpencodePlugin(home, opts)) {
     say('The Claude Code hooks and the OpenCode plugin are not installed, so no turn was logged. `doctor --last` supports Claude Code and OpenCode.');
     say('Fix: codechart install-skill --agent claude --hook, or codechart install-skill --agent opencode --plugin');
     return true;

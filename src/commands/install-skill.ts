@@ -1,42 +1,21 @@
-import { existsSync, lstatSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { Command } from 'commander';
 import { packageFile } from '../assets.js';
 import { loadConfig } from '../config/load.js';
 import type { CommandOptions } from '../program.js';
-import { readRegularFile } from '../read-regular.js';
-import { currentVersion, rememberSkillDir } from '../update/check.js';
+import { rememberSkillDir } from '../update/check.js';
 import { AGENTS, isCodechartSkill, skillFolders, type AgentPreset } from './agents.js';
-import { copyFiles } from './copy-file.js';
+import { hasAny, installPairs, sameFile } from './copy-file.js';
 import { addReminder, installClaudeHooks } from './nudges.js';
-import { opencodeConfigFile, pinPlugin, pluginSpec } from './opencode-plugin.js';
+import { installPlugin, pluginFile } from './opencode-plugin.js';
 import { pluginBlocker } from './opencode-version.js';
 import { terminalPicker } from './picker.js';
 
 const NAMES = AGENTS.map((a) => a.name).join(', ');
 
 const terminalChoose = () => (process.stdin.isTTY && process.stdout.isTTY ? terminalPicker : undefined);
-
-// Errors such as ENOTDIR count as "not installed" so copyFiles reports them.
-const hasAny = (paths: string[]) =>
-  paths.some((p) => {
-    try {
-      return lstatSync(p, { throwIfNoEntry: false }) !== undefined;
-    } catch {
-      return false;
-    }
-  });
-
-type Pair = { source: string; target: string };
-
-const sameFile = ({ source, target }: Pair) => {
-  try {
-    return readRegularFile(target, (st) => st.isFile()) === readFileSync(source, 'utf8');
-  } catch {
-    return false;
-  }
-};
 
 /** The skill's files, SKILL.md first; it links to the other files. */
 export const skillFiles = (): string[] => readdirSync(packageFile('skills/codechart')).sort((a, b) => Number(b === 'SKILL.md') - Number(a === 'SKILL.md'));
@@ -72,7 +51,7 @@ async function chooseExtras(agents: AgentPreset[], opts: CommandOptions): Promis
     items.push({ key: 'hook', label: 'Claude Code hook', hint: 'ask for a diagram when a turn changed 3+ files → ~/.claude/settings.json' });
   }
   if (hasOpencode(agents)) {
-    items.push({ key: 'plugin', label: 'OpenCode plugin', hint: 'ask for a diagram when a turn changed 3+ files → ~/.config/opencode/opencode.json' });
+    items.push({ key: 'plugin', label: 'OpenCode plugin', hint: 'ask for a diagram when a turn changed 3+ files → ~/.config/opencode/plugins/codechart.js' });
   }
   if (!choose || items.length === 0) return { reminder: true, hook: hasClaude(agents), plugin: hasOpencode(agents) };
   const picked = await choose('Agents forget skills in long sessions; these help them remember codechart:', items, true);
@@ -88,7 +67,7 @@ async function pickExtras(o: Flags, agents: AgentPreset[], opts: CommandOptions)
   return { reminder: o.reminder !== false, hook: o.hook !== false && hasClaude(agents), plugin: o.plugin !== false && plugin };
 }
 
-function installExtras(extras: Extras, agents: AgentPreset[], home: string, opts: CommandOptions) {
+function installExtras(extras: Extras, agents: AgentPreset[], home: string, force: boolean, opts: CommandOptions) {
   const report = (what: string, run: () => string) => {
     try {
       opts.stdout(`${run()}\n`);
@@ -112,13 +91,9 @@ function installExtras(extras: Extras, agents: AgentPreset[], home: string, opts
     report('hook', () => (installClaudeHooks(file) === 'added' ? `hook added: ${file}` : `hook already in ${file}`));
   }
   if (extras.plugin) {
-    const file = opencodeConfigFile(home);
     const blocker = pluginBlocker(opts, home);
     if (blocker) opts.stdout(`OpenCode plugin skipped: ${blocker}\n`);
-    else report('plugin', () => {
-      const r = pinPlugin(file, currentVersion());
-      return r === 'present' ? `plugin already ${pluginSpec(currentVersion())} in ${file}` : `plugin ${r}: ${pluginSpec(currentVersion())} in ${file}`;
-    });
+    else installPlugin(pluginFile(home, opts.env ?? process.env), force, opts);
   }
 }
 
@@ -139,29 +114,7 @@ function rememberOwn(installed: { dir: string; who: string }[], opts: CommandOpt
 // True when the folder ends up holding this version of the skill.
 export function installCopy(dir: string, who: string, files: string[], force: boolean, opts: CommandOptions): boolean {
   const pairs = files.map((f) => ({ source: packageFile(`skills/codechart/${f}`), target: join(dir, f) }));
-  let update = force;
-  if (!force && hasAny(pairs.map((p) => p.target))) {
-    if (pairs.every(sameFile)) {
-      opts.stdout(`up to date for ${who}: ${dir}\n`);
-      return true;
-    }
-    let ours: boolean;
-    try {
-      ours = isCodechartSkill(dir);
-    } catch (e) {
-      opts.stderr(`codechart: ${(e as Error).message}\n`);
-      process.exitCode = 1;
-      return false;
-    }
-    if (!ours) {
-      opts.stdout(`already installed for ${who}: ${dir} (--force to update)\n`);
-      return false;
-    }
-    update = true;
-  }
-  if (!copyFiles(pairs, update, { ...opts, stdout: () => {} })) return false;
-  opts.stdout(`${update && !force ? 'updated' : 'installed'} for ${who}: ${dir}\n`);
-  return true;
+  return installPairs(pairs, dir, who, () => isCodechartSkill(dir), force, opts);
 }
 
 // complexity-ratchet: 39 -- install action picks agents and targets inline
@@ -234,6 +187,6 @@ export function installSkillCommand(opts: CommandOptions): Command {
       // Reminder and hook only for agents that can load the skill they point to.
       const ready = new Set(installed.flatMap((t) => t.agents));
       agents = agents.filter((a) => ready.has(a));
-      if (agents.length) installExtras(await pickExtras(o, agents, opts), agents, home, opts);
+      if (agents.length) installExtras(await pickExtras(o, agents, opts), agents, home, o.force === true, opts);
     });
 }

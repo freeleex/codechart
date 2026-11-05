@@ -1,3 +1,4 @@
+/*! codechart OpenCode plugin: install-skill copies this file to ~/.config/opencode/plugins/codechart.js */
 import { type Context, createHandlers } from './handlers.js';
 
 async function setup(ctx: Context): Promise<() => Promise<void>> {

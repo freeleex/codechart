@@ -2,5 +2,5 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   // Git-heavy tests take 6-11s on Windows runners.
-  test: { include: ['tests/**/*.test.ts'], setupFiles: ['tests/setup.ts'], testTimeout: process.platform === 'win32' ? 30_000 : 5_000 },
+  test: { include: ['tests/**/*.test.ts'], setupFiles: ['tests/setup.ts'], globalSetup: ['tests/global-setup.ts'], testTimeout: process.platform === 'win32' ? 30_000 : 5_000 },
 });

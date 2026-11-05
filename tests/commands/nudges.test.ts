@@ -122,7 +122,7 @@ describe('install-skill --reminder / --hook', () => {
     expect(offered).toEqual({ labels: ['Reminder line', 'Claude Code hook', 'OpenCode plugin'], checked: true });
     expect(r.out).toContain('hook added');
     expect(r.out).not.toContain('reminder');
-    expect(existsSync(join(home, '.config', 'opencode', 'opencode.json'))).toBe(false);
+    expect(existsSync(join(home, '.config', 'opencode', 'plugins', 'codechart.js'))).toBe(false);
   });
 
   it('without a terminal, adds both', async () => {
@@ -130,7 +130,7 @@ describe('install-skill --reminder / --hook', () => {
     expect(r.out).toContain(`reminder added: ${join(home, '.claude', 'CLAUDE.md')}\n`);
     expect(r.out).toContain(`reminder added: ${join(home, '.config', 'opencode', 'AGENTS.md')}\n`);
     expect(r.out).toContain('hook added');
-    expect(r.out).toContain('plugin added');
+    expect(r.out).toContain('installed for OpenCode plugin');
   });
 
   it('the hook is not offered when Claude Code is not picked', async () => {
@@ -155,7 +155,7 @@ describe('install-skill --reminder / --hook', () => {
     const other = await run(['install-skill', '--agent', 'opencode']);
     expect(other.out).toContain('reminder added');
     expect(other.out).not.toContain('hook');
-    expect(other.out).toContain('plugin added');
+    expect(other.out).toContain('installed for OpenCode plugin');
   });
 
   it('--no-reminder / --no-hook / --no-plugin opt out; --reminder alone adds only the reminder', async () => {
