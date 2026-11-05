@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, symlinkSync, writeFileSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { buildPlan, parseRemote, SETUP_BRANCH, type Remote } from '../../src/pr/setup.js';
@@ -95,6 +95,26 @@ describe('codechart setup-pr-maps', () => {
     expect(r.code).toBe(1);
     expect(r.err).toContain('not a regular file; refusing to write it');
     expect(readFileSync(join(sb.tmp, 'elsewhere'), 'utf8')).toBe('x');
+  });
+
+  it('a workflow created while it asks is not overwritten', async () => {
+    const theirs = async () => (mkdirSync(join(sb.repo, '.github', 'workflows'), { recursive: true }), writeFileSync(workflow(), 'mine'), true);
+    const r = await run([], { confirm: theirs });
+    expect(r.err).toBe('codechart: .github/workflows/codechart.yml: changed while codechart was running; run it again\n');
+    expect(readFileSync(workflow(), 'utf8')).toBe('mine');
+  });
+
+  // symlinks need privileges on Windows runners, and O_NOFOLLOW doesn't exist there
+  it.runIf(process.platform !== 'win32')('a .gitlab-ci.yml swapped for a symlink while it asks is not written through', async () => {
+    git(sb.repo, 'remote', 'set-url', 'origin', 'git@gitlab.com:o/r.git');
+    const ci = join(sb.repo, '.gitlab-ci.yml');
+    const victim = join(sb.tmp, 'victim');
+    writeFileSync(ci, 'test:\n  script: [make]\n');
+    writeFileSync(victim, 'x');
+    const swap = async () => (rmSync(ci), symlinkSync(victim, ci), true);
+    const r = await run([], { confirm: swap });
+    expect(r.err).toContain('changed while codechart was running');
+    expect(readFileSync(victim, 'utf8')).toBe('x');
   });
 
   it('a remote that is neither GitHub nor GitLab needs --host', async () => {

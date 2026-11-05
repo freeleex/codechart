@@ -1,11 +1,12 @@
 import { execFileSync } from 'node:child_process';
-import { lstatSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { closeSync, constants, lstatSync, mkdirSync, openSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { Command, Option } from 'commander';
 import { packageFile } from '../assets.js';
 import { findRepoRoot } from '../config/load.js';
 import type { CommandOptions } from '../program.js';
+import { readRegularFile } from '../read-regular.js';
 import { gitRun } from '../pr/git.js';
 import { buildPlan, openSetupReview, parseRemote, prepareSetupReview, type Host, type Plan, type Remote, type Tool } from '../pr/setup.js';
 
@@ -32,11 +33,38 @@ function remoteOf(root: string, host: Host | undefined): Remote {
 function readWorkTree(root: string): (file: string) => string | undefined {
   return (file) => {
     const path = join(root, file);
-    const stat = lstatSync(path, { throwIfNoEntry: false });
-    if (!stat) return undefined;
-    if (!stat.isFile()) throw new Error(`${file}: not a regular file; refusing to write it`);
-    return readFileSync(path, 'utf8');
+    let text: string | undefined;
+    try {
+      // lstat after open catches symlinks where O_NOFOLLOW doesn't exist (Windows)
+      text = readRegularFile(path, (st) => st.isFile() && lstatSync(path).isFile());
+    } catch (e) {
+      const code = (e as NodeJS.ErrnoException).code;
+      if (code === 'ENOENT') return undefined;
+      if (code !== 'ELOOP') throw e;
+    }
+    if (text === undefined) throw new Error(`${file}: not a regular file; refusing to write it`);
+    return text;
   };
+}
+
+// New file: O_EXCL, so nothing created meanwhile gets overwritten; existing one: never through a swapped-in symlink.
+function writeWorkTree(root: string, plan: Plan): void {
+  const path = join(root, plan.file);
+  mkdirSync(dirname(path), { recursive: true });
+  const flags = constants.O_WRONLY | constants.O_CREAT | constants.O_TRUNC | (constants.O_NOFOLLOW ?? 0) | (plan.appended ? 0 : constants.O_EXCL);
+  let fd: number;
+  try {
+    fd = openSync(path, flags, 0o644);
+  } catch (e) {
+    const code = (e as NodeJS.ErrnoException).code;
+    if (code === 'EEXIST' || code === 'ELOOP') throw new Error(`${plan.file}: changed while codechart was running; run it again`);
+    throw e;
+  }
+  try {
+    writeFileSync(fd, plan.content);
+  } finally {
+    closeSync(fd);
+  }
 }
 
 function describe(plan: Plan, pr: boolean): string {
@@ -89,9 +117,7 @@ async function setup(o: Flags, opts: CommandOptions, root: string): Promise<void
   if (!plan) return done();
   opts.stdout(describe(plan, false));
   if (!(await agreed(o, opts))) return;
-  const path = join(root, plan.file);
-  mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, plan.content);
+  writeWorkTree(root, plan);
   const next = remote.host === 'gitlab' ? ', then add the CODECHART_GITLAB_TOKEN variable as above' : '';
   opts.stdout(`codechart: wrote ${plan.file}. Review it, commit and push it${next}.\n`);
 }
