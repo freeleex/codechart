@@ -1,7 +1,9 @@
-import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { changedFiles, turnUsedCodechart } from '../../src/commands/hook.js';
+import { changedFiles } from '../../src/commands/hook.js';
+import { latestRecord } from '../../src/commands/hook-record.js';
+import { scanTurn, turnUsedCodechart } from '../../src/commands/transcript.js';
 import { addReminder, installClaudeHooks, REMINDER, removeClaudeHooks, removeReminder } from '../../src/commands/nudges.js';
 import { buildProgram, runProgram } from '../../src/program.js';
 import { git, gitInit, makeSandbox, removeSandbox, runCli, repoFromTemplate } from '../helpers/sandbox.js';
@@ -203,6 +205,24 @@ describe('turnUsedCodechart', () => {
   });
 });
 
+describe('scanTurn', () => {
+  const line = (o: unknown) => JSON.stringify(o);
+  const prompt = line({ type: 'user', message: { content: 'do it' } });
+  const tool = (name: string, input: unknown) => line({ type: 'assistant', message: { content: [{ type: 'tool_use', name, input }] } });
+
+  it('sees the Skill tool (plain or plugin-prefixed) and reads of the skill files, this turn only', () => {
+    expect(scanTurn([prompt, tool('Skill', { skill: 'codechart' })].join('\n')).skill).toBe(true);
+    expect(scanTurn([prompt, tool('Skill', { skill: 'plugin:codechart' })].join('\n')).skill).toBe(true);
+    expect(scanTurn([prompt, tool('Read', { file_path: '/h/.claude/skills/codechart/SKILL.md' })].join('\n')).skill).toBe(true);
+    expect(scanTurn([prompt, tool('Skill', { skill: 'other' })].join('\n')).skill).toBe(false);
+    expect(scanTurn([prompt, tool('Skill', { skill: 'codechart' }), prompt].join('\n')).skill).toBe(false);
+  });
+
+  it('tells a shown diagram from a CLI run', () => {
+    expect(scanTurn([prompt, tool('Bash', { command: 'codechart check --git' })].join('\n'))).toEqual({ diagram: false, cli: true, skill: false });
+  });
+});
+
 function seedHookRepo(dir: string) {
   for (const f of ['a.ts', 'b.ts', 'c.ts', 'mine.ts']) writeFileSync(join(dir, f), `${f} seed\n`);
   git(dir, 'add', '.');
@@ -265,6 +285,54 @@ describe('codechart hook', () => {
     const transcript = join(tmp, 't.jsonl');
     writeFileSync(transcript, [JSON.stringify({ type: 'user', message: { content: 'go' } }), JSON.stringify({ type: 'assistant', message: { content: [{ type: 'text', text: '**Map** _(key)_' }] } })].join('\n'));
     expect((await run(['hook', 'stop'], input({ transcript_path: transcript }))).out).toBe('');
+  });
+
+  describe('decision record', () => {
+    const rec = () => latestRecord(join(home, '.cache', 'codechart', 'turns'), repo);
+    const transcript = (...tools: unknown[]) => {
+      const file = join(tmp, 't.jsonl');
+      writeFileSync(file, [JSON.stringify({ type: 'user', message: { content: 'go' } }), ...tools.map((t) => JSON.stringify({ type: 'assistant', message: { content: [t] } }))].join('\n'));
+      return file;
+    };
+
+    it('a prompt leaves a record without a decision, owner-only', async () => {
+      await run(['hook', 'prompt'], input());
+      expect(rec()).toMatchObject({ root: repo, session: 's1' });
+      expect(rec()?.decision).toBeUndefined();
+      if (process.platform !== 'win32') expect(statSync(join(home, '.cache', 'codechart', 'turns', 's1.turn.json')).mode & 0o777).toBe(0o600);
+    });
+
+    it('nudged: the changed files, and whether the skill loaded or the CLI ran', async () => {
+      await run(['hook', 'prompt'], input());
+      write('a.ts', 'b.ts', 'new.ts');
+      const t = transcript({ type: 'tool_use', name: 'Skill', input: { skill: 'codechart' } });
+      await run(['hook', 'stop'], input({ transcript_path: t }));
+      expect(rec()).toMatchObject({ decision: 'nudged', files: ['a.ts', 'b.ts', 'new.ts'], skill: true, cli: false });
+    });
+
+    it('records every other decision', async () => {
+      const stop = async (extra: Record<string, unknown> = {}) => {
+        await run(['hook', 'stop'], input(extra));
+        return rec()?.decision;
+      };
+      expect(await stop()).toBe('no-snapshot');
+      await run(['hook', 'prompt'], input());
+      expect(await stop({ stop_hook_active: true })).toBe('stop_hook_active');
+      expect(await stop()).toBe('few-files');
+      expect(rec()?.files).toEqual([]);
+      write('a.ts', 'b.ts', 'c.ts');
+      expect(await stop({ last_assistant_message: '**Map**' })).toBe('diagram-in-reply');
+      expect(await stop({ transcript_path: transcript({ type: 'tool_use', name: 'Bash', input: { command: 'codechart check --git' } }) })).toBe('codechart-used');
+      expect(rec()?.cli).toBe(true);
+      writeFileSync(join(home, '.cache', 'codechart', 'turns', 's1.json'), JSON.stringify({ root: tmp, files: {} }));
+      expect(await stop()).toBe('other-root');
+    });
+
+    it('a transcript that cannot be read stays silent, as before', async () => {
+      await run(['hook', 'prompt'], input());
+      write('a.ts', 'b.ts', 'c.ts');
+      expect(await run(['hook', 'stop'], input({ transcript_path: join(tmp, 'missing.jsonl') }))).toEqual({ out: '', err: '', code: undefined });
+    });
   });
 
   it('never fails: no snapshot, bad input, outside a repo', async () => {
