@@ -35,9 +35,9 @@ async function fix(sections: Section[], opts: CommandOptions): Promise<void> {
 
 export function doctorCommand(opts: CommandOptions): Command {
   return new Command('doctor')
-    .description('check that agents can find codechart (skill, reminder, hook, CLI); --fix repairs, --last explains the last turn')
+    .description('check that agents can find codechart (skill, reminder, hook or plugin, CLI); --fix repairs, --last explains the last turn')
     .option('--fix', 'repair what is missing or outdated (never overwrites a skill folder that is not codechart)')
-    .option('--last', "explain why the last turn in this repo did or didn't get a diagram (Claude Code)")
+    .option('--last', "explain why the last turn in this repo did or didn't get a diagram (Claude Code, OpenCode)")
     .action(async (o: { fix?: boolean; last?: boolean }) => {
       const home = opts.home ?? homedir();
       if (o.last) {

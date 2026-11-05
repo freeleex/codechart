@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { changedFiles } from '../../src/commands/hook.js';
+import { changedFiles } from '../../src/commands/hook-core.js';
 import { latestRecord } from '../../src/commands/hook-record.js';
 import { scanTurn, turnUsedCodechart } from '../../src/commands/transcript.js';
 import { addReminder, claudeHookEvents, installClaudeHooks, REMINDER, removeClaudeHooks, removeReminder } from '../../src/commands/nudges.js';
@@ -119,9 +119,10 @@ describe('install-skill --reminder / --hook', () => {
       return [1];
     };
     const r = await run(['install-skill'], '', choose);
-    expect(offered).toEqual({ labels: ['Reminder line', 'Claude Code hook'], checked: true });
+    expect(offered).toEqual({ labels: ['Reminder line', 'Claude Code hook', 'OpenCode plugin'], checked: true });
     expect(r.out).toContain('hook added');
     expect(r.out).not.toContain('reminder');
+    expect(existsSync(join(home, '.config', 'opencode', 'plugins', 'codechart.js'))).toBe(false);
   });
 
   it('without a terminal, adds both', async () => {
@@ -129,6 +130,7 @@ describe('install-skill --reminder / --hook', () => {
     expect(r.out).toContain(`reminder added: ${join(home, '.claude', 'CLAUDE.md')}\n`);
     expect(r.out).toContain(`reminder added: ${join(home, '.config', 'opencode', 'AGENTS.md')}\n`);
     expect(r.out).toContain('hook added');
+    expect(r.out).toContain('installed for OpenCode plugin');
   });
 
   it('the hook is not offered when Claude Code is not picked', async () => {
@@ -138,7 +140,7 @@ describe('install-skill --reminder / --hook', () => {
       labels = items.map((i) => i.label);
       return [];
     });
-    expect(labels).toEqual(['Reminder line']);
+    expect(labels).toEqual(['Reminder line', 'OpenCode plugin']);
   });
 
   it('--agent asks nothing and adds both; the hook only for Claude Code', async () => {
@@ -153,14 +155,15 @@ describe('install-skill --reminder / --hook', () => {
     const other = await run(['install-skill', '--agent', 'opencode']);
     expect(other.out).toContain('reminder added');
     expect(other.out).not.toContain('hook');
+    expect(other.out).toContain('installed for OpenCode plugin');
   });
 
-  it('--no-reminder / --no-hook opt out; --reminder alone adds only the reminder', async () => {
+  it('--no-reminder / --no-hook / --no-plugin opt out; --reminder alone adds only the reminder', async () => {
     const noHook = await run(['install-skill', '--agent', 'claude', '--no-hook']);
     expect(noHook.out).toContain('reminder added');
     expect(existsSync(join(home, '.claude', 'settings.json'))).toBe(false);
-    const neither = await run(['install-skill', '--agent', 'opencode', '--no-reminder', '--no-hook']);
-    expect(neither.out).not.toMatch(/reminder|hook/);
+    const neither = await run(['install-skill', '--agent', 'opencode', '--no-reminder', '--no-hook', '--no-plugin']);
+    expect(neither.out).not.toMatch(/reminder|hook|plugin/);
     const only = await run(['install-skill', '--agent', 'claude', '--reminder']);
     expect(only.out).toContain('reminder already in');
     expect(existsSync(join(home, '.claude', 'settings.json'))).toBe(false);

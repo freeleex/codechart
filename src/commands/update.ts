@@ -10,6 +10,8 @@ import { currentVersion, fetchLatest, isNewer, readState, skillDirs, writeState 
 import { AGENTS, isCodechartSkill } from './agents.js';
 import { installCopy, skillFiles } from './install-skill.js';
 import { refreshReminder } from './nudges.js';
+import { installPlugin, pluginFile, pluginState } from './opencode-plugin.js';
+import { pluginBlocker } from './opencode-version.js';
 
 const RELEASES = 'https://github.com/freeleex/codechart/releases';
 
@@ -48,7 +50,7 @@ export function installedBy(installDir: string, npmRoot: string | undefined): { 
 
 export const cacheDirOf = (opts: CommandOptions) => loadConfig({ cwd: opts.cwd ?? process.cwd(), home: opts.home, env: opts.env }).web.outDir;
 
-/** Brings every codechart skill copy already installed, and reminder lines already added, up to this version. */
+/** Brings every codechart skill copy already installed, and reminder lines and the OpenCode plugin copy already added, up to this version. */
 function refreshInstalls(home: string, opts: CommandOptions): void {
   const files = skillFiles();
   const folders = [...new Set(AGENTS.flatMap((a) => [a.skills, ...a.reads]))];
@@ -70,6 +72,11 @@ function refreshInstalls(home: string, opts: CommandOptions): void {
     if (!a.instructions) continue;
     if (refreshReminder(join(home, a.instructions)) === 'updated') opts.stdout(`reminder updated: ${join(home, a.instructions)}\n`);
   }
+  const plugin = pluginFile(home, opts.env ?? process.env);
+  if (pluginState(plugin) !== 'outdated') return;
+  const blocker = pluginBlocker(opts, home);
+  if (blocker) opts.stdout(`OpenCode plugin skipped: ${blocker}\n`);
+  else installPlugin(plugin, false, opts);
 }
 
 async function update(o: { check?: boolean }, opts: CommandOptions, runner: Runner): Promise<void> {
@@ -114,9 +121,9 @@ export async function runUpdate(o: { check?: boolean }, opts: CommandOptions): P
 
 export function updateCommand(opts: CommandOptions): Command {
   return new Command('update')
-    .description('install the newest codechart with npm and refresh the skill copies and reminder lines you have')
+    .description('install the newest codechart with npm and refresh the skill copies, reminder lines and OpenCode plugin copy you have')
     .option('--check', 'only say whether a newer version exists')
-    .option('--skills-only', 'refresh installed skill copies and reminder lines to this version (run by update)')
+    .option('--skills-only', 'refresh installed skill copies, reminder lines and the OpenCode plugin copy to this version (run by update)')
     .action(async (o: { check?: boolean; skillsOnly?: boolean }) => {
       try {
         if (o.skillsOnly) return refreshInstalls(opts.home ?? homedir(), opts);

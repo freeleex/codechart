@@ -85,7 +85,7 @@ That's it. Open your coding agent in any repo and try:
 > show me the flow of accepting an invite
 ```
 
-Works with Claude Code, Codex, Gemini CLI, GitHub Copilot, Cursor, OpenCode and any other agent that supports [Agent Skills](https://agentskills.io). `install-skill` asks which agents get the skill, and adds a reminder line and a Claude Code hook so agents don't forget it in long sessions. `codechart update` brings everything up to date, and codechart tells you once a day when there's a new version. No diagram appeared? `codechart doctor` checks the setup (`--fix` repairs it, `--last` explains the last turn). Details, other agents, updating and uninstalling: [Install and agents](docs/install.md).
+Works with Claude Code, Codex, Gemini CLI, GitHub Copilot, Cursor, OpenCode and any other agent that supports [Agent Skills](https://agentskills.io). `install-skill` asks which agents get the skill, and adds a reminder line, a Claude Code hook and an OpenCode plugin so agents don't forget it in long sessions. `codechart update` brings everything up to date, and codechart tells you once a day when there's a new version. No diagram appeared? `codechart doctor` checks the setup (`--fix` repairs it, `--last` explains the last turn). Details, other agents, updating and uninstalling: [Install and agents](docs/install.md).
 
 ## What you get
 

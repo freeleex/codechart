@@ -320,12 +320,13 @@ describe('doctor --last', () => {
     await install('claude');
   });
 
-  it('without Claude hooks it says nothing was logged and supports Claude Code only', async () => {
+  it('without Claude hooks or the OpenCode plugin it says nothing was logged', async () => {
     writeFileSync(home('.claude', 'settings.json'), '{}');
     const r = await run(['doctor', '--last']);
-    expect(r.out).toContain('hooks are not installed');
-    expect(r.out).toContain('Claude Code only for now');
+    expect(r.out).toContain('hooks and the OpenCode plugin are not installed');
+    expect(r.out).toContain('supports Claude Code and OpenCode');
     expect(r.out).toContain('codechart install-skill --agent claude --hook');
+    expect(r.out).toContain('codechart install-skill --agent opencode --plugin');
     expect(r.code).toBeUndefined();
   });
 
