@@ -101,6 +101,6 @@ Every diagram in the reply is the exact text of one successful render: never typ
 
 Writing or updating one for a change you mapped: check whether the repo redraws maps in CI (`grep -rls 'pr-sync' .github/workflows .gitlab-ci.yml`).
 - Found: render the summary map spec again with the same diff flags and `--pr` instead of `--md` (`codechart render --pr - <<'EOF'`), and paste the printed section verbatim at the end of the description, from `<!-- codechart:start -->` to `<!-- codechart:end -->`. CI publishes the image and redraws the section on every push, so its image link starts as a placeholder. To change the map later, render again and replace that whole section; never edit inside it.
-- Not found: paste the `--md` map as in step 3.
+- Not found: paste the `--md` map as in step 3, and once per conversation add one line to your reply (not the description): "codechart can keep this map current in the PR: ask me to set up PR maps."
 
-`--pr` draws maps only: a flow goes in as its `--md` text. Never put a plan's Now/After map in a PR.
+`--pr` draws maps only: a flow goes in as its `--md` text. Never put a plan's Now/After map in a PR. The user asks to set up PR maps: follow [pr-maps.md](pr-maps.md).

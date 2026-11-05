@@ -179,16 +179,21 @@ Reviewers get the map too. With one CI file in the repo, the agent puts a collap
 
 ![PR description with the Map section open: check line, the map image, what was left out or not read, collapsed node details and the key](docs/images/pr-map.png)
 
-**GitHub.** Copy the workflow (it uses the built-in token; PRs from forks are skipped, their token can't edit the PR):
+**Turn it on**, once per repo. It's off until you do, and nothing touches your repo without you saying yes. In the repo, ask your agent to *set up codechart PR maps*, or run:
 
 ```bash
-mkdir -p .github/workflows
-cp "$(npm root -g)/codechart/templates/github-workflow.yml" .github/workflows/codechart.yml
+codechart setup-pr-maps          # shows the file it would add and what runs, then asks
+codechart setup-pr-maps --pr     # same, but opens a pull/merge request you merge to turn it on
 ```
 
-The image is stored as a commit on `refs/codechart/pr-<number>`, not on a branch, and loads only for people who can see the repo.
+It reads `origin` to tell GitHub from GitLab (`--host` when the URL says neither), shows the whole file and the token it uses, and writes only after you answer yes (`--yes` skips the question). Without `--pr` the file lands in your work tree, uncommitted, for you to review and commit. With `--pr` it opens a pull or merge request through `gh` or `glab` and leaves your work tree and branch alone: merge it to turn PR maps on, close it to say no. The CI job runs the codechart version you have installed, pinned, so an upgrade is a change you review.
 
-**GitLab.** Add the job from `"$(npm root -g)/codechart/templates/gitlab-ci.yml"` to your `.gitlab-ci.yml`, then add a masked CI/CD variable `CODECHART_GITLAB_TOKEN`: an access token with `api` scope from a user with at least the Developer role (GitLab's job token can't edit an MR or upload files). The image is a project upload, visible to project members.
+- **GitHub:** adds `.github/workflows/codechart.yml`. It uses the built-in token, no secret to add; PRs from forks are skipped, their token can't edit the PR. The image is stored as a commit on `refs/codechart/pr-<number>`, not on a branch, and loads only for people who can see the repo.
+- **GitLab:** appends a `codechart-map` job to `.gitlab-ci.yml` (or creates it). Then add a masked CI/CD variable `CODECHART_GITLAB_TOKEN`: an access token with `api` scope from a user with at least the Developer role (GitLab's job token can't edit an MR or upload files). The command prints both links. The image is a project upload, visible to project members.
+
+By hand instead: copy `templates/github-workflow.yml` or the job in `templates/gitlab-ci.yml` from the package (`npm root -g`), and replace `codechart@latest` with a version to pin it.
+
+To turn it off, delete the file (or the GitLab job). Without the CI file, agents paste the plain map into PR descriptions and mention once that PR maps exist.
 
 Once the file is in, agents with the skill add the section when they write a PR or MR description. To add one by hand: `codechart render <spec> --since main --pr` prints it. A description without the section is left alone, and editing text outside it is safe.
 
@@ -219,7 +224,7 @@ The CLI is small: a 74.2 kB package, 5 runtime dependencies, and a cold start ar
 
 ## Safe to run
 
-- No network calls, no telemetry. The one exception is `codechart pr-sync`, which runs only in the CI job you add for [PR maps](#maps-in-pull-requests-and-merge-requests): it reads and edits that PR or MR's description through the GitHub or GitLab API and publishes the map image.
+- No network calls, no telemetry. The exceptions are opt-in [PR maps](#maps-in-pull-requests-and-merge-requests): `codechart pr-sync`, which runs only in the CI job you add, reads and edits that PR or MR's description through the GitHub or GitLab API and publishes the map image; `codechart setup-pr-maps --pr` pushes one branch and opens a PR with your `gh`/`glab`.
 - No shell: only read-only `git` and your OS opener, called with argument arrays. `pr-sync` on GitHub also writes one commit with the image and pushes it to `refs/codechart/pr-<number>`.
 - HTML pages load nothing external, and all text is escaped. They're saved to `~/.cache/codechart`, never to your repo, like the map image of `render --pr`.
 - A summary page rendered with `--git`, `--since` or `--commit` holds your code: each changed node's panel shows the start of its diff. Share such a page only where you'd share the diff.
@@ -274,6 +279,7 @@ Rules have a `name` plus exactly one of `paths` (globs: `*`, `**`, `?`, `[..]`; 
 |---|---|
 | `codechart check` | Which rules apply to changed files. `--files <csv>`, `--git`, `--commit <sha>`, `--since <base>` (+ `--head <ref>`), `--matched <csv>` |
 | `codechart render <spec>` | Render a spec (JSON file or `-` for stdin). `--output auto\|cli\|web\|both`, `--theme auto\|light\|dark`, `--open`, `--md` (paste-ready markdown), `--at <rev>`; `--git`, `--commit <sha>`, `--since <base>` (+ `--head <ref>`) to check claims against the diff; `--strict` to exit 1 on a mismatch; `--pr` prints a map's PR/MR description section and writes its SVG to the cache folder (`--svg <file>` writes it elsewhere, `--image-url <url>` sets where the description loads it) |
+| `codechart setup-pr-maps` | Add the CI job for [PR maps](#maps-in-pull-requests-and-merge-requests): shows the change and asks first. `--yes` (no question), `--pr` (open a pull/merge request instead of writing to the work tree), `--host github\|gitlab` |
 | `codechart pr-sync` | In CI: redraw the map section of this PR or MR's description against its latest commit (see [PR maps](#maps-in-pull-requests-and-merge-requests)) |
 | `codechart schema` | Spec JSON schema; `--flow` for flow specs, `--config` for the config file |
 | `codechart config` | Config in effect and where each value comes from (`--json`) |

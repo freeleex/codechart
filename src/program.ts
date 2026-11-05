@@ -4,6 +4,7 @@ import { configCommand } from './commands/config.js';
 import { hookCommand } from './commands/hook.js';
 import { initCommand } from './commands/init.js';
 import { prSyncCommand } from './commands/pr-sync.js';
+import { setupPrMapsCommand } from './commands/setup-pr-maps.js';
 import { installSkillCommand } from './commands/install-skill.js';
 import { renderCommand } from './commands/render.js';
 import { schemaCommand } from './commands/schema.js';
@@ -22,6 +23,10 @@ export interface ProgramOptions {
   choose?: (title: string, items: { label: string; hint: string }[], checked?: boolean) => Promise<number[] | undefined>;
   now?: () => Date;
   open?: (path: string) => string | void;
+  /** Yes/no question; without it, commands that ask need --yes off a terminal. */
+  confirm?: (question: string) => Promise<boolean>;
+  /** Runs gh or glab. */
+  tool?: (command: string, args: string[]) => string;
 }
 
 export type CommandOptions = Required<Pick<ProgramOptions, 'stdout' | 'stderr'>> & ProgramOptions;
@@ -41,6 +46,7 @@ export function buildProgram(opts: ProgramOptions = {}): Command {
   program.addCommand(uninstallCommand(cmdOpts));
   program.addCommand(hookCommand(cmdOpts));
   program.addCommand(prSyncCommand(cmdOpts));
+  program.addCommand(setupPrMapsCommand(cmdOpts));
   // addCommand does not inherit these settings
   for (const c of [program, ...program.commands]) {
     c.exitOverride().configureOutput({ writeOut: stdout, writeErr: stderr });
