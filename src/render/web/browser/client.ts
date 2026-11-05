@@ -1,6 +1,6 @@
 // Runs in the generated page, not in node. `npm run gen:client` compiles it into ../client.ts,
 // which the page inlines (the CSP allows that one script by hash).
-export {};
+import { startTrail, visitFromHash, type Visit } from './history.js';
 
 interface View {
   x: number;
@@ -136,33 +136,70 @@ function setInfo(on: boolean): void {
   if (infoBtn) infoBtn.setAttribute('aria-expanded', String(on));
 }
 
-function show(id: string): void {
-  const tpl = document.querySelector<HTMLTemplateElement>(`template.card-panel[data-for="${CSS.escape(id)}"]`);
-  if (!tpl) return;
-  select(id);
-  panel.textContent = '';
-  panel.appendChild(tpl.content.cloneNode(true));
-  setInfo(false);
+const panelFor = (id: string) => document.querySelector<HTMLTemplateElement>(`template.card-panel[data-for="${CSS.escape(id)}"]`);
+
+function open(v: Visit): void {
+  const tpl = v === null ? null : panelFor(v);
+  select(tpl ? v : null);
+  if (tpl) {
+    panel.textContent = '';
+    panel.appendChild(tpl.content.cloneNode(true));
+  }
+  setInfo(!tpl);
+}
+
+/** Pans so the node is in the middle of each pane it is outside of. */
+function reveal(v: Visit): void {
+  if (v === null) return;
+  canvases.forEach((canvas, i) => {
+    const g = canvas.querySelector(`.node[data-id="${CSS.escape(v)}"]`);
+    if (!g) return;
+    const c = canvas.getBoundingClientRect();
+    const r = g.getBoundingClientRect();
+    if (r.left >= c.left && r.right <= c.right && r.top >= c.top && r.bottom <= c.bottom) return;
+    const t = ts[i]!;
+    move(i, { x: t.x + (c.left + c.right - r.left - r.right) / 2, y: t.y + (c.top + c.bottom - r.top - r.bottom) / 2, k: t.k });
+  });
 }
 
 function initPanel(): void {
-  const showInfo = () => {
-    select(null);
-    setInfo(true);
+  const backBtn = document.getElementById('nav-back') as HTMLButtonElement;
+  const forwardBtn = document.getElementById('nav-forward') as HTMLButtonElement;
+  const asked = visitFromHash(location.hash);
+  const first = asked === undefined || (asked !== null && !panelFor(asked)) ? null : asked;
+  const visit = (v: Visit, travelled: boolean) => {
+    open(v);
+    if (travelled) reveal(v);
   };
+  const trail = startTrail(first, visit, (back, forward) => {
+    backBtn.disabled = !back;
+    forwardBtn.disabled = !forward;
+  });
+  visit(first, true);
+  backBtn.addEventListener('click', () => trail.back());
+  forwardBtn.addEventListener('click', () => trail.forward());
+  window.addEventListener('keydown', (e) => {
+    if (!e.altKey || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return;
+    e.preventDefault();
+    if (e.key === 'ArrowLeft') trail.back();
+    else trail.forward();
+  });
+  const showInfo = () => trail.go(null);
   if (infoBtn) infoBtn.addEventListener('click', showInfo);
   const checkBtn = document.querySelector('header .check.bad');
   if (checkBtn) checkBtn.addEventListener('click', showInfo);
-  setInfo(true);
   document.querySelectorAll<SVGGElement>('.node').forEach((g) => {
+    const go = () => {
+      if (panelFor(g.getAttribute('data-id')!)) trail.go(g.getAttribute('data-id'));
+    };
     g.addEventListener('click', () => {
-      if (!moved) show(g.getAttribute('data-id')!);
+      if (!moved) go();
     });
     g.addEventListener('keydown', (e) => {
       if (e.target !== g) return;
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
-        show(g.getAttribute('data-id')!);
+        go();
       }
     });
   });
@@ -228,8 +265,8 @@ function initPanelResize(): void {
 
 initPanZoom();
 initPaneLink();
+window.addEventListener('resize', fit);
+fit();
 initPanel();
 initTheme();
 initPanelResize();
-window.addEventListener('resize', fit);
-fit();
