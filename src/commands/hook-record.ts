@@ -20,6 +20,8 @@ export interface TurnRecord {
   /** Whether the transcript shows the codechart skill loaded / the CLI run this turn. */
   skill?: boolean;
   cli?: boolean;
+  /** Who logged it; missing means the Claude Code hooks. */
+  agent?: 'opencode';
 }
 
 export const turnsDir = (home: string) => join(home, '.cache', 'codechart', 'turns');
@@ -42,9 +44,9 @@ function readRecord(dir: string, session: string): TurnRecord | undefined {
 }
 
 /** A prompt: the last decided turn stays, so asking "why no diagram?" does not erase what it asks about. */
-export function recordPrompt(dir: string, root: string, session: string, at: string): void {
+export function recordPrompt(dir: string, root: string, session: string, at: string, agent?: TurnRecord['agent']): void {
   const prev = readRecord(dir, session);
-  writeRecord(dir, prev ? { ...prev, pendingAt: at } : { at, root, session, pendingAt: at });
+  writeRecord(dir, prev ? { ...prev, pendingAt: at } : { at, root, session, pendingAt: at, agent });
 }
 
 /** A Stop decision; a repeat stop of a decided turn, or a turn that changed nothing, leaves the earlier details. */

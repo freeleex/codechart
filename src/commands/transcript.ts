@@ -9,7 +9,7 @@ const blocks = (e: Entry): Block[] => (Array.isArray(e.message?.content) ? (e.me
 const isPrompt = (e: Entry) =>
   e.type === 'user' && !e.isMeta && (typeof e.message?.content === 'string' || (blocks(e).length > 0 && !blocks(e).some((b) => b.type === 'tool_result')));
 
-const CODECHART_RUN = /\bcodechart\s+(check|render)\b/;
+export const CODECHART_RUN = /\bcodechart\s+(check|render)\b/;
 const SKILL_FILE = /[\\/]skills[\\/]codechart[\\/]/;
 
 const showsDiagram = (b: Block) => b.type === 'text' && DIAGRAM.test(b.text ?? '');

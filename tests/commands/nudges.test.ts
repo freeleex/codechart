@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { changedFiles } from '../../src/commands/hook.js';
+import { changedFiles } from '../../src/commands/hook-core.js';
 import { latestRecord } from '../../src/commands/hook-record.js';
 import { scanTurn, turnUsedCodechart } from '../../src/commands/transcript.js';
 import { addReminder, claudeHookEvents, installClaudeHooks, REMINDER, removeClaudeHooks, removeReminder } from '../../src/commands/nudges.js';

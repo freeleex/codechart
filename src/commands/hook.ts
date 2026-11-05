@@ -1,35 +1,16 @@
-import { closeSync, fstatSync, lstatSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, unlinkSync, writeFileSync } from 'node:fs';
+import { closeSync, fstatSync, openSync, readSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { Argument, Command } from 'commander';
 import { findRepoRoot } from '../config/load.js';
 import type { CommandOptions } from '../program.js';
-import { gitDiffFiles, gitDirtyHashes, gitHead, gitListFiles } from '../rules/git-files.js';
-import { type Decision, recordPrompt, recordStop, turnsDir } from './hook-record.js';
+import { judgeTurn, nudge, saveSnapshot, SESSION_ID, type Outcome } from './hook-core.js';
+import { recordPrompt, recordStop, turnsDir } from './hook-record.js';
 import { readStdin } from './stdin.js';
-import { DIAGRAM, scanTurn, type TurnScan } from './transcript.js';
+import { scanTurn, type TurnScan } from './transcript.js';
 
-const MIN_FILES = 3;
 const MAX_INPUT = 1024 * 1024;
 const MAX_TRANSCRIPT_TAIL = 8 * 1024 * 1024;
-const MAX_DIRTY = 5000;
-const KEEP_DAYS = 7;
-const SESSION_ID = /^[A-Za-z0-9_-]{1,128}$/;
-
-export interface Snapshot {
-  head?: string;
-  files: Record<string, string>;
-}
-
-/** Files whose content changed between two snapshots, plus those changed by commits made in between (`from` undefined: the repo's first commit). */
-export function changedFiles(before: Snapshot, now: Snapshot, diff: (from: string | undefined, to: string) => string[]): string[] {
-  const changed = new Set<string>();
-  for (const f of new Set([...Object.keys(before.files), ...Object.keys(now.files)])) {
-    if (before.files[f] !== now.files[f]) changed.add(f);
-  }
-  if (now.head && before.head !== now.head) for (const f of diff(before.head, now.head)) changed.add(f);
-  return [...changed].sort();
-}
 
 function readTail(file: string, max: number): string {
   const fd = openSync(file, 'r');
@@ -52,23 +33,6 @@ async function readInput(stdin: () => Promise<string>): Promise<Record<string, u
   return typeof v === 'object' && v !== null ? (v as Record<string, unknown>) : {};
 }
 
-function snapshot(root: string): Snapshot | undefined {
-  const files = gitDirtyHashes(root, MAX_DIRTY);
-  return files && { head: gitHead(root), files };
-}
-
-function prune(dir: string, now: number) {
-  for (const f of readdirSync(dir)) {
-    const p = join(dir, f);
-    const st = lstatSync(p);
-    if (st.isFile() && now - st.mtimeMs > KEEP_DAYS * 86_400_000) unlinkSync(p);
-  }
-}
-
-// No file names: a crafted name would become part of the instruction.
-const nudge = (count: number): string =>
-  `This turn changed ${count} files and your reply has no codechart diagram. Unless the user said no diagram, follow the codechart skill now (check, then render) and reply with what it prints; if it says no diagram applies, stop without mentioning it.`;
-
 interface Turn {
   root: string;
   /** Where this session's snapshot lives. */
@@ -79,45 +43,19 @@ interface Turn {
   scan: () => TurnScan | undefined;
 }
 
-interface Outcome {
-  decision: Decision;
-  files?: string[];
+interface Verdict extends Outcome {
   reminder?: string;
 }
 
-function onPrompt({ root, dir, file }: Turn, now: Date): void {
-  const snap = snapshot(root);
-  mkdirSync(dir, { recursive: true, mode: 0o700 });
-  prune(dir, now.getTime());
-  if (snap) writeFileSync(file, JSON.stringify({ root, ...snap }), { mode: 0o600 });
-  else unlinkSync(file);
-}
-
-function readSnapshot(file: string): (Snapshot & { root?: string }) | undefined {
-  try {
-    return JSON.parse(readFileSync(file, 'utf8')) as Snapshot & { root?: string };
-  } catch {
-    return undefined;
-  }
-}
-
 /** What the Stop hook decides, with the reminder to print when it asks for a diagram. */
-function onStop({ root, file, input, scan }: Turn): Outcome {
+function onStop({ root, file, input, scan }: Turn): Verdict {
   if (input.stop_hook_active === true) return { decision: 'stop_hook_active' };
-  const before = readSnapshot(file);
-  if (!before) return { decision: 'no-snapshot' };
-  if (before.root !== root) return { decision: 'other-root' };
-  const now = snapshot(root);
-  if (!now) return { decision: 'no-snapshot' };
-  const files = changedFiles(before, now, (a, b) => (a ? gitDiffFiles(root, a, b) : gitListFiles(root, b)));
-  if (files.length < MIN_FILES) return { decision: 'few-files', files };
   const last = input.last_assistant_message;
-  if (typeof last === 'string' && DIAGRAM.test(last)) return { decision: 'diagram-in-reply', files };
   // The transcript may lag the final reply (hence last_assistant_message), but holds the turn's earlier tool calls.
-  const used = scan();
-  if (used && (used.diagram || used.cli)) return { decision: 'codechart-used', files };
-  const reminder = `${JSON.stringify({ hookSpecificOutput: { hookEventName: 'Stop', additionalContext: nudge(files.length) } })}\n`;
-  return { decision: 'nudged', files, reminder };
+  const outcome = judgeTurn(root, file, typeof last === 'string' ? last : undefined, scan);
+  if (outcome.decision !== 'nudged') return outcome;
+  const reminder = `${JSON.stringify({ hookSpecificOutput: { hookEventName: 'Stop', additionalContext: nudge(outcome.files?.length ?? 0) } })}\n`;
+  return { ...outcome, reminder };
 }
 
 function record(turn: Turn, now: Date, outcome?: Outcome): void {
@@ -155,7 +93,7 @@ async function runHook(event: 'prompt' | 'stop', opts: CommandOptions): Promise<
   const now = opts.now?.() ?? new Date();
   if (event === 'prompt') {
     try {
-      onPrompt(turn, now);
+      saveSnapshot(dir, turn.file, root, now);
     } finally {
       record(turn, now);
     }
