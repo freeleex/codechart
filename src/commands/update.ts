@@ -1,12 +1,12 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { join, sep } from 'node:path';
+import { dirname, join, sep } from 'node:path';
 import { Command } from 'commander';
 import { packageFile } from '../assets.js';
 import { loadConfig } from '../config/load.js';
 import type { CommandOptions } from '../program.js';
-import { currentVersion, fetchLatest, isNewer, readState, writeState } from '../update/check.js';
+import { currentVersion, fetchLatest, isNewer, readState, skillDirs, writeState } from '../update/check.js';
 import { AGENTS, isCodechartSkill } from './agents.js';
 import { installCopy } from './install-skill.js';
 import { refreshReminder } from './nudges.js';
@@ -20,15 +20,17 @@ interface Runner {
   show: (command: string, args: string[]) => void;
 }
 
-// npm is npm.cmd on Windows, which Node only starts through a shell; the arguments are fixed, never user input.
-const winShell = (command: string) => process.platform === 'win32' && command === 'npm';
+// npm is npm.cmd on Windows, which Node only starts through a shell; cmd.exe looks in the working folder first,
+// so a repo's own npm.cmd would win: run it from node's folder, where npm.cmd lives. The arguments are fixed.
+export const spawnOptions = (command: string, platform = process.platform): { shell: boolean; cwd?: string } =>
+  platform === 'win32' && command === 'npm' ? { shell: true, cwd: dirname(process.execPath) } : { shell: false };
 const binary = (command: string): [string, string[]] => (command === 'codechart' ? [process.execPath, [process.argv[1]!]] : [command, []]);
 
 const defaultRunner: Runner = {
-  capture: (command, args) => execFileSync(command, args, { encoding: 'utf8', shell: winShell(command), stdio: ['ignore', 'pipe', 'ignore'], timeout: 30_000 }),
+  capture: (command, args) => execFileSync(command, args, { encoding: 'utf8', ...spawnOptions(command), stdio: ['ignore', 'pipe', 'ignore'], timeout: 30_000 }),
   show: (command, args) => {
     const [bin, pre] = binary(command);
-    const r = spawnSync(bin, [...pre, ...args], { stdio: 'inherit', shell: winShell(command) });
+    const r = spawnSync(bin, [...pre, ...args], { stdio: 'inherit', ...spawnOptions(command) });
     if (r.status !== 0) throw new Error(`${command} ${args.join(' ')} failed${r.error ? `: ${r.error.message}` : ''}`);
   },
 };
@@ -44,12 +46,17 @@ export function installedBy(installDir: string, npmRoot: string | undefined): { 
   return { npm: false, hint: `it isn't npm's global copy (${installDir}); update it the way you installed it` };
 }
 
+const cacheDirOf = (opts: CommandOptions) => loadConfig({ cwd: opts.cwd ?? process.cwd(), home: opts.home, env: opts.env }).web.outDir;
+
 /** Brings every codechart skill copy already installed, and reminder lines already added, up to this version. */
 function refreshInstalls(home: string, opts: CommandOptions): void {
   const files = readdirSync(packageFile('skills/codechart')).sort((a, b) => Number(b === 'SKILL.md') - Number(a === 'SKILL.md'));
   const folders = [...new Set(AGENTS.flatMap((a) => [a.skills, ...a.reads]))];
-  for (const folder of folders) {
-    const dir = join(home, folder, 'codechart');
+  const dirs = [
+    ...folders.map((folder) => ({ dir: join(home, folder, 'codechart'), who: AGENTS.filter((a) => [a.skills, ...a.reads].includes(folder)).map((a) => a.label).join(', ') })),
+    ...skillDirs(readState(cacheDirOf(opts))).map((dir) => ({ dir, who: 'your folder' })),
+  ];
+  for (const { dir, who } of dirs) {
     let ours = false;
     try {
       ours = existsSync(dir) && isCodechartSkill(dir);
@@ -57,7 +64,6 @@ function refreshInstalls(home: string, opts: CommandOptions): void {
       ours = false;
     }
     if (!ours) continue;
-    const who = AGENTS.filter((a) => [a.skills, ...a.reads].includes(folder)).map((a) => a.label).join(', ');
     installCopy(dir, who, files, false, opts);
   }
   for (const a of AGENTS) {
@@ -71,7 +77,7 @@ async function update(o: { check?: boolean }, opts: CommandOptions, runner: Runn
   const current = currentVersion();
   const latest = await fetchLatest(opts.fetch ?? fetch, 10_000);
   if (!latest) throw new Error("couldn't reach the npm registry to look up the newest version");
-  const cacheDir = loadConfig({ cwd: opts.cwd ?? process.cwd(), home: opts.home, env: opts.env }).web.outDir;
+  const cacheDir = cacheDirOf(opts);
   writeState(cacheDir, { ...readState(cacheDir), checkedAt: opts.now?.().getTime() ?? Date.now(), latest });
   if (!isNewer(latest, current)) {
     opts.stdout(`codechart ${current} is the newest version.\n`);

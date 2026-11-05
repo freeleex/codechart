@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { installedBy } from '../../src/commands/update.js';
+import { installedBy, spawnOptions } from '../../src/commands/update.js';
 import { checkAllowed, currentVersion, isNewer, knownUpdate, readState, updateNotice, type NoticeContext } from '../../src/update/check.js';
 import { makeSandbox, removeSandbox, runCli, type Sandbox } from '../helpers/sandbox.js';
 
@@ -97,6 +97,14 @@ describe('installedBy', () => {
   });
 });
 
+describe('spawnOptions', () => {
+  it("Windows runs npm from node's folder, so a repo's npm.cmd can't stand in for it", () => {
+    expect(spawnOptions('npm', 'win32')).toEqual({ shell: true, cwd: dirname(process.execPath) });
+    expect(spawnOptions('npm', 'linux')).toEqual({ shell: false });
+    expect(spawnOptions('codechart', 'win32')).toEqual({ shell: false });
+  });
+});
+
 describe('codechart update', () => {
   let sb: Sandbox;
   beforeEach(() => {
@@ -152,6 +160,15 @@ describe('codechart update', () => {
     expect(existsSync(join(sb.home, '.gemini', 'skills'))).toBe(false);
   });
 
+  it('refreshes a copy installed with install-skill --dir', async () => {
+    const own = join(sb.tmp, 'my-skills');
+    expect((await runCli({ cwd: sb.repo, home: sb.home }, ['install-skill', '--dir', own])).out).toContain('installed for your folder');
+    writeFileSync(join(own, 'codechart', 'SKILL.md'), '---\nname: codechart\n---\nold\n');
+    const r = await run([], { fetch: registry(CURRENT).fn });
+    expect(r.out).toContain(`updated for your folder: ${join(own, 'codechart')}`);
+    expect(readFileSync(join(own, 'codechart', 'SKILL.md'), 'utf8')).toBe(readFileSync('skills/codechart/SKILL.md', 'utf8'));
+  });
+
   it('npm unreachable: an error, nothing changed', async () => {
     const r = await run([], { fetch: registry(undefined).fn });
     expect(r.code).toBe(1);
@@ -194,6 +211,7 @@ describe('notices from other commands', () => {
     const reg = registry(NEXT);
     const r = await runCli({ cwd: sb.repo, home: sb.home, isTTY: false, updateCheck: true, fetch: reg.fn }, ['config']);
     expect(r.err).not.toContain('is available');
+    expect(r.out).toContain(`updateCheck: false  (global: ${join(sb.home, '.config', 'codechart', 'config.yaml')}; global-only)`);
     expect(reg.calls).toEqual([]);
   });
 });

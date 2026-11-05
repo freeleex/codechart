@@ -3,8 +3,10 @@ import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { Command } from 'commander';
 import { packageFile } from '../assets.js';
+import { loadConfig } from '../config/load.js';
 import type { CommandOptions } from '../program.js';
 import { readRegularFile } from '../read-regular.js';
+import { rememberSkillDir } from '../update/check.js';
 import { AGENTS, isCodechartSkill, skillFolders, type AgentPreset } from './agents.js';
 import { copyFiles } from './copy-file.js';
 import { addReminder, installClaudeHooks } from './nudges.js';
@@ -92,6 +94,19 @@ function installExtras(extras: Extras, agents: AgentPreset[], home: string, opts
   if (extras.hook) {
     const file = join(home, '.claude', 'settings.json');
     report('hook', () => (installClaudeHooks(file) === 'added' ? `hook added: ${file}` : `hook already in ${file}`));
+  }
+}
+
+const YOUR_FOLDER = 'your folder';
+
+/** So update refreshes a --dir copy too. */
+function rememberOwn(installed: { dir: string; who: string }[], opts: CommandOptions): void {
+  const own = installed.find((t) => t.who === YOUR_FOLDER);
+  if (!own) return;
+  try {
+    rememberSkillDir(loadConfig({ cwd: opts.cwd ?? process.cwd(), home: opts.home, env: opts.env }).web.outDir, own.dir);
+  } catch {
+    // Only update misses it then.
   }
 }
 
@@ -187,9 +202,11 @@ export function installSkillCommand(opts: CommandOptions): Command {
         groups.push({ folder, agents: agents.filter((a) => [a.skills, ...a.reads].includes(folder)) });
       }
       const targets = groups.map((g) => ({ dir: join(home, g.folder, 'codechart'), who: g.agents.map((a) => a.label).join(', '), agents: g.agents }));
-      if (o.dir !== undefined) targets.push({ dir: join(resolve(opts.cwd ?? process.cwd(), o.dir), 'codechart'), who: 'your folder', agents: [] });
+      if (o.dir !== undefined) targets.push({ dir: join(resolve(opts.cwd ?? process.cwd(), o.dir), 'codechart'), who: YOUR_FOLDER, agents: [] });
+      const installed = targets.filter((t) => installCopy(t.dir, t.who, files, o.force === true, opts));
+      rememberOwn(installed, opts);
       // Reminder and hook only for agents that can load the skill they point to.
-      const ready = new Set(targets.flatMap((t) => (installCopy(t.dir, t.who, files, o.force === true, opts) ? t.agents : [])));
+      const ready = new Set(installed.flatMap((t) => t.agents));
       agents = agents.filter((a) => ready.has(a));
       if (agents.length) installExtras(await pickExtras(o, agents, opts), agents, home, opts);
     });

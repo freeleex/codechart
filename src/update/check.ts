@@ -35,6 +35,8 @@ export interface UpdateState {
   /** When each kind of reader was last told, so each hears it at most once a day. */
   toldTerminal?: number;
   toldAgent?: number;
+  /** Skill copies installed with install-skill --dir, which update refreshes too. */
+  skillDirs?: string[];
 }
 
 const stateFile = (cacheDir: string) => join(cacheDir, 'update-check.json');
@@ -55,6 +57,14 @@ export function writeState(cacheDir: string, state: UpdateState): void {
   } catch {
     // A notice is never worth failing the command for.
   }
+}
+
+export const skillDirs = (state: UpdateState): string[] => (Array.isArray(state.skillDirs) ? state.skillDirs.filter((d) => typeof d === 'string') : []);
+
+export function rememberSkillDir(cacheDir: string, dir: string): void {
+  const state = readState(cacheDir);
+  const dirs = skillDirs(state);
+  if (!dirs.includes(dir)) writeState(cacheDir, { ...state, skillDirs: [...dirs, dir] });
 }
 
 /** The newer version known from the last check, without going online; for the HTML header. */
