@@ -1,6 +1,6 @@
 import { parse, parseTree, type ParseError } from 'jsonc-parser';
 import { describe, expect, it } from 'vitest';
-import { removeItem } from '../../src/commands/jsonc-edit.js';
+import { appendItem, removeItem } from '../../src/commands/jsonc-edit.js';
 
 const valid = (text: string): unknown => {
   const errors: ParseError[] = [];
@@ -10,6 +10,7 @@ const valid = (text: string): unknown => {
 };
 const list = (text: string) => parseTree(text, [], { allowTrailingComma: true })!.children![0]!.children![1]!;
 const remove = (text: string, index: number) => removeItem(text, list(text), index);
+const append = (text: string, item: string) => appendItem(text, list(text), item, '  ');
 
 const strip = (arr: unknown) => arr as string[];
 const plugins = (text: string) => strip((valid(text) as { plugins: unknown }).plugins);
@@ -43,5 +44,29 @@ describe('removeItem always leaves valid JSONC and every comment', () => {
   it('keeps the shape of the rest in the plain case', () => {
     expect(remove('{"plugins":["a", "codechart", "b"]}', 1)).toBe('{"plugins":["a", "b"]}');
     expect(remove('{\n  "plugins": [\n    "a",\n    "codechart",\n    "b"\n  ]\n}', 1)).toBe('{\n  "plugins": [\n    "a",\n    "b"\n  ]\n}');
+  });
+});
+
+describe('appendItem keeps comments inside an empty container', () => {
+  it('array', () => {
+    for (const t of ['{"plugins":[/* keep this note */]}', '{"plugins":[ /* keep */ ]}', '{"plugins":[ // note\n]}', '{"plugins":[\n  // note\n]}']) {
+      const out = append(t, '"x"');
+      expect(plugins(out), t).toEqual(['x']);
+      for (const c of t.match(/\/\*.*?\*\/|\/\/[^\n]*/g) ?? []) expect(out).toContain(c);
+    }
+  });
+
+  it('plain empty containers are unchanged in shape', () => {
+    expect(append('{"plugins":[]}', '"x"')).toBe('{"plugins":["x"]}');
+    expect(append('{"plugins":[ ]}', '"x"')).toBe('{"plugins":["x"]}');
+  });
+
+  it('object, including a comment-only root', () => {
+    for (const t of ['{ /* keep */ }', '{/* keep */}', '{\n  // only a note\n}\n', '{ // note\n}']) {
+      const root = parseTree(t, [], { allowTrailingComma: true })!;
+      const out = appendItem(t, root, '"plugins": ["x"]', '  ');
+      expect(valid(out), t).toEqual({ plugins: ['x'] });
+      for (const c of t.match(/\/\*.*?\*\/|\/\/[^\n]*/g) ?? []) expect(out).toContain(c);
+    }
   });
 });

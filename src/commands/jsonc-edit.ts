@@ -19,17 +19,26 @@ export function replaceString(text: string, path: (string | number)[], value: st
   return splice(text, node.offset, node.offset + node.length, JSON.stringify(value));
 }
 
+/** Into a container with no children; comments inside stay. */
+function appendToEmpty(text: string, container: Node, item: string, unit: string): string {
+  const open = container.offset + 1;
+  const close = container.offset + container.length - 1;
+  const inside = text.slice(open, close);
+  const eol = eolOf(text);
+  const pad = indentAt(text, container.offset);
+  const blank = inside.trim() === '';
+  if (container.type === 'array') return blank ? splice(text, open, close, item) : splice(text, close, close, /\s$/.test(inside) ? item : ` ${item}`);
+  if (blank) return splice(text, open, close, `${eol}${pad}${unit}${item}${eol}${pad}`);
+  if (/\n[ \t]*$/.test(inside)) return splice(text, lineStart(text, close), lineStart(text, close), `${pad}${unit}${item}${eol}`);
+  return splice(text, close, close, /\s$/.test(inside) ? `${item} ` : ` ${item} `);
+}
+
 /** Adds `item` (an array element, or `"key": value` for an object) after the last child, matching the container's layout and trailing comma. */
 export function appendItem(text: string, container: Node, item: string, unit: string): string {
   const kids = container.children ?? [];
   const last = kids.at(-1);
   const eol = eolOf(text);
-  if (!last) {
-    const inside = [container.offset + 1, container.offset + container.length - 1] as const;
-    if (container.type === 'array') return splice(text, ...inside, item);
-    const pad = indentAt(text, container.offset);
-    return splice(text, ...inside, `${eol}${pad}${unit}${item}${eol}${pad}`);
-  }
+  if (!last) return appendToEmpty(text, container, item, unit);
   const end = last.offset + last.length;
   if (!text.slice(container.offset, kids[0]!.offset).includes('\n')) return splice(text, end, end, `, ${item}`);
   const trailing = /^[ \t]*(,)?[ \t]*(?:\/\/[^\r\n]*|\/\*[^\r\n]*?\*\/)?/.exec(text.slice(end))!;
