@@ -6,10 +6,11 @@ import { packageFile } from '../assets.js';
 import { loadConfig } from '../config/load.js';
 import type { CommandOptions } from '../program.js';
 import { readRegularFile } from '../read-regular.js';
-import { rememberSkillDir } from '../update/check.js';
+import { currentVersion, rememberSkillDir } from '../update/check.js';
 import { AGENTS, isCodechartSkill, skillFolders, type AgentPreset } from './agents.js';
 import { copyFiles } from './copy-file.js';
 import { addReminder, installClaudeHooks } from './nudges.js';
+import { opencodeConfigFile, pinPlugin, pluginSpec } from './opencode-plugin.js';
 import { terminalPicker } from './picker.js';
 
 const NAMES = AGENTS.map((a) => a.name).join(', ');
@@ -46,6 +47,7 @@ export const skillIsCurrent = (dir: string, files: string[]): boolean =>
 interface Extras {
   reminder: boolean;
   hook: boolean;
+  plugin: boolean;
 }
 
 interface Flags {
@@ -54,9 +56,11 @@ interface Flags {
   force?: boolean;
   reminder?: boolean;
   hook?: boolean;
+  plugin?: boolean;
 }
 
 const hasClaude = (agents: AgentPreset[]) => agents.some((a) => a.name === 'claude');
+const hasOpencode = (agents: AgentPreset[]) => agents.some((a) => a.name === 'opencode');
 
 async function chooseExtras(agents: AgentPreset[], opts: CommandOptions): Promise<Extras> {
   const choose = opts.choose ?? terminalChoose();
@@ -66,17 +70,21 @@ async function chooseExtras(agents: AgentPreset[], opts: CommandOptions): Promis
   if (hasClaude(agents)) {
     items.push({ key: 'hook', label: 'Claude Code hook', hint: 'ask for a diagram when a turn changed 3+ files → ~/.claude/settings.json' });
   }
-  if (!choose || items.length === 0) return { reminder: true, hook: hasClaude(agents) };
+  if (hasOpencode(agents)) {
+    items.push({ key: 'plugin', label: 'OpenCode plugin', hint: 'ask for a diagram when a turn changed 3+ files → ~/.config/opencode/opencode.json' });
+  }
+  if (!choose || items.length === 0) return { reminder: true, hook: hasClaude(agents), plugin: hasOpencode(agents) };
   const picked = await choose('Agents forget skills in long sessions; these help them remember codechart:', items, true);
   const keys = new Set((picked ?? []).map((i) => items[i]!.key));
-  return { reminder: keys.has('reminder'), hook: keys.has('hook') };
+  return { reminder: keys.has('reminder'), hook: keys.has('hook'), plugin: keys.has('plugin') };
 }
 
-// No flag: both, after asking in a terminal. --reminder/--hook: only those. --no-reminder/--no-hook: the rest.
+// No flag: all, after asking in a terminal. --reminder/--hook/--plugin: only those. --no-reminder/--no-hook/--no-plugin: the rest.
 async function pickExtras(o: Flags, agents: AgentPreset[], opts: CommandOptions): Promise<Extras> {
-  if (o.reminder === true || o.hook === true) return { reminder: o.reminder === true, hook: o.hook === true };
-  if (o.reminder === undefined && o.hook === undefined && o.agent === undefined) return chooseExtras(agents, opts);
-  return { reminder: o.reminder !== false, hook: o.hook !== false && hasClaude(agents) };
+  const plugin = hasOpencode(agents);
+  if (o.reminder === true || o.hook === true || o.plugin === true) return { reminder: o.reminder === true, hook: o.hook === true, plugin: o.plugin === true && plugin };
+  if (o.reminder === undefined && o.hook === undefined && o.plugin === undefined && o.agent === undefined) return chooseExtras(agents, opts);
+  return { reminder: o.reminder !== false, hook: o.hook !== false && hasClaude(agents), plugin: o.plugin !== false && plugin };
 }
 
 function installExtras(extras: Extras, agents: AgentPreset[], home: string, opts: CommandOptions) {
@@ -101,6 +109,13 @@ function installExtras(extras: Extras, agents: AgentPreset[], home: string, opts
   if (extras.hook) {
     const file = join(home, '.claude', 'settings.json');
     report('hook', () => (installClaudeHooks(file) === 'added' ? `hook added: ${file}` : `hook already in ${file}`));
+  }
+  if (extras.plugin) {
+    const file = opencodeConfigFile(home);
+    report('plugin', () => {
+      const r = pinPlugin(file, currentVersion());
+      return r === 'present' ? `plugin already ${pluginSpec(currentVersion())} in ${file}` : `plugin ${r}: ${pluginSpec(currentVersion())} in ${file}`;
+    });
   }
 }
 
@@ -154,10 +169,12 @@ export function installSkillCommand(opts: CommandOptions): Command {
     .option('--agent <names...>', `install for these agents: ${NAMES}`)
     .option('--dir <path>', 'install into this skills folder')
     .option('--force', 'overwrite an install that is not an older codechart copy')
-    .option('--reminder', "only the reminder line in each agent's global instructions file (both extras are added by default)")
+    .option('--reminder', "only the reminder line in each agent's global instructions file (all extras are added by default)")
     .option('--no-reminder', 'skip the reminder line')
     .option('--hook', 'only the Claude Code hook that asks for a diagram after a turn that changed 3+ files without one')
     .option('--no-hook', 'skip the Claude Code hook')
+    .option('--plugin', 'only the OpenCode plugin that asks for a diagram after a turn that changed 3+ files without one')
+    .option('--no-plugin', 'skip the OpenCode plugin')
     // eslint-disable-next-line complexity -- ratchet: install action picks agents and targets inline
     .action(async (o: Flags) => {
       const home = opts.home ?? homedir();

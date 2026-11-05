@@ -5,6 +5,7 @@ import { currentVersion, isNewer, readState } from '../update/check.js';
 import { AGENTS, isCodechartSkill, skillFolders, type AgentPreset } from './agents.js';
 import { installCopy, skillFiles, skillIsCurrent } from './install-skill.js';
 import { addReminder, claudeHookEvents, installClaudeHooks, reminderState } from './nudges.js';
+import { opencodeConfigFile, pinPlugin, pluginSpec, pluginSpecs } from './opencode-plugin.js';
 import { cacheDirOf, runUpdate } from './update.js';
 
 export interface Item {
@@ -134,10 +135,32 @@ function hookItem(home: string, opts: CommandOptions): Item {
   };
 }
 
+function pluginItem(home: string, opts: CommandOptions): Item {
+  const file = opencodeConfigFile(home);
+  const want = pluginSpec(currentVersion());
+  let specs: string[];
+  try {
+    specs = pluginSpecs(file);
+  } catch (e) {
+    return { level: 'bad', text: `plugin: ${(e as Error).message}` };
+  }
+  if (specs.length === 1 && specs[0] === want) return { level: 'ok', text: `plugin: ${want} in ${file}` };
+  if (!specs.length) return { level: 'warn', text: `plugin: not added to ${file}`, fix: 'codechart install-skill --agent opencode --plugin' };
+  const pins = specs.map((s) => (s.includes('@') ? `pinned to ${s.slice(s.indexOf('@') + 1)}` : 'not pinned'));
+  return {
+    level: 'bad',
+    text: `plugin: ${pins.join(', ')}, this codechart is ${currentVersion()} in ${file}`,
+    fix: 'codechart install-skill --agent opencode',
+    run: () => opts.stdout(`plugin ${pinPlugin(file, currentVersion())}: ${want} in ${file}\n`),
+  };
+}
+
 function agentSection(a: AgentPreset, target: string, home: string, files: string[], opts: CommandOptions, seen: Seen): Section {
   const items = [skillItem(a, target, home, files, opts, seen)];
   if (a.instructions) items.push(reminderItem({ ...a, instructions: a.instructions }, home, opts));
-  items.push(a.name === 'claude' ? hookItem(home, opts) : { level: 'warn', text: `hook: no codechart hook for ${a.label} yet` });
+  if (a.name === 'claude') items.push(hookItem(home, opts));
+  else if (a.name === 'opencode') items.push(pluginItem(home, opts));
+  else items.push({ level: 'warn', text: `hook: no codechart hook for ${a.label} yet` });
   return { title: a.label, items };
 }
 

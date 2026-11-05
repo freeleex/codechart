@@ -6,6 +6,7 @@ import { packageFile } from '../assets.js';
 import type { CommandOptions } from '../program.js';
 import { AGENTS, isCodechartSkill } from './agents.js';
 import { removeClaudeHooks, removeReminder } from './nudges.js';
+import { opencodeConfigFile, removePlugin } from './opencode-plugin.js';
 
 /** Deletes only the skill's own files, and the folder if that empties it. */
 function removeSkill(dir: string, files: string[]): string | undefined {
@@ -25,9 +26,10 @@ export function uninstallCommand(opts: CommandOptions): Command {
     .option('--skill', 'remove the skill from every agent folder')
     .option('--reminder', "remove the reminder line from agents' instructions files")
     .option('--hook', 'remove the codechart hooks from ~/.claude/settings.json')
-    .action((o: { skill?: boolean; reminder?: boolean; hook?: boolean }) => {
+    .option('--plugin', 'remove the codechart plugin from the global OpenCode config')
+    .action((o: { skill?: boolean; reminder?: boolean; hook?: boolean; plugin?: boolean }) => {
       const home = opts.home ?? homedir();
-      const all = !o.skill && !o.reminder && !o.hook;
+      const all = !o.skill && !o.reminder && !o.hook && !o.plugin;
       let did = false;
       const step = (run: () => string | undefined) => {
         try {
@@ -55,6 +57,10 @@ export function uninstallCommand(opts: CommandOptions): Command {
       if (all || o.hook) {
         const file = join(home, '.claude', 'settings.json');
         step(() => (removeClaudeHooks(file) === 'removed' ? `removed hook: ${file}` : undefined));
+      }
+      if (all || o.plugin) {
+        const file = opencodeConfigFile(home);
+        step(() => (removePlugin(file) === 'removed' ? `removed plugin: ${file}` : undefined));
       }
       if (!did && process.exitCode !== 1) opts.stdout('nothing to remove\n');
     });
