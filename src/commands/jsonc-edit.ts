@@ -38,14 +38,14 @@ export function appendItem(text: string, container: Node, item: string, unit: st
   return splice(splice(text, end + trailing[0].length, end + trailing[0].length, line), end, end, ',');
 }
 
-/** The comma between two siblings, skipping comments. */
+/** The comma in `text[from, to)`, skipping comments; -1 when there is none. */
 function commaBetween(text: string, from: number, to: number): number {
   for (let i = from; i < to; i++) {
     if (text.startsWith('//', i)) i = text.indexOf('\n', i) - 1;
     else if (text.startsWith('/*', i)) i = text.indexOf('*/', i) + 1;
     else if (text[i] === ',') return i;
   }
-  throw new Error('comma not found');
+  return -1;
 }
 
 /** Drops the line at `at` when the removal left it blank. */
@@ -56,16 +56,23 @@ function dropBlankLine(text: string, at: number): string {
   return /^[ \t\r]*$/.test(text.slice(from, to)) ? splice(text, from, Math.min(to + 1, text.length), '') : text;
 }
 
-/** Removes the `index`th child with its comma, keeping the others' commas valid. */
+/** Removes the `index`th child with its comma, keeping the others' commas valid and every comment. */
 export function removeItem(text: string, container: Node, index: number): string {
   const kids = container.children!;
   const kid = kids[index]!;
   const end = kid.offset + kid.length;
-  const tail = /^[ \t]*(,)?[ \t]*/.exec(text.slice(end))![0];
-  if (tail.includes(',') || kids[index + 1]) return dropBlankLine(splice(text, kid.offset, end + tail.length, ''), kid.offset);
+  const next = kids[index + 1];
+  const after = commaBetween(text, end, next ? next.offset : container.offset + container.length - 1);
+  if (after >= 0) {
+    if (/^[ \t]*$/.test(text.slice(end, after))) {
+      const to = after + 1 + /^[ \t]*/.exec(text.slice(after + 1))![0].length;
+      return dropBlankLine(splice(text, kid.offset, to, ''), kid.offset);
+    }
+    return dropBlankLine(splice(splice(text, after, after + 1, ''), kid.offset, end, ''), kid.offset);
+  }
   const prev = kids[index - 1];
-  if (!prev) return dropBlankLine(splice(text, kid.offset, end, ''), kid.offset);
-  const comma = commaBetween(text, prev.offset + prev.length, kid.offset);
-  if (/^[ \t]*$/.test(text.slice(comma + 1, kid.offset))) return splice(text, comma, end, '');
-  return splice(dropBlankLine(splice(text, kid.offset, end, ''), kid.offset), comma, comma + 1, '');
+  const before = prev ? commaBetween(text, prev.offset + prev.length, kid.offset) : -1;
+  if (before < 0) return dropBlankLine(splice(text, kid.offset, end, ''), kid.offset);
+  if (/^[ \t]*$/.test(text.slice(before + 1, kid.offset))) return splice(text, before, end, '');
+  return splice(dropBlankLine(splice(text, kid.offset, end, ''), kid.offset), before, before + 1, '');
 }
