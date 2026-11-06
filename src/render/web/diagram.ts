@@ -77,8 +77,6 @@ interface DiagramPage {
   height: number;
   extraCss?: string;
   extraDefs?: string;
-  /** Offer the Light / Full switch: the page has diffs to show short or whole. */
-  modes?: boolean;
 }
 
 export function renderDiagramPage(p: DiagramPage): string {
@@ -95,6 +93,5 @@ export function renderDiagramPage(p: DiagramPage): string {
     height: p.height,
     extraCss: p.extraCss,
     extraDefs: p.extraDefs,
-    modes: p.modes,
   });
 }

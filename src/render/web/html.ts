@@ -8,7 +8,7 @@ import { changesHtml } from './changes.js';
 import { edgeEnds, gapsHtml, infoButton, pageInfoSection, renderDiagramPage, renderEdgeSvg, type EdgeEnds } from './diagram.js';
 import { CHANGE_ARROWS, esc, list, num, type HtmlMeta } from './page.js';
 import { edgeChange, edgeOn, fieldsOn, hasNowAfter, nodeOn, SIDE_KEY, type Side } from './states.js';
-import { diffRev, relationsHtml, relationsOf, tickRow, tickSvg } from './tools.js';
+import { diffRev, relationsHtml, relationsOf, panelTitle, tickSvg } from './tools.js';
 
 export { esc, type Theme } from './page.js';
 
@@ -125,14 +125,14 @@ function fieldsHtml(n: SpecNode, sides: boolean): string {
 }
 
 function cardPanel(spec: Spec, n: SpecNode, check: MapCheck | undefined, previews: Map<string, Preview> | undefined, sides: boolean): string {
-  let out = `<h2>${esc(`${n.label} (${nodeWhat(n)})`)}</h2>${tickRow(n.id)}`;
+  let out = panelTitle(n.id, `${n.label} (${nodeWhat(n)})`);
   out += mismatchNote(check, n.id);
   const match = check?.matches.get(n.id);
   if (match) out += snippetHtml(match);
   else if (n.path) out += `<div class="path">${pathHtml(n.path)}</div>`;
   if (n.summary) out += `<p>${esc(n.summary)}</p>`;
   const preview = previews?.get(n.id);
-  if (preview) out += changesHtml(preview);
+  if (preview) out += changesHtml(preview, n.path);
   if (n.fields?.length) {
     out += fieldsHtml(n, sides);
     if (n.fieldsComplete === false) out += `<p class="fields-note">${FIELDS_NOTE}</p>`;
@@ -203,6 +203,5 @@ export function renderHtml(spec: Spec, layout: Layout, meta: HtmlMeta, check?: M
     width: layout.width,
     height: layout.height,
     extraDefs: CHANGE_ARROWS,
-    modes: Boolean(previews?.size),
   });
 }

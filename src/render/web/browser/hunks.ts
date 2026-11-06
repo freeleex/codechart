@@ -1,5 +1,4 @@
 // Runs in the generated page; scripts/client-build.ts puts it ahead of client.ts in the one inline script.
-import { isFull } from './mode.js';
 import type { Review } from './review.js';
 
 export interface Hunks {
@@ -114,8 +113,8 @@ function walker(panel: HTMLElement, aside: Element): Nav {
   };
 }
 
-/** Folding hunks by click, and in Full the keys: n/p hunks, ]/[ unreviewed nodes, r reviewed, o/O fold, ? help. */
-export function initHunks(panel: HTMLElement, review: Review): Hunks {
+/** Folding hunks and opening runs of unchanged lines by click, and the keys: n/p hunks, ]/[ unreviewed nodes, r reviewed, f zoom to the node, o/O fold, ? help. */
+export function initHunks(panel: HTMLElement, review: Review, zoomToNode: () => void): Hunks {
   const nav = walker(panel, panel.closest('aside')!);
   const help = document.getElementById('key-help')!;
   const toggleHelp = () => {
@@ -127,6 +126,7 @@ export function initHunks(panel: HTMLElement, review: Review): Hunks {
     ']': () => review.step(1),
     '[': () => review.step(-1),
     r: () => review.toggleSelected(),
+    f: zoomToNode,
     o: () => nav.toggle(),
     O: () => nav.toggleAll(),
     '?': toggleHelp,
@@ -142,6 +142,8 @@ export function initHunks(panel: HTMLElement, review: Review): Hunks {
     const t = e.target as Element;
     const h = t.closest('.hunk-sum')?.closest<HTMLElement>('.hunk');
     if (h) nav.pick(h);
+    const gap = t.closest('.gap-run');
+    if (gap) gap.setAttribute('aria-expanded', String(gap.parentElement!.classList.toggle('open')));
     for (const [sel, run] of Object.entries(buttons)) if (t.closest(sel)) run();
   });
   help.addEventListener('click', () => {
@@ -149,7 +151,7 @@ export function initHunks(panel: HTMLElement, review: Review): Hunks {
   });
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') help.hidden = true;
-    if (e.ctrlKey || e.metaKey || e.altKey || typing(e.target) || !isFull()) return;
+    if (e.ctrlKey || e.metaKey || e.altKey || typing(e.target)) return;
     const run = Object.hasOwn(keys, e.key) ? keys[e.key] : undefined;
     if (!run) return;
     e.preventDefault();

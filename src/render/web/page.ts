@@ -5,6 +5,14 @@ import { CLIENT_JS } from './client.js';
 import type { Point } from './layout.js';
 import { stripInvisible } from '../strip.js';
 
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** "6 Nov 2026, 19:34" in the local time of the machine that built the page. */
+export function prettyDate(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}, ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export type { Theme };
 
 export interface HtmlMeta {
@@ -92,11 +100,9 @@ interface PageParts {
   height: number;
   extraCss?: string;
   extraDefs?: string;
-  /** Light by default with a header switch to Full; without, the page is always Full. */
-  modes?: boolean;
 }
 
-const KEY_HELP = ['n / p: next / previous hunk (opens it, folds the others)', '] / [: next / previous unreviewed node', 'r: toggle reviewed', 'o / O: fold this hunk / toggle all hunks', '?: this help'];
+const KEY_HELP = ['n / p: next / previous hunk (opens it, folds the others)', '] / [: next / previous unreviewed node', 'r: toggle reviewed', 'o / O: fold this hunk / toggle all hunks', 'f: zoom to the selected node', '?: this help'];
 
 const CSP = `default-src 'none'; style-src 'unsafe-inline'; script-src 'sha256-${createHash('sha256').update(CLIENT_JS).digest('base64')}'; img-src data:; base-uri 'none'; form-action 'none'`;
 
@@ -111,18 +117,18 @@ export function renderPage(p: PageParts): string {
     ? `<div id="panes">${p.panes.map((pane, i) => `<section class="pane" aria-label="${esc(pane.title)}"><div class="pane-title">${esc(pane.title)}<span class="pane-key"> · ${keyHtml(pane.key)}</span></div>${canvas(pane.viewport, i)}</section>`).join('')}</div>`
     : canvas(p.viewport, 0);
   return `<!doctype html>
-<html lang="en" data-theme="${theme}" data-mode="${p.modes ? 'light' : 'full'}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="en" data-theme="${theme}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="${CSP}">
 <title>${esc(p.title)}</title>
 <style>${CSS}${p.extraCss ?? ''}</style></head>
 <body>
-<header><h1>${esc(p.title)}</h1>${p.headerNote ?? ''}<span class="meta">${esc(p.meta.repo)} · ${esc(p.meta.generatedAt.toISOString())}</span>${p.meta.update ? `<span class="update" title="${esc(['A newer codechart is out', ...(p.meta.updateNotes ?? []).map((n) => `- ${n}`)].join('\n'))}">codechart ${esc(p.meta.update)} is out: run <code>codechart update</code></span>` : ''}${p.infoButton}${p.modes ? '<button id="mode-toggle" type="button" title="Light: short diffs. Full: whole diffs, review ticks and keys (n p ] [ r o ?)"></button>' : ''}${p.panes ? '<button id="link-toggle" type="button" title="Linked: panning or zooming one pane moves both"></button>' : ''}<button id="theme-toggle" type="button" title="Cycle theme: auto, light, dark"></button></header>
+<header><h1>${esc(p.title)}</h1>${p.headerNote ?? ''}<span class="meta">${esc(p.meta.repo)} · <time datetime="${p.meta.generatedAt.toISOString()}" title="${p.meta.generatedAt.toISOString()}">${prettyDate(p.meta.generatedAt)}</time></span>${p.meta.update ? `<span class="update" title="${esc(['A newer codechart is out', ...(p.meta.updateNotes ?? []).map((n) => `- ${n}`)].join('\n'))}">codechart ${esc(p.meta.update)} is out: run <code>codechart update</code></span>` : ''}${p.infoButton}${p.panes ? '<button id="link-toggle" type="button" title="Linked: panning or zooming one pane moves both"></button>' : ''}<button id="theme-toggle" type="button" title="Cycle theme: auto, light, dark"></button></header>
 ${p.toolbar ? `<div id="toolbar">${p.toolbar}</div>\n` : ''}<main>
 ${body}
 <div id="resize" role="separator" aria-orientation="vertical" aria-label="Resize panel" tabindex="0" title="Drag to resize the panel"></div>
-<aside><nav id="panel-nav" aria-label="Panel history"><button id="nav-back" type="button" disabled aria-label="Back" title="Back (Alt+←)">←</button><button id="nav-forward" type="button" disabled aria-label="Forward" title="Forward (Alt+→)">→</button></nav>${p.aside}</aside>
+<aside><nav id="panel-nav" aria-label="Panel history"><button id="nav-focus" type="button" disabled aria-label="Focus node (f)" title="Focus node (f)">◎</button><button id="nav-back" type="button" disabled aria-label="Back" title="Back (Alt+←)">←</button><button id="nav-forward" type="button" disabled aria-label="Forward" title="Forward (Alt+→)">→</button></nav>${p.aside}</aside>
 </main>
-<div id="key-help" role="dialog" aria-label="Keys" hidden><b>Keys (Full)</b>${KEY_HELP.map((k) => `<div>${esc(k)}</div>`).join('')}</div>
+<div id="key-help" role="dialog" aria-label="Keys" hidden><b>Keys</b>${KEY_HELP.map((k) => `<div>${esc(k)}</div>`).join('')}</div>
 <script type="application/json" id="spec-data">${jsonForScript(data)}</script>
 <script>${CLIENT_JS}</script>
 </body></html>

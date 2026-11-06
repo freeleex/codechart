@@ -125,14 +125,15 @@ describe('render: map checks', () => {
     const spec = map(node('Order', 'changed', 'app/orders.py'), node('Status', 'context', 'app/status.py'));
     await run(['render', specFile(spec), '--git', '--output', 'web']);
     const html = htmlFile();
-    expect(html).toContain('<h3>Changes</h3><div class="file">');
-    expect(html).toContain('<span class="ln">2</span><span class="d-del dr"><span class="sg">-</span><span class="cd" style="padding-left:4ch;text-indent:-4ch"><span class="ind">    </span>pass</span></span>');
-    expect(html).toContain('<span class="ln">2</span><span class="d-add dr"><span class="sg">+</span><span class="cd" style="padding-left:4ch;text-indent:-4ch"><span class="ind">    </span>coupon = &quot;&lt;b&gt;&quot;</span></span>');
-    expect(html).toContain('<span class="lo">2 changed lines</span><span class="fo">2 changed lines</span> · whole file: <span class="path">app/<wbr>orders.py</span>');
-    expect(html.match(/<h3>Changes<\/h3>/g)).toHaveLength(1);
+    expect(html).toContain('</h3><div class="file"><div class="snippet diff">');
+    expect(html).toContain('<span class="d-del dr"><span class="ln">2</span><span class="sg">-</span><span class="cd" style="padding-left:4ch;text-indent:-4ch"><span class="ind">    </span>pass</span></span>');
+    expect(html).toContain('<span class="d-add dr"><span class="ln">2</span><span class="sg">+</span><span class="cd" style="padding-left:4ch;text-indent:-4ch"><span class="ind">    </span>coupon = &quot;&lt;b&gt;&quot;</span></span>');
+    expect(html).toContain('<h3 class="ch-head">Changes<span class="fh-stat"><span class="n-add">+1</span> <span class="n-del">−1</span></span></h3>');
+    expect(html).not.toContain('whole file');
+    expect(html.match(/<h3 class="ch-head">/g)).toHaveLength(1);
     rmSync(out, { recursive: true, force: true });
     await run(['render', specFile(spec), '--output', 'web']);
-    expect(htmlFile()).not.toContain('<h3>Changes</h3>');
+    expect(htmlFile()).not.toContain('>Changes<');
   });
 
   it('--md web output keeps the alert in a fence', async () => {

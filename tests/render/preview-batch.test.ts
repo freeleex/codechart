@@ -10,6 +10,9 @@ import { diffRange, gitFiles } from '../../src/rules/selection.js';
 import type { Spec } from '../../src/spec/schema.js';
 import { repoFromTemplate } from '../helpers/sandbox.js';
 
+// Each test commits hundreds of files; the 5 s default times out when the full suite runs in parallel.
+vi.setConfig({ testTimeout: 30_000 });
+
 const calls = vi.hoisted(() => ({ list: [] as string[][] }));
 vi.mock('node:child_process', async (orig) => {
   const m = await orig<typeof import('node:child_process')>();
