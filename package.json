@@ -39,6 +39,7 @@
     "skills",
     "templates",
     "config.schema.json",
+    "CHANGELOG.md",
     "THIRD_PARTY_NOTICES.md"
   ],
   "engines": {

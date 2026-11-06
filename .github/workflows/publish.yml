@@ -22,6 +22,7 @@ jobs:
           node-version: 22
           registry-url: https://registry.npmjs.org
       - run: test "v$(node -p "require('./package.json').version")" = "$GITHUB_REF_NAME"
+      - run: node scripts/release-notes.mjs "${GITHUB_REF_NAME#v}" > /dev/null
       - run: npm install -g npm@11.21.1
       - run: npm ci --ignore-scripts
       - run: npm test
@@ -29,3 +30,20 @@ jobs:
       - run: node scripts/check-pack.mjs
       # Stage-only trusted publisher: the release waits for a maintainer's 2FA approval on npmjs.com.
       - run: npm stage publish --access public
+
+  github-release:
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - run: node scripts/release-notes.mjs "${GITHUB_REF_NAME#v}" > notes.md
+      - run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file notes.md --verify-tag
+        env:
+          GH_TOKEN: ${{ github.token }}

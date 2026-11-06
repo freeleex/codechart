@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { packageFile } from '../assets.js';
 import { privateDir } from '../render/web/write.js';
+import { cleanBullet, fetchHighlights, notesLines, type Highlights } from './changelog.js';
 
 const REGISTRY = 'https://registry.npmjs.org/codechart/latest';
 const DAY = 24 * 60 * 60 * 1000;
@@ -37,6 +38,10 @@ export interface UpdateState {
   toldAgent?: number;
   /** Skill copies installed with install-skill --dir, which update refreshes too. */
   skillDirs?: string[];
+  /** What changed up to `highlightsFor`, from CHANGELOG.md; fetched once per newer version. */
+  highlights?: string[];
+  highlightsMore?: boolean;
+  highlightsFor?: string;
 }
 
 const stateFile = (cacheDir: string) => join(cacheDir, 'update-check.json');
@@ -66,6 +71,16 @@ export function rememberSkillDir(cacheDir: string, dir: string): void {
   const dirs = skillDirs(state);
   if (!dirs.includes(dir)) writeState(cacheDir, { ...state, skillDirs: [...dirs, dir] });
 }
+
+/** The stored highlights for `version`; the file is plain JSON on disk, so each line is cleaned again. */
+export function knownHighlights(state: UpdateState, version: string): Highlights | undefined {
+  if (state.highlightsFor !== version || !Array.isArray(state.highlights)) return undefined;
+  const bullets = state.highlights.filter((b) => typeof b === 'string').map(cleanBullet).filter(Boolean).slice(0, 5);
+  return bullets.length ? { bullets, more: state.highlightsMore === true } : undefined;
+}
+
+export const withHighlights = (state: UpdateState, version: string, h: Highlights | undefined): UpdateState =>
+  h ? { ...state, highlights: h.bullets, highlightsMore: h.more, highlightsFor: version } : state;
 
 /** The newer version known from the last check, without going online; for the HTML header. */
 export function knownUpdate(cacheDir: string, current = currentVersion()): string | undefined {
@@ -97,21 +112,22 @@ export function checkAllowed(c: Pick<NoticeContext, 'enabled' | 'env'>, installP
 export async function updateNotice(c: NoticeContext): Promise<string | undefined> {
   if (!checkAllowed(c)) return undefined;
   const state = readState(c.cacheDir);
+  const current = c.current ?? currentVersion();
   let changed = false;
   if (!state.checkedAt || c.now - state.checkedAt >= DAY) {
     changed = true;
     const latest = await fetchLatest(c.fetch, 1000);
     // Recorded even on failure, so an offline machine tries once a day, not on every run.
     Object.assign(state, { checkedAt: c.now }, latest ? { latest } : {});
+    if (latest && isNewer(latest, current) && state.highlightsFor !== latest) Object.assign(state, withHighlights(state, latest, await fetchHighlights(c.fetch, current, latest, 1000)));
   }
-  const current = c.current ?? currentVersion();
   const told = c.terminal ? 'toldTerminal' : 'toldAgent';
   let line: string | undefined;
   if (state.latest && isNewer(state.latest, current) && c.now - (state[told] ?? 0) >= DAY) {
     state[told] = c.now;
     changed = true;
     line = c.terminal
-      ? `codechart ${state.latest} is available (you have ${current}): run codechart update`
+      ? [`codechart ${state.latest} is available (you have ${current}): run codechart update`, ...notesLines(knownHighlights(state, state.latest))].join('\n')
       : `codechart ${state.latest} is available (you have ${current}). Tell the user once: run \`codechart update\`.`;
   }
   if (changed) writeState(c.cacheDir, state);

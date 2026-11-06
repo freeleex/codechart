@@ -8,6 +8,7 @@ const ALLOWED = [
   /^package\.json$/,
   /^LICENSE$/,
   /^README\.md$/,
+  /^CHANGELOG\.md$/,
   /^THIRD_PARTY_NOTICES\.md$/,
 ];
 

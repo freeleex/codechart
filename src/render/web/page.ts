@@ -16,6 +16,8 @@ export interface HtmlMeta {
   theme?: Theme;
   /** A newer codechart version, known from the last daily check. */
   update?: string;
+  /** What changed in it, for the header note's tooltip. */
+  updateNotes?: string[];
 }
 
 export function esc(s: string): string {
@@ -110,7 +112,7 @@ export function renderPage(p: PageParts): string {
 <title>${esc(p.title)}</title>
 <style>${CSS}${p.extraCss ?? ''}</style></head>
 <body>
-<header><h1>${esc(p.title)}</h1>${p.headerNote ?? ''}<span class="meta">${esc(p.meta.repo)} · ${esc(p.meta.generatedAt.toISOString())}</span>${p.meta.update ? `<span class="update" title="A newer codechart is out">codechart ${esc(p.meta.update)} is out: run <code>codechart update</code></span>` : ''}${p.infoButton}${p.panes ? '<button id="link-toggle" type="button" title="Linked: panning or zooming one pane moves both"></button>' : ''}<button id="theme-toggle" type="button" title="Cycle theme: auto, light, dark"></button></header>
+<header><h1>${esc(p.title)}</h1>${p.headerNote ?? ''}<span class="meta">${esc(p.meta.repo)} · ${esc(p.meta.generatedAt.toISOString())}</span>${p.meta.update ? `<span class="update" title="${esc(['A newer codechart is out', ...(p.meta.updateNotes ?? []).map((n) => `- ${n}`)].join('\n'))}">codechart ${esc(p.meta.update)} is out: run <code>codechart update</code></span>` : ''}${p.infoButton}${p.panes ? '<button id="link-toggle" type="button" title="Linked: panning or zooming one pane moves both"></button>' : ''}<button id="theme-toggle" type="button" title="Cycle theme: auto, light, dark"></button></header>
 ${p.toolbar ? `<div id="toolbar">${p.toolbar}</div>\n` : ''}<main>
 ${body}
 <div id="resize" role="separator" aria-orientation="vertical" aria-label="Resize panel" tabindex="0" title="Drag to resize the panel"></div>
