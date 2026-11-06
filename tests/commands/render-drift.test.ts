@@ -109,6 +109,16 @@ describe('render: plan vs built drift', () => {
     expect(r.out).not.toMatch(/Plan vs built|built as planned/);
   });
 
+  it('a summary of another target (--at or --head) gets no plan: the branch\'s plan and HEAD don\'t apply to it', async () => {
+    await plan(PLAN, '--output', 'cli');
+    const here = await summary(DRIFTED, '--output', 'cli');
+    expect(here.out).toContain('Plan vs built');
+    for (const args of [['--at', 'HEAD'], ['--since', 'HEAD', '--head', 'HEAD']]) {
+      const r = await summary(DRIFTED, '--output', 'cli', ...args);
+      expect(r.out, args.join(' ')).not.toMatch(/Plan vs built|built as planned/);
+    }
+  });
+
   it('saves no plan for --pr, --at or a repo-less folder', async () => {
     const plans = join(sb.out, 'plans');
     await plan(PLAN, '--pr');

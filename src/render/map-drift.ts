@@ -13,17 +13,21 @@ const sameSpot = (plan: SpecNode, built: SpecNode): boolean =>
 const shownFields = (node: SpecNode): Map<string, Field> =>
   new Map((node.fields ?? []).filter((f) => node.status === 'new' || f.change !== undefined).map((f) => [f.name, f]));
 
+/** A node that lists only the fields its author saw says nothing about the others. */
+const listsAll = (node: SpecNode): boolean => node.fieldsComplete !== false;
+
 function fieldDifferences(plan: SpecNode, built: SpecNode): Note[] {
   const planned = shownFields(plan);
   const made = shownFields(built);
   const found: Note[] = [];
   for (const [name, p] of planned) {
     const b = made.get(name);
-    if (!b) found.push({ text: `field ${name} not built`, plain: 'A field the plan listed was not built.', pair: { plan: `\`${name}\``, built: 'not built' } });
-    else if (p.type !== b.type) found.push({ text: `field ${name}: ${p.type ?? '?'} → ${b.type ?? '?'}`, plain: 'A field has a different type than the plan said.', pair: { plan: `\`${name}: ${p.type ?? '?'}\``, built: `\`${name}: ${b.type ?? '?'}\`` } });
+    if (!b) {
+      if (listsAll(built)) found.push({ text: `field ${name} not built`, plain: 'A field the plan listed was not built.', pair: { plan: `\`${name}\``, built: 'not built' } });
+    } else if (p.type !== b.type) found.push({ text: `field ${name}: ${p.type ?? '?'} → ${b.type ?? '?'}`, plain: 'A field has a different type than the plan said.', pair: { plan: `\`${name}: ${p.type ?? '?'}\``, built: `\`${name}: ${b.type ?? '?'}\`` } });
     else if (p.change !== b.change) found.push({ text: `field ${name}: ${p.change ?? 'kept'} → ${b.change ?? 'kept'}`, plain: 'A field was changed differently than the plan said.', pair: { plan: `\`${name}\` ${p.change ?? 'kept'}`, built: `\`${name}\` ${b.change ?? 'kept'}` } });
   }
-  for (const name of made.keys()) if (!planned.has(name)) found.push({ text: `field ${name} not planned`, plain: "A field was built that the plan didn't list.", pair: { plan: 'not in the plan', built: `\`${name}\`` } });
+  for (const name of made.keys()) if (!planned.has(name) && listsAll(plan)) found.push({ text: `field ${name} not planned`, plain: "A field was built that the plan didn't list.", pair: { plan: 'not in the plan', built: `\`${name}\`` } });
   const more = found.length - 2;
   return more > 0 ? [...found.slice(0, 2), { text: `+${more} more`, plain: `And ${more} more field differences.` }] : found;
 }

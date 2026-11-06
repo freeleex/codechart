@@ -61,6 +61,26 @@ describe('plan store', () => {
     if (process.platform !== 'win32') expect(statSync(join(plansDir(), 'work', 'map.json')).mode & 0o777).toBe(0o600);
   });
 
+  it('writes through a temp file renamed into place, leaving none behind', () => {
+    savePlan(store(), mapPlan());
+    savePlan(store(), mapPlan());
+    expect(readdirSync(join(plansDir(), 'work'))).toEqual(['map.json']);
+  });
+
+  it('a failed save keeps the previous plan and cleans up its temp file', () => {
+    savePlan(store(), mapPlan());
+    const circular: { self?: unknown } = {};
+    circular.self = circular;
+    savePlan(store(), { ...mapPlan(), title: 'q', extra: circular } as unknown as Spec);
+    expect(loadPlan(store(), 'map')?.spec.title).toBe('p');
+    // The rename fails when the target is a folder: the temp file written first must not stay.
+    const blocked = join(plansDir(), 'work', 'flow.json');
+    mkdirSync(join(blocked, 'x'), { recursive: true });
+    savePlan(store(), flowPlan());
+    expect(readdirSync(join(plansDir(), 'work')).sort()).toEqual(['flow.json', 'map.json']);
+    expect(readdirSync(blocked)).toEqual(['x']);
+  });
+
   it('keeps plans of other branches apart and uses a safe folder for a branch with a slash', () => {
     savePlan(store(), mapPlan());
     git(root, 'checkout', '-q', '-b', 'feature/x');

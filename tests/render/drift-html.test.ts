@@ -105,6 +105,26 @@ const flowPlan = flow('plan', [step('a', 'existing'), step('gone', 'planned'), s
 const flowSummary = (drift?: FlowSpec['drift']) =>
   flow('summary', [step('a', 'existing'), step('b', 'new'), step('extra', 'new')], [{ from: 'a', to: 'b' }, { from: 'a', to: 'extra' }], { ...(drift && { drift }) });
 
+describe('ghost links under a renamed id', () => {
+  it('a map keeps the link of a ghost to a node matched under another id', async () => {
+    const planned = map('plan', [node('a', 'new', { path: 'a.ts' }), node('gone', 'new')], { edges: [{ from: 'a', to: 'gone', label: 'calls' }] });
+    const built = map('summary', [node('a2', 'new', { path: 'a.ts' })]);
+    const drift = compareMaps({ spec: planned, savedAt }, built);
+    const ghosts = ghostsFor(drift, new Set(['a2']), planned.edges);
+    expect(ghosts.links.map((l) => [l.from, l.to])).toEqual([['a2', 'gone']]);
+    const out = renderHtml(built, await layoutSpec(withGhosts(built, ghosts)), meta, undefined, undefined, ghosts);
+    expect(out).toMatch(/<g class="edge ghost" data-from="a2" data-to="gone">/);
+  });
+
+  it('a flow does too', async () => {
+    const plannedFlow = flow('plan', [step('a', 'existing', { source: 'x.ts:1' }), step('gone', 'planned')], [{ from: 'a', to: 'gone' }]);
+    const builtFlow = flow('summary', [step('a2', 'existing', { source: 'x.ts:1' })], []);
+    const drift = compareFlows({ spec: plannedFlow, savedAt }, builtFlow);
+    const ghosts = ghostsFor(drift, new Set(['a2']), plannedFlow.links);
+    expect(ghosts.links.map((l) => [l.from, l.to])).toEqual([['a2', 'gone']]);
+  });
+});
+
 describe('edge labels and ghosts', () => {
   it('no edge label lands on a box, a ghost included', async () => {
     const edge = (from: string, to: string, label?: string) => ({ from, to, ...(label && { label }) });

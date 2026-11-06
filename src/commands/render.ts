@@ -122,10 +122,10 @@ function prTarget(o: RenderFlags, cwd: string, cacheFile: string): RenderContext
   return { svg: cacheFile, imageUrl: o.imageUrl ?? basename(cacheFile) };
 }
 
-/** A plan is saved for the summary that follows it, a summary gets the saved plan: neither for `--pr`, and no plan saved for an older commit. */
+/** A plan is saved for the summary that follows it, a summary gets the saved plan: neither for `--pr`, no plan saved for an older commit, and no plan for a summary of another target (`--at`, `--head`): the branch's plan and HEAD don't apply to it. */
 function planFor(spec: Spec | FlowSpec, diagram: Diagram, store: PlanStoreOptions & { inRepo: boolean }, o: RenderFlags): StoredPlan | undefined {
   if (!store.inRepo || o.pr) return undefined;
-  if (spec.kind === 'summary') return loadPlan(store, diagram);
+  if (spec.kind === 'summary') return o.at === undefined && o.head === undefined ? loadPlan(store, diagram) : undefined;
   if (o.at === undefined && o.head === undefined) savePlan(store, spec);
   return undefined;
 }

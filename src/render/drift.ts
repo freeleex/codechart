@@ -46,6 +46,8 @@ export interface Drift<G> {
   unexplained: number;
   /** Ids in `drift` that did not drift. */
   strayReasons: string[];
+  /** Plan id → the summary's id, for what was matched under another id. */
+  renamed: ReadonlyMap<string, string>;
 }
 
 export interface DriftReason {
@@ -89,6 +91,7 @@ export function withReasons<G>(
     items: joined,
     unexplained: joined.filter((i) => i.cause === undefined).length,
     strayReasons: reasons.filter((r) => !used.has(renamed.get(r.id) ?? r.id)).map((r) => r.id),
+    renamed,
   };
 }
 

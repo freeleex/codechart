@@ -7,7 +7,7 @@ const now = new Date('2026-11-06T12:00:00Z');
 const savedAt = '2026-11-06T10:00:00Z';
 const item = (id: string, kind: DriftItem<unknown>['kind'], extra: Partial<DriftItem<unknown>> = {}): DriftItem<unknown> => ({ id, label: id, kind, noun: 'thing', ...extra });
 const view = (items: DriftItem<unknown>[], extra: Partial<Drift<unknown>> = {}) => ({
-  drift: { plan: { title: 'Teams', savedAt }, items, unexplained: items.filter((i) => !i.cause).length, strayReasons: [], ...extra },
+  drift: { plan: { title: 'Teams', savedAt }, items, unexplained: items.filter((i) => !i.cause).length, strayReasons: [], renamed: new Map(), ...extra },
   now,
 });
 const room = { width: 80, color: false };

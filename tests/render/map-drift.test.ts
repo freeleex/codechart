@@ -42,6 +42,28 @@ describe('compareMaps', () => {
     expect(d.items).toEqual([{ id: 'z', label: 'a', noun: 'node', change: 'add', kind: 'missing', detail: 'left unchanged' }]);
   });
 
+  it('a field the plan lists but a partial summary does not show is no difference; a full list makes it one', () => {
+    const p = plan([node('a', 'changed', { fields: [{ name: 'x', change: 'added' }, { name: 'y', change: 'added' }], fieldsComplete: true })]);
+    const partial = summary([node('a', 'changed', { fields: [{ name: 'x', change: 'added' }], fieldsComplete: false })]);
+    expect(compareMaps(p, partial).items).toEqual([]);
+    const full = summary([node('a', 'changed', { fields: [{ name: 'x', change: 'added' }], fieldsComplete: true })]);
+    expect(brief(compareMaps(p, full))).toEqual([['different', 'a', 'field y not built']]);
+  });
+
+  it('a field the summary shows but a partial plan does not list is no difference; a full plan list makes it one', () => {
+    const built = summary([node('a', 'changed', { fields: [{ name: 'x', change: 'added' }, { name: 'z', change: 'added' }], fieldsComplete: true })]);
+    const partial = plan([node('a', 'changed', { fields: [{ name: 'x', change: 'added' }], fieldsComplete: false })]);
+    expect(compareMaps(partial, built).items).toEqual([]);
+    const full = plan([node('a', 'changed', { fields: [{ name: 'x', change: 'added' }], fieldsComplete: true })]);
+    expect(brief(compareMaps(full, built))).toEqual([['different', 'a', 'field z not planned']]);
+  });
+
+  it('fields both list are still compared, partial or not', () => {
+    const p = plan([node('a', 'changed', { fields: [{ name: 'x', type: 'int', change: 'modified' }], fieldsComplete: false })]);
+    const s = summary([node('a', 'changed', { fields: [{ name: 'x', type: 'text', change: 'modified' }], fieldsComplete: false })]);
+    expect(brief(compareMaps(p, s))).toEqual([['different', 'a', 'field x: int → text']]);
+  });
+
   it('matches by path when the ids differ, and keeps the plan id as an alias for reasons', () => {
     const p = plan([node('orders', 'changed', { path: 'app/orders.py' })]);
     const s = summary([node('order-model', 'changed', { path: './app/orders.py' })], { drift: [] });

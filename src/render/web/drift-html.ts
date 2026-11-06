@@ -11,12 +11,15 @@ export interface Ghosts<G, L> {
   links: L[];
 }
 
-/** Ghosts for the plan's missing items the page does not already show; `present`: the ids it shows. */
+/** Ghosts for the plan's missing items the page does not already show; `present`: the ids it shows. A plan link names plan ids, so its ends become the ids of what was matched to them. */
 export function ghostsFor<G extends { id: string }, L extends { from: string; to: string }>(drift: Drift<G>, present: ReadonlySet<string>, planLinks: readonly L[]): Ghosts<G, L> {
   const nodes = drift.items.flatMap((i) => (i.kind === 'missing' && i.ghost && !present.has(i.ghost.id) ? [i.ghost] : []));
   const ghostIds = new Set(nodes.map((g) => g.id));
   const shown = (id: string) => ghostIds.has(id) || present.has(id);
-  const links = planLinks.filter((l) => (ghostIds.has(l.from) || ghostIds.has(l.to)) && shown(l.from) && shown(l.to));
+  const id = (planId: string) => drift.renamed.get(planId) ?? planId;
+  const links = planLinks
+    .map((l) => ({ ...l, from: id(l.from), to: id(l.to) }))
+    .filter((l) => (ghostIds.has(l.from) || ghostIds.has(l.to)) && shown(l.from) && shown(l.to));
   return { drift, nodes, links };
 }
 

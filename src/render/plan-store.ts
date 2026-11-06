@@ -1,5 +1,5 @@
-import { createHash } from 'node:crypto';
-import { readdirSync, readFileSync, rmdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { createHash, randomBytes } from 'node:crypto';
+import { readdirSync, readFileSync, renameSync, rmdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { gitBranch, gitHead, gitIsAncestor } from '../rules/git-files.js';
 import type { FlowSpec } from '../spec/flow.js';
@@ -65,6 +65,18 @@ function prunePlans(cacheDir: string, now: Date): void {
   }
 }
 
+/** A private temp file beside `file`, renamed into place: a reader or a crash never sees half a plan, and a failure leaves the old one. */
+function writeAtomically(file: string, text: string): void {
+  const temp = `${file}.${process.pid}.${randomBytes(4).toString('hex')}.tmp`;
+  try {
+    writeFileSync(temp, text, { mode: 0o600, flag: 'wx' });
+    renameSync(temp, file);
+  } catch (e) {
+    remove(temp, rmSync);
+    throw e;
+  }
+}
+
 /** Keeps `spec` (a plan) for the summary that follows it on this branch. Never throws: drift is best-effort. */
 export function savePlan(o: PlanStoreOptions, spec: Spec | FlowSpec): void {
   try {
@@ -72,7 +84,7 @@ export function savePlan(o: PlanStoreOptions, spec: Spec | FlowSpec): void {
     const base = gitHead(o.root);
     if (!dir || !base) return;
     privateDir(dir);
-    writeFileSync(join(dir, fileName(spec.diagram === 'flow' ? 'flow' : 'map')), JSON.stringify({ spec, base, savedAt: o.now.toISOString() }), { mode: 0o600 });
+    writeAtomically(join(dir, fileName(spec.diagram === 'flow' ? 'flow' : 'map')), JSON.stringify({ spec, base, savedAt: o.now.toISOString() }));
     prunePlans(o.cacheDir, o.now);
   } catch {
     // The render goes on without a saved plan.
