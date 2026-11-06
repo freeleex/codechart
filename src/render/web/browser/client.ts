@@ -2,7 +2,9 @@
 // which the page inlines (the CSP allows that one script by hash).
 import { initChips } from './chips.js';
 import { dismissFocus, focus, select } from './focus.js';
+import { initHunks } from './hunks.js';
 import { startTrail, visitFromHash, type Trail, type Visit } from './history.js';
+import { initMode } from './mode.js';
 import { initReview } from './review.js';
 import { load, save } from './store.js';
 
@@ -130,6 +132,7 @@ function open(v: Visit): void {
   }
   setInfo(!tpl);
   review.paint();
+  hunks.reset();
 }
 
 /** Pans so the node is in the middle of each pane it is outside of. */
@@ -264,10 +267,12 @@ function initPanelResize(): void {
 initPanZoom();
 initPaneLink();
 initTheme();
+initMode(panel);
 initPanelResize();
 window.addEventListener('resize', fit);
 fit();
 dismissFocus(canvases, () => moved);
 initChips();
 const review = initReview(data.repoKey, goTo);
+const hunks = initHunks(panel, review);
 initPanel();

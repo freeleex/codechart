@@ -4,6 +4,10 @@ import { load, save } from './store.js';
 export interface Review {
   /** Shows the ticks again, e.g. after the panel was filled. */
   paint(): void;
+  /** Selects the next (or, with `-1`, previous) node not ticked, wrapping; no-op when all are. */
+  step(dir: 1 | -1): void;
+  /** Ticks or unticks the selected node. */
+  toggleSelected(): void;
 }
 
 /** Ticked node id -> the diff hash it was ticked at ('' for a node without a diff). */
@@ -62,13 +66,17 @@ export function initReview(repo: string, goTo: (id: string) => void): Review {
     const id = (e.target as Element).getAttribute('data-tick-for');
     if (id !== null) toggle(id);
   });
-  if (next) {
-    next.addEventListener('click', () => {
-      const at = ids.indexOf(document.querySelector('.node.selected')?.getAttribute('data-id') ?? '');
-      const to = ids.map((_, i) => ids[(at + 1 + i) % ids.length]!).find((id) => !done.has(id));
-      if (to !== undefined) goTo(to);
-    });
-  }
+  const step = (dir: 1 | -1) => {
+    const at = ids.indexOf(document.querySelector('.node.selected')?.getAttribute('data-id') ?? '');
+    const from = at < 0 && dir < 0 ? ids.length : at;
+    const to = ids.map((_, i) => ids[(((from + dir * (1 + i)) % ids.length) + ids.length) % ids.length]!).find((id) => !done.has(id));
+    if (to !== undefined) goTo(to);
+  };
+  if (next) next.addEventListener('click', () => step(1));
+  const toggleSelected = () => {
+    const id = document.querySelector('.node.selected')?.getAttribute('data-id');
+    if (id) toggle(id);
+  };
   paint();
-  return { paint };
+  return { paint, step, toggleSelected };
 }

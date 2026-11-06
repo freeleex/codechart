@@ -215,6 +215,19 @@ export function gitFileDiff(cwd: string, range: DiffRange, rel: string, maxBytes
   return git(cwd, diffArgs(range, [rel]), { config: [['core.bigFileThreshold', '5m'], ...range.config], maxBuffer: maxBytes });
 }
 
+/** Each of `rels` with its `linguist-generated` attribute: true when set, false when unset or `false`, absent when unspecified. Paths must not hold a newline. */
+export function gitGeneratedAttr(cwd: string, rels: string[]): Map<string, boolean> {
+  const out = new Map<string, boolean>();
+  if (!rels.length) return out;
+  const parts = git(cwd, ['check-attr', '-z', '--stdin', 'linguist-generated'], { input: rels.map((r) => `${r}\0`).join('') }).split('\0');
+  for (let i = 0; i + 2 < parts.length; i += 3) {
+    const value = parts[i + 2]!;
+    if (value === 'unspecified') continue;
+    out.set(parts[i]!, value !== 'unset' && value !== 'false');
+  }
+  return out;
+}
+
 const CHUNK_PATHS = 500;
 const CHUNK_CHARS = 20_000;
 

@@ -1,9 +1,10 @@
 import type { Field, NodeKind, Spec, SpecEdge, SpecNode } from '../../spec/schema.js';
 import { headerHeight, KIND_ROW, LABEL_LINE_HEIGHT, labelLines, wrapSummary, type Layout, type LayoutEdge } from './layout.js';
 import type { MapCheck } from '../check.js';
-import { codeRow, pathHtml, snippetHtml } from '../flow/html.js';
+import { pathHtml, snippetHtml } from '../flow/html.js';
 import type { Preview } from '../preview.js';
 import { flagMark, flagTitle, mismatchNote } from './check-html.js';
+import { changesHtml } from './changes.js';
 import { edgeEnds, gapsHtml, infoButton, pageInfoSection, renderDiagramPage, renderEdgeSvg, type EdgeEnds } from './diagram.js';
 import { CHANGE_ARROWS, esc, list, num, type HtmlMeta } from './page.js';
 import { edgeChange, edgeOn, fieldsOn, hasNowAfter, nodeOn, SIDE_KEY, type Side } from './states.js';
@@ -112,19 +113,6 @@ function renderNode(n: SpecNode, box: Box, flag: string, fields: Field[], rev: s
 const FIELDS_NOTE =
   'Only the fields the agent saw are listed. Set <code>defaults.context: full</code> in <code>.codechart.yaml</code> to let it read the full definition.';
 
-const DIFF_MARK = { add: '+', del: '-', ctx: ' ' } as const;
-
-function previewHtml(p: Preview): string {
-  let out = '<h3>Changes</h3>';
-  if (p.note) return `${out}<p class="more">${esc(p.note)}</p>`;
-  const rows = p.lines.map((l) =>
-    l.kind === 'hunk' ? codeRow(undefined, esc(l.text), 'd-hunk') : codeRow(l.n, esc(DIFF_MARK[l.kind] + l.text), `d-${l.kind}`),
-  );
-  out += `<pre class="snippet diff"><code>${rows.join('\n')}</code></pre>`;
-  const count = p.shown < p.total ? `showing ${p.shown} of ${p.total} changed lines` : `${p.total} changed line${p.total === 1 ? '' : 's'}`;
-  return `${out}<p class="more">${count} · whole file: <span class="path">${pathHtml(p.path)}</span></p>`;
-}
-
 const fieldList = (fields: Field[]) =>
   `<ul>${fields.map((f) => `<li${f.change ? ` class="field-${f.change}-t"` : ''}>${esc(fieldText(f))}</li>`).join('')}</ul>`;
 
@@ -144,7 +132,7 @@ function cardPanel(spec: Spec, n: SpecNode, check: MapCheck | undefined, preview
   else if (n.path) out += `<div class="path">${pathHtml(n.path)}</div>`;
   if (n.summary) out += `<p>${esc(n.summary)}</p>`;
   const preview = previews?.get(n.id);
-  if (preview) out += previewHtml(preview);
+  if (preview) out += changesHtml(preview);
   if (n.fields?.length) {
     out += fieldsHtml(n, sides);
     if (n.fieldsComplete === false) out += `<p class="fields-note">${FIELDS_NOTE}</p>`;
@@ -215,5 +203,6 @@ export function renderHtml(spec: Spec, layout: Layout, meta: HtmlMeta, check?: M
     width: layout.width,
     height: layout.height,
     extraDefs: CHANGE_ARROWS,
+    modes: Boolean(previews?.size),
   });
 }

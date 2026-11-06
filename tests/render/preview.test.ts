@@ -44,17 +44,17 @@ describe('parseDiff', () => {
   it('skips headers, numbers lines from the hunk header and counts changes', () => {
     const p = parseDiff('a.ts', 'diff --git a/a.ts b/a.ts\n--- a/a.ts\n+++ b/a.ts\n@@ -1,2 +1,2 @@ fn\n keep\n-old\n+new\n\\ No newline at end of file\n');
     expect(text(p)).toEqual(['@@', '1 keep', '2-old', '2+new']);
-    expect(p).toMatchObject({ shown: 2, total: 2 });
+    expect(p).toMatchObject({ total: 2, rows: 4 });
   });
 
-  it('keeps 3 hunks and 40 lines but counts every changed line', () => {
+  it('keeps every hunk up to 1000 rows but counts every row and changed line', () => {
     const hunk = (i: number) => `@@ -${i * 10},1 +${i * 10},1 @@\n-a${i}\n+b${i}`;
     const four = parseDiff('a.ts', [1, 2, 3, 4].map(hunk).join('\n'));
-    expect(four.lines.filter((l) => l.kind === 'hunk')).toHaveLength(3);
-    expect(four).toMatchObject({ shown: 6, total: 8 });
-    const long = parseDiff('a.ts', `@@ -0,0 +1,100 @@\n${Array.from({ length: 100 }, (_, i) => `+l${i}`).join('\n')}`);
-    expect(long.lines).toHaveLength(40);
-    expect(long).toMatchObject({ shown: 39, total: 100 });
+    expect(four.lines.filter((l) => l.kind === 'hunk')).toHaveLength(4);
+    expect(four).toMatchObject({ total: 8, rows: 12 });
+    const long = parseDiff('a.ts', `@@ -0,0 +1,1500 @@\n${Array.from({ length: 1500 }, (_, i) => `+l${i}`).join('\n')}`);
+    expect(long.lines).toHaveLength(1000);
+    expect(long).toMatchObject({ total: 1500, rows: 1501 });
   });
 
   it('clips long lines and reports binary files', () => {
@@ -162,5 +162,37 @@ describe('nodePreviews runs no repo commands', () => {
     const p = previews(summary({ path: 'src/a.ts' }), { git: true });
     expect(text(p.get('n0'))).toEqual(['@@', '1-a', '1+b']);
     expect(existsSync(marker)).toBe(false);
+  });
+});
+
+describe('nodePreviews skips generated files', () => {
+  const NOTE = 'generated file, not shown';
+
+  it('lockfiles, minified bundles and dist/ get a note instead of hunks', () => {
+    const names = ['package-lock.json', 'sub/yarn.lock', 'pnpm-lock.yaml', 'Cargo.lock', 'go.sum', 'src/app.min.js', 'src/app.min.css', 'dist/out.js'];
+    mkdirSync(join(repo, 'sub'), { recursive: true });
+    mkdirSync(join(repo, 'dist'), { recursive: true });
+    for (const n of names) write(n, 'old\n');
+    commit('lock');
+    for (const n of names) write(n, 'new\n');
+    const p = previews(summary(...names.map((path) => ({ path }))), { git: true });
+    for (const i of names.keys()) expect(p.get(`n${i}`), names[i]).toMatchObject({ note: NOTE, lines: [], total: 0 });
+  });
+
+  it('files marked linguist-generated are skipped; -linguist-generated opts a lockfile back in', () => {
+    write('.gitattributes', '*.pb.ts linguist-generated\nyarn.lock -linguist-generated\n');
+    write('src/x.pb.ts', 'a\n');
+    write('yarn.lock', 'a\n');
+    commit('attrs');
+    write('src/x.pb.ts', 'b\n');
+    write('yarn.lock', 'b\n');
+    const p = previews(summary({ path: 'src/x.pb.ts' }, { path: 'yarn.lock' }), { git: true });
+    expect(p.get('n0')).toMatchObject({ note: NOTE, lines: [] });
+    expect(text(p.get('n1'))).toEqual(['@@', '1-a', '1+b']);
+  });
+
+  it('an untracked lockfile is skipped too and costs no budget', () => {
+    write('package-lock.json', 'x\n'.repeat(1000));
+    expect(previews(summary({ path: 'package-lock.json', status: 'new' }), { git: true }).get('n0')).toMatchObject({ note: NOTE, lines: [] });
   });
 });

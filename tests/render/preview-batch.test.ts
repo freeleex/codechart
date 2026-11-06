@@ -88,8 +88,8 @@ describe('previews of many files', () => {
     expect(out.get('n6')).toMatchObject({ note: 'binary file', lines: [] });
     expect(out.get('n7')).toMatchObject({
       path: 'src/new.ts',
-      shown: 2,
       total: 2,
+      rows: 3,
       lines: [{ kind: 'hunk', text: '@@ -0,0 +1,2 @@' }, { kind: 'add', n: 1, text: 'x' }, { kind: 'add', n: 2, text: 'y' }],
     });
     expect(out.get('n8')).toMatchObject({ note: 'not shown: looks like a secret', lines: [] });

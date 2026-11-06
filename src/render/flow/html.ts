@@ -91,8 +91,10 @@ function renderLink(link: FlowLink, e: FlowLayoutEdge, tone: 'planned' | 'remove
 export const pathHtml = (p: string) => esc(p).replaceAll('/', '/<wbr>');
 
 /** One code row; the number gets its own grid column so a wrapped line hangs under the code. */
-export const codeRow = (n: number | undefined, code: string, cls?: string) =>
-  `<span class="ln">${n ?? ''}</span><span${cls ? ` class="${cls}"` : ''}>${code}</span>`;
+export const codeRow = (n: number | undefined, code: string, cls?: string, extra = '') => {
+  const both = (c?: string) => (c || extra ? ` class="${[c, extra].filter(Boolean).join(' ')}"` : '');
+  return `<span${both('ln')}>${n ?? ''}</span><span${both(cls)}>${code}</span>`;
+};
 
 export function snippetHtml(s: Snippet): string {
   const code = s.lines.map((l, i) => codeRow(s.startLine + i, esc(l))).join('\n');
