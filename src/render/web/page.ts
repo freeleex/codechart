@@ -96,7 +96,7 @@ interface PageParts {
   modes?: boolean;
 }
 
-const KEY_HELP = ['n / p: next / previous hunk', '] / [: next / previous unreviewed node', 'r: toggle reviewed', 'o / O: fold this hunk / all hunks', '?: this help'];
+const KEY_HELP = ['n / p: next / previous hunk (opens it, folds the others)', '] / [: next / previous unreviewed node', 'r: toggle reviewed', 'o / O: fold this hunk / toggle all hunks', '?: this help'];
 
 const CSP = `default-src 'none'; style-src 'unsafe-inline'; script-src 'sha256-${createHash('sha256').update(CLIENT_JS).digest('base64')}'; img-src data:; base-uri 'none'; form-action 'none'`;
 

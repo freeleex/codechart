@@ -44,6 +44,7 @@ aside .path{font-family:ui-monospace,monospace;font-size:11px;overflow-wrap:anyw
 aside .snippet{font:11px/1.45 ui-monospace,monospace;background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:6px 8px;margin:6px 0;white-space:pre-wrap;overflow-wrap:anywhere}
 aside .snippet code{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:10px}
 aside .snippet .ln{min-width:3ch;color:var(--muted);text-align:right;user-select:none}
+aside .dr{display:flex}aside .dr .sg{flex:none;width:1ch;margin-right:1ch;user-select:none}aside .dr .cd{flex:1;min-width:0;white-space:pre-wrap;overflow-wrap:anywhere}
 aside .d-add{color:var(--add)}aside .d-del{color:var(--rem)}aside .d-hunk{color:var(--muted)}
 aside .mismatch-note{color:var(--rem);margin:6px 0}
 aside .mismatch-why{color:var(--muted);font-size:11.5px;margin:0 0 6px}
@@ -119,9 +120,9 @@ aside .see-full{padding:0;font:inherit;color:var(--edge);background:none;border:
 aside .hunk-end{margin:6px 0;color:var(--muted);font-size:11px;font-style:italic}
 #key-help{position:fixed;right:14px;bottom:14px;z-index:5;padding:8px 12px;font-size:11.5px;line-height:1.6;background:var(--panel);border:1px solid var(--line);border-radius:6px;box-shadow:0 2px 8px #0003;cursor:pointer}
 #key-help[hidden]{display:none}
-aside .pager{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:6px;margin:0 -14px 4px;padding:4px 14px;background:var(--panel);border-bottom:1px solid var(--line);font-size:11px;color:var(--muted)}
+aside .pager{position:sticky;top:-10px;z-index:2;display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;margin:0 -14px 4px;padding:14px 14px 4px;background:var(--panel);border-bottom:1px solid var(--line);font-size:11px;color:var(--muted)}
 aside .pager button{padding:0 7px;font:13px/20px system-ui,sans-serif;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:10px;cursor:pointer}
-aside .pager button:hover{border-color:var(--edge)}
+aside .pager button:hover,aside .pager button:focus-visible{border-color:var(--edge)}aside .pager button:focus:not(:focus-visible){outline:none}
 aside .pager .pg-count{flex:1;min-width:0;text-align:center;white-space:nowrap}
-aside .pager .pg-keys{margin-left:auto;font-size:11px}
+aside .pager .pg-keys{margin-left:auto;font-size:11px}aside .pager .pg-all{font:11px/20px system-ui,sans-serif}
 `;

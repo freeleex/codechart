@@ -28,7 +28,9 @@ function paintCount(panel: HTMLElement, cur: HTMLElement | null): void {
   const label = panel.querySelector('.pg-count');
   if (!label) return;
   const hunks = hunksIn(panel);
-  label.textContent = cur ? `hunk ${hunks.indexOf(cur) + 1} of ${hunks.length}` : `${hunks.length} hunks`;
+  const at = cur ? hunks.indexOf(cur) + 1 : 0;
+  label.textContent = `${at || '\u2013'} / ${hunks.length}`;
+  label.setAttribute('aria-label', at ? `hunk ${at} of ${hunks.length}` : `${hunks.length} hunks`);
 }
 
 function endNote(panel: HTMLElement): HTMLElement {
@@ -47,6 +49,8 @@ interface Nav {
   toggle(): void;
   /** Folds all hunks, or opens them all when any is folded. */
   toggleAll(): void;
+  /** Opens or folds every hunk. */
+  setAll(open: boolean): void;
   /** A click on a hunk's summary line. */
   pick(h: HTMLElement): void;
   reset(): void;
@@ -70,15 +74,12 @@ function walker(panel: HTMLElement, aside: Element): Nav {
   const show = (h: HTMLElement) => {
     hideEnd();
     mark(h);
-    setOpen(h, true);
-    const bar = panel.querySelector<HTMLElement>('.pager');
-    aside.scrollTop += h.getBoundingClientRect().top - aside.getBoundingClientRect().top - (bar?.offsetHeight ?? 0) - 6;
+    hunksIn(panel).forEach((x) => setOpen(x, x === h));
   };
   const showEnd = () => {
     end ??= endNote(panel);
-    const over = end.getBoundingClientRect().bottom - aside.getBoundingClientRect().bottom;
-    if (over > 0) aside.scrollTop += over + 6;
   };
+  const setAll = (open: boolean) => hunksIn(panel).forEach((h) => setOpen(h, open));
   return {
     step(dir) {
       if (end && dir < 0) {
@@ -96,10 +97,9 @@ function walker(panel: HTMLElement, aside: Element): Nav {
       if (h) setOpen(h, !isOpen(h));
     },
     toggleAll() {
-      const hunks = hunksIn(panel);
-      const open = !hunks.every(isOpen);
-      hunks.forEach((h) => setOpen(h, open));
+      setAll(!hunksIn(panel).every(isOpen));
     },
+    setAll,
     pick(h) {
       setOpen(h, !isOpen(h));
       mark(h);
@@ -131,7 +131,13 @@ export function initHunks(panel: HTMLElement, review: Review): Hunks {
     O: () => nav.toggleAll(),
     '?': toggleHelp,
   };
-  const buttons: Record<string, () => void> = { '.pg-prev': () => nav.step(-1), '.pg-next': () => nav.step(1), '.pg-keys': toggleHelp };
+  const buttons: Record<string, () => void> = {
+    '.pg-prev': () => nav.step(-1),
+    '.pg-next': () => nav.step(1),
+    '.pg-expand': () => nav.setAll(true),
+    '.pg-collapse': () => nav.setAll(false),
+    '.pg-keys': toggleHelp,
+  };
   panel.addEventListener('click', (e) => {
     const t = e.target as Element;
     const h = t.closest('.hunk-sum')?.closest<HTMLElement>('.hunk');
