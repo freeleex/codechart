@@ -1,6 +1,10 @@
 // @vitest-environment happy-dom
 import { describe, expect, it } from 'vitest';
 import type { Preview } from '../../src/render/preview.js';
+import { renderHtml } from '../../src/render/web/html.js';
+import { layoutSpec } from '../../src/render/web/layout.js';
+import { ghostsFor } from '../../src/render/web/drift-html.js';
+import { compareMaps } from '../../src/render/map-drift.js';
 import { click, flowPage, mount, node, panesPage, q, qa, shopPage, shopWith, usePages } from '../helpers/page.js';
 
 usePages();
@@ -261,5 +265,73 @@ describe('Now / After and flows', () => {
     expect(reviewed()).toEqual(['done', 'mode']);
     click(nextBtn());
     expect(selected()).toBe('read');
+  });
+});
+
+describe('ghosts and the review', () => {
+  const n = (id: string, status: 'new' | 'context') => ({ id, label: id, kind: 'other' as const, status, layer: 'l' });
+  const page = async () => {
+    const plan = { title: 'T', kind: 'plan' as const, nodes: [n('a', 'new'), n('gone', 'new')], edges: [] };
+    const summary = { title: 'T', kind: 'summary' as const, nodes: [n('a', 'new')], edges: [] };
+    const ghosts = ghostsFor(compareMaps({ spec: plan, savedAt: '2026-11-06T10:00:00.000Z' }, summary), new Set(['a']), plan.edges);
+    const withGhost = { ...summary, nodes: [...summary.nodes, ...ghosts.nodes] };
+    return renderHtml(summary, await layoutSpec(withGhost), { generatedAt: new Date('2026-11-06T12:00:00Z'), repo: 'demo' }, undefined, undefined, ghosts);
+  };
+
+  it('are left out of the count and of next unreviewed', async () => {
+    mount(await page());
+    expect(qa('.node')).toHaveLength(2);
+    expect(count()).toBe('0/1 reviewed');
+    click(tick('a'));
+    expect(count()).toBe('1/1 reviewed');
+    expect(nextBtn().disabled).toBe(true);
+  });
+});
+
+describe('the difference chip in the browser', () => {
+  const n = (id: string) => ({ id, label: id, kind: 'other' as const, status: 'new' as const, layer: 'l' });
+  const page = async () => {
+    const plan = { title: 'T', kind: 'plan' as const, nodes: [n('a'), n('gone')], edges: [{ from: 'a', to: 'gone' }] };
+    const summary = { title: 'T', kind: 'summary' as const, nodes: [n('a'), n('z')], edges: [], drift: [{ node: 'z', cause: 'bug-found' as const, why: 'It broke.' }] };
+    const ghosts = ghostsFor(compareMaps({ spec: plan, savedAt: '2026-11-06T10:00:00.000Z' }, summary), new Set(['a', 'z']), plan.edges);
+    const layout = await layoutSpec({ ...summary, nodes: [...summary.nodes, ...ghosts.nodes] });
+    return renderHtml(summary, layout, { generatedAt: new Date('2026-11-06T12:00:00Z'), repo: 'demo' }, undefined, undefined, ghosts);
+  };
+  const chip = () => q<HTMLElement>('#panel .drift-chip');
+  const rows = () => q<HTMLElement>('#panel .drift-rows');
+
+  it('starts closed, opens and closes on a click; a ghost starts open', async () => {
+    mount(await page());
+    click(node('z'));
+    expect([chip().getAttribute('aria-expanded'), rows().hidden]).toEqual(['false', true]);
+    click(chip());
+    expect([chip().getAttribute('aria-expanded'), rows().hidden]).toEqual(['true', false]);
+    click(chip());
+    expect(rows().hidden).toBe(true);
+    click(node('gone'));
+    expect([chip().getAttribute('aria-expanded'), rows().hidden]).toEqual(['true', false]);
+  });
+
+  it('an item in the differences list opens its node with the chip open; a click on the node does not', async () => {
+    mount(await page());
+    click(q('#page-info [data-goto="z"]'));
+    expect(chip().getAttribute('aria-expanded')).toBe('true');
+    click(node('a'));
+    click(node('z'));
+    expect(chip().getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('a node without a difference has no chip, and relations stay in the footer', async () => {
+    mount(await page());
+    click(node('a'));
+    expect(qa('#panel .drift-chip')).toHaveLength(0);
+    expect(q<HTMLElement>('#panel-rel').hidden).toBe(false);
+    expect(qa('#panel-rel .rel').map((b) => b.textContent)).toEqual(['gone']);
+    expect(qa('#panel .prel, #panel .relations')).toHaveLength(0);
+    click(node('z'));
+    expect(q<HTMLElement>('#panel-rel').hidden).toBe(true);
+    click(node('gone'));
+    click(q('#panel-rel .rel'));
+    expect(q('.node.selected').getAttribute('data-id')).toBe('a');
   });
 });

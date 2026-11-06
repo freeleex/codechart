@@ -37,7 +37,7 @@ export function checkTag(c: CheckSummary | undefined): string {
   return ` · ✓ ${c.mismatches.length ? `${c.checked - c.mismatches.length} of ` : ''}${total} checked${unchecked}`;
 }
 
-function itemsLine(head: string, all: string[], width: number): string {
+export function itemsLine(head: string, all: string[], width: number): string {
   const items = all.slice(0, MAX_SHOWN);
   if (all.length > MAX_SHOWN) items.push(`+${all.length - MAX_SHOWN} more`);
   // Wrapping indents under the head, which leaves too little room on a narrow terminal.

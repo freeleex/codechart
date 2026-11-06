@@ -1,10 +1,12 @@
 import { isPlannedLink, isRemovedLink, type FlowLink, type FlowSpec, type FlowStep } from '../../spec/flow.js';
 import type { CheckSummary } from '../terminal/check-lines.js';
 import { flagMark, flagTitle, mismatchNote } from '../web/check-html.js';
+import { DRIFT_CSS, driftInfo, driftMark, driftSection, itemsById, type Ghosts } from '../web/drift-html.js';
+import type { DriftItem } from '../drift.js';
 import { edgeEnds, infoButton, gapsHtml, pageInfoSection, renderDiagramPage, renderEdgeSvg, type EdgeEnds } from '../web/diagram.js';
 import { arrowMarker, CHANGE_ARROWS, esc, num, type HtmlMeta } from '../web/page.js';
 import type { Side } from '../web/states.js';
-import { relationsHtml, relationsOf, panelTitle, tickSvg } from '../web/tools.js';
+import { panelShell, relationsHtml, relationsOf, panelTitle, tickSvg } from '../web/tools.js';
 import { FLOW_SIDE_KEY, hasFlowNowAfter, isAltered, linkOn, linkTone, stepOn } from './states.js';
 import type { FlowSnippets, Snippet } from './anchors.js';
 import { BADGE_HEIGHT, LINE_HEIGHT, type FlowLayout, type FlowLayoutEdge, type FlowLayoutNode } from './layout.js';
@@ -47,7 +49,7 @@ function shape(step: FlowStep, b: FlowLayoutNode): string {
 }
 
 /** `flag`: the hover title of a step that doesn't match the code, else empty. */
-function renderStep(step: FlowStep, b: FlowLayoutNode, flag: string, side?: Side): string {
+function renderStep(step: FlowStep, b: FlowLayoutNode, flag: string, side?: Side, drift?: DriftItem<FlowStep>, ghost = false): string {
   const flagged = flag !== '';
   const cx = num(b.x + b.w / 2);
   const content = b.lines.length * LINE_HEIGHT + (b.badge ? BADGE_HEIGHT : 0);
@@ -57,7 +59,7 @@ function renderStep(step: FlowStep, b: FlowLayoutNode, flag: string, side?: Side
   const changing = side === 'now' && isAltered(step);
   const status = changing ? 'changed' : step.status;
   if (b.badge) {
-    text += `<text class="badge" x="${cx}" y="${num(y + 9)}">${esc(changing ? 'will change' : b.badge)}</text>`;
+    text += `<text class="badge" x="${cx}" y="${num(y + 9)}">${esc(ghost ? 'not built' : changing ? 'will change' : b.badge)}</text>`;
     y += BADGE_HEIGHT;
   }
   for (const l of b.lines) {
@@ -65,22 +67,23 @@ function renderStep(step: FlowStep, b: FlowLayoutNode, flag: string, side?: Side
     y += LINE_HEIGHT;
   }
   return (
-    `<g class="node type-${step.type} status-${status}" data-id="${esc(step.id)}" data-status="${step.status}" tabindex="0" role="button" aria-label="${esc(`${step.label} (${step.status} ${step.type}${flagged ? ", doesn't match the code" : ''})`)}">` +
+    `<g class="node type-${step.type} status-${status}${ghost ? ' ghost' : ''}" data-id="${esc(step.id)}" data-status="${step.status}" tabindex="0" role="button" aria-label="${esc(`${step.label} (${step.status} ${step.type}${flagged ? ", doesn't match the code" : ''}${drift ? `, ${drift.kind === 'missing' ? 'in the plan, not built' : 'differs from the plan'}` : ''})`)}">` +
     flag +
     shape(step, b) +
     text +
-    tickSvg(b.x, b.y) +
+    (ghost ? '' : tickSvg(b.x, b.y)) +
     (flagged ? flagMark(b.x + b.w, b.y) : '') +
+    (drift ? driftMark(drift, b.x + b.w, b.y + b.h + 8) : '') +
     `</g>`
   );
 }
 
-function renderLink(link: FlowLink, e: FlowLayoutEdge, tone: 'planned' | 'removed' | undefined, ends: EdgeEnds): string {
+function renderLink(link: FlowLink, e: FlowLayoutEdge, tone: 'planned' | 'removed' | undefined, ends: EdgeEnds, ghost = false): string {
   return renderEdgeSvg({
     ends,
     points: e.points,
     marker: `arrow${tone ? `-${tone}` : ''}`,
-    cls: `edge${tone === 'planned' ? ' planned' : tone === 'removed' ? ' edge-removed' : ''}`,
+    cls: `edge${tone === 'planned' ? ' planned' : tone === 'removed' ? ' edge-removed' : ''}${ghost ? ' ghost' : ''}`,
     label: link.label,
     labelAt: e.labelAt,
     lift: 7,
@@ -119,9 +122,10 @@ export function snippetHtml(s: Snippet): string {
 
 const tag = (status: string) => `<span class="tag tag-${esc(status)}">${esc(status)}</span>`;
 
-function stepPanel(spec: FlowSpec, step: FlowStep, snippets: FlowSnippets, byId: Map<string, FlowStep>, check: CheckSummary | undefined): string {
-  let out = panelTitle(step.id, step.label);
-  out += `<div class="status">${tag(step.status)} ${esc(step.type)}</div>`;
+function stepPanel(spec: FlowSpec, step: FlowStep, snippets: FlowSnippets, byId: Map<string, FlowStep>, check: CheckSummary | undefined, mark?: { drift: DriftItem<FlowStep>; ghost: boolean }): string {
+  const ghost = mark?.ghost ?? false;
+  let out = panelTitle(step.id, step.label, !ghost);
+  out += `<div class="status">${ghost ? '<span class="tag">not built</span>' : tag(step.status)} ${esc(step.type)}</div>`;
   out += mismatchNote(check, step.id);
   const snip = snippets.steps.get(step.id);
   if (step.status === 'planned') {
@@ -130,6 +134,7 @@ function stepPanel(spec: FlowSpec, step: FlowStep, snippets: FlowSnippets, byId:
   if (step.status === 'removed') out += '<p class="removed-note">Removed by the plan.</p>';
   if (snip) out += snippetHtml(snip);
   else if (step.source) out += `<div class="path">${esc(step.source)}</div>`;
+  out += driftSection(mark?.drift, ghost);
 
   const next = spec.links.map((l, i) => ({ l, i })).filter(({ l }) => l.from === step.id);
   if (next.length) {
@@ -146,60 +151,81 @@ function stepPanel(spec: FlowSpec, step: FlowStep, snippets: FlowSnippets, byId:
     out += `<h3>Next</h3><ul class="branches">${items.join('')}</ul>`;
   }
   const links = spec.links.map((l) => ({ from: l.from, to: l.to, label: l.label }));
-  out += relationsHtml(relationsOf(step.id, links, (id) => byId.get(id)?.label ?? id));
-  return `<template class="card-panel" data-for="${esc(step.id)}">${out}</template>`;
+  const relations = relationsHtml(relationsOf(step.id, links, (id) => byId.get(id)?.label ?? id));
+  return `<template class="card-panel" data-for="${esc(step.id)}">${panelShell(out, relations)}</template>`;
 }
 
-function pageInfo(spec: FlowSpec, anyPlanned: boolean, sides: boolean, check: CheckSummary | undefined): string {
+function pageInfo(spec: FlowSpec, anyPlanned: boolean, sides: boolean, check: CheckSummary | undefined, ghosts: Ghosts<FlowStep, FlowLink> | undefined, now: Date): string {
   const planned = anyPlanned ? '<p class="planned-note">Dashed steps and arrows are planned: not in the code yet.</p>' : '';
   const removed =
     spec.steps.some((s) => s.status === 'removed') || spec.links.some((l) => l.removed)
       ? '<p class="removed-note">Red steps and arrows are removed by the plan.</p>'
       : '';
   const hint = 'Click a step for its status, source and code. Scroll to zoom, drag to pan';
-  return pageInfoSection(hint, sides, check, planned, removed, gapsHtml('Gaps', spec.gaps));
+  return pageInfoSection(hint, sides, check, driftInfo(ghosts?.drift, now), planned, removed, gapsHtml('Gaps', spec.gaps));
 }
 
-/** Without `side`: the whole plan or summary in one picture. */
-function viewport(spec: FlowSpec, layout: FlowLayout, check: CheckSummary | undefined, side?: Side): string {
+const mark = (drift: DriftItem<FlowStep> | undefined, ghost: boolean) => (drift ? { drift, ghost } : undefined);
+
+/** The spec with the plan's missing steps and their links added, to lay out and draw. */
+export const withGhosts = (spec: FlowSpec, ghosts: Ghosts<FlowStep, FlowLink> | undefined): FlowSpec =>
+  ghosts ? { ...spec, steps: [...spec.steps, ...ghosts.nodes], links: [...spec.links, ...ghosts.links] } : spec;
+
+/** Without `side`: the whole plan or summary in one picture. `spec` is laid out with its ghosts. */
+function viewport(spec: FlowSpec, layout: FlowLayout, check: CheckSummary | undefined, side?: Side, ghosts?: Ghosts<FlowStep, FlowLink>): string {
+  const drifted = itemsById(ghosts?.drift);
+  const ghostIds = new Set(ghosts?.nodes.map((g) => g.id));
+  const ghostLinks = new Set(ghosts?.links);
   const byId = new Map(spec.steps.map((s) => [s.id, s]));
   const boxes = new Map(layout.nodes.map((n) => [n.id, n]));
   const edges = spec.links
     .map((l, i) => {
       if (!layout.edges[i] || (side && !linkOn(side, spec, l, byId))) return '';
-      return renderLink(l, layout.edges[i], linkTone(side, spec, l), edgeEnds(l.from, l.to, (id) => byId.get(id)?.label ?? id));
+      const ghost = ghostLinks.has(l);
+      return renderLink(l, layout.edges[i], ghost ? undefined : linkTone(side, spec, l), edgeEnds(l.from, l.to, (id) => byId.get(id)?.label ?? id), ghost);
     })
     .join('');
   const nodes = spec.steps
     .filter((s) => !side || stepOn(side, s))
     .map((s) => {
       const b = boxes.get(s.id);
-      return b ? renderStep(s, b, flagTitle(check, s.id), side) : '';
+      return b ? renderStep(s, b, flagTitle(check, s.id), side, drifted.get(s.id), ghostIds.has(s.id)) : '';
     })
     .join('');
   return `${edges}${nodes}`;
 }
 
-export function renderFlowHtml(spec: FlowSpec, layout: FlowLayout, snippets: FlowSnippets, meta: HtmlMeta, check?: CheckSummary): string {
-  const byId = new Map(spec.steps.map((s) => [s.id, s]));
+/** `ghosts`: a summary's drift from its plan; `layout` is of `withGhosts(spec, ghosts)`. */
+export function renderFlowHtml(spec: FlowSpec, layout: FlowLayout, snippets: FlowSnippets, meta: HtmlMeta, check?: CheckSummary, ghosts?: Ghosts<FlowStep, FlowLink>): string {
+  const all = withGhosts(spec, ghosts);
+  const byId = new Map(all.steps.map((s) => [s.id, s]));
+  const drifted = itemsById(ghosts?.drift);
+  const ghostIds = new Set(ghosts?.nodes.map((g) => g.id));
+  const drift = Boolean(ghosts?.drift.items.length);
   const sides = hasFlowNowAfter(spec);
   const anyPlanned = spec.links.some((l) => isPlannedLink(spec, l)) || spec.steps.some((s) => s.status === 'planned');
   return renderDiagramPage({
     title: spec.title,
     meta,
     check,
-    infoButton: infoButton(check, Boolean(spec.gaps?.length), {
-      mismatch: { label: 'Check / gaps', title: "Show what doesn't match the code and what the agent did not check" },
-      info: { label: 'Gaps', title: 'Show what the agent did not check' },
+    drift: ghosts?.drift,
+    infoButton: infoButton(check, Boolean(spec.gaps?.length || drift), {
+      mismatch: {
+        label: drift ? 'Check / differences / gaps' : 'Check / gaps',
+        title: "Show what doesn't match the code, how the build differs from the plan and what the agent did not check",
+      },
+      info: drift
+        ? { label: 'Differences / gaps', title: 'Show how the build differs from the plan and what the agent did not check' }
+        : { label: 'Gaps', title: 'Show what the agent did not check' },
     }),
     statuses: spec.steps.map((s) => s.status),
     sides,
     paneKey: FLOW_SIDE_KEY,
-    viewport: (side) => viewport(spec, layout, check, side),
-    aside: `${pageInfo(spec, anyPlanned, sides, check)}<div id="panel" hidden></div>${spec.steps.map((s) => stepPanel(spec, s, snippets, byId, check)).join('')}`,
+    viewport: (side) => viewport(all, layout, check, side, ghosts),
+    aside: `${pageInfo(spec, anyPlanned, sides, check, ghosts, meta.generatedAt)}<div id="panel" hidden></div>${all.steps.map((s) => stepPanel(all, s, snippets, byId, check, mark(drifted.get(s.id), ghostIds.has(s.id)))).join('')}`,
     width: layout.width,
     height: layout.height,
-    extraCss: FLOW_CSS,
+    extraCss: ghosts ? FLOW_CSS + DRIFT_CSS : FLOW_CSS,
     extraDefs: arrowMarker('arrow-planned') + CHANGE_ARROWS,
   });
 }

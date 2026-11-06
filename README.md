@@ -181,6 +181,16 @@ The skill fires when the agent summarizes a change, writes a plan or explains ho
   ```
 
   The agent is told to fix its spec, or to keep the `✗` and own up when the change really differs from its summary. `--strict` turns mismatches into a non-zero exit.
+- **Plan vs built.** A plan rendered in a git repo is kept for a week (per branch, in the cache folder). The change summary after it is compared with it: what was planned and not built, built and not planned, or built differently, each with the reason the agent noted (`drift` in the spec), else `✗ … no reason given`. `--strict` fails on unexplained drift:
+
+  ```text
+  Plan vs built (plan "Users can belong to teams", drawn 2h ago)
+  − audit log  in the plan, not built · why: left for later
+      “You said the audit log can wait for the next release, so it was left out.”
+  ✗ team_id index  built differently (path src/index.ts → src/team-index.ts) · no reason given
+  ```
+
+  The HTML page marks the nodes and steps that differ with a `◆`, explains each in a plain-words comparison box in its panel (what the plan said, what was built, and the agent's reason one click away), lists them in its info panel, and draws what was planned and not built as a dashed ghost labelled `NOT BUILT`.
 - **Nothing left off quietly.** With a diff, every changed file must sit under a node's path or be named in *Not on map* (lockfiles and generated files excepted), else `✗ 1 changed file not on map: src/x.ts`. A summary rendered without a diff says `diff not checked` instead of looking verified.
 - **Flows are anchored to real code.** Every step that exists in code names its `file:line` or quotes the line. If the line doesn't exist, the render fails and the agent has to fix it. For a commit that isn't checked out, `--at <rev>` reads anchors from that revision.
 - **Gaps are explicit.** Whatever the agent didn't read is listed under `gaps`, not guessed.

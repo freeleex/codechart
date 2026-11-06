@@ -5,10 +5,12 @@ import { findRepoRoot, loadConfig } from '../config/load.js';
 import { THEMES, type Config, type Diagram, type Output, type Theme } from '../config/schema.js';
 import type { CommandOptions } from '../program.js';
 import { diffOf, type Diff } from '../render/check.js';
+import type { Drift } from '../render/drift.js';
 import { checkFlowAnchors, type FlowSnippets } from '../render/flow/anchors.js';
 import { openBlockedNote } from '../render/markdown.js';
 import { fileSlug, repoFolder } from '../render/output-path.js';
-import { flagged } from '../render/terminal/check-lines.js';
+import { loadPlan, savePlan, type PlanStoreOptions, type StoredPlan } from '../render/plan-store.js';
+import { flagged, type CheckSummary } from '../render/terminal/check-lines.js';
 import { defaultWidth } from '../render/terminal/render.js';
 import { privateDir, writeHtml, writeReviewOnly } from '../render/web/write.js';
 import { resolveCommit } from '../rules/git-files.js';
@@ -120,6 +122,17 @@ function prTarget(o: RenderFlags, cwd: string, cacheFile: string): RenderContext
   return { svg: cacheFile, imageUrl: o.imageUrl ?? basename(cacheFile) };
 }
 
+/** A plan is saved for the summary that follows it, a summary gets the saved plan: neither for `--pr`, no plan saved for an older commit, and no plan for a summary of another target (`--at`, `--head`): the branch's plan and HEAD don't apply to it. */
+function planFor(spec: Spec | FlowSpec, diagram: Diagram, store: PlanStoreOptions & { inRepo: boolean }, o: RenderFlags): StoredPlan | undefined {
+  if (!store.inRepo || o.pr) return undefined;
+  if (spec.kind === 'summary') return o.at === undefined && o.head === undefined ? loadPlan(store, diagram) : undefined;
+  if (o.at === undefined && o.head === undefined) savePlan(store, spec);
+  return undefined;
+}
+
+const failed = (check: CheckSummary, drift: Drift<unknown> | undefined): boolean => flagged(check) || (drift?.unexplained ?? 0) > 0;
+const clock = (opts: CommandOptions): Date => opts.now?.() ?? new Date();
+
 async function renderSpec(arg: string, o: RenderFlags, opts: CommandOptions, cwd: string): Promise<void> {
   const spec = await readSpec(arg, cwd, opts.stdin ?? (() => readStdin(MAX_SPEC_BYTES, new Error(TOO_BIG))));
   const repoRoot = findRepoRoot(cwd);
@@ -138,6 +151,7 @@ async function renderSpec(arg: string, o: RenderFlags, opts: CommandOptions, cwd
   }
 
   const env = opts.env ?? process.env;
+  const now = clock(opts);
   const slug = fileSlug(spec.title, target.diagram);
   const update = checkAllowed({ enabled: config.updateCheck, env: { ...process.env, ...env } }) ? knownUpdate(config.web.outDir) : undefined;
   const ctx: RenderContext = {
@@ -155,7 +169,9 @@ async function renderSpec(arg: string, o: RenderFlags, opts: CommandOptions, cwd
     unmapped: unmappedFiles(config),
     diffUnchecked: spec.kind === 'summary' && !diff && repoRoot !== undefined,
     selection: o,
-    saveReview: (snapshot) => writeReviewOnly(snapshot, { config, root, slug, now: opts.now?.() ?? new Date(), stderr: opts.stderr }),
+    now,
+    plan: planFor(spec, target.diagram, { cacheDir: config.web.outDir, root, now, inRepo: repoRoot !== undefined }, o),
+    saveReview: (snapshot) => writeReviewOnly(snapshot, { config, root, slug, now, stderr: opts.stderr }),
     write: (build, review) =>
       writeHtml(build, {
         review,
@@ -163,7 +179,7 @@ async function renderSpec(arg: string, o: RenderFlags, opts: CommandOptions, cwd
         root,
         slug,
         theme: o.theme ?? config.web.theme,
-        now: opts.now?.() ?? new Date(),
+        now,
         forceOpen: o.open === true,
         inEditor: inCodeEditor(env),
         open: opts.open ?? openInBrowser,
@@ -172,12 +188,12 @@ async function renderSpec(arg: string, o: RenderFlags, opts: CommandOptions, cwd
         updateNotes: update ? knownHighlights(readState(config.web.outDir), currentVersion(), update)?.bullets : undefined,
       }),
   };
-  const { text, check, html } = target.diagram === 'flow' ? await renderFlow(target.spec, target, ctx) : await renderMap(target.spec, ctx);
+  const { text, check, html, drift } = target.diagram === 'flow' ? await renderFlow(target.spec, target, ctx) : await renderMap(target.spec, ctx);
   // A blank line after --md output keeps two renders in one Bash call from gluing together.
   const print = (s: string) => opts.stdout(ctx.md ? `${s}\n` : s);
   print(text);
   if (html?.openFailed) print(openBlockedNote(html.file, ctx.md));
-  if (o.strict && flagged(check)) process.exitCode = 1;
+  if (o.strict && failed(check, drift)) process.exitCode = 1;
 }
 
 export function renderCommand(opts: CommandOptions): Command {
@@ -197,7 +213,7 @@ export function renderCommand(opts: CommandOptions): Command {
     .option('--commit <sha>', 'check claims against the files one commit changed')
     .option('--since <base>', 'check claims against the files committed since <base>; add --git for uncommitted ones too')
     .option('--head <ref>', 'with --since: compare <base>...<ref> instead of HEAD')
-    .option('--strict', "exit 1 when a claim doesn't match the code")
+    .option('--strict', "exit 1 when a claim doesn't match the code or the build drifted from the plan without a reason")
     .action(async (arg: string, o: RenderFlags, cmd: Command) => {
       const usage = renderSelectionError(o) ?? (!o.pr && (o.svg !== undefined || o.imageUrl !== undefined) ? '--svg and --image-url need --pr' : undefined);
       if (usage) cmd.error(usage, { exitCode: 2 });

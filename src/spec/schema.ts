@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { matchSchema, validateFlowSpec, type FlowSpec } from './flow.js';
-import { codeLabelIssue, formatIssues, ident, labelIssues, long, pathStr, short, shortOpt, type ValidationResult as Result } from './shared.js';
+import { codeLabelIssue, driftBase, driftIssues, formatIssues, ident, labelIssues, long, pathStr, short, shortOpt, type ValidationResult as Result } from './shared.js';
 
 export const STATUSES = ['new', 'changed', 'removed', 'context', 'config'] as const;
 export const NODE_KINDS = [
@@ -40,6 +40,8 @@ const edgeSchema = z.strictObject({
   change: z.enum(['added', 'removed']).optional().describe('Plan only: a link the plan adds or drops between nodes that exist before and after'),
 });
 
+const driftSchema = z.strictObject({ node: ident(), ...driftBase });
+
 const MAX_NODES = 500;
 const EDGE_LABEL_EXAMPLE = 'additional_training (now a list)';
 const MAX_EDGES = 1000;
@@ -54,9 +56,11 @@ const specSchema = z
     edges: z.array(edgeSchema).max(MAX_EDGES, `at most ${MAX_EDGES} edges; split the map`),
     gaps: z.array(long()).optional(),
     omitted: z.array(long()).optional(),
+    drift: z.array(driftSchema).max(MAX_NODES).optional().describe('Summary only: how the build differs from the plan, one entry per node'),
   })
   // eslint-disable-next-line max-lines-per-function -- ratchet: one superRefine; barely over
   .superRefine((spec, ctx) => {
+    driftIssues(spec.kind, spec.drift?.map((d) => d.node), (path, message) => ctx.addIssue({ code: 'custom', path, message }));
     const ids = new Set<string>();
     spec.nodes.forEach((node, i) => {
       if (ids.has(node.id)) {

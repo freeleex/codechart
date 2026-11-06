@@ -28,7 +28,7 @@ function savedTicks(key: string): Map<string, string> {
 export function initReview(repo: string, goTo: (id: string) => void): Review {
   const key = `codechart.reviewed:${repo}`;
   const revs = new Map<string, string>();
-  document.querySelectorAll('.node').forEach((g) => revs.set(g.getAttribute('data-id')!, g.getAttribute('data-rev') ?? ''));
+  document.querySelectorAll('.node:not(.ghost)').forEach((g) => revs.set(g.getAttribute('data-id')!, g.getAttribute('data-rev') ?? ''));
   const ids = [...revs.keys()];
   const saved = savedTicks(key);
   const done = new Set(ids.filter((id) => saved.get(id) === revs.get(id)));
@@ -75,7 +75,7 @@ export function initReview(repo: string, goTo: (id: string) => void): Review {
   if (next) next.addEventListener('click', () => step(1));
   const toggleSelected = () => {
     const id = document.querySelector('.node.selected')?.getAttribute('data-id');
-    if (id) toggle(id);
+    if (id && revs.has(id)) toggle(id);
   };
   paint();
   return { paint, step, toggleSelected };

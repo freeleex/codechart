@@ -1,5 +1,7 @@
 import { flagged, type CheckSummary } from '../terminal/check-lines.js';
+import type { Drift } from '../drift.js';
 import { checkNote, checkSection } from './check-html.js';
+import { driftNote } from './drift-html.js';
 import { esc, list, midpoint, num, renderPage, type HtmlMeta, type KeyPart } from './page.js';
 import { SIDE_TITLE, SIDES, type Side } from './states.js';
 import type { Point } from './layout.js';
@@ -64,6 +66,8 @@ interface DiagramPage {
   title: string;
   meta: HtmlMeta;
   check: CheckSummary | undefined;
+  /** A summary's drift from its plan, for the header. */
+  drift?: Drift<unknown>;
   infoButton: string;
   /** The status of each node, for the header chips. */
   statuses: string[];
@@ -84,7 +88,7 @@ export function renderDiagramPage(p: DiagramPage): string {
     title: p.title,
     meta: p.meta,
     infoButton: p.infoButton,
-    headerNote: checkNote(p.check),
+    headerNote: checkNote(p.check) + driftNote(p.drift),
     toolbar: statusChips(p.statuses) + reviewControls(p.statuses.length),
     viewport: p.sides ? '' : p.viewport(),
     ...(p.sides ? { panes: SIDES.map((side) => ({ title: SIDE_TITLE[side], key: p.paneKey[side], viewport: p.viewport(side) })) } : {}),

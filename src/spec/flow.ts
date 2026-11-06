@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { hasHiddenChars } from '../render/strip.js';
-import { codeLabelIssue, formatIssues, ident, labelIssues, long, pathStr, short, SHORT, shortOpt, type ValidationResult } from './shared.js';
+import { codeLabelIssue, driftBase, driftIssues, formatIssues, ident, labelIssues, long, pathStr, short, SHORT, shortOpt, type ValidationResult } from './shared.js';
 
 const STEP_TYPES = ['step', 'decision', 'end'] as const;
 type StepType = (typeof STEP_TYPES)[number];
@@ -38,6 +38,8 @@ const linkSchema = z.strictObject({
 });
 
 const MAX_ITEMS = 200;
+
+const driftSchema = z.strictObject({ step: ident(), ...driftBase });
 
 type StepInput = z.infer<typeof stepSchema>;
 type Anchored = { source?: string; match?: string };
@@ -93,6 +95,7 @@ const flowObject = z.strictObject({
   steps: z.array(stepSchema).max(MAX_ITEMS, `at most ${MAX_ITEMS} steps; split the flow`),
   links: z.array(linkSchema).max(MAX_ITEMS, `at most ${MAX_ITEMS} links; split the flow`),
   gaps: z.array(long()).optional(),
+  drift: z.array(driftSchema).max(MAX_ITEMS).optional().describe('Summary only: how the build differs from the plan, one entry per step'),
 });
 
 type FlowInput = z.infer<typeof flowObject>;
@@ -231,6 +234,7 @@ function reachabilityIssues(spec: FlowInput, facts: Facts, issue: Issue): void {
 const flowSchema = flowObject.superRefine((spec, ctx) => {
   const issue: Issue = (path, message) => ctx.addIssue({ code: 'custom', path, message });
   const facts = flowFacts(spec);
+  driftIssues(spec.kind, spec.drift?.map((d) => d.step), issue);
   stepIssues(spec, issue);
   startIssues(spec, facts, issue);
   linkIssues(spec, facts, issue);
