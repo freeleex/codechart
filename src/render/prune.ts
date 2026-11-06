@@ -1,6 +1,7 @@
 import { lstatSync, readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { HTML_NAME, parseStamp, stamp } from './output-path.js';
+import { readReview } from '../review/store.js';
+import { HTML_NAME, parseStamp, REVIEW_NAME, stamp } from './output-path.js';
 
 const DAY_MS = 86_400_000;
 
@@ -9,6 +10,57 @@ interface PruneOptions {
   maxAgeDays: number;
   now: Date;
   replaceSlug?: string;
+  /** With `replaceSlug`: only renders drawn on this branch are replaced; a page with no review file to say is. */
+  replaceBranch?: string;
+  /** This render wrote no page: it replaces older review files that have none, and leaves pages alone. */
+  pageless?: boolean;
+}
+
+/** One render: its page, its review file, or both. */
+interface Entry {
+  stamp: string;
+  slug: string;
+  page?: string;
+  review?: string;
+}
+
+function entriesOf(names: string[]): Entry[] {
+  const byBase = new Map<string, Entry>();
+  const entry = (base: string): Entry => {
+    if (!byBase.has(base)) byBase.set(base, { stamp: base.slice(0, 15), slug: base.slice(16) });
+    return byBase.get(base)!;
+  };
+  for (const name of names) {
+    const page = HTML_NAME.exec(name);
+    if (page) entry(`${page[1]}-${page[2]}`).page = name;
+    const review = REVIEW_NAME.exec(name);
+    if (review) entry(review[1]!).review = name;
+  }
+  return [...byBase.values()].sort((a, b) => b.stamp.localeCompare(a.stamp));
+}
+
+function onBranch(dir: string, e: Entry, branch: string | undefined): boolean {
+  if (branch === undefined || !e.review) return true;
+  const review = readReview(join(dir, e.review));
+  return !review || review.change.branch === branch;
+}
+
+const remove = (file: string): boolean => {
+  try {
+    rmSync(file);
+    return true;
+  } catch {
+    return false; // Already gone or not removable: skip it.
+  }
+};
+
+/** A review file whose page was recorded and is gone, or that can't be read, is removed. One written without a page stays. */
+function sweepReviews(dir: string, entries: Entry[]): void {
+  for (const e of entries) {
+    if (!e.review || e.page) continue;
+    const review = readReview(join(dir, e.review));
+    if (!review || review.change.html !== undefined) remove(join(dir, e.review));
+  }
 }
 
 // Never throws: cleanup must not fail a render.
@@ -21,31 +73,24 @@ export function pruneHtml(dir: string, opts: PruneOptions): string[] {
     return [];
   }
   const current = stamp(opts.now);
-  const files = names
-    .map((name) => ({ name, m: HTML_NAME.exec(name) }))
-    .filter((f): f is { name: string; m: RegExpExecArray } => f.m !== null)
-    .map(({ name, m }) => ({ name, stamp: m[1]!, slug: m[2]! }))
-    .sort((a, b) => b.stamp.localeCompare(a.stamp));
-
-  const doomed = new Set<string>();
+  const entries = entriesOf(names);
+  const doomed = new Set<Entry>();
   // Files stamped `now` are the one this render just wrote: never delete them.
-  for (const f of files) if (f.slug === opts.replaceSlug && f.stamp < current) doomed.add(f.name);
+  for (const e of entries) {
+    if (e.slug === opts.replaceSlug && e.stamp < current && onBranch(dir, e, opts.replaceBranch) && !(opts.pageless && e.page)) doomed.add(e);
+  }
   const cutoff = opts.now.getTime() - opts.maxAgeDays * DAY_MS;
-  files
-    .filter((f) => !doomed.has(f.name))
-    .forEach((f, i) => {
-      if (f.stamp !== current && i >= opts.keep && parseStamp(f.stamp).getTime() < cutoff) doomed.add(f.name);
+  entries
+    .filter((e) => !doomed.has(e))
+    .forEach((e, i) => {
+      if (e.stamp !== current && i >= opts.keep && parseStamp(e.stamp).getTime() < cutoff) doomed.add(e);
     });
 
   const deleted: string[] = [];
-  for (const name of doomed) {
-    const file = join(dir, name);
-    try {
-      rmSync(file);
-      deleted.push(file);
-    } catch {
-      // Already gone or not removable: skip it.
-    }
+  for (const e of doomed) {
+    if (e.page && remove(join(dir, e.page))) deleted.push(join(dir, e.page));
+    if (e.review) remove(join(dir, e.review));
   }
+  sweepReviews(dir, entries.filter((e) => !doomed.has(e)));
   return deleted;
 }

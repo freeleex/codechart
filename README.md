@@ -161,6 +161,12 @@ Reviewers get the map too. Turn it on once per repo (`codechart setup-pr-maps`, 
 
 ![PR description with the Map section open: check line, the map image, what was left out or not read, collapsed node details and the key](docs/images/pr-map.png)
 
+### Review in your terminal
+
+Prefer the console to the page? `codechart review` opens the newest map of your branch in your `$EDITOR` as a coloured diff, one heading per node. Write `> text` under a node or a diff line for a comment, `>? text` for a question, `>del text` for "delete this", save and quit. Then tell your agent "review done": it runs `codechart feedback --take` and gets your notes as numbered markdown, each with its file, line and the code it points at. `codechart comment <node>[:<path>:<line>] <text>` adds one note without the editor. Works for maps shown only in the terminal too. Notes stay with the map when your agent redraws it on the same branch (same title), and turn *outdated* where the node's diff has changed. [Commands](docs/cli.md#console-review).
+
+<img src="docs/images/console-review.gif" alt="An agent draws a map; codechart review opens its diffs in vim, the user types a comment, a question and a delete request under code lines, saves, and codechart feedback --take prints them as numbered notes for the agent" width="960">
+
 ### When it fires, and when it stays quiet
 
 The skill fires when the agent summarizes a change, writes a plan or explains how code behaves. Built-in rules decide: migrations and models, infrastructure files, 3+ related files (map), 2+ decisions or edge cases (flow). One-file text, comment, formatting or version-bump changes are skipped. Your own rules in `.codechart.yaml` run first: [Configuration](docs/configuration.md).

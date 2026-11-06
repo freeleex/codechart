@@ -21,6 +21,8 @@ beforeEach(() => {
 
 afterEach(() => removeSandbox(tmp));
 
+const pages = (dir: string) => readdirSync(dir).filter((n) => !n.endsWith('.review.json'));
+
 const run = (args: string[]) => runCli({ cwd: repo, home, now: () => now, isTTY: false }, args);
 
 const mapSpec = () => {
@@ -42,7 +44,7 @@ describe('web output settings are global-only (S-4)', () => {
     const { err, code } = await run(['render', '--output', 'web', mapSpec()]);
     expect(code).toBeUndefined();
     expect(existsSync(evil)).toBe(false);
-    expect(readdirSync(join(home, '.cache', 'codechart', repoFolder(repo)))).toHaveLength(1);
+    expect(pages(join(home, '.cache', 'codechart', repoFolder(repo)))).toHaveLength(1);
     expect(err).toBe(`codechart: ${repoFile}: web.outDir, web.keep, web.maxAgeDays are global-only; ignored\n`);
   });
 
@@ -102,7 +104,7 @@ describe('global outDir cannot be steered by the repo (S-4)', () => {
     writeFileSync(globalFile, 'web:\n  outDir: maps\n  keep: 1\n  maxAgeDays: 0\n');
     const { code } = await run(['render', '--output', 'web', mapSpec()]);
     expect(code).toBeUndefined();
-    expect(readdirSync(join(home, 'maps', repoFolder(repo)))).toHaveLength(1);
+    expect(pages(join(home, 'maps', repoFolder(repo)))).toHaveLength(1);
     expect(readdirSync(victim)).toHaveLength(3);
   });
 
@@ -114,7 +116,7 @@ describe('global outDir cannot be steered by the repo (S-4)', () => {
     writeFileSync(globalFile, `web:\n  outDir: ${out}\n`);
     const { code } = await run(['render', '--output', 'web', mapSpec()]);
     expect(code).toBeUndefined();
-    expect(readdirSync(join(victim, repoFolder(repo)))).toHaveLength(1);
+    expect(pages(join(victim, repoFolder(repo)))).toHaveLength(1);
     expect(readdirSync(victim)).toHaveLength(4);
   });
 

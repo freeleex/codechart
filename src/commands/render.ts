@@ -10,7 +10,7 @@ import { openBlockedNote } from '../render/markdown.js';
 import { fileSlug, repoFolder } from '../render/output-path.js';
 import { flagged } from '../render/terminal/check-lines.js';
 import { defaultWidth } from '../render/terminal/render.js';
-import { privateDir, writeHtml } from '../render/web/write.js';
+import { privateDir, writeHtml, writeReviewOnly } from '../render/web/write.js';
 import { resolveCommit } from '../rules/git-files.js';
 import { checkAllowed, currentVersion, knownHighlights, knownUpdate, readState } from '../update/check.js';
 import { unionOutputs, unmappedFiles } from '../rules/resolve.js';
@@ -155,8 +155,10 @@ async function renderSpec(arg: string, o: RenderFlags, opts: CommandOptions, cwd
     unmapped: unmappedFiles(config),
     diffUnchecked: spec.kind === 'summary' && !diff && repoRoot !== undefined,
     selection: o,
-    write: (build) =>
+    saveReview: (snapshot) => writeReviewOnly(snapshot, { config, root, slug, now: opts.now?.() ?? new Date(), stderr: opts.stderr }),
+    write: (build, review) =>
       writeHtml(build, {
+        review,
         config,
         root,
         slug,

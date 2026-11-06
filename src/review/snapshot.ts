@@ -1,0 +1,67 @@
+import { createHash } from 'node:crypto';
+import type { FlowSnippets } from '../render/flow/anchors.js';
+import type { Preview } from '../render/preview.js';
+import { sanitizeText } from '../render/strip.js';
+import { diffRev } from '../render/web/tools.js';
+import { gitDirtyHashes, gitHead } from '../rules/git-files.js';
+import { hasGitSelection, type GitSelection } from '../rules/selection.js';
+import type { FlowSpec, FlowStep } from '../spec/flow.js';
+import type { Spec } from '../spec/schema.js';
+import type { Range, ReviewNode } from './schema.js';
+import type { ReviewSnapshot } from './store.js';
+
+const MAX_DIRTY = 2000;
+
+const clean = (s: string): string => sanitizeText(s);
+
+/** What the map showed, per node: the diff lines at render time and their hash. Text from the repo is sanitized: it reaches the terminal. */
+export function mapSnapshot(spec: Spec, previews: Map<string, Preview> | undefined, range: Range | undefined): ReviewSnapshot {
+  const nodes = spec.nodes.map((n): ReviewNode => {
+    const p = previews?.get(n.id);
+    const path = p?.path ?? n.path;
+    const lines = p?.lines.map((l) => ({ ...l, text: clean(l.text) }));
+    return { id: n.id, label: clean(n.label), ...(path && { path: clean(path) }), ...(p && { rev: diffRev(p), lines, ...(p.note && { note: clean(p.note) }) }) };
+  });
+  return { kind: 'map', title: clean(spec.title), nodes, ...(range && { range }) };
+}
+
+const hash = (v: unknown): string => createHash('sha256').update(JSON.stringify(v)).digest('hex').slice(0, 12);
+
+/** A step's hash covers what its panel shows: label, status, type, source, its code and its outgoing links with theirs. */
+function stepRev(spec: FlowSpec, step: FlowStep, snippets: FlowSnippets): string {
+  const { id, label, status, type, source, match } = step;
+  const next = spec.links.flatMap((l, i) => (l.from === id ? [{ to: l.to, label: l.label, source: l.source, match: l.match, planned: l.planned, removed: l.removed, code: snippets.links[i] }] : []));
+  return hash({ label, status, type, source, match, code: snippets.steps.get(id), next });
+}
+
+export function flowSnapshot(spec: FlowSpec, snippets: FlowSnippets, range: Range | undefined): ReviewSnapshot {
+  const nodes = spec.steps.map((s): ReviewNode => {
+    const path = s.source?.replace(/:\d+(?:-\d+)?$/, '');
+    return { id: s.id, label: clean(s.label), ...(path && { path: clean(path) }), rev: stepRev(spec, s, snippets) };
+  });
+  return { kind: 'flow', title: clean(spec.title), nodes, ...(range && { range }) };
+}
+
+/** Where the code stood at render time, for the review's stale check; none for a commit, which never changes, or `--head`, which is not HEAD. */
+export function rangeOf(root: string, sel: GitSelection): Range | undefined {
+  if (!hasGitSelection(sel) || sel.commit !== undefined || sel.head !== undefined) return undefined;
+  return currentRange(root, sel.git === true);
+}
+
+function currentRange(root: string, worktree: boolean): Range {
+  const dirty = worktree ? gitDirtyHashes(root, MAX_DIRTY) : undefined;
+  const hash = dirty && createHash('sha256').update(JSON.stringify(Object.entries(dirty).sort())).digest('hex').slice(0, 12);
+  const head = gitHead(root);
+  return { worktree, ...(head && { head }), ...(hash && { dirty: hash }) };
+}
+
+/** The code moved since the page was rendered. */
+export function isStale(root: string, stored: Range | undefined): boolean {
+  if (!stored) return false;
+  try {
+    const now = currentRange(root, stored.worktree);
+    return now.head !== stored.head || now.dirty !== stored.dirty;
+  } catch {
+    return false;
+  }
+}

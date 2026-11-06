@@ -2,6 +2,7 @@ import type { Output } from '../config/schema.js';
 import type { CheckSummary } from '../render/terminal/check-lines.js';
 import type { Diff } from '../render/check.js';
 import type { WrittenHtml, WriteHtml } from '../render/web/write.js';
+import type { ReviewSnapshot } from '../review/store.js';
 import type { GitSelection } from '../rules/selection.js';
 
 /** What a render command needs besides the spec; the same for maps and flows. */
@@ -24,6 +25,8 @@ export interface RenderContext {
   diffUnchecked?: boolean;
   selection: GitSelection;
   write: WriteHtml;
+  /** A render that wrote no page still saves its review file. */
+  saveReview: (snapshot: () => ReviewSnapshot) => void;
 }
 
 export interface Rendered {
