@@ -5,9 +5,10 @@ import { gitBlob, gitBlobs, gitBlobSizes, gitFileDiff, gitFileDiffs, gitUntracke
 import type { Spec } from '../spec/schema.js';
 import { IN_DIFF, repoPath, type Diff } from './check.js';
 import { clip } from './clip.js';
+import { generatedFiles } from './generated.js';
 
-const MAX_HUNKS = 3;
-const MAX_LINES = 40;
+/** Rows kept per file; the page decides how many of them each mode shows. */
+const MAX_ROWS = 1000;
 const MAX_BYTES = 5 * 1024 * 1024;
 const MAX_TOTAL_BYTES = 25 * 1024 * 1024;
 
@@ -18,29 +19,32 @@ interface PreviewLine {
   text: string;
 }
 
-/** A node file's diff, capped. `note` replaces the lines when there is nothing to show (binary, too large). */
+/** A node file's diff, capped. `note` replaces the lines when there is nothing to show (binary, generated, too large). */
 export interface Preview {
   path: string;
+  /** The first `MAX_ROWS` rows. */
   lines: PreviewLine[];
-  /** Changed lines shown, of `total`. */
-  shown: number;
+  /** Changed lines in the whole diff. */
   total: number;
+  /** Rows in the whole diff, hunk headers included. */
+  rows: number;
   note?: string;
 }
 
-/** Keeps the first hunks of a unified diff (headers skipped) and counts every changed line. */
+/** Keeps the first `MAX_ROWS` rows of a unified diff (headers skipped) and counts every row and changed line. */
 export function parseDiff(path: string, text: string): Preview {
-  const p: Preview = { path, lines: [], shown: 0, total: 0 };
+  const p: Preview = { path, lines: [], total: 0, rows: 0 };
   let hunks = 0;
   let oldN = 0;
   let newN = 0;
-  const room = () => hunks <= MAX_HUNKS && p.lines.length < MAX_LINES;
+  const room = () => p.lines.length < MAX_ROWS;
   for (const raw of text.split('\n')) {
     const h = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(raw);
     if (h) {
       hunks++;
       oldN = Number(h[1]);
       newN = Number(h[2]);
+      p.rows++;
       if (room()) p.lines.push({ kind: 'hunk', text: clip(raw) });
       continue;
     }
@@ -56,15 +60,15 @@ export function parseDiff(path: string, text: string): Preview {
       oldN++;
     } else continue;
     if (line.kind !== 'ctx') p.total++;
-    if (!room()) continue;
-    p.lines.push({ ...line, text: clip(line.text.replace(/\r$/, '')) });
-    if (line.kind !== 'ctx') p.shown++;
+    p.rows++;
+    if (room()) p.lines.push({ ...line, text: clip(line.text.replace(/\r$/, '')) });
   }
   return p;
 }
 
 const TOO_LARGE = 'diff is too large (over 5 MB)';
 const OVER_BUDGET = 'not shown: the diffs pass 25 MB together';
+const GENERATED = { note: 'generated file, not shown' };
 
 /** An untracked file as an all-added preview, read only if it fits in `max` bytes. */
 function untrackedPreview(root: string, rel: string, budget: Budget, max: number): Preview | { note: string } {
@@ -76,15 +80,15 @@ function untrackedPreview(root: string, rel: string, budget: Budget, max: number
   budget.left -= Buffer.byteLength(text);
   const all = text.split('\n');
   if (all[all.length - 1] === '') all.pop();
-  const shown = all.slice(0, MAX_LINES - 1);
+  const kept = all.slice(0, MAX_ROWS - 1);
   return {
     path: rel,
     lines: [
       { kind: 'hunk', text: `@@ -0,0 +1,${all.length} @@` },
-      ...shown.map((l, i): PreviewLine => ({ kind: 'add', n: i + 1, text: clip(l.replace(/\r$/, '')) })),
+      ...kept.map((l, i): PreviewLine => ({ kind: 'add', n: i + 1, text: clip(l.replace(/\r$/, '')) })),
     ],
-    shown: shown.length,
     total: all.length,
+    rows: all.length + 1,
   };
 }
 
@@ -134,10 +138,10 @@ const worktreeSize = (root: string, rel: string) => {
  * Only files whose every side is within the per-file cap are diffed: git must not diff a huge file a `diff` attribute turned into text.
  * Files are taken in node order while their sides fit the render budget; the diffs get what is left of it.
  */
-function prefetch(root: string, range: DiffRange, rels: string[]): Prefetch {
+function prefetch(root: string, range: DiffRange, rels: string[], generated: Set<string>): Prefetch {
   const pre = noPrefetch();
   try {
-    const cands = rels.filter((r) => !looksSecret(r) && !r.includes('\n'));
+    const cands = rels.filter((r) => !looksSecret(r) && !r.includes('\n') && !generated.has(r));
     const specs = cands.flatMap((r) => range.revs.map((rev) => `${rev}:${r}`));
     gitBlobSizes(root, specs).forEach((size, i) => pre.sizes.set(specs[i]!, size));
 
@@ -205,9 +209,10 @@ function sides(root: string, range: DiffRange, rel: string, budget: Budget, pre:
 }
 
 /** Reads at most `min(5 MB, budget)` bytes of diff, after both sides' files. */
-function fileDiff(root: string, range: DiffRange, rel: string, budget: Budget, pre: Prefetch): string | Preview | { note: string } {
+function fileDiff(root: string, range: DiffRange, rel: string, budget: Budget, pre: Prefetch, generated: Set<string>): string | Preview | { note: string } {
   if (looksSecret(rel)) return SECRET;
   if (rel.includes('\n')) return { note: 'not shown: the file name has a line break' };
+  if (generated.has(rel)) return GENERATED;
   let max = MAX_BYTES;
   try {
     const files = sides(root, range, rel, budget, pre);
@@ -246,15 +251,17 @@ export function nodePreviews(spec: Spec, root: string, diff: Diff, range: DiffRa
     const rel = candidates.find((p) => diff.hasFile(p));
     if (rel !== undefined) rels.set(node.id, rel);
   }
-  const pre = prefetch(root, range, [...new Set(rels.values())]);
+  const files = [...new Set(rels.values())];
+  const generated = generatedFiles(root, files);
+  const pre = prefetch(root, range, files, generated);
   const byFile = new Map<string, Preview | undefined>();
   const budget: Budget = { left: MAX_TOTAL_BYTES };
   for (const node of spec.nodes) {
     const rel = rels.get(node.id);
     if (rel === undefined) continue;
     if (!byFile.has(rel)) {
-      const r = budget.left > 0 ? fileDiff(root, range, rel, budget, pre) : { note: OVER_BUDGET };
-      byFile.set(rel, typeof r === 'string' ? (r === '' ? undefined : parseDiff(rel, r)) : 'lines' in r ? r : { path: rel, lines: [], shown: 0, total: 0, note: r.note });
+      const r = budget.left > 0 ? fileDiff(root, range, rel, budget, pre, generated) : { note: OVER_BUDGET };
+      byFile.set(rel, typeof r === 'string' ? (r === '' ? undefined : parseDiff(rel, r)) : 'lines' in r ? r : { path: rel, lines: [], total: 0, rows: 0, note: r.note });
     }
     const preview = byFile.get(rel);
     if (preview) out.set(node.id, preview);

@@ -125,10 +125,10 @@ describe('render: map checks', () => {
     const spec = map(node('Order', 'changed', 'app/orders.py'), node('Status', 'context', 'app/status.py'));
     await run(['render', specFile(spec), '--git', '--output', 'web']);
     const html = htmlFile();
-    expect(html).toContain('<h3>Changes</h3><pre class="snippet diff">');
+    expect(html).toContain('<h3>Changes</h3><div class="file">');
     expect(html).toContain('<span class="ln">2</span><span class="d-del">-    pass</span>');
     expect(html).toContain('<span class="ln">2</span><span class="d-add">+    coupon = &quot;&lt;b&gt;&quot;</span>');
-    expect(html).toContain('2 changed lines · whole file: <span class="path">app/<wbr>orders.py</span>');
+    expect(html).toContain('<span class="lo">2 changed lines</span><span class="fo">2 changed lines</span> · whole file: <span class="path">app/<wbr>orders.py</span>');
     expect(html.match(/<h3>Changes<\/h3>/g)).toHaveLength(1);
     rmSync(out, { recursive: true, force: true });
     await run(['render', specFile(spec), '--output', 'web']);

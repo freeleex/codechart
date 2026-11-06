@@ -7,8 +7,8 @@ usePages();
 
 const diff = (text: string): Map<string, Preview> =>
   new Map([
-    ['tbl.orders', { path: 'db/orders.sql', lines: [{ kind: 'add', n: 1, text }], shown: 1, total: 1 }],
-    ['tbl.invoices', { path: 'db/invoices.sql', lines: [{ kind: 'add', n: 1, text: 'create table invoices' }], shown: 1, total: 1 }],
+    ['tbl.orders', { path: 'db/orders.sql', lines: [{ kind: 'add', n: 1, text }], total: 1, rows: 2 }],
+    ['tbl.invoices', { path: 'db/invoices.sql', lines: [{ kind: 'add', n: 1, text: 'create table invoices' }], total: 1, rows: 2 }],
   ]);
 
 const tick = (id: string, pane = 0) => node(id, pane).querySelector('.tick')!;
