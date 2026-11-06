@@ -186,22 +186,22 @@ describe('Focus button and f key', () => {
     expect(btn.disabled).toBe(false);
   });
 
-  it('zooms the selected node to fill 60% of the pane, capped at 2.5x, and centres it', async () => {
+  it('zooms the selected node to fill 35% of the pane, capped at 1.5x, and centres it', async () => {
     mount(shopPage);
     stub();
     click(node('tbl.orders'));
     click(q('#nav-focus'));
     await settle();
-    expect(view()).toEqual(['translate(125,225) scale(2.5)']);
+    expect(view()).toEqual(['translate(275,295) scale(1.5)']);
   });
 
-  it('a big node zooms out to fit instead of past 60%', async () => {
+  it('a big node zooms out to fit instead of past 35%', async () => {
     mount(shopPage);
     stub({ x: 0, y: 0, width: 2000, height: 100 });
     click(node('tbl.orders'));
     click(q('#nav-focus'));
     await settle();
-    expect(view()).toEqual(['translate(200,385) scale(0.3)']);
+    expect(view()).toEqual(['translate(325,391.25) scale(0.175)']);
   });
 
   it('f does the same, ignored while typing, with a modifier or with nothing selected', async () => {
@@ -221,7 +221,7 @@ describe('Focus button and f key', () => {
     expect(view()).toEqual(before);
     key('f');
     await settle();
-    expect(view()).toEqual(['translate(125,225) scale(2.5)']);
+    expect(view()).toEqual(['translate(275,295) scale(1.5)']);
   });
 
   it('linked Now / After panes move together; the key help lists f', async () => {
@@ -231,7 +231,7 @@ describe('Focus button and f key', () => {
     click(q('#nav-focus'));
     await settle();
     expect(new Set(view()).size).toBe(1);
-    expect(view()[0]).toBe('translate(125,225) scale(2.5)');
+    expect(view()[0]).toBe('translate(275,295) scale(1.5)');
     expect(q('#key-help').textContent).toContain('f: zoom to the selected node');
   });
 
@@ -242,6 +242,6 @@ describe('Focus button and f key', () => {
     click(node('users'));
     click(q('#nav-focus'));
     await settle();
-    expect(view()).toEqual(['translate(125,225) scale(2.5)', 'translate(125,225) scale(2.5)']);
+    expect(view()).toEqual(['translate(275,295) scale(1.5)', 'translate(275,295) scale(1.5)']);
   });
 });
