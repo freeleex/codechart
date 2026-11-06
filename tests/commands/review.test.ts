@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { ProgramOptions } from '../../src/program.js';
@@ -118,15 +118,19 @@ describe('codechart review', () => {
   it('opens $VISUAL, else $EDITOR, else vi, on a private temp file that is gone afterwards', async () => {
     await render();
     const seen: [string, string][] = [];
+    const docs: string[] = [];
     const spy: NonNullable<ProgramOptions['editor']> = (cmd, file) => {
       seen.push([cmd, file]);
-      expect(readFileSync(file, 'utf8')).toContain('# codechart review: orders');
+      docs.push(readFileSync(file, 'utf8'));
       return 0;
     };
-    await run(['review'], { editor: spy, env: { VISUAL: 'code --wait', EDITOR: 'nano' } });
+    const runs = [await run(['review'], { editor: spy, env: { VISUAL: 'code --wait', EDITOR: 'nano' } })];
     expect(seen[0]![1]).toMatch(/[\\/]codechart-review-[^\\/]+[\\/]orders\.diff$/);
-    await run(['review'], { editor: spy, env: { EDITOR: 'nano' } });
-    await run(['review'], { editor: spy, env: {} });
+    runs.push(await run(['review'], { editor: spy, env: { EDITOR: 'nano' } }));
+    runs.push(await run(['review'], { editor: spy, env: {} }));
+    // An assertion thrown inside the editor callback would be swallowed as a failed command, so check afterwards.
+    for (const x of runs) expect([x.err, x.code]).toEqual(['', undefined]);
+    for (const d of docs) expect(d).toMatch(/^# Review: Orders · branch /);
     expect(seen.map(([c]) => c)).toEqual(['code --wait', 'nano', defaultEditor()]);
     expect(existsSync(seen[0]![1])).toBe(false);
   });
@@ -134,6 +138,7 @@ describe('codechart review', () => {
   it('saves the notes written in the editor, replacing the pending ones, and says what to tell the agent', async () => {
     await render();
     const r = await run(['review'], { editor: typing('+  2', '>? is this nullable?', '> rename it', '>del drop it') });
+    expect([r.err, r.code]).toEqual(['', undefined]);
     expect(r.out).toBe('✔ 3 notes saved — 1 comment · 1 question · 1 delete\nTell your agent "review done" and it will pick up your notes.\n');
     const notes = current().notes;
     expect(notes.map((n) => [n.id, n.kind, n.body, n.state, n.anchor?.line, n.anchor?.side])).toEqual([
@@ -143,6 +148,7 @@ describe('codechart review', () => {
     ]);
     expect(notes[0]).toMatchObject({ node: 'Order', rev: current().nodes[0]!.rev, anchor: { path: 'app/orders.py', text: '    coupon = Column(Text)' } });
     const again = await run(['review'], { editor: (_c, f) => (writeFileSync(f, readFileSync(f, 'utf8').replace('> rename it\n', '')), 0) });
+    expect([again.err, again.code]).toEqual(['', undefined]);
     expect(again.out).toContain('2 notes saved');
     expect(current().notes.map((n) => n.id)).toEqual(['n1', 'n3']);
   });
@@ -151,7 +157,8 @@ describe('codechart review', () => {
     await render();
     await run(['comment', 'Queue', 'first']);
     await run(['feedback', '--take']);
-    await run(['review'], { editor: typing('[Queue]', '> second') });
+    const saved = await run(['review'], { editor: typing('[Queue]', '> second') });
+    expect([saved.err, saved.code]).toEqual(['', undefined]);
     expect(current().notes.map((n) => [n.body, n.state])).toEqual([['first', 'sent'], ['second', 'pending']]);
   });
 
@@ -328,6 +335,7 @@ describe('codechart review while the editor is open', () => {
         return 0;
       },
     });
+    expect([fresh.err, fresh.code]).toEqual(['', undefined]);
     expect(fresh.out).toContain('2 notes saved');
     expect(reviewFiles()).toEqual(['20261028-090900-orders.review.json']);
     expect(current().notes.map((n) => [n.body, n.state, n.node])).toEqual([['second', 'pending', 'Queue'], ['first', 'pending', 'Queue']]);
@@ -336,20 +344,21 @@ describe('codechart review while the editor is open', () => {
   it('re-rendered meanwhile with the node gone or its diff changed: the note is outdated, not moved', async () => {
     await render();
     await run(['comment', 'Order:app/orders.py:2', 'rename']);
-    await run(['review'], {
+     const r = await run(['review'], {
       editor: (_c, f) => {
         rerender((r) => r.nodes.map((n) => (n.id === 'Order' ? { ...n, rev: 'changed' } : n)));
         addAfter(f, '[Queue]', '> q');
         return 0;
       },
     });
+    expect([r.err, r.code]).toEqual(['', undefined]);
     expect(current().notes.map((n) => [n.body, n.state])).toEqual([['rename', 'outdated'], ['q', 'pending']]);
   });
 
   it('feedback --take meanwhile: a note sent while the editor was open stays sent', async () => {
     await render();
     await run(['comment', 'Queue', 'first']);
-    await run(['review'], {
+     const r = await run(['review'], {
       editor: (_c, f) => {
         const file = join(dir(), reviewFiles().at(-1)!);
         const r = readReview(file)!;
@@ -358,12 +367,13 @@ describe('codechart review while the editor is open', () => {
         return 0;
       },
     });
+    expect([r.err, r.code]).toEqual(['', undefined]);
     expect(current().notes.map((n) => [n.body, n.state])).toEqual([['first', 'sent'], ['second', 'pending']]);
   });
 
   it('a note added with comment meanwhile is kept and ids do not collide', async () => {
     await render();
-    await run(['review'], {
+     const r = await run(['review'], {
       editor: (_c, f) => {
         const file = join(dir(), reviewFiles().at(-1)!);
         const r = readReview(file)!;
@@ -372,20 +382,61 @@ describe('codechart review while the editor is open', () => {
         return 0;
       },
     });
+    expect([r.err, r.code]).toEqual(['', undefined]);
     expect(current().notes.map((n) => [n.id, n.body])).toEqual([['n1', 'aside'], ['n2', 'written in editor']]);
   });
 
   it('a note deleted in the editor is gone even if it was re-rendered meanwhile', async () => {
     await render();
     await run(['comment', 'Queue', 'drop me']);
-    await run(['review'], {
+     const r = await run(['review'], {
       editor: (_c, f) => {
         rerender();
         writeFileSync(f, readFileSync(f, 'utf8').replace('> drop me\n', '') + '\n');
         return 0;
       },
     });
+    expect([r.err, r.code]).toEqual(['', undefined]);
     expect(current().notes).toEqual([]);
+  });
+
+  it('branch switched meanwhile: the notes go to the branch the editor was opened on, not the one checked out now', async () => {
+    const a = gitBranch(repo);
+    await render();
+    git(repo, 'checkout', '-q', '-b', 'other');
+    await render();
+    git(repo, 'checkout', '-q', a);
+    const r = await run(['review'], {
+      editor: (_c, f) => {
+        git(repo, 'checkout', '-q', 'other');
+        addAfter(f, '[Queue]', '> for A');
+        return 0;
+      },
+    });
+    expect([r.err, r.code]).toEqual(['', undefined]);
+    const byBranch = (b: string) => reviewFiles().map((n) => readReview(join(dir(), n))!).find((x) => x.change.branch === b)!;
+    expect(byBranch(a).notes.map((n) => n.body)).toEqual(['for A']);
+    expect(byBranch('other').notes).toEqual([]);
+  });
+
+  // chmod does not stop root, nor Windows
+  it.skipIf(process.platform === 'win32' || process.getuid?.() === 0)('saving fails: exit 1, the edited document is kept and its path printed', async () => {
+    await render();
+    let doc = '';
+    const r = await run(['review'], {
+      editor: (_c, f) => {
+        doc = f;
+        addAfter(f, '[Queue]', '> precious');
+        chmodSync(dir(), 0o500);
+        return 0;
+      },
+    });
+    chmodSync(dir(), 0o700);
+    expect(r.code).toBe(1);
+    expect(r.err).toContain(`Your notes are kept in ${doc}`);
+    expect(readFileSync(doc, 'utf8')).toContain('> precious');
+    expect(current().notes).toEqual([]);
+    rmSync(join(doc, '..'), { recursive: true });
   });
 
   it('change gone meanwhile: exit 1, the temp document is kept and its path printed', async () => {

@@ -65,6 +65,44 @@ describe('buildDoc', () => {
   });
 });
 
+describe('a node on the same diff as an earlier one', () => {
+  const twin = { ...api, id: 'api2', label: 'invites model' };
+
+  it('with a note on one of its lines prints its rows, so the anchor survives a save', () => {
+    const notes = [note('n1', { node: 'api2', body: 'check', anchor: anchor('new', 12, '  await invite(email, teamId)') })];
+    const r = review(notes, [api, twin]);
+    const doc = buildDoc(r);
+    expect(doc).not.toContain('# Same diff as');
+    expect(doc.split('@@ -10,3 +10,4 @@').length).toBe(3);
+    expect(parseDoc(doc, r, new Date()).notes).toEqual(notes);
+  });
+
+  it('with only node-level notes still points back', () => {
+    const doc = buildDoc(review([note('n1', { node: 'api2', body: 'whole' })], [api, twin]));
+    expect(doc).toContain('# Same diff as "invites route" above.\n> whole');
+  });
+});
+
+describe('labels and paths with line breaks', () => {
+  const odd = { id: 'odd', label: 'two\nlines', path: 'dir/na\tme.ts', rev: 'r' };
+
+  it('stay on one heading line, which the parser still reads', () => {
+    const r = review([], [odd]);
+    const doc = buildDoc(r);
+    expect(doc).toContain('## two lines — dir/na me.ts  [odd]\n');
+    const { notes, warnings } = parseDoc(edit(doc, '[odd]', '> still found'), r, new Date());
+    expect(warnings).toEqual([]);
+    expect(notes).toEqual([expect.objectContaining({ node: 'odd', body: 'still found' })]);
+  });
+
+  it('and in feedback items and the same-diff line', () => {
+    const r = review([note('n1', { node: 'odd', body: 'x', rev: 'r' })], [odd]);
+    expect(feedbackText(r)).toContain('1. two lines (dir/na me.ts)  [odd]\n');
+    const t = { ...api, id: 'a', label: 'x\ny' };
+    expect(buildDoc(review([], [t, { ...t, id: 'b', label: 'z' }]))).toContain('# Same diff as "x y" above.');
+  });
+});
+
 describe('parseDoc', () => {
   const base = buildDoc(review());
 

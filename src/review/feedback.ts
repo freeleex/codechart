@@ -1,5 +1,5 @@
 import { sanitizeText } from '../render/strip.js';
-import { changeTitle } from './doc.js';
+import { changeTitle, oneLine } from './doc.js';
 import type { Note, NoteKind, Review } from './schema.js';
 
 const LABEL: Record<NoteKind, string> = { comment: 'Comment', question: 'Question', delete: 'Delete' };
@@ -14,12 +14,12 @@ export function feedbackText(review: Review): string | undefined {
   if (!notes.length) return undefined;
   const items = notes.map((n, i) => {
     const node = review.nodes.find((x) => x.id === n.node);
-    const path = n.anchor?.path || node?.path;
+    const path = oneLine(n.anchor?.path || node?.path || '');
     const place = n.anchor ? `${path ? `${path}:` : 'line '}${n.anchor.line}, ${n.anchor.side} line` : path;
     const quote = n.anchor ? `\n   > ${n.anchor.text}` : '';
-    return `${i + 1}. ${node?.label ?? n.node}${place ? ` (${place})` : ''}  [${n.node}]${quote}\n   ${LABEL[n.kind]}: ${n.body.replace(/\n/g, '\n   ')}`;
+    return `${i + 1}. ${oneLine(node?.label ?? n.node)}${place ? ` (${place})` : ''}  [${n.node}]${quote}\n   ${LABEL[n.kind]}: ${n.body.replace(/\n/g, '\n   ')}`;
   });
-  return sanitizeText(`# Review feedback: ${changeTitle(review)} (${plural(notes.length, 'note')})\n\n${items.join('\n\n')}\n`);
+  return sanitizeText(`# Review feedback: ${oneLine(changeTitle(review))} (${plural(notes.length, 'note')})\n\n${items.join('\n\n')}\n`);
 }
 
 /** `N notes saved — X comments · Y questions · Z deletes` */

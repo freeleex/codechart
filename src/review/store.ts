@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { closeSync, openSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { REVIEW_NAME } from '../render/output-path.js';
 import { carryNotes } from './carry.js';
@@ -25,7 +25,62 @@ export function readReview(file: string): Review | undefined {
   }
 }
 
-export const writeReview = (file: string, review: Review): void => writeFileSync(file, `${JSON.stringify(review, null, 2)}\n`, { mode: 0o600 });
+/** Written beside the file and renamed over it, so a reader never sees half a file. */
+export function writeReview(file: string, review: Review): void {
+  const tmp = `${file}.${process.pid}.tmp`;
+  try {
+    writeFileSync(tmp, `${JSON.stringify(review, null, 2)}\n`, { mode: 0o600 });
+    renameSync(tmp, file);
+  } catch (e) {
+    rmSync(tmp, { force: true });
+    throw e;
+  }
+}
+
+interface LockTimes {
+  waitMs: number;
+  staleMs: number;
+}
+
+const sleep = (ms: number): void => void Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+
+/** Runs `fn` holding `<file>.lock` (created exclusively): a second command waits its turn, a lock older than `staleMs` is a crashed one's and goes. */
+function withLock<T>(file: string, fn: () => T, { waitMs, staleMs }: LockTimes): T {
+  const lock = `${file}.lock`;
+  const until = Date.now() + waitMs;
+  for (;;) {
+    try {
+      closeSync(openSync(lock, 'wx', 0o600));
+      break;
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code !== 'EEXIST') throw e;
+    }
+    const age = Date.now() - (statSync(lock, { throwIfNoEntry: false })?.mtimeMs ?? Date.now());
+    if (age > staleMs) rmSync(lock, { force: true });
+    else if (Date.now() > until) throw new Error('Another codechart command is saving these notes. Try again in a moment.');
+    else sleep(25);
+  }
+  try {
+    return fn();
+  } finally {
+    rmSync(lock, { force: true });
+  }
+}
+
+/** Read, change and write the review file as one step: it is read again under the lock, so notes saved meanwhile by another command are not lost. */
+export function updateReview(file: string, change: (current: Review) => Review, times: LockTimes = { waitMs: 2000, staleMs: 10_000 }): Review {
+  return withLock(
+    file,
+    () => {
+      const current = readReview(file);
+      if (!current) throw new Error(`The review notes in ${file} can't be read.`);
+      const next = change(current);
+      if (next !== current) writeReview(file, next);
+      return next;
+    },
+    times,
+  );
+}
 
 /** The review files of `branch` in `dir`, newest page first. */
 export function listReviews(dir: string, branch: string): Found[] {

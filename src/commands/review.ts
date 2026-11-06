@@ -9,7 +9,7 @@ import { countsLine } from '../review/feedback.js';
 import { mergeNotes } from '../review/merge.js';
 import { parseDoc } from '../review/parse.js';
 import { isStale } from '../review/snapshot.js';
-import { writeReview } from '../review/store.js';
+import { updateReview } from '../review/store.js';
 import { defaultEditor, runEditor } from './review-editor.js';
 import { guarded, locateChange } from './review-shared.js';
 
@@ -38,16 +38,16 @@ async function review(o: { change?: string; print?: boolean }, opts: CommandOpti
     if (after === undefined) return opts.stdout('No changes, nothing saved.\n');
     const parsed = parseDoc(after, r, opts.now?.() ?? new Date());
     for (const w of parsed.warnings) opts.stderr(`codechart: ${w}\n`);
-    // The change may have been re-rendered or read by the agent while the editor was open.
-    let fresh;
+    // The change may have been re-rendered or read by the agent while the editor was open, and the branch switched:
+    // look again on the branch it was opened on, and merge into the file as it is now.
+    let saved;
     try {
-      fresh = locateChange(opts, r.change.slug);
+      const fresh = locateChange(opts, r.change.slug, r.change.branch);
+      saved = updateReview(fresh.file, (current) => ({ ...current, notes: mergeNotes(r, parsed.notes, current) }));
     } catch (e) {
       keep = true;
       throw new Error(`${(e as Error).message} Your notes are kept in ${file}`);
     }
-    const saved = { ...fresh.review, notes: mergeNotes(r, parsed.notes, fresh.review) };
-    writeReview(fresh.file, saved);
     opts.stdout(`✔ ${countsLine(saved)}\nTell your agent "review done" and it will pick up your notes.\n`);
   } finally {
     if (!keep) rmSync(dir, { recursive: true, force: true });

@@ -1,16 +1,22 @@
 import { Command } from 'commander';
 import type { CommandOptions } from '../program.js';
 import { feedbackText, osc52 } from '../review/feedback.js';
-import { writeReview } from '../review/store.js';
+import { updateReview } from '../review/store.js';
 import { guarded, locateChange } from './review-shared.js';
 
 function feedback(o: { take?: boolean; copy?: boolean; change?: string }, opts: CommandOptions): void {
   const { file, review } = locateChange(opts, o.change);
-  const text = feedbackText(review);
+  let text = feedbackText(review);
+  if (o.take) {
+    // Taken under the lock from the notes as they are now, so a note added meanwhile is neither lost nor marked sent unprinted.
+    updateReview(file, (current) => {
+      text = feedbackText(current);
+      return text === undefined ? current : { ...current, notes: current.notes.map((n) => (n.state === 'pending' ? { ...n, state: 'sent' as const } : n)) };
+    });
+  }
   if (text === undefined) return opts.stdout('No pending review notes.\n');
   opts.stdout(text);
   if (o.copy && (opts.isTTY ?? process.stderr.isTTY === true)) (opts.rawStderr ?? opts.stderr)(osc52(text));
-  if (o.take) writeReview(file, { ...review, notes: review.notes.map((n) => (n.state === 'pending' ? { ...n, state: 'sent' as const } : n)) });
 }
 
 export function feedbackCommand(opts: CommandOptions): Command {

@@ -3,7 +3,7 @@ import type { CommandOptions } from '../program.js';
 import { sanitizeText } from '../render/strip.js';
 import { isAt, lastNoteNumber } from '../review/doc.js';
 import type { Note, NoteKind, Review, ReviewNode } from '../review/schema.js';
-import { writeReview } from '../review/store.js';
+import { updateReview } from '../review/store.js';
 import { guarded, locateChange } from './review-shared.js';
 
 interface CommentFlags {
@@ -35,22 +35,27 @@ function anchorOf(node: ReviewNode, line: number, side?: 'old' | 'new'): NonNull
 }
 
 function comment(target: string, words: string[], o: CommentFlags, opts: CommandOptions): void {
-  const { file, review } = locateChange(opts, o.change);
-  const { node, line } = resolveTarget(review, target);
+  const { file } = locateChange(opts, o.change);
   const body = sanitizeText(words.join(' ')).replace(/\s*\n\s*/g, ' ').trim();
   if (!body) throw new Error('The note is empty.');
-  const anchor = line === undefined ? undefined : anchorOf(node, line, o.side);
-  const note: Note = {
-    id: `n${lastNoteNumber(review.notes) + 1}`,
-    node: node.id,
-    ...(node.rev && { rev: node.rev }),
-    ...(anchor && { anchor }),
-    kind: o.kind,
-    body,
-    state: 'pending',
-    at: (opts.now?.() ?? new Date()).toISOString(),
-  };
-  writeReview(file, { ...review, notes: [...review.notes, note] });
+  let added: { node: ReviewNode; anchor?: Note['anchor'] } | undefined;
+  updateReview(file, (review) => {
+    const { node, line } = resolveTarget(review, target);
+    const anchor = line === undefined ? undefined : anchorOf(node, line, o.side);
+    added = { node, anchor };
+    const note: Note = {
+      id: `n${lastNoteNumber(review.notes) + 1}`,
+      node: node.id,
+      ...(node.rev && { rev: node.rev }),
+      ...(anchor && { anchor }),
+      kind: o.kind,
+      body,
+      state: 'pending',
+      at: (opts.now?.() ?? new Date()).toISOString(),
+    };
+    return { ...review, notes: [...review.notes, note] };
+  });
+  const { node, anchor } = added!;
   const place = anchor ? `${node.path}:${anchor.line}` : node.path;
   opts.stdout(sanitizeText(`✔ ${o.kind[0]!.toUpperCase()}${o.kind.slice(1)} added to "${node.label}"${place ? ` (${place})` : ''}\n`));
 }

@@ -41,12 +41,14 @@ export function privateDir(dir: string): void {
   chmodSync(dir, 0o700);
 }
 
-/** Never fails the render: the page or map is what the user asked for. */
-function saveReviewFile(dir: string, file: string, html: string | undefined, branch: string, o: Pick<HtmlWriteOptions, 'slug' | 'now' | 'stderr'>, snapshot: () => ReviewSnapshot): void {
+/** Never fails the render: the page or map is what the user asked for. False when the save failed. */
+function saveReviewFile(dir: string, file: string, html: string | undefined, branch: string, o: Pick<HtmlWriteOptions, 'slug' | 'now' | 'stderr'>, snapshot: () => ReviewSnapshot): boolean {
   try {
     saveReview({ dir, file, html, slug: o.slug, branch, now: o.now, snapshot: snapshot() });
+    return true;
   } catch (e) {
     o.stderr(`codechart: Couldn't save review notes (${(e as Error).message})\n`);
+    return false;
   }
 }
 
@@ -56,8 +58,9 @@ export function writeReviewOnly(snapshot: () => ReviewSnapshot, o: Pick<HtmlWrit
     const dir = dirname(htmlOutputPath(o.config, repoFolder(o.root), o.slug, o.now));
     privateDir(dir);
     const branch = gitBranch(o.root);
-    saveReviewFile(dir, reviewFile(htmlOutputPath(o.config, repoFolder(o.root), o.slug, o.now)), undefined, branch, o, snapshot);
-    pruneHtml(dir, { ...o.config.web, now: o.now, replaceSlug: o.slug, replaceBranch: branch, pageless: true });
+    const saved = saveReviewFile(dir, reviewFile(htmlOutputPath(o.config, repoFolder(o.root), o.slug, o.now)), undefined, branch, o, snapshot);
+    // The earlier render holds the user's notes: it is not replaced by one that could not take them over.
+    pruneHtml(dir, { ...o.config.web, now: o.now, replaceSlug: saved ? o.slug : undefined, replaceBranch: branch, pageless: true });
   } catch (e) {
     o.stderr(`codechart: Couldn't save review notes (${(e as Error).message})\n`);
   }
@@ -72,8 +75,9 @@ export async function writeHtml(build: (meta: HtmlMeta) => Promise<string>, o: H
   privateDir(dir);
   writeFileSync(file, html, { mode: 0o600 });
   const branch = gitBranch(o.root);
-  if (o.review) saveReviewFile(dir, reviewFile(file), file, branch, o, o.review);
-  pruneHtml(dir, { ...config.web, now, replaceSlug: o.slug, replaceBranch: branch });
+  const saved = !o.review || saveReviewFile(dir, reviewFile(file), file, branch, o, o.review);
+  // A failed save keeps the earlier page and review: they hold the user's notes.
+  pruneHtml(dir, { ...config.web, now, replaceSlug: saved ? o.slug : undefined, replaceBranch: branch });
   const mode = config.web.open;
   if (!(o.forceOpen || mode === 'always' || (mode === 'auto' && o.inEditor))) return { file, openFailed: false };
   const failed = o.open(file);
