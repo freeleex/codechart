@@ -49,14 +49,27 @@ export function highlights(md: string, current: string, latest: string, max = 5)
   return { bullets: all.slice(0, max), more: all.length > max };
 }
 
+/** The body as text, or undefined once it passes MAX_BYTES (the download stops there). */
+async function readCapped(body: ReadableStream<Uint8Array>): Promise<string | undefined> {
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for await (const chunk of body) {
+    size += chunk.byteLength;
+    // Leaving the loop cancels the stream.
+    if (size > MAX_BYTES) return undefined;
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks).toString('utf8');
+}
+
 /** The release notes of `latest` for the versions after `current`, or undefined when GitHub doesn't answer in time. */
 export async function fetchHighlights(fetchFn: typeof fetch, current: string, latest: string, timeoutMs: number): Promise<Highlights | undefined> {
   if (!VERSION.test(latest)) return undefined;
   try {
     const res = await fetchFn(`${RAW}/v${latest}/CHANGELOG.md`, { signal: AbortSignal.timeout(timeoutMs) });
-    if (!res.ok || Number(res.headers.get('content-length')) > MAX_BYTES) return undefined;
-    const md = await res.text();
-    if (md.length > MAX_BYTES) return undefined;
+    if (!res.ok || !res.body || Number(res.headers.get('content-length')) > MAX_BYTES) return undefined;
+    const md = await readCapped(res.body);
+    if (md === undefined) return undefined;
     const found = highlights(md, current, latest);
     return found.bullets.length ? found : undefined;
   } catch {

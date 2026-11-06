@@ -34,6 +34,7 @@ jobs:
   github-release:
     needs: publish
     runs-on: ubuntu-latest
+    timeout-minutes: 360
     permissions:
       contents: write
     steps:
@@ -44,6 +45,12 @@ jobs:
         with:
           node-version: 22
       - run: node scripts/release-notes.mjs "${GITHUB_REF_NAME#v}" > notes.md
-      - run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file notes.md --verify-tag
+      - run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file notes.md --verify-tag --draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+      # The staged package goes live only after the maintainer's 2FA approval; announce it only once npm serves it.
+      - run: until [ "$(npm view "codechart@${GITHUB_REF_NAME#v}" version 2>/dev/null)" = "${GITHUB_REF_NAME#v}" ]; do sleep 60; done
+        timeout-minutes: 350
+      - run: gh release edit "$GITHUB_REF_NAME" --draft=false --latest
         env:
           GH_TOKEN: ${{ github.token }}

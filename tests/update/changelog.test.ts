@@ -91,6 +91,9 @@ describe('fetchHighlights', () => {
     expect(await fetchHighlights(answering(new Error('offline')).fn, '0.2.0', '0.3.0', 1000)).toBeUndefined();
     expect(await fetchHighlights(answering(new Response('x'.repeat(256 * 1024 + 1))).fn, '0.2.0', '0.3.0', 1000)).toBeUndefined();
     expect(await fetchHighlights(answering(new Response(MD, { headers: { 'content-length': String(1 << 30) } })).fn, '0.2.0', '0.3.0', 1000)).toBeUndefined();
+    const endless = new ReadableStream<Uint8Array>({ pull: (c) => c.enqueue(new Uint8Array(64 * 1024)) });
+    expect(await fetchHighlights(answering(new Response(endless)).fn, '0.2.0', '0.3.0', 1000)).toBeUndefined();
+    expect(await fetchHighlights(answering(new Response('é'.repeat(130 * 1024))).fn, '0.2.0', '0.3.0', 1000)).toBeUndefined();
     expect(await fetchHighlights(answering(new Response('# nothing useful\n')).fn, '0.2.0', '0.3.0', 1000)).toBeUndefined();
   });
 

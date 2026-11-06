@@ -38,7 +38,7 @@ export interface UpdateState {
   toldAgent?: number;
   /** Skill copies installed with install-skill --dir, which update refreshes too. */
   skillDirs?: string[];
-  /** What changed up to `highlightsFor`, from CHANGELOG.md; fetched once per newer version. */
+  /** What changed between the two versions in `highlightsFor` (`from..to`), from CHANGELOG.md. */
   highlights?: string[];
   highlightsMore?: boolean;
   highlightsFor?: string;
@@ -73,14 +73,16 @@ export function rememberSkillDir(cacheDir: string, dir: string): void {
 }
 
 /** The stored highlights for `version`; the file is plain JSON on disk, so each line is cleaned again. */
-export function knownHighlights(state: UpdateState, version: string): Highlights | undefined {
-  if (state.highlightsFor !== version || !Array.isArray(state.highlights)) return undefined;
+const span = (from: string, to: string) => `${from}..${to}`;
+
+export function knownHighlights(state: UpdateState, from: string, to: string): Highlights | undefined {
+  if (state.highlightsFor !== span(from, to) || !Array.isArray(state.highlights)) return undefined;
   const bullets = state.highlights.filter((b) => typeof b === 'string').map(cleanBullet).filter(Boolean).slice(0, 5);
   return bullets.length ? { bullets, more: state.highlightsMore === true } : undefined;
 }
 
-export const withHighlights = (state: UpdateState, version: string, h: Highlights | undefined): UpdateState =>
-  h ? { ...state, highlights: h.bullets, highlightsMore: h.more, highlightsFor: version } : state;
+export const withHighlights = (state: UpdateState, from: string, to: string, h: Highlights | undefined): UpdateState =>
+  h ? { ...state, highlights: h.bullets, highlightsMore: h.more, highlightsFor: span(from, to) } : state;
 
 /** The newer version known from the last check, without going online; for the HTML header. */
 export function knownUpdate(cacheDir: string, current = currentVersion()): string | undefined {
@@ -119,7 +121,7 @@ export async function updateNotice(c: NoticeContext): Promise<string | undefined
     const latest = await fetchLatest(c.fetch, 1000);
     // Recorded even on failure, so an offline machine tries once a day, not on every run.
     Object.assign(state, { checkedAt: c.now }, latest ? { latest } : {});
-    if (latest && isNewer(latest, current) && state.highlightsFor !== latest) Object.assign(state, withHighlights(state, latest, await fetchHighlights(c.fetch, current, latest, 1000)));
+    if (latest && isNewer(latest, current) && !knownHighlights(state, current, latest)) Object.assign(state, withHighlights(state, current, latest, await fetchHighlights(c.fetch, current, latest, 1000)));
   }
   const told = c.terminal ? 'toldTerminal' : 'toldAgent';
   let line: string | undefined;
@@ -127,7 +129,7 @@ export async function updateNotice(c: NoticeContext): Promise<string | undefined
     state[told] = c.now;
     changed = true;
     line = c.terminal
-      ? [`codechart ${state.latest} is available (you have ${current}): run codechart update`, ...notesLines(knownHighlights(state, state.latest))].join('\n')
+      ? [`codechart ${state.latest} is available (you have ${current}): run codechart update`, ...notesLines(knownHighlights(state, current, state.latest))].join('\n')
       : `codechart ${state.latest} is available (you have ${current}). Tell the user once: run \`codechart update\`.`;
   }
   if (changed) writeState(c.cacheDir, state);

@@ -72,7 +72,7 @@ describe('updateNotice', () => {
     const line = await updateNotice(ctx({ fetch: reg.fn }));
     expect(line).toBe([`codechart ${NEXT} is available (you have ${CURRENT}): run codechart update`, ...NOTE_LINES, ALL_NOTES].join('\n'));
     expect(reg.rawCalls).toEqual([`https://raw.githubusercontent.com/freeleex/codechart/v${NEXT}/CHANGELOG.md`]);
-    expect(knownHighlights(readState(join(sb.tmp, 'cache')), NEXT)?.bullets).toEqual(['first thing, see the docs', 'second thing']);
+    expect(knownHighlights(readState(join(sb.tmp, 'cache')), CURRENT, NEXT)?.bullets).toEqual(['first thing, see the docs', 'second thing']);
     await updateNotice(ctx({ fetch: reg.fn, now: 1_000_000_000_000 + DAY }));
     expect(reg.rawCalls.length).toBe(1);
   });
@@ -88,10 +88,19 @@ describe('updateNotice', () => {
     expect(reg.rawCalls.length).toBe(1);
   });
 
-  it('ignores stored highlights for another version or of the wrong shape', () => {
-    expect(knownHighlights({ highlightsFor: '9.9.9', highlights: ['a'] }, NEXT)).toBeUndefined();
-    expect(knownHighlights({ highlightsFor: NEXT, highlights: 'a' as unknown as string[] }, NEXT)).toBeUndefined();
-    expect(knownHighlights({ highlightsFor: NEXT, highlights: [1, 'ok\u001b[2J', ''] as unknown as string[] }, NEXT)).toEqual({ bullets: ['ok[2J'], more: false });
+  it('ignores stored highlights for another version range or of the wrong shape', () => {
+    const span = `${CURRENT}..${NEXT}`;
+    expect(knownHighlights({ highlightsFor: `${CURRENT}..9.9.9`, highlights: ['a'] }, CURRENT, NEXT)).toBeUndefined();
+    expect(knownHighlights({ highlightsFor: `0.0.1..${NEXT}`, highlights: ['a'] }, CURRENT, NEXT)).toBeUndefined();
+    expect(knownHighlights({ highlightsFor: span, highlights: 'a' as unknown as string[] }, CURRENT, NEXT)).toBeUndefined();
+    expect(knownHighlights({ highlightsFor: span, highlights: [1, 'ok\u001b[2J', ''] as unknown as string[] }, CURRENT, NEXT)).toEqual({ bullets: ['ok[2J'], more: false });
+  });
+
+  it('fetches the highlights again when the installed version changed', async () => {
+    const reg = registry(NEXT, NOTES);
+    await updateNotice(ctx({ fetch: reg.fn }));
+    await updateNotice(ctx({ fetch: reg.fn, now: 1_000_000_000_000 + DAY, current: '0.0.1' }));
+    expect(reg.rawCalls.length).toBe(2);
   });
 
   it('agents get their own once-a-day line asking them to tell the user', async () => {

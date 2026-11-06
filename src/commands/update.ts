@@ -86,7 +86,7 @@ async function update(o: { check?: boolean }, opts: CommandOptions, runner: Runn
   const cacheDir = cacheDirOf(opts);
   const state = { ...readState(cacheDir), checkedAt: opts.now?.().getTime() ?? Date.now(), latest };
   const notes = isNewer(latest, current) ? await fetchHighlights(opts.fetch ?? fetch, current, latest, 10_000) : undefined;
-  writeState(cacheDir, withHighlights(state, latest, notes));
+  writeState(cacheDir, withHighlights(state, current, latest, notes));
   if (!isNewer(latest, current)) {
     opts.stdout(`codechart ${current} is the newest version.\n`);
     if (!o.check) refreshInstalls(home, opts);
