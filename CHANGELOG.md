@@ -2,6 +2,19 @@
 
 What's new in each codechart release. Update with `codechart update`; the [releases page](https://github.com/freeleex/codechart/releases) has the same notes.
 
+## 0.6.0 (2026-11-06)
+
+### New
+
+- HTML: Light/Full switch in the header, remembered per browser. Light keeps the short diff preview; Full shows every change of a node so you can review without going back to your IDE.
+- HTML Full: hunks are foldable per file, with a `‹ 4 / 7 ›` stepper, `+ all` / `− all`; keys `n`/`p` hunk, `]`/`[` unreviewed node, `r` reviewed, `o`/`O` fold, `?` help.
+- HTML: review ticks, the `Reviewed` box and the `x/y reviewed` bar now live in Full mode.
+
+### Changed
+
+- Lockfiles, minified bundles, `dist/` and files marked `linguist-generated` show "generated file, not shown" instead of their diff. Full mode shows up to 1000 lines per file.
+- HTML diffs: the `+`/`−` sign has its own column and long lines wrap under the code, keeping their indent.
+
 ## 0.5.0 (2026-11-05)
 
 ### New
