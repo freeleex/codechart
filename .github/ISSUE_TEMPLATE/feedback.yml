@@ -17,4 +17,4 @@ body:
     id: agent
     attributes:
       label: Agent and codechart version
-      placeholder: Claude Code 2.x, codechart 0.6.0
+      placeholder: Claude Code 2.x, codechart 0.7.0

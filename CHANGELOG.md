@@ -2,6 +2,20 @@
 
 What's new in each codechart release. Update with `codechart update`; the [releases page](https://github.com/freeleex/codechart/releases) has the same notes.
 
+## 0.7.0 (2026-11-06)
+
+### New
+
+- HTML: Focus button (◎, or `f`) zooms in on the node you are reviewing and centres it; that node now has a soft blue glow so you can tell it from its lit neighbours.
+- HTML diffs: long runs of unchanged lines fold into "⋯ N unchanged lines" (click to open), and "⋯ N lines not in the diff" marks code between hunks.
+
+### Changed
+
+- HTML diffs look like GitHub's: full-row red/green tints, line numbers, a quiet header per hunk. Every hunk starts collapsed.
+- HTML: the Light/Full switch from 0.6.0 is gone; every page shows the full diff.
+- HTML panel: the review tickbox sits left of the node title, the file path shows once, and relations are two columns (← Used by, Uses →).
+- HTML header: the build time reads like `6 Nov 2026, 19:44`.
+
 ## 0.6.0 (2026-11-06)
 
 ### New

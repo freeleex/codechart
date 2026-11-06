@@ -6,11 +6,11 @@ export interface View {
   k: number;
 }
 
-const ZOOM_MAX = 2.5;
-const FILL = 0.6;
+const ZOOM_MAX = 1.5;
+const FILL = 0.35;
 const GLIDE_MS = 250;
 
-/** The view that centres a box and zooms it to fill about 60% of the pane, never past 2.5x. */
+/** The view that centres a box and zooms it to fill about 35% of the pane, never past 1.5x. */
 export function nodeView(b: { x: number; y: number; width: number; height: number }, pane: { width: number; height: number }): View {
   const k = Math.min(ZOOM_MAX, (pane.width * FILL) / (b.width || 1), (pane.height * FILL) / (b.height || 1));
   return { k, x: pane.width / 2 - (b.x + b.width / 2) * k, y: pane.height / 2 - (b.y + b.height / 2) * k };
