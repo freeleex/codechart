@@ -24,7 +24,8 @@ Guarantees:
 - Flow anchors must resolve inside the repo root: `..`, absolute paths and anchors whose real path leaves the repo (including via symlinks) are rejected, as are `.git` directories, devices and files over 5 MB; one render reads at most 25 MB. A symlink that stays inside the repo is accepted.
 - Output file names come from `[a-z0-9-]` slugs; prune deletes only generated files in the cache folder.
 - Inputs are bounded (string lengths, regex size, YAML aliases and depth, node and step counts).
-- Stored data: rendered HTML under the user cache dir. Summary pages hold diff hunks of the changed files (up to 1000 rows per file), minus files that look like secrets (`.env`, keys, `.npmrc`, credentials files, private-key blocks) and generated files (lockfiles, minified bundles, `dist/`, `linguist-generated`). No telemetry.
+- Stored data: rendered HTML under the user cache dir. Summary pages hold diff hunks of the changed files (up to 1000 rows per file), minus files that look like secrets (`.env`, keys, `.npmrc`, credentials files, private-key blocks) and generated files (lockfiles, minified bundles, `dist/`, `linguist-generated`). Each render also writes a `.review.json` beside it (0600, same folder and pruning) with the same diff lines and your review notes. No telemetry.
+- `codechart review` writes its document to a private temp folder (0700, removed afterwards) and opens it with `$VISUAL`/`$EDITOR`/`vi` through `sh -c`, as git does: the editor setting is yours and runs as a command; the file path is passed as an argument, never spliced in. Diff text and notes are stripped of control bytes before they are written, printed or copied; `feedback --copy` emits one OSC 52 sequence to stderr, only on a terminal.
 
 Details: `docs/security-review.md`.
 
@@ -36,7 +37,7 @@ Details: `docs/security-review.md`.
 
 ## Cache
 
-Rendered HTML lives in the user cache dir (`~/.cache/codechart` by default, `web.outDir`), and so does the map SVG of `render --pr` (one `<slug>.svg` per map title, overwritten on each render). Summary pages include diff hunks of changed files (not of files that look like secrets or are generated). Per repo, the newest 20 files and anything younger than `web.maxAgeDays` are kept. Purge with `rm -rf ~/.cache/codechart`.
+Rendered HTML lives in the user cache dir (`~/.cache/codechart` by default, `web.outDir`), and so does the map SVG of `render --pr` (one `<slug>.svg` per map title, overwritten on each render). Summary pages include diff hunks of changed files (not of files that look like secrets or are generated), and so do the `.review.json` files beside them, with your review notes. Per repo, the newest 20 files and anything younger than `web.maxAgeDays` are kept. Purge with `rm -rf ~/.cache/codechart`.
 
 ## Release integrity
 

@@ -52,7 +52,8 @@ async function run(args: string[], opts: Partial<ProgramOptions> = {}) {
 }
 
 const repoOut = () => join(out, repoFolder(repo));
-const written = () => (existsSync(repoOut()) ? readdirSync(repoOut()) : []);
+const pages = (dir: string) => readdirSync(dir).filter((n) => !n.endsWith('.review.json'));
+const written = () => (existsSync(repoOut()) ? pages(repoOut()) : []);
 const expectedFile = () => join(repoOut(), '20261028-090503-teams-table.html');
 
 const HEADER = '**Map** _(key: + new  ~ changed  - removed  ◆ config · unmarked = unchanged)_';
@@ -123,7 +124,7 @@ describe('codechart render', () => {
     const r = await run(['render', specFile(spec(9, { rules: ['db'] })), '--output', 'cli']);
     expect(r.out).toContain('9 nodes · 9 new');
     expect(r.out).not.toContain('full map');
-    expect(existsSync(out)).toBe(false);
+    expect(written()).toEqual([]);
   });
 
   it('fields section: shown with --output cli, absent with --output both', async () => {
@@ -178,7 +179,7 @@ describe('codechart render', () => {
     mkdirSync(plain);
     config('', plain);
     await run(['render', specFile(spec(2)), '--output', 'web'], { cwd: plain });
-    expect(readdirSync(join(out, repoFolder(plain)))).toHaveLength(1);
+    expect(pages(join(out, repoFolder(plain)))).toHaveLength(1);
   });
 
   it('same-named repos get separate HTML folders', async () => {
@@ -190,7 +191,7 @@ describe('codechart render', () => {
     expect(repoFolder(other)).not.toBe(repoFolder(repo));
     expect(repoFolder(repo)).toMatch(/^myrepo-[0-9a-f]{8}$/);
     expect(written()).toHaveLength(1);
-    expect(readdirSync(join(out, repoFolder(other)))).toHaveLength(1);
+    expect(pages(join(out, repoFolder(other)))).toHaveLength(1);
   });
 
   it('a page embeds its repo folder (name plus path hash) as the key for saved ticks', async () => {
@@ -219,7 +220,7 @@ describe('codechart render', () => {
     const r = await run(['render', specFile(spec(4))]);
     expect(r.out).toContain('4 nodes');
     expect(r.out).not.toContain('full map');
-    expect(existsSync(out)).toBe(false);
+    expect(written()).toEqual([]);
   });
 
   it('output auto, spec with >= 8 nodes -> HTML written', async () => {
@@ -243,7 +244,7 @@ describe('codechart render', () => {
     const s = spec(3);
     s.nodes[1]!.status = 'changed';
     await run(['render', specFile(s), '--output', 'cli']);
-    expect(existsSync(out)).toBe(false);
+    expect(written()).toEqual([]);
   });
 
   it('output auto, terminalMaxNodes 3 on a 5-node spec (hidden > 0) -> HTML written', async () => {
@@ -271,20 +272,20 @@ describe('codechart render', () => {
     it('short labels -> no HTML', async () => {
       const r = await run(['render', specFile(labelled('short'))]);
       expect(r.out).not.toContain('full map');
-      expect(existsSync(out)).toBe(false);
+      expect(written()).toEqual([]);
     });
 
     it('cli output cuts the label without writing HTML', async () => {
       const r = await run(['render', specFile(labelled(long)), '--output', 'cli']);
       expect(r.out).toContain('…');
       expect(r.out).not.toContain('full map');
-      expect(existsSync(out)).toBe(false);
+      expect(written()).toEqual([]);
     });
 
     it('a label containing … that fits -> no HTML', async () => {
       const r = await run(['render', specFile(labelled('wait… what'))]);
       expect(r.out).toContain('wait… what');
-      expect(existsSync(out)).toBe(false);
+      expect(written()).toEqual([]);
     });
   });
 
@@ -479,7 +480,7 @@ describe('codechart render (flow)', () => {
     const small = await run(['render', specFile(sampleFlow())]);
     expect(small.out).toContain('◇ output mode?');
     expect(small.out).not.toContain('full map');
-    expect(existsSync(out)).toBe(false);
+    expect(written()).toEqual([]);
     config('  minNodes: 5\n');
     const big = await run(['render', specFile(sampleFlow())]);
     expect(big.out).toContain('full map → file:');

@@ -1,7 +1,9 @@
 import { Command, CommanderError } from 'commander';
 import { checkCommand } from './commands/check.js';
+import { commentCommand } from './commands/comment.js';
 import { configCommand } from './commands/config.js';
 import { doctorCommand } from './commands/doctor.js';
+import { feedbackCommand } from './commands/feedback.js';
 import { hookCommand } from './commands/hook.js';
 import { initCommand } from './commands/init.js';
 import { prSyncCommand } from './commands/pr-sync.js';
@@ -9,6 +11,7 @@ import { setupPrMapsCommand } from './commands/setup-pr-maps.js';
 import { updateCommand } from './commands/update.js';
 import { installSkillCommand } from './commands/install-skill.js';
 import { renderCommand } from './commands/render.js';
+import { reviewCommand } from './commands/review.js';
 import { schemaCommand } from './commands/schema.js';
 import { uninstallCommand } from './commands/uninstall.js';
 import { loadConfig } from './config/load.js';
@@ -32,12 +35,16 @@ export interface ProgramOptions {
   /** Runs gh, glab or npm. */
   tool?: (command: string, args: string[]) => string;
   fetch?: typeof fetch;
+  /** Runs the editor `review` opens on a file with `$VISUAL`/`$EDITOR`/`vi`; returns its exit status. */
+  editor?: (command: string, file: string) => number;
+  /** Unsanitized stderr, for terminal escape codes (`feedback --copy`). */
+  rawStderr?: (s: string) => void;
   /** False turns off the daily new-version check (tests). */
   updateCheck?: boolean;
 }
 
 // Run by hooks and CI, or checking on their own.
-const NO_NOTICE = new Set(['hook', 'pr-sync', 'update', 'uninstall', 'doctor']);
+const NO_NOTICE = new Set(['hook', 'pr-sync', 'update', 'uninstall', 'doctor', 'comment', 'feedback']);
 
 async function noticeAfter(name: string, opts: ProgramOptions, stderr: (s: string) => void): Promise<void> {
   if (opts.updateCheck === false || NO_NOTICE.has(name)) return;
@@ -66,7 +73,7 @@ export function buildProgram(opts: ProgramOptions = {}): Command {
   const rawStderr = opts.stderr ?? ((s: string) => process.stderr.write(s));
   const stderr = (s: string) => rawStderr(sanitizeText(s));
   const program = new Command().name('codechart').version(currentVersion());
-  const cmdOpts = { ...opts, stdout, stderr };
+  const cmdOpts = { ...opts, stdout, stderr, rawStderr: opts.rawStderr ?? rawStderr };
   program.addCommand(checkCommand(cmdOpts));
   program.addCommand(renderCommand(cmdOpts));
   program.addCommand(schemaCommand(cmdOpts));
@@ -79,6 +86,9 @@ export function buildProgram(opts: ProgramOptions = {}): Command {
   program.addCommand(setupPrMapsCommand(cmdOpts));
   program.addCommand(updateCommand(cmdOpts));
   program.addCommand(doctorCommand(cmdOpts));
+  program.addCommand(reviewCommand(cmdOpts));
+  program.addCommand(commentCommand(cmdOpts));
+  program.addCommand(feedbackCommand(cmdOpts));
   program.hook('postAction', (_program, action) => noticeAfter(action.name(), cmdOpts, stderr));
   // addCommand does not inherit these settings
   for (const c of [program, ...program.commands]) {

@@ -1,8 +1,9 @@
-import { existsSync, readdirSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { stamp } from '../../src/render/output-path.js';
 import { pruneHtml } from '../../src/render/prune.js';
+import { writeReview } from '../../src/review/store.js';
 import { makeTempDir, removeTempDir } from '../helpers/sandbox.js';
 
 const DAY = 86_400_000;
@@ -23,7 +24,77 @@ function htmlAt(ago: number, slug: string): string {
 }
 const opts = { keep: 20, maxAgeDays: 7, now };
 
+function withBranch(html: string, branch: string, recorded = true): void {
+  writeReview(html.replace('.html', '.review.json'), {
+    version: 1,
+    change: { slug: 'teams', kind: 'map', branch, ...(recorded && { html }), renderedAt: now.toISOString() },
+    nodes: [],
+    notes: [],
+  });
+}
+
 describe('pruneHtml', () => {
+  it('replaceBranch: an older page of the slug is replaced only when it was drawn on that branch, or has no review file', () => {
+    const mine = htmlAt(60_000, 'teams');
+    withBranch(mine, 'a');
+    const theirs = htmlAt(120_000, 'teams');
+    withBranch(theirs, 'b');
+    const unknown = htmlAt(180_000, 'teams');
+    htmlAt(0, 'teams');
+    expect(pruneHtml(dir, { ...opts, replaceSlug: 'teams', replaceBranch: 'a' }).sort()).toEqual([mine, unknown].sort());
+    expect(existsSync(theirs)).toBe(true);
+    expect(existsSync(theirs.replace('.html', '.review.json'))).toBe(true);
+    expect(existsSync(mine.replace('.html', '.review.json'))).toBe(false);
+  });
+
+  /** A review file written by a render that made no page. */
+  const standalone = (ago: number, slug: string, branch = 'a') => {
+    const file = join(dir, `${stamp(new Date(now.getTime() - ago))}-${slug}.review.json`);
+    withBranch(file.replace('.review.json', '.html'), branch, false);
+    return file;
+  };
+
+  it('a review file written without a page is an entry, not an orphan', () => {
+    const only = standalone(60_000, 'teams');
+    pruneHtml(dir, opts);
+    expect(existsSync(only)).toBe(true);
+  });
+
+  it('a review file whose recorded page is gone is still swept', () => {
+    const page = htmlAt(60_000, 'teams');
+    withBranch(page, 'a');
+    rmSync(page);
+    pruneHtml(dir, opts);
+    expect(existsSync(page.replace('.html', '.review.json'))).toBe(false);
+  });
+
+  it('a pageless render replaces older review-only files of its branch, and leaves pages and other branches', () => {
+    const mine = standalone(120_000, 'teams');
+    const theirs = standalone(180_000, 'teams', 'b');
+    const page = htmlAt(60_000, 'teams');
+    withBranch(page, 'a');
+    standalone(0, 'teams');
+    pruneHtml(dir, { ...opts, replaceSlug: 'teams', replaceBranch: 'a', pageless: true });
+    expect(existsSync(mine)).toBe(false);
+    expect(existsSync(theirs)).toBe(true);
+    expect(existsSync(page)).toBe(true);
+  });
+
+  it('age and count pruning applies to review-only files', () => {
+    const old = standalone(8 * DAY, 'teams');
+    for (let i = 0; i < 20; i++) standalone(i * 1000, `s${i}`);
+    pruneHtml(dir, opts);
+    expect(existsSync(old)).toBe(false);
+    expect(readdirSync(dir)).toHaveLength(20);
+  });
+
+  it('age and count pruning still reach other branches', () => {
+    const old = htmlAt(8 * DAY, 'teams');
+    withBranch(old, 'b');
+    for (let i = 0; i < 20; i++) htmlAt(i * 1000, `s${i}`);
+    expect(pruneHtml(dir, { ...opts, replaceSlug: 'teams', replaceBranch: 'a' })).toEqual([old]);
+  });
+
   it('re-render same title -> earlier file for that slug deleted', () => {
     const old = htmlAt(60_000, 'teams');
     const other = htmlAt(60_000, 'other');

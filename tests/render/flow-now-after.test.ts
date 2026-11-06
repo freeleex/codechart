@@ -183,6 +183,7 @@ describe('plan flow terminal', () => {
       root: '/',
       cwd: '/',
       selection: {},
+      saveReview: () => {},
       write: async (build) => {
         written++;
         await build(meta);

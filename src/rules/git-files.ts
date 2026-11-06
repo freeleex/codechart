@@ -343,6 +343,15 @@ export function gitHead(cwd: string): string | undefined {
   }
 }
 
+/** The checked-out branch; `(detached)` on a bare commit, '' outside a repo or before the first commit on none. */
+export function gitBranch(cwd: string): string {
+  try {
+    return git(cwd, ['symbolic-ref', '--short', '-q', 'HEAD']).trim();
+  } catch {
+    return gitHead(cwd) ? '(detached)' : '';
+  }
+}
+
 /**
  * Each uncommitted file with its content hash (`deleted` when gone), to tell later which ones changed.
  * `--no-filters`: hashing must not run the repo's clean filters.

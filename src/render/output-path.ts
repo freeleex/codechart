@@ -4,6 +4,11 @@ import type { Config } from '../config/schema.js';
 
 export const HTML_NAME = /^(\d{8}-\d{6})-([a-z0-9-]+(?:\.flow)?)\.html$/;
 
+export const REVIEW_NAME = /^(\d{8}-\d{6}-[a-z0-9-]+(?:\.flow)?)\.review\.json$/;
+
+/** The review notes file that sits next to a page. */
+export const reviewFile = (html: string): string => html.replace(/\.html$/, '.review.json');
+
 const pad = (n: number) => String(n).padStart(2, '0');
 
 export function stamp(d: Date): string {

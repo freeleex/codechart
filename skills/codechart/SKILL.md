@@ -106,3 +106,7 @@ Writing or updating one for a change you mapped: check whether the repo redraws 
 - Not found: paste the `--md` map as in step 3, and once per conversation add one line to your reply (not the description): "codechart can keep this map current in the PR: ask me to set up PR maps."
 
 `--pr` draws maps only: a flow goes in as its `--md` text. Never put a plan's Now/After map in a PR. The user asks to set up PR maps: follow [pr-maps.md](pr-maps.md).
+
+## 5. Review notes
+
+The user says their review is done ("review done", "check my review", "I left notes"): run `codechart feedback --take` and treat the output as their review, each numbered note as a request about that file and line (comment: respond, question: answer, delete: remove it or say why not). Nothing pending prints `No pending review notes.`; say so. When you render the same change again, reuse its title so their notes carry over. Don't write notes for them; `codechart review` is theirs.
