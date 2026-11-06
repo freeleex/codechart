@@ -46,6 +46,18 @@ An invented branch is the worst failure: it destroys the user's trust in the too
 - Rendered with `--git`, `--since` or `--commit`, a summary's `new` or `changed` step whose file isn't in the diff gets a `✗` line (a warning; `--strict` exits 1).
 - Read the code you draw: flows have no context mode, and every anchor must be a line you actually saw.
 
+## Drift from the plan
+
+A summary written after a plan in this repo is compared with that plan (plans are kept a week, per branch). Reuse the plan's step ids so steps match; one with the same `source` (and `match`) matches too. Note the reason when you deviate, then list each deviation in the summary's `drift` (a plan rejects `drift`):
+
+```json
+"drift": [{ "step": "revoked", "cause": "cleaner-way", "why": "Checking expiry and revocation separately meant two database reads. Revocation is now part of the expiry check, so a revoked invite fails there with the same error." }]
+```
+
+- `cause`: `bug-found`, `wrong-assumption`, `user-asked`, `cleaner-way`, `out-of-scope`, `other`. `why`: the detailed reason the user reads when they open it, 1-3 plain sentences (max 400 characters): what you found, what you did instead, what it means for them. No jargon or ids.
+- Drifts: a `planned` step not built (or left `existing`), a `removed` step still there, a built `new` or `changed` step the plan lacks (or a `new` one it kept `existing`), a `changed` step the plan kept `existing`, or a planned link between built steps that isn't there.
+- A drift without an entry prints `✗ … no reason given` (`--strict` exits 1); an entry for a step that didn't drift is a warning.
+
 ## Rules and gaps
 
 - `rules`: the names of the rules that made you draw the flow (from `check`). For a flow the user asked for, leave `rules` out. Naming a map rule in a flow spec (or a flow rule in a map spec) is rejected.

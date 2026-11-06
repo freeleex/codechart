@@ -26,7 +26,9 @@ main{flex:1;display:flex;min-height:0}
 .pane-title{padding:4px 10px;font-size:11px;font-weight:600;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line)}
 .pane-key{font-weight:400;text-transform:none}.k-rem{color:var(--rem)}.k-new{color:var(--new-t)}.k-chg{color:var(--chg-t)}.k-cfg{color:var(--cfg-t)}
 @media (max-width:900px){#panes{flex-direction:column}.pane+.pane{border-left:0;border-top:1px solid var(--line)}}
-aside{width:clamp(300px,35vw,600px);min-width:300px;max-width:80vw;border-left:1px solid var(--line);background:var(--panel);overflow:auto;padding:10px 14px}
+aside{width:clamp(300px,35vw,600px);min-width:300px;max-width:80vw;border-left:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;overflow:hidden}
+#aside-scroll{flex:1;min-height:0;overflow:auto;padding:10px 14px}
+#panel-rel{flex:none;max-height:35vh;overflow:auto;padding:0 14px 10px;border-top:1px solid var(--line);background:var(--panel)}#panel-rel[hidden]{display:none}
 #resize{flex:none;width:5px;margin-right:-5px;position:relative;z-index:1;cursor:col-resize;touch-action:none}
 #resize:hover,#resize:focus-visible,#resize.drag{background:var(--edge);outline:none}
 #panel-nav{float:right;display:flex;gap:4px;margin:0 0 4px 8px}
@@ -34,8 +36,9 @@ aside{width:clamp(300px,35vw,600px);min-width:300px;max-width:80vw;border-left:1
 #panel-nav button:hover:not(:disabled){border-color:var(--edge)}#panel-nav button:disabled{opacity:.4;cursor:default}
 aside h2{margin:0 0 6px;font-size:13px;overflow-wrap:anywhere}
 aside .ptitle{display:flex;gap:7px;align-items:flex-start;min-height:26px;margin-bottom:8px;line-height:1.35}aside .ptitle input{flex:none;margin:2px 0 0}
+aside .phead{border-bottom:1px solid var(--line);padding-bottom:10px;margin-bottom:12px}aside .phead .ptitle{margin-bottom:0}aside .psub{margin:4px 0 0;color:var(--muted);font-size:12.5px;line-height:1.4}
 aside h3{margin:12px 0 4px;font-size:11px;text-transform:uppercase;color:var(--muted)}
-aside h3.ch-head{display:flex;justify-content:space-between;align-items:baseline}aside .ch-head .fh-stat{font:11px ui-monospace,monospace;text-transform:none}
+aside h3.ch-head{display:flex;justify-content:space-between;align-items:baseline}aside .ch-head .fh-stat{flex:none;font:11px ui-monospace,monospace;text-transform:none}aside .ch-head .ch-path{flex:1;min-width:0;margin:0 8px;font:400 11px ui-monospace,monospace;text-transform:none;color:var(--text);overflow-wrap:anywhere}
 aside h4{margin:0 0 2px;font-size:11px;font-weight:600;color:var(--muted)}
 aside ul{margin:0;padding-left:18px}
 aside .relations{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:6px 14px}
@@ -119,8 +122,6 @@ body.focus .node:not(.lit),body.focus .edge:not(.lit){--dim:.25}
 #next-unreviewed{padding:0 8px;font:10.5px/16px system-ui,sans-serif;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:10px;cursor:pointer}
 #next-unreviewed:disabled{opacity:.4;cursor:default}
 aside .file{margin:6px -14px}
-aside .file-head{display:flex;gap:8px;align-items:baseline;justify-content:space-between;margin:0 0 4px;padding:0 14px;color:var(--muted);font-size:11px}
-aside .file-head .path{min-width:0}
 aside .hunk{border-left:3px solid transparent}aside .hunk+.hunk{margin-top:4px}
 aside .hunk.cur{border-left-color:var(--edge)}
 aside .hh{display:flex;gap:8px;align-items:baseline;width:100%;padding:2px 14px 2px 5px;font:11px ui-monospace,monospace;color:var(--muted);background:var(--hh-bg);border:0;border-top:1px solid var(--hh-line);border-bottom:1px solid var(--hh-line);text-align:left;white-space:nowrap;overflow:hidden}

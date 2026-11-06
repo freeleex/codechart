@@ -7,6 +7,7 @@ import { renderBlocks } from './blocks.js';
 import { selectTerminalNodes } from './select.js';
 import { marker } from './labels.js';
 import { alertLine, countLines, type CheckSummary } from './check-lines.js';
+import { driftBlock, type DriftView } from './drift-lines.js';
 
 interface TerminalOptions {
   maxNodes: number;
@@ -15,6 +16,7 @@ interface TerminalOptions {
   color: boolean;
   keyLine?: boolean;
   check?: CheckSummary;
+  drift?: DriftView;
 }
 
 export const MIN_WIDTH = 20;
@@ -67,6 +69,8 @@ export function renderTerminalDetailed(spec: Spec, opts: TerminalOptions): { tex
   // Field details live in the HTML when there is one.
   const body = renderBlocks(spec, ids, ctx, !opts.htmlPath);
   if (body) sections.push(body);
+  const drift = driftBlock(opts.drift, ctx);
+  if (drift) sections.push(drift);
   sections.push(footer(spec, hidden, ctx, opts.keyLine ?? true));
   return { text: `${sections.join('\n\n')}\n`, truncated: ctx.cuts.truncated };
 }

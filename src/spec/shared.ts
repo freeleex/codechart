@@ -3,6 +3,8 @@ import { hasHiddenChars } from '../render/strip.js';
 
 export const SHORT = 200;
 const LONG = 2000;
+/** Room for 1-3 plain sentences. */
+const WHY = 400;
 const PATH = 1000;
 export const MAX_SPEC_BYTES = 2 * 1024 * 1024;
 
@@ -11,6 +13,29 @@ export const ident = () => short().refine((v) => !hasHiddenChars(v), 'must not c
 export const shortOpt = () => z.string().max(SHORT);
 export const long = () => z.string().max(LONG);
 export const pathStr = () => z.string().max(PATH);
+
+const DRIFT_CAUSES = ['bug-found', 'wrong-assumption', 'user-asked', 'cleaner-way', 'out-of-scope', 'other'] as const;
+export type DriftCause = (typeof DRIFT_CAUSES)[number];
+export const driftBase = {
+  cause: z.enum(DRIFT_CAUSES),
+  why: z
+    .string()
+    .min(1)
+    .max(WHY)
+    .refine((v) => !hasHiddenChars(v), 'must not contain control or invisible characters')
+    .describe('The detailed reason, 1-3 plain sentences: what you found, what you did instead, what it means for the user'),
+};
+
+/** `drift` explains a summary's differences from its plan: not allowed in a plan, one entry per id. */
+export function driftIssues(kind: 'plan' | 'summary', ids: readonly string[] | undefined, issue: (path: (string | number)[], message: string) => void): void {
+  if (ids === undefined) return;
+  if (kind === 'plan') return issue(['drift'], 'only in a summary: it says how the build differs from the plan');
+  const seen = new Set<string>();
+  ids.forEach((id, i) => {
+    if (seen.has(id)) issue(['drift', i], `duplicate "${id}"`);
+    seen.add(id);
+  });
+}
 
 // Catches ~96% of 7-char short SHAs; rare hex words with a digit (e.g. "cafe123") are rejected too, by choice.
 function hashToken(label: string): string | undefined {

@@ -182,6 +182,7 @@ describe('plan flow terminal', () => {
       md: false,
       root: '/',
       cwd: '/',
+      now: new Date(),
       selection: {},
       saveReview: () => {},
       write: async (build) => {

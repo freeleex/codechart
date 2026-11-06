@@ -128,7 +128,7 @@ describe('render: map checks', () => {
     expect(html).toContain('</h3><div class="file"><div class="snippet diff">');
     expect(html).toContain('<span class="d-del dr"><span class="ln">2</span><span class="sg">-</span><span class="cd" style="padding-left:4ch;text-indent:-4ch"><span class="ind">    </span>pass</span></span>');
     expect(html).toContain('<span class="d-add dr"><span class="ln">2</span><span class="sg">+</span><span class="cd" style="padding-left:4ch;text-indent:-4ch"><span class="ind">    </span>coupon = &quot;&lt;b&gt;&quot;</span></span>');
-    expect(html).toContain('<h3 class="ch-head">Changes<span class="fh-stat"><span class="n-add">+1</span> <span class="n-del">−1</span></span></h3>');
+    expect(html).toContain('<h3 class="ch-head">Changes<span class="ch-path">app/<wbr>orders.py</span><span class="fh-stat"><span class="n-add">+1</span> <span class="n-del">−1</span></span></h3>');
     expect(html).not.toContain('whole file');
     expect(html.match(/<h3 class="ch-head">/g)).toHaveLength(1);
     rmSync(out, { recursive: true, force: true });

@@ -100,13 +100,10 @@ function totals(p: Preview): string {
   return p.rows > p.lines.length ? `<span class="fh-stat">${count(p.total)}</span>` : counts(add, del, 'fh-stat');
 }
 
-/** Same file as the node's own path (which may carry `:line`), already shown under the panel title. */
-const samePath = (p: Preview, nodePath: string | undefined) => nodePath?.replace(/:\d+(?:-\d+)?$/, '').replace(/^\.\//, '') === p.path;
-
-/** The Changes section of a node panel: the hunks, foldable. `nodePath`: the path the panel already shows, so the file is named only when it differs. */
-export function changesHtml(p: Preview, nodePath?: string): string {
-  const title = '<h3>Changes</h3>';
-  if (p.note) return `${title}<p class="more">${esc(p.note)}</p>`;
+/** The Changes section of a node panel: its heading names the file, then the hunks, foldable. */
+export function changesHtml(p: Preview): string {
+  const file = `<span class="ch-path">${pathHtml(p.path)}</span>`;
+  if (p.note) return `<h3 class="ch-head">Changes${file}</h3><p class="more">${esc(p.note)}</p>`;
   const hunks = hunksOf(p.lines);
   const pager = hunks.length > 1 ? PAGER.replaceAll('{n}', String(hunks.length)) : '';
   let prev: Header | undefined;
@@ -116,7 +113,6 @@ export function changesHtml(p: Preview, nodePath?: string): string {
     prev = cur;
     return `<div class="hunk folded">${gap}${head(rows)}<code class="hunk-body">${bodyHtml(rows)}</code></div>`;
   });
-  const file = samePath(p, nodePath) ? '' : `<div class="file-head"><span class="path">${pathHtml(p.path)}</span></div>`;
   const cut = p.rows > p.lines.length ? `<p class="more">showing ${p.lines.length} of ${p.rows} lines</p>` : '';
-  return `<h3 class="ch-head">Changes${totals(p)}</h3>${pager}<div class="file">${file}<div class="snippet diff">${body.join('')}</div></div>${cut}`;
+  return `<h3 class="ch-head">Changes${file}${totals(p)}</h3>${pager}<div class="file"><div class="snippet diff">${body.join('')}</div></div>${cut}`;
 }

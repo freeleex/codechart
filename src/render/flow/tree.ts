@@ -5,6 +5,7 @@ import { columns, fit, flat, truncate, wrapItems, type Cuts, type Segment } from
 import { defaultWidth, fullMapLine, MIN_WIDTH } from '../terminal/render.js';
 import { walkFlow, type Arm, type Chain, type Item } from './walk.js';
 import { alertLine, countLines, webAlert, type CheckSummary } from '../terminal/check-lines.js';
+import { driftBlock, type DriftView } from '../terminal/drift-lines.js';
 
 export interface FlowTreeOptions {
   maxNodes: number;
@@ -13,6 +14,7 @@ export interface FlowTreeOptions {
   md?: boolean;
   htmlPath?: string;
   check?: CheckSummary;
+  drift?: DriftView;
 }
 
 type Status = FlowStep['status'];
@@ -155,7 +157,7 @@ export function renderFlowTree(spec: FlowSpec, opts: FlowTreeOptions): { text: s
   const alert = alertLine(opts.check, ctx.width);
   if (walk.blocks.length === 0) {
     // No footer here, so the unchecked-diff note rides with the alert.
-    const head = webAlert(opts.check, ctx.width);
+    const head = [webAlert(opts.check, ctx.width), driftBlock(opts.drift, ctx)].filter(Boolean).join('\n\n');
     const body = (line: string) => (head ? `${head}\n${line}` : line);
     if (!opts.htmlPath) return { text: md ? flowMarkdown(spec.title, body(TOO_LARGE), ctx, flowKey(spec)) : `${body(TOO_LARGE)}\n`, truncated: true };
     const text = md ? flowMarkdown(spec.title, head || undefined, ctx, flowKey(spec)) : `${body(fullMapLine(opts.htmlPath))}\n`;
@@ -167,7 +169,8 @@ export function renderFlowTree(spec: FlowSpec, opts: FlowTreeOptions): { text: s
     blocks[0] = `${truncate('planned flow', ctx.width)}\n${blocks[0]}`;
   }
   if (walk.unreachable > 0) blocks[blocks.length - 1] += `\n${truncate(cutText(walk.unreachable, ctx), ctx.width, ctx.cuts)}`;
-  const tree = [...(alert ? [alert] : []), ...blocks, footer(spec, ctx, md)].join('\n\n');
+  const drift = driftBlock(opts.drift, ctx);
+  const tree = [...(alert ? [alert] : []), ...blocks, ...(drift ? [drift] : []), footer(spec, ctx, md)].join('\n\n');
   const text = md ? flowMarkdown(spec.title, tree, ctx, flowKey(spec)) : `${tree}\n`;
   return { text, truncated: walk.truncated || ctx.cuts.truncated };
 }

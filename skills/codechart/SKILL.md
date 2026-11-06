@@ -42,7 +42,7 @@ codechart render --md - <<'EOF'
 EOF
 ```
 
-For a change summary, add the same `--git`/`--since`/`--commit`/`--head` you gave `check`. Commit or branch not checked out: add `--at '<sha or branch>'` so anchors are read from it. On errors, fix the spec and rerun. A `✗` line is a claim that doesn't match the code: if your spec was wrong (status, path), fix it and rerender; if the change really differs from what you said, keep the `✗` and say so. `✗ … not on map`: add a node or name the file in `omitted`. A summary footer saying `diff not checked`: you left out the flag, rerender with it. Stderr `no map drawn`/`no flow drawn`: skip it silently. Stderr `codechart <version> is available`: tell the user in one line at the end of your reply, once. Rare cases: [spec-guide.md](spec-guide.md), [flow-guide.md](flow-guide.md), `codechart schema [--flow]`.
+For a change summary, add the same `--git`/`--since`/`--commit`/`--head` you gave `check`. Commit or branch not checked out: add `--at '<sha or branch>'` so anchors are read from it. On errors, fix the spec and rerun. A `✗` line is a claim that doesn't match the code: if your spec was wrong (status, path), fix it and rerender; if the change really differs from what you said, keep the `✗` and say so. `✗ … not on map`: add a node or name the file in `omitted`. A summary footer saying `diff not checked`: you left out the flag, rerender with it. Stderr `no map drawn`/`no flow drawn`: skip it silently. Stderr `codechart <version> is available`: tell the user in one line at the end of your reply, once. Summary after a plan in this repo: reuse the plan's node/step ids, note the reason the moment you deviate (a bug found, a wrong assumption, the user's ask), and put each deviation in `drift`: `{ "node": "<id>", "cause": "bug-found"|"wrong-assumption"|"user-asked"|"cleaner-way"|"out-of-scope"|"other", "why": "<1-3 plain sentences: what you found, what you did instead, what it means for the user>" }` (`step` instead of `node` in a flow). A `Plan vs built` block then lists what was planned and not built (`−`), built and not planned (`+`), built differently (`~`); `✗ … no reason given`: add the `drift` entry and rerender, or say in your reply that you have none. Rare cases: [spec-guide.md](spec-guide.md), [flow-guide.md](flow-guide.md), `codechart schema [--flow]`.
 
 ### Flow (one behaviour each)
 
@@ -95,7 +95,7 @@ Draw only branches you saw in the code or (plan) will build; unverified ones go 
 
 1. One line: what the plan, change or flow is.
 2. Each render output verbatim, map first, all three parts as printed: the `**Map** _(key: …)_` or `**Flow** _(key: …)_` header on one line, the fenced block, the `[Open full map](…)` link if any.
-3. Prose: plan steps, tests, risks, open questions. The map replaces a list of changed files.
+3. Prose: plan steps, tests, risks, open questions; any `✗` line or drift still without a reason. The map replaces a list of changed files.
 
 Every diagram in the reply is the exact text of one successful render: never typed, redrawn or edited by hand. Copy every character, line break and space, the key too (keep entries that don't apply, like `? planned`). Never re-wrap, trim, unescape or summarise, and add no `**Map**`/`**Flow**` line of your own. Looks wrong or render fails: fix the spec and rerender; if you can't, say there is no diagram.
 

@@ -166,7 +166,8 @@ describe('Now and After HTML', () => {
     panes()[0]!.querySelector('.node[data-id="users"]')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     expect(document.querySelectorAll('.node.selected')).toHaveLength(2);
     const heads = [...document.querySelectorAll('#panel h3')].map((h) => h.textContent);
-    expect(heads).toEqual(['Fields now', 'Fields after', 'Relations']);
+    expect(heads).toEqual(['Fields now', 'Fields after']);
+    expect(document.querySelector('#panel-rel h3')!.textContent).toBe('Relations');
     expect(document.querySelector('#panel')!.textContent).toContain('role: text');
   });
 

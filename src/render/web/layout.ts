@@ -28,6 +28,8 @@ export interface LayoutEdge {
   to: string;
   label?: string;
   points: Point[];
+  /** Where ELK put the label, clear of the boxes. */
+  labelAt?: Point;
 }
 export interface Layout {
   direction: Direction;
@@ -113,6 +115,11 @@ function nodeHeight(label: string, fields: number, summary: string | undefined):
   return headerHeight(label) + LINE_HEIGHT * (fields + summaryLines);
 }
 
+/** The middle of an edge label ELK placed, in the page's frame. */
+function labelCenter(lab: { x?: number; y?: number; width?: number; height?: number } | undefined, origin: Point): Point | undefined {
+  return lab && { x: origin.x + (lab.x ?? 0) + (lab.width ?? 0) / 2, y: origin.y + (lab.y ?? 0) + (lab.height ?? 0) / 2 };
+}
+
 type Elk = InstanceType<typeof import('elkjs/lib/elk.bundled.js').default>;
 
 // Canvas on a 13-14" laptop (1440x800 viewport minus the side panel), then a half-screen split as tie-break.
@@ -154,7 +161,25 @@ export async function layoutSpec(spec: Spec, canvases?: Canvases): Promise<Layou
   return pickLayout(right, down, canvases);
 }
 
-// eslint-disable-next-line max-lines-per-function -- ratchet: one ELK pass; barely over
+function layoutEdge(e: ElkExtendedEdge, spec: Spec, containerOrigin: Map<string, Point>): LayoutEdge {
+  const idx = Number(e.id.slice(1));
+  const specEdge = spec.edges[idx]!;
+  const sec = e.sections?.[0];
+  const points = sec ? [sec.startPoint, ...(sec.bendPoints ?? []), sec.endPoint] : [];
+  // ELK reports section points in the frame of the edge's `container` (the common
+  // ancestor), even for edges declared on the root.
+  const origin = (e.container && containerOrigin.get(e.container)) || { x: 0, y: 0 };
+  const labelAt = labelCenter(e.labels?.[0], origin);
+  return {
+    index: idx,
+    from: specEdge.from,
+    to: specEdge.to,
+    ...(specEdge.label ? { label: specEdge.label } : {}),
+    ...(labelAt && { labelAt }),
+    points: points.map((p) => ({ x: p.x + origin.x, y: p.y + origin.y })),
+  };
+}
+
 async function layoutIn(elk: Elk, spec: Spec, direction: Direction): Promise<Layout> {
   const layers = [...new Set(spec.nodes.map((n) => n.layer))];
   const children: ElkNode[] = layers.map((layer) => ({
@@ -204,22 +229,7 @@ async function layoutIn(elk: Elk, spec: Spec, direction: Direction): Promise<Lay
     }
   }
 
-  const outEdges: LayoutEdge[] = (root.edges ?? []).map((e) => {
-    const idx = Number(e.id.slice(1));
-    const specEdge = spec.edges[idx]!;
-    const sec = e.sections?.[0];
-    const points = sec ? [sec.startPoint, ...(sec.bendPoints ?? []), sec.endPoint] : [];
-    // ELK reports section points in the frame of the edge's `container` (the common
-    // ancestor), even for edges declared on the root.
-    const origin = (e.container && containerOrigin.get(e.container)) || { x: 0, y: 0 };
-    return {
-      index: idx,
-      from: specEdge.from,
-      to: specEdge.to,
-      ...(specEdge.label ? { label: specEdge.label } : {}),
-      points: points.map((p) => ({ x: p.x + origin.x, y: p.y + origin.y })),
-    };
-  });
+  const outEdges = (root.edges ?? []).map((e) => layoutEdge(e, spec, containerOrigin));
 
   return { direction, width: root.width ?? 0, height: root.height ?? 0, groups, nodes, edges: outEdges };
 }

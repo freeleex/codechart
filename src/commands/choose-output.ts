@@ -1,6 +1,8 @@
 import type { Output } from '../config/schema.js';
 import type { CheckSummary } from '../render/terminal/check-lines.js';
 import type { Diff } from '../render/check.js';
+import type { Drift } from '../render/drift.js';
+import type { StoredPlan } from '../render/plan-store.js';
 import type { WrittenHtml, WriteHtml } from '../render/web/write.js';
 import type { ReviewSnapshot } from '../review/store.js';
 import type { GitSelection } from '../rules/selection.js';
@@ -24,6 +26,9 @@ export interface RenderContext {
   /** A summary rendered in a repo without a diff flag. */
   diffUnchecked?: boolean;
   selection: GitSelection;
+  now: Date;
+  /** The saved plan a summary is compared to. */
+  plan?: StoredPlan;
   write: WriteHtml;
   /** A render that wrote no page still saves its review file. */
   saveReview: (snapshot: () => ReviewSnapshot) => void;
@@ -34,6 +39,8 @@ export interface Rendered {
   text: string;
   check: CheckSummary;
   html?: WrittenHtml;
+  /** How a summary differs from its saved plan; none without one. */
+  drift?: Drift<unknown>;
 }
 
 type Terminal = { text: string; truncated: boolean };

@@ -79,7 +79,7 @@ describe('focus a node and its relations', () => {
 });
 
 describe('relations in the panel', () => {
-  const rows = () => qa<HTMLElement>('#panel .rel').map((b) => b.textContent);
+  const rows = () => qa<HTMLElement>('#panel-rel .rel').map((b) => b.textContent);
 
   it('lists incoming then outgoing links with their kind', () => {
     mount(panesPage);
@@ -90,7 +90,7 @@ describe('relations in the panel', () => {
   it('a row jumps to that node as a history visit', () => {
     mount(panesPage);
     click(node('users'));
-    click(qa('#panel .rel')[1]!);
+    click(qa('#panel-rel .rel')[1]!);
     expect(q('.node.selected').getAttribute('data-id')).toBe('teams');
     expect(location.hash).toBe('#node=teams');
     expect(litIds(1)).toEqual(['teams', 'users']);
@@ -102,7 +102,7 @@ describe('relations in the panel', () => {
     mount(panesPage);
     click(node('mailer'));
     expect(q('#panel h2').textContent).toContain('Mailer');
-    expect(q('#panel .relations')).toBeNull();
+    expect(q('#panel-rel .relations')).toBeNull();
   });
 
   it('flow steps list their links, labelled by the link', () => {

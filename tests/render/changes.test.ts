@@ -62,28 +62,27 @@ describe('changesHtml', () => {
     expect(CSS).not.toMatch(/\.hh\{[^}]*var\(--gap-bg\)/);
   });
 
-  it('the Changes heading carries +N −M; no file header or footer path for the node\'s own file', () => {
-    const html = changesHtml(diff(2, 2), 'src/a.ts');
-    expect(html.startsWith('<h3 class="ch-head">Changes<span class="fh-stat"><span class="n-add">+4</span> <span class="n-del">−4</span></span></h3>')).toBe(true);
+  it('the Changes heading names the file and carries +N −M; no file row or footer', () => {
+    const html = changesHtml(diff(2, 2));
+    expect(html.startsWith('<h3 class="ch-head">Changes<span class="ch-path">src/<wbr>a.ts</span><span class="fh-stat"><span class="n-add">+4</span> <span class="n-del">−4</span></span></h3>')).toBe(true);
     expect(html).not.toContain('file-head');
     expect(html).not.toContain('whole file');
     expect(html).not.toContain('changed lines');
-    expect(changesHtml(diff(1), 'src/a.ts:12-20')).not.toContain('file-head');
-    expect(changesHtml(diff(1), './src/a.ts')).not.toContain('file-head');
+    expect(CSS).not.toContain('file-head');
   });
 
-  it('names the file only when it is not the node\'s own path', () => {
-    expect(changesHtml(diff(1), 'src')).toContain('<div class="file-head"><span class="path">src/<wbr>a.ts</span></div>');
-    expect(changesHtml(diff(1))).toContain('file-head');
+  it('names the file in the heading of a note-only section too', () => {
+    const html = changesHtml({ path: 'src/a.ts', lines: [], total: 0, rows: 0, note: 'binary file' });
+    expect(html).toContain('<h3 class="ch-head">Changes<span class="ch-path">src/<wbr>a.ts</span></h3><p class="more">binary file</p>');
   });
 
   it('a capped file says so under the hunks and gives its total in the heading', () => {
     const big: Preview = { ...diff(1), rows: 5000, total: 9 };
-    const html = changesHtml(big, 'src/a.ts');
-    expect(html).toContain('Changes<span class="fh-stat">9 changed lines</span></h3>');
+    const html = changesHtml(big);
+    expect(html).toContain('Changes<span class="ch-path">src/<wbr>a.ts</span><span class="fh-stat">9 changed lines</span></h3>');
     expect(html).toContain(`<p class="more">showing ${big.lines.length} of 5000 lines</p>`);
     expect(changesHtml({ path: 'package-lock.json', lines: [], total: 0, rows: 0, note: 'generated file, not shown' })).toBe(
-      '<h3>Changes</h3><p class="more">generated file, not shown</p>',
+      '<h3 class="ch-head">Changes<span class="ch-path">package-lock.json</span></h3><p class="more">generated file, not shown</p>',
     );
   });
 
@@ -188,15 +187,16 @@ describe('page chrome of a diff page', () => {
     expect(node('tbl.orders').classList.contains('reviewed')).toBe(true);
   });
 
-  it('the panel names the node path once: the Changes section repeats neither it nor a footer', () => {
+  it('a panel with changes names the file once, in the Changes heading, with no separate path line', () => {
     mount(shopWith(new Map([['tbl.orders', parseDiff('shop/models/order.py', '@@ -1 +1 @@\n-a\n+b\n')]])));
     click(node('tbl.orders'));
     expect(qa('#panel .file-head')).toHaveLength(0);
     expect(q('#panel').textContent).not.toContain('whole file');
     expect(q('#panel').textContent?.match(/shop\/models\/order\.py/g)).toHaveLength(1);
-    mount(withDiffs());
-    click(node('tbl.orders'));
-    expect(qa('#panel .file-head')).toHaveLength(1);
+    expect(q('#panel .ch-head .ch-path').textContent).toBe('shop/models/order.py');
+    expect(qa('#panel > .path')).toHaveLength(0);
+    click(node('tbl.customers'));
+    expect(qa('#panel > .path')).toHaveLength(1);
   });
 });
 
@@ -232,7 +232,7 @@ describe('hunk keys', () => {
 
   it('stepping never scrolls the panel', () => {
     full();
-    const aside = q<HTMLElement>('aside');
+    const aside = q<HTMLElement>('#aside-scroll');
     aside.scrollTop = 123;
     for (const k of ['n', 'n', 'p']) key(k);
     for (let i = 0; i < 9; i++) key('n');

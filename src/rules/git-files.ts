@@ -352,6 +352,17 @@ export function gitBranch(cwd: string): string {
   }
 }
 
+/** Whether `base` (a full sha) is HEAD or one of its ancestors. */
+export function gitIsAncestor(cwd: string, base: string): boolean {
+  if (!/^[0-9a-f]{40,64}$/.test(base)) return false;
+  try {
+    git(cwd, ['merge-base', '--is-ancestor', base, 'HEAD']);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Each uncommitted file with its content hash (`deleted` when gone), to tell later which ones changed.
  * `--no-filters`: hashing must not run the repo's clean filters.

@@ -37,8 +37,9 @@ export const tickSvg = (x: number, y: number): string =>
   `<rect class="tick-box" x="${num(x - 6)}" y="${num(y - 6)}" width="12" height="12" rx="2"/>` +
   `<path class="tick-mark" d="M${num(x - 3)},${num(y)} L${num(x - 1)},${num(y + 3)} L${num(x + 3.5)},${num(y - 3)}"/></g>`;
 
-/** A panel's title with its Reviewed tickbox to the left, on the same line. */
-export const panelTitle = (id: string, text: string): string => `<h2 class="ptitle"><input type="checkbox" data-tick-for="${esc(id)}" aria-label="Reviewed"><span>${esc(text)}</span></h2>`;
+/** A panel's header: the title with its Reviewed tickbox to the left (a ghost has none), and `summary` as a subheader. */
+export const panelTitle = (id: string, text: string, tick = true, summary?: string): string =>
+  `<div class="phead"><h2 class="ptitle">${tick ? `<input type="checkbox" data-tick-for="${esc(id)}" aria-label="Reviewed">` : ''}<span>${esc(text)}</span></h2>${summary ? `<p class="psub">${esc(summary)}</p>` : ''}</div>`;
 
 interface Relation {
   out: boolean;
@@ -64,6 +65,9 @@ const relList = (rels: Relation[]) =>
   rels.length
     ? `<ul>${rels.map((r) => `<li><button type="button" class="rel" data-goto="${esc(r.id)}">${esc(r.label)}${r.kind ? ` (${esc(r.kind)})` : ''}</button></li>`).join('')}</ul>`
     : '<p class="rel-none">none</p>';
+
+/** A panel's body, then its relations in a `prel` block that the page moves into the footer pinned to the bottom of the side panel; none, no block. */
+export const panelShell = (body: string, relations: string): string => `${body}${relations ? `<div class="prel">${relations}</div>` : ''}`;
 
 /** Two columns that stack when the panel is narrow: what uses the node (incoming links) and what it uses (outgoing). */
 export function relationsHtml(rels: Relation[]): string {

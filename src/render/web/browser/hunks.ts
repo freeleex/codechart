@@ -56,7 +56,7 @@ interface Nav {
 }
 
 /** The current hunk of the open panel (the one with the blue bar) and the "end of node" note after the last. */
-function walker(panel: HTMLElement, aside: Element): Nav {
+function walker(panel: HTMLElement, scroller: Element): Nav {
   let cur: HTMLElement | null = null;
   let end: HTMLElement | null = null;
   const paint = () => paintCount(panel, cur);
@@ -107,7 +107,7 @@ function walker(panel: HTMLElement, aside: Element): Nav {
     reset() {
       cur = null;
       end = null;
-      aside.scrollTop = 0;
+      scroller.scrollTop = 0;
       paint();
     },
   };
@@ -115,7 +115,7 @@ function walker(panel: HTMLElement, aside: Element): Nav {
 
 /** Folding hunks and opening runs of unchanged lines by click, and the keys: n/p hunks, ]/[ unreviewed nodes, r reviewed, f zoom to the node, o/O fold, ? help. */
 export function initHunks(panel: HTMLElement, review: Review, zoomToNode: () => void): Hunks {
-  const nav = walker(panel, panel.closest('aside')!);
+  const nav = walker(panel, panel.closest('#aside-scroll')!);
   const help = document.getElementById('key-help')!;
   const toggleHelp = () => {
     help.hidden = !help.hidden;

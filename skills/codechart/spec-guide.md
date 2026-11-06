@@ -94,6 +94,18 @@ Warnings, not failures (`--strict` makes them exit 1). Each mismatch is named in
 - **In the diff:** in a summary rendered with `--git`, `--since` or `--commit`, every `new`, `changed` or `removed` node's file. `context` and `config` nodes are not checked against the diff.
 - **`match`:** found on exactly one line, when the file must exist.
 
+## Drift from the plan
+
+A summary written after a plan in this repo is compared with that plan (plans are kept a week, per branch). Reuse the plan's node ids so nodes match; one with the same `path` matches too. Note the reason when you deviate, then list each deviation in the summary's `drift` (a plan rejects `drift`):
+
+```json
+"drift": [{ "node": "memberships", "cause": "bug-found", "why": "Testing showed a user could join the same team twice. A unique index on user and team now stops that, so a repeated join request is rejected." }]
+```
+
+- `cause`: `bug-found`, `wrong-assumption`, `user-asked`, `cleaner-way`, `out-of-scope`, `other`. `why`: the detailed reason the user reads when they open it, 1-3 plain sentences (max 400 characters): what you found, what you did instead, what it means for them. No jargon or ids.
+- Drifts: a planned `new`/`changed`/`removed`/`config` node not built, a built one not planned, one built with another path, status or changed fields (name, `change`, type), or a planned `"change": "added"` edge between built nodes that isn't there. Labels, summaries and notes never count; `context` nodes are ignored.
+- A drift without an entry prints `✗ … no reason given` (`--strict` exits 1); an entry for a node that didn't drift is a warning.
+
 ## Edges
 
 ```json

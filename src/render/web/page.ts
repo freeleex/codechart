@@ -126,7 +126,7 @@ export function renderPage(p: PageParts): string {
 ${p.toolbar ? `<div id="toolbar">${p.toolbar}</div>\n` : ''}<main>
 ${body}
 <div id="resize" role="separator" aria-orientation="vertical" aria-label="Resize panel" tabindex="0" title="Drag to resize the panel"></div>
-<aside><nav id="panel-nav" aria-label="Panel history"><button id="nav-focus" type="button" disabled aria-label="Focus node (f)" title="Focus node (f)">◎</button><button id="nav-back" type="button" disabled aria-label="Back" title="Back (Alt+←)">←</button><button id="nav-forward" type="button" disabled aria-label="Forward" title="Forward (Alt+→)">→</button></nav>${p.aside}</aside>
+<aside><div id="aside-scroll"><nav id="panel-nav" aria-label="Panel history"><button id="nav-focus" type="button" disabled aria-label="Focus node (f)" title="Focus node (f)">◎</button><button id="nav-back" type="button" disabled aria-label="Back" title="Back (Alt+←)">←</button><button id="nav-forward" type="button" disabled aria-label="Forward" title="Forward (Alt+→)">→</button></nav>${p.aside}</div><div id="panel-rel" hidden></div></aside>
 </main>
 <div id="key-help" role="dialog" aria-label="Keys" hidden><b>Keys</b>${KEY_HELP.map((k) => `<div>${esc(k)}</div>`).join('')}</div>
 <script type="application/json" id="spec-data">${jsonForScript(data)}</script>

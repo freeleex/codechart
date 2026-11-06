@@ -8,6 +8,7 @@ import { initPanelResize } from './resize.js';
 import { startTrail, visitFromHash, type Trail, type Visit } from './history.js';
 import { initReview } from './review.js';
 import { load, save } from './store.js';
+import { expandDrift, gotoOf, initWhy } from './why.js';
 
 interface Drag {
   i: number;
@@ -25,6 +26,9 @@ const canvases = [...document.querySelectorAll<HTMLElement>('.canvas')];
 const vps = [...document.querySelectorAll<SVGGElement>('.viewport')];
 const panel = document.getElementById('panel')!;
 const info = document.getElementById('page-info')!;
+const rel = document.getElementById('panel-rel')!;
+/** A link from the differences list asks for its node's comparison open. */
+let expand = false;
 const infoBtn = document.getElementById('info-toggle');
 const focusBtn = document.getElementById('nav-focus') as HTMLButtonElement;
 
@@ -131,6 +135,7 @@ function initPaneLink(): void {
 function setInfo(on: boolean): void {
   info.hidden = !on;
   panel.hidden = on;
+  rel.hidden = on || !rel.hasChildNodes();
   if (infoBtn) infoBtn.setAttribute('aria-expanded', String(on));
 }
 
@@ -141,8 +146,13 @@ function open(v: Visit): void {
   select(tpl ? v : null);
   focus(tpl ? v : null);
   if (tpl) {
+    const filled = tpl.content.cloneNode(true) as DocumentFragment;
     panel.textContent = '';
-    panel.appendChild(tpl.content.cloneNode(true));
+    const footer = filled.querySelector('.prel');
+    rel.replaceChildren(...(footer?.childNodes ?? []));
+    footer?.remove();
+    panel.appendChild(filled);
+    if (expand) expandDrift(panel);
   }
   setInfo(!tpl);
   focusBtn.disabled = !tpl;
@@ -176,6 +186,12 @@ function goTo(id: string): void {
   reveal(id);
 }
 
+function goToExpanded(id: string, open: boolean): void {
+  expand = open;
+  goTo(id);
+  expand = false;
+}
+
 function initPanel(): void {
   const backBtn = document.getElementById('nav-back') as HTMLButtonElement;
   const forwardBtn = document.getElementById('nav-forward') as HTMLButtonElement;
@@ -199,14 +215,15 @@ function initPanel(): void {
     // At either end the browser's own shortcut takes over, leaving the page.
     if (e.key === 'ArrowLeft' ? trail.back() : trail.forward()) e.preventDefault();
   });
-  panel.addEventListener('click', (e) => {
-    const to = (e.target as Element).closest('[data-goto]')?.getAttribute('data-goto');
-    if (to) goTo(to);
-  });
+  for (const el of [panel, info, rel]) {
+    el.addEventListener('click', (e) => {
+      const link = gotoOf(e);
+      if (link) goToExpanded(link.id, link.expand);
+    });
+  }
   const showInfo = () => trail.go(null);
   if (infoBtn) infoBtn.addEventListener('click', showInfo);
-  const checkBtn = document.querySelector('header .check.bad');
-  if (checkBtn) checkBtn.addEventListener('click', showInfo);
+  document.querySelectorAll('header button.check').forEach((b) => b.addEventListener('click', showInfo));
   document.querySelectorAll<SVGGElement>('.node').forEach((g) => {
     const go = () => visit(g.getAttribute('data-id')!);
     g.addEventListener('click', () => {
@@ -246,6 +263,7 @@ window.addEventListener('resize', fit);
 fit();
 dismissFocus(canvases, () => moved);
 initChips();
+initWhy(panel);
 const review = initReview(data.repoKey, goTo);
 const hunks = initHunks(panel, review, zoomToSelected);
 initPanel();
