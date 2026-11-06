@@ -29,7 +29,7 @@ describe('review store', () => {
   it('writes <page>.review.json privately, with change and nodes', () => {
     const html = save(1);
     const file = html.replace('.html', '.review.json');
-    expect(statSync(file).mode & 0o777).toBe(0o600);
+    if (process.platform !== 'win32') expect(statSync(file).mode & 0o777).toBe(0o600);
     expect(readReview(file)).toMatchObject({ version: 1, change: { slug: 'invites', kind: 'map', branch: 'main', html }, nodes: [{ id: 'api' }, { id: 'mailer' }], notes: [] });
   });
 

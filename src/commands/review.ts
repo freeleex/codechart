@@ -10,13 +10,13 @@ import { mergeNotes } from '../review/merge.js';
 import { parseDoc } from '../review/parse.js';
 import { isStale } from '../review/snapshot.js';
 import { writeReview } from '../review/store.js';
-import { runEditor } from './review-editor.js';
+import { defaultEditor, runEditor } from './review-editor.js';
 import { guarded, locateChange } from './review-shared.js';
 
 /** Opens `text` in the editor and returns what it was left as; undefined when it was left as it was. The editor failing cancels. */
 function edit(file: string, text: string, opts: CommandOptions): string | undefined {
   const env = opts.env ?? process.env;
-  const editor = env.VISUAL || env.EDITOR || 'vi';
+  const editor = env.VISUAL || env.EDITOR || defaultEditor();
   writeFileSync(file, text, { mode: 0o600 });
   const status = (opts.editor ?? runEditor)(editor, file);
   if (status !== 0) throw new Error(`The editor (${editor}) exited with status ${status}, so nothing was saved.`);

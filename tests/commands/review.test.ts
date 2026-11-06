@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { ProgramOptions } from '../../src/program.js';
 import { repoFolder } from '../../src/render/output-path.js';
+import { defaultEditor } from '../../src/commands/review-editor.js';
 import { gitBranch } from '../../src/rules/git-files.js';
 import { readReview, saveReview, writeReview } from '../../src/review/store.js';
 import { git, makeSandbox, removeSandbox, runCli } from '../helpers/sandbox.js';
@@ -123,10 +124,10 @@ describe('codechart review', () => {
       return 0;
     };
     await run(['review'], { editor: spy, env: { VISUAL: 'code --wait', EDITOR: 'nano' } });
-    expect(seen[0]![1]).toMatch(/\/codechart-review-[^/]+\/orders\.diff$/);
+    expect(seen[0]![1]).toMatch(/[\\/]codechart-review-[^\\/]+[\\/]orders\.diff$/);
     await run(['review'], { editor: spy, env: { EDITOR: 'nano' } });
     await run(['review'], { editor: spy, env: {} });
-    expect(seen.map(([c]) => c)).toEqual(['code --wait', 'nano', 'vi']);
+    expect(seen.map(([c]) => c)).toEqual(['code --wait', 'nano', defaultEditor()]);
     expect(existsSync(seen[0]![1])).toBe(false);
   });
 
@@ -453,7 +454,7 @@ describe('a render with no page still saves its review file', () => {
     const r = await renderCli();
     expect(r.code).toBeUndefined();
     expect(files()).toEqual(['20261028-090503-orders.review.json']);
-    expect(statSync(join(dir(), files()[0]!)).mode & 0o777).toBe(0o600);
+    if (process.platform !== 'win32') expect(statSync(join(dir(), files()[0]!)).mode & 0o777).toBe(0o600);
     expect(current().change).not.toHaveProperty('html');
     expect(current()).toMatchObject({ change: { slug: 'orders', title: 'Orders' }, nodes: [{ id: 'Order', lines: expect.any(Array) }, { id: 'Queue' }] });
     expect((await run(['review', '--print'])).out).toContain('## Order — app/orders.py  [Order]');
