@@ -26,8 +26,10 @@ function hunksOf(lines: Line[]): Line[][] {
 const PAGER =
   '<div class="pager fo" role="group" aria-label="Hunks">' +
   '<button type="button" class="pg-prev" aria-label="Previous hunk" title="Previous hunk (p)">\u2039</button>' +
-  '<span class="pg-count" aria-live="polite">{n} hunks</span>' +
+  '<span class="pg-count" role="status" aria-label="{n} hunks">\u2013 / {n}</span>' +
   '<button type="button" class="pg-next" aria-label="Next hunk" title="Next hunk (n)">\u203a</button>' +
+  '<button type="button" class="pg-all pg-expand" aria-label="Expand all" title="Expand all hunks">+ all</button>' +
+  '<button type="button" class="pg-all pg-collapse" aria-label="Collapse all" title="Collapse all hunks">\u2212 all</button>' +
   '<button type="button" class="pg-keys" aria-label="Show keys" title="Keys">? keys</button></div>';
 
 const count = (n: number) => `${n} changed line${n === 1 ? '' : 's'}`;
@@ -54,7 +56,7 @@ export function changesHtml(p: Preview): string {
   const title = '<h3>Changes</h3>';
   if (p.note) return `${title}<p class="more">${esc(p.note)}</p>`;
   const hunks = hunksOf(p.lines);
-  const pager = hunks.length > 1 ? PAGER.replace('{n}', String(hunks.length)) : '';
+  const pager = hunks.length > 1 ? PAGER.replaceAll('{n}', String(hunks.length)) : '';
   const folded = p.total > SMALL_LINES || hunks.length > SMALL_HUNKS;
   let before = 0;
   let lightChanged = 0;
@@ -67,7 +69,7 @@ export function changesHtml(p: Preview): string {
         const fo = inLight(j) ? '' : 'fo';
         if (l.kind === 'hunk') return codeRow(undefined, esc(l.text), 'd-hunk', `lo ${fo}`.trim());
         if (fo === '' && l.kind !== 'ctx') lightChanged++;
-        return codeRow(l.n, esc(MARK[l.kind] + l.text), `d-${l.kind}`, fo);
+        return codeRow(l.n, esc(l.text), `d-${l.kind}`, fo, MARK[l.kind]);
       })
       .join('\n');
     return `<div class="hunk${folded ? ' folded' : ''}${inLight(0) ? '' : ' fo'}">${summary(rows, folded)}<code class="hunk-body">${html}</code></div>`;

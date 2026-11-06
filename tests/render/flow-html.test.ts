@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { renderFlowHtml } from '../../src/render/flow/html.js';
+import { codeRow, renderFlowHtml } from '../../src/render/flow/html.js';
 import { layoutFlow } from '../../src/render/flow/layout.js';
 import { sampleFlow, sampleSnippets } from './flow-fixture.js';
 
@@ -142,6 +142,10 @@ describe('renderFlowHtml', () => {
     expect(tpl).toContain('<div class="path">src/<wbr>render.ts:10-12</div>');
     expect(tpl).toContain('<span class="ln">10</span><span>const a = 1;</span>');
     expect(tpl).toContain('<span class="ln">12</span><span>return a;</span>');
+  });
+
+  it('a snippet line keeps its indentation as text with a hanging indent', () => {
+    expect(codeRow(3, '  x')).toBe('<span class="ln">3</span><span style="padding-left:2ch;text-indent:-2ch"><span class="ind">  </span>x</span>');
   });
 
   it('decision panel lists branches with their snippets', async () => {

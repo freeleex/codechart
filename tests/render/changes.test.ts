@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { parseDiff, type Preview } from '../../src/render/preview.js';
 import { changesHtml } from '../../src/render/web/changes.js';
+import { CSS } from '../../src/render/web/styles.js';
 import { click, flowPage, mount, node, panesPage, q, qa, shopPage, shopWith, usePages } from '../helpers/page.js';
 
 usePages();
@@ -36,9 +37,24 @@ describe('changesHtml', () => {
 
   it('Light keeps 40 rows: later rows of the last hunk are Full only', () => {
     const html = changesHtml(parseDiff('a', `@@ -0,0 +1,100 @@\n${Array.from({ length: 100 }, (_, i) => `+l${i}`).join('\n')}`));
-    expect(html.match(/class="d-add">\+l/g)).toHaveLength(39);
-    expect(html.match(/class="d-add fo">\+l/g)).toHaveLength(61);
+    expect(html.match(/class="d-add dr"><span class="sg">\+<\/span><span class="cd">l/g)).toHaveLength(39);
+    expect(html.match(/class="d-add dr fo"><span class="sg">\+<\/span><span class="cd">l/g)).toHaveLength(61);
     expect(html).toContain('showing 39 of 100 changed lines');
+  });
+
+  it('leading indentation stays as text in a pre span and sets a hanging indent, tabs count 4', () => {
+    const html = changesHtml(parseDiff('a', '@@ -0,0 +1,3 @@\n+    deep\n+\ttab\n+flush'));
+    expect(html).toContain('<span class="cd" style="padding-left:4ch;text-indent:-4ch"><span class="ind">    </span>deep</span>');
+    expect(html).toContain('<span class="cd" style="padding-left:4ch;text-indent:-4ch"><span class="ind">\t</span>tab</span>');
+    expect(html).toContain('<span class="cd">flush</span>');
+    const el = document.createElement('div');
+    el.innerHTML = html;
+    expect([...el.querySelectorAll('.cd')].map((c) => c.textContent)).toEqual(['    deep', '\ttab', 'flush']);
+    expect(CSS).toContain('aside .ind{white-space:pre;tab-size:4}');
+  });
+
+  it('the sign column keeps a 1ch gap from the code', () => {
+    expect(CSS).toContain('aside .dr .sg{flex:none;width:1ch;margin-right:1ch;');
   });
 
   it('a hunk folds to one line: counts, line, function, first change', () => {
@@ -59,7 +75,7 @@ describe('changesHtml', () => {
     const html = changesHtml(diff(2));
     expect(html).toContain('<div class="pager fo" role="group" aria-label="Hunks">');
     expect(html).toContain('aria-label="Previous hunk"');
-    expect(html).toContain('<span class="pg-count" aria-live="polite">2 hunks</span>');
+    expect(html).toContain('<span class="pg-count" role="status" aria-label="2 hunks">– / 2</span>');
     expect(html).toContain('aria-label="Next hunk"');
     expect(html).toContain('? keys</button>');
     expect(changesHtml(diff(1))).not.toContain('pager');
@@ -162,15 +178,28 @@ describe('hunk keys', () => {
     expect(current()).toEqual([7]);
   });
 
-  it('n scrolls the hunk to the top of the panel', () => {
+  it('stepping never scrolls the panel', () => {
     full();
     const aside = q<HTMLElement>('aside');
-    const top = (e: Element) => (e === aside ? 0 : 500);
-    hunks()[0]!.getBoundingClientRect = () => ({ top: top(hunks()[0]!) }) as DOMRect;
-    aside.getBoundingClientRect = () => ({ top: 100 }) as DOMRect;
-    aside.scrollTop = 0;
+    aside.scrollTop = 123;
+    for (const k of ['n', 'n', 'p']) key(k);
+    for (let i = 0; i < 9; i++) key('n');
+    expect(aside.scrollTop).toBe(123);
+  });
+
+  it('stepping is an accordion: the target opens, every other hunk folds; clicking a summary only toggles that hunk', () => {
+    full();
+    key('O');
+    expect(folded().every((f) => !f)).toBe(true);
     key('n');
-    expect(aside.scrollTop).toBe(500 - 100 - 6);
+    expect(folded()).toEqual([false, true, true, true, true, true, true, true]);
+    key('n');
+    expect(folded()).toEqual([true, false, true, true, true, true, true, true]);
+    key('p');
+    expect(folded()).toEqual([false, true, true, true, true, true, true, true]);
+    click(q('#panel .hunk:nth-of-type(4) .hunk-sum'));
+    click(q('#panel .hunk:nth-of-type(5) .hunk-sum'));
+    expect(folded()).toEqual([false, true, true, false, false, true, true, true]);
   });
 
   it('o folds the current hunk, O all or opens all', () => {
@@ -274,33 +303,34 @@ describe('hunk pager', () => {
 
   it('shows the hunk count, none current; a node with 2 hunks has it, a node with 0 or 1 does not', () => {
     open();
-    expect(count()).toBe('8 hunks');
+    expect(count()).toBe('– / 8');
     expect(q('#panel .pager').classList.contains('fo')).toBe(true);
     click(node('tbl.invoices'));
-    expect(count()).toBe('2 hunks');
+    expect(count()).toBe('– / 2');
     click(node('tbl.customers'));
     expect(qa('#panel .pager')).toHaveLength(0);
   });
 
-  it('the buttons do what n and p do, and the count follows', () => {
+  it('the buttons do what n and p do, and the count follows, with a spoken label', () => {
     open();
     click(q('#panel .pg-next'));
     click(q('#panel .pg-next'));
-    expect(count()).toBe('hunk 2 of 8');
+    expect(count()).toBe('2 / 8');
+    expect(q('#panel .pg-count').getAttribute('aria-label')).toBe('hunk 2 of 8');
     expect(current()).toEqual([1]);
     expect(folded()[1]).toBe(false);
     click(q('#panel .pg-prev'));
-    expect(count()).toBe('hunk 1 of 8');
+    expect(count()).toBe('1 / 8');
     key('n');
-    expect(count()).toBe('hunk 2 of 8');
+    expect(count()).toBe('2 / 8');
     key('p');
-    expect(count()).toBe('hunk 1 of 8');
+    expect(count()).toBe('1 / 8');
   });
 
   it('› past the last hunk shows the end note and keeps the count', () => {
     open();
     for (let i = 0; i < 9; i++) click(q('#panel .pg-next'));
-    expect(count()).toBe('hunk 8 of 8');
+    expect(count()).toBe('8 / 8');
     expect(qa('#panel .hunk-end')).toHaveLength(1);
     click(q('#panel .pg-prev'));
     expect(qa('#panel .hunk-end')).toHaveLength(0);
@@ -309,12 +339,26 @@ describe('hunk pager', () => {
   it('clicking a hunk line updates the count; a new panel resets it', () => {
     open();
     click(q('#panel .hunk:nth-of-type(3) .hunk-sum'));
-    expect(count()).toBe('hunk 3 of 8');
+    expect(count()).toBe('3 / 8');
     click(node('tbl.invoices'));
-    expect(count()).toBe('2 hunks');
+    expect(count()).toBe('– / 2');
     click(node('tbl.orders'));
-    expect(count()).toBe('8 hunks');
+    expect(count()).toBe('– / 8');
     expect(current()).toEqual([]);
+  });
+
+  it('Expand all and Collapse all open or fold every hunk, no toggling, and only a node with 2+ hunks has them', () => {
+    open();
+    expect(q('#panel .pg-expand').getAttribute('aria-label')).toBe('Expand all');
+    expect(q('#panel .pg-collapse').getAttribute('aria-label')).toBe('Collapse all');
+    click(q('#panel .pg-expand'));
+    click(q('#panel .pg-expand'));
+    expect(folded().every((f) => !f)).toBe(true);
+    click(q('#panel .pg-collapse'));
+    click(q('#panel .pg-collapse'));
+    expect(folded().every(Boolean)).toBe(true);
+    click(node('tbl.customers'));
+    expect(qa('#panel .pg-expand, #panel .pg-collapse')).toHaveLength(0);
   });
 
   it('? keys toggles the key help', () => {
