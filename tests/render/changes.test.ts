@@ -42,11 +42,15 @@ describe('changesHtml', () => {
     expect(html).toContain('showing 39 of 100 changed lines');
   });
 
-  it('leading indentation becomes padding on the code cell, tabs count 4', () => {
+  it('leading indentation stays as text in a pre span and sets a hanging indent, tabs count 4', () => {
     const html = changesHtml(parseDiff('a', '@@ -0,0 +1,3 @@\n+    deep\n+\ttab\n+flush'));
-    expect(html).toContain('<span class="cd" style="padding-left:4ch">deep</span>');
-    expect(html).toContain('<span class="cd" style="padding-left:4ch">tab</span>');
+    expect(html).toContain('<span class="cd" style="padding-left:4ch;text-indent:-4ch"><span class="ind">    </span>deep</span>');
+    expect(html).toContain('<span class="cd" style="padding-left:4ch;text-indent:-4ch"><span class="ind">\t</span>tab</span>');
     expect(html).toContain('<span class="cd">flush</span>');
+    const el = document.createElement('div');
+    el.innerHTML = html;
+    expect([...el.querySelectorAll('.cd')].map((c) => c.textContent)).toEqual(['    deep', '\ttab', 'flush']);
+    expect(CSS).toContain('aside .ind{white-space:pre;tab-size:4}');
   });
 
   it('the sign column keeps a 1ch gap from the code', () => {

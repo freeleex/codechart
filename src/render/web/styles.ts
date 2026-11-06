@@ -44,7 +44,7 @@ aside .path{font-family:ui-monospace,monospace;font-size:11px;overflow-wrap:anyw
 aside .snippet{font:11px/1.45 ui-monospace,monospace;background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:6px 8px;margin:6px 0;white-space:pre-wrap;overflow-wrap:anywhere}
 aside .snippet code{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:10px}
 aside .snippet .ln{min-width:3ch;color:var(--muted);text-align:right;user-select:none}
-aside .dr{display:flex}aside .dr .sg{flex:none;width:1ch;margin-right:1ch;user-select:none}aside .dr .cd{flex:1;min-width:0;white-space:pre-wrap;overflow-wrap:anywhere}
+aside .dr{display:flex}aside .dr .sg{flex:none;width:1ch;margin-right:1ch;user-select:none}aside .ind{white-space:pre;tab-size:4}aside .dr .cd{flex:1;min-width:0;white-space:pre-wrap;overflow-wrap:anywhere}
 aside .d-add{color:var(--add)}aside .d-del{color:var(--rem)}aside .d-hunk{color:var(--muted)}
 aside .mismatch-note{color:var(--rem);margin:6px 0}
 aside .mismatch-why{color:var(--muted);font-size:11.5px;margin:0 0 6px}

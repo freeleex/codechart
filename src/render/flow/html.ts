@@ -92,18 +92,19 @@ export const pathHtml = (p: string) => esc(p).replaceAll('/', '/<wbr>');
 
 const TAB = 4;
 
-/** Leading whitespace as a column count, so it can be padding: a wrapped line then hangs under its own indent. */
+/** The leading whitespace stays real text (copy keeps it); its width also sets a hanging indent so a wrapped line sits under the code. */
 const splitIndent = (code: string): [number, string] => {
   const rest = code.trimStart();
   const lead = code.slice(0, code.length - rest.length);
-  return [[...lead].reduce((w, c) => w + (c === '\t' ? TAB : 1), 0), rest];
+  const width = [...lead].reduce((w, c) => w + (c === '\t' ? TAB : 1), 0);
+  return [width, lead ? `<span class="ind">${lead}</span>${rest}` : rest];
 };
 
 /** One code row; the number gets its own grid column so a wrapped line hangs under the code, and a diff sign its own column inside the code cell. */
 export const codeRow = (n: number | undefined, code: string, cls?: string, extra = '', sign?: string) => {
   const both = (c?: string) => (c || extra ? ` class="${[c, extra].filter(Boolean).join(' ')}"` : '');
   const [indent, text] = n === undefined ? [0, code] : splitIndent(code);
-  const pad = indent ? ` style="padding-left:${indent}ch"` : '';
+  const pad = indent ? ` style="padding-left:${indent}ch;text-indent:-${indent}ch"` : '';
   const ln = `<span${both('ln')}>${n ?? ''}</span>`;
   if (sign === undefined) return `${ln}<span${both(cls)}${pad}>${text}</span>`;
   return `${ln}<span${both(`${cls} dr`)}><span class="sg">${sign}</span><span class="cd"${pad}>${text}</span></span>`;

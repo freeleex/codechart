@@ -126,8 +126,8 @@ describe('render: map checks', () => {
     await run(['render', specFile(spec), '--git', '--output', 'web']);
     const html = htmlFile();
     expect(html).toContain('<h3>Changes</h3><div class="file">');
-    expect(html).toContain('<span class="ln">2</span><span class="d-del dr"><span class="sg">-</span><span class="cd" style="padding-left:4ch">pass</span></span>');
-    expect(html).toContain('<span class="ln">2</span><span class="d-add dr"><span class="sg">+</span><span class="cd" style="padding-left:4ch">coupon = &quot;&lt;b&gt;&quot;</span></span>');
+    expect(html).toContain('<span class="ln">2</span><span class="d-del dr"><span class="sg">-</span><span class="cd" style="padding-left:4ch;text-indent:-4ch"><span class="ind">    </span>pass</span></span>');
+    expect(html).toContain('<span class="ln">2</span><span class="d-add dr"><span class="sg">+</span><span class="cd" style="padding-left:4ch;text-indent:-4ch"><span class="ind">    </span>coupon = &quot;&lt;b&gt;&quot;</span></span>');
     expect(html).toContain('<span class="lo">2 changed lines</span><span class="fo">2 changed lines</span> · whole file: <span class="path">app/<wbr>orders.py</span>');
     expect(html.match(/<h3>Changes<\/h3>/g)).toHaveLength(1);
     rmSync(out, { recursive: true, force: true });

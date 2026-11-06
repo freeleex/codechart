@@ -144,8 +144,8 @@ describe('renderFlowHtml', () => {
     expect(tpl).toContain('<span class="ln">12</span><span>return a;</span>');
   });
 
-  it('a snippet line keeps its indentation as padding', () => {
-    expect(codeRow(3, '  x')).toBe('<span class="ln">3</span><span style="padding-left:2ch">x</span>');
+  it('a snippet line keeps its indentation as text with a hanging indent', () => {
+    expect(codeRow(3, '  x')).toBe('<span class="ln">3</span><span style="padding-left:2ch;text-indent:-2ch"><span class="ind">  </span>x</span>');
   });
 
   it('decision panel lists branches with their snippets', async () => {
