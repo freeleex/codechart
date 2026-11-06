@@ -7,7 +7,7 @@ import { colorDoc } from '../review/color.js';
 import { buildDoc } from '../review/doc.js';
 import { countsLine } from '../review/feedback.js';
 import { mergeNotes } from '../review/merge.js';
-import { parseDoc } from '../review/parse.js';
+import { normalizeEol, parseDoc } from '../review/parse.js';
 import { isStale } from '../review/snapshot.js';
 import { updateReview } from '../review/store.js';
 import { defaultEditor, runEditor } from './review-editor.js';
@@ -21,7 +21,7 @@ function edit(file: string, text: string, opts: CommandOptions): string | undefi
   const status = (opts.editor ?? runEditor)(editor, file);
   if (status !== 0) throw new Error(`The editor (${editor}) exited with status ${status}, so nothing was saved.`);
   const after = readFileSync(file, 'utf8');
-  return after === text ? undefined : after;
+  return normalizeEol(after) === text ? undefined : after;
 }
 
 async function review(o: { change?: string; print?: boolean }, opts: CommandOptions): Promise<void> {
@@ -38,6 +38,10 @@ async function review(o: { change?: string; print?: boolean }, opts: CommandOpti
     if (after === undefined) return opts.stdout('No changes, nothing saved.\n');
     const parsed = parseDoc(after, r, opts.now?.() ?? new Date());
     for (const w of parsed.warnings) opts.stderr(`codechart: ${w}\n`);
+    if (parsed.skipped > 0) {
+      keep = true;
+      throw new Error(`Some notes could not be read (see above); nothing saved. Your notes are kept in ${file}`);
+    }
     // The change may have been re-rendered or read by the agent while the editor was open, and the branch switched:
     // look again on the branch it was opened on, and merge into the file as it is now.
     let saved;

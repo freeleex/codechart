@@ -113,7 +113,7 @@ describe('parseDoc', () => {
       note('n3', { kind: 'delete', body: 'drop it', anchor: anchor('old', 11, '  const email = req.body.email') }),
     ];
     const r = review(notes);
-    expect(parseDoc(buildDoc(r), r, now)).toEqual({ notes: [notes[2], notes[1], notes[0]], warnings: [] });
+    expect(parseDoc(buildDoc(r), r, now)).toEqual({ notes: [notes[2], notes[1], notes[0]], warnings: [], skipped: 0 });
   });
 
   it('kinds: > comment, >? question, >del delete; body trimmed', () => {
@@ -136,6 +136,20 @@ describe('parseDoc', () => {
       anchor('old', 11, '  const email = req.body.email'),
       anchor('new', 12, '  await invite(email, teamId)'),
     ]);
+  });
+
+  it('CRLF and CR line endings parse like LF, and nothing is skipped', () => {
+    const doc = edit(base, '[api]', '> a', '>? b');
+    const lf = parseDoc(doc, review(), now);
+    expect(parseDoc(doc.replace(/\n/g, '\r\n'), review(), now)).toEqual(lf);
+    expect(parseDoc(doc.replace(/\n/g, '\r'), review(), now)).toEqual(lf);
+    expect(lf.notes).toHaveLength(2);
+    expect(lf.skipped).toBe(0);
+  });
+
+  it('counts the notes it could not place, not the empty ones', () => {
+    const { skipped } = parseDoc(`> one\n>\n${edit(base, '[queue]', '> ok')}\n## [ghost] g\n> two\n`, review(), now);
+    expect(skipped).toBe(2);
   });
 
   it('the old heading form, ## [id] label, still names its node', () => {

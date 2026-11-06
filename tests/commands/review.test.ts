@@ -172,11 +172,67 @@ describe('codechart review', () => {
     expect(current().notes).toEqual([]);
   });
 
-  it('a note outside any node is dropped with a warning; the rest is saved', async () => {
+  it('a note that cannot be placed: nothing saved, exit 1, the edited document kept and its path printed', async () => {
     await render();
-    const r = await run(['review'], { editor: (_c, f) => (writeFileSync(f, `> early\n${readFileSync(f, 'utf8')}`), 0) });
-    expect(r.err).toBe("codechart: Line 1: this note isn't under a node, so it was skipped\n");
+    await run(['comment', 'Queue', 'existing']);
+    let doc = '';
+    const r = await run(['review'], {
+      editor: (_c, f) => {
+        doc = f;
+        writeFileSync(f, `> early\n${readFileSync(f, 'utf8')}`.replace('> existing', '> existing\n> typed'));
+        return 0;
+      },
+    });
+    expect(r.code).toBe(1);
+    expect(r.err).toContain("Line 1: this note isn't under a node, so it was skipped");
+    expect(r.err).toContain(`Some notes could not be read (see above); nothing saved. Your notes are kept in ${doc}`);
+    expect(readFileSync(doc, 'utf8')).toContain('> typed');
+    expect(current().notes.map((n) => n.body)).toEqual(['existing']);
+    rmSync(join(doc, '..'), { recursive: true });
+  });
+
+  it('a heading without notes that cannot be read only warns', async () => {
+    await render();
+    const r = await run(['review'], { editor: (_c, f) => (writeFileSync(f, `${readFileSync(f, 'utf8')}\n## ghost [x]\n`), 0) });
+    expect(r.code).toBeUndefined();
+    expect(r.err).toContain('unknown node heading');
     expect(r.out).toContain('0 notes saved');
+  });
+
+  describe('an editor that saves CRLF line endings', () => {
+    const crlf = (f: string, edit: (doc: string) => string) => writeFileSync(f, edit(readFileSync(f, 'utf8')).replace(/\n/g, '\r\n'));
+
+    it('save and read back: every kind, line anchors and node-level notes', async () => {
+      await render();
+      const r = await run(['review'], {
+        editor: (_c, f) => (crlf(f, (d) => d.replace(/(\+ {2}2 .*\n)/, '$1>? nullable?\n> rename\n>del drop\n').replace('## Queue  [Queue]\n', '## Queue  [Queue]\n> node level\n')), 0),
+      });
+      expect([r.err, r.code]).toEqual(['', undefined]);
+      expect(current().notes.map((n) => [n.node, n.kind, n.body, n.anchor?.side, n.anchor?.line])).toEqual([
+        ['Order', 'question', 'nullable?', 'new', 2],
+        ['Order', 'comment', 'rename', 'new', 2],
+        ['Order', 'delete', 'drop', 'new', 2],
+        ['Queue', 'comment', 'node level', undefined, undefined],
+      ]);
+      expect(current().notes[0]!.anchor!.text).toBe('    coupon = Column(Text)');
+    });
+
+    it('existing pending notes survive a CRLF save', async () => {
+      await render();
+      await run(['comment', 'Order:app/orders.py:2', 'keep me']);
+      const r = await run(['review'], { editor: (_c, f) => (crlf(f, (d) => d), 0) });
+      expect(r.out).toBe('No changes, nothing saved.\n');
+      expect(current().notes.map((n) => [n.id, n.body])).toEqual([['n1', 'keep me']]);
+      const edited = await run(['review'], { editor: (_c, f) => (crlf(f, (d) => d.replace('> keep me', '> keep me, edited')), 0) });
+      expect([edited.err, edited.code]).toEqual(['', undefined]);
+      expect(current().notes.map((n) => n.body)).toEqual(['keep me, edited']);
+    });
+
+    it('a file rewritten with only CRLF line endings is "no changes"', async () => {
+      await render();
+      const r = await run(['review'], { editor: (_c, f) => (crlf(f, (d) => d), 0) });
+      expect(r.out).toBe('No changes, nothing saved.\n');
+    });
   });
 
   it('code changed since the render -> a warning before the document', async () => {
