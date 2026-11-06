@@ -62,7 +62,6 @@ export function mount(html: string, fresh = true): void {
   for (const [type, fn] of added.splice(0)) window.removeEventListener(type, fn);
   history.replaceState(null, '', '/');
   if (fresh) localStorage.clear();
-  document.documentElement.setAttribute('data-mode', /<html[^>]* data-mode="(\w+)"/.exec(html)?.[1] ?? 'full');
   document.documentElement.innerHTML = html.replace(/^[\s\S]*?<html[^>]*>/i, '').replace(/<\/html>\s*$/i, '');
   for (const s of document.querySelectorAll('script')) if (s.type !== 'application/json') new Function(s.textContent ?? '')();
 }

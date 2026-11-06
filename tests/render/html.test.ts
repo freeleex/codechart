@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { layoutSpec } from '../../src/render/web/layout.js';
 import { renderHtml, type Theme } from '../../src/render/web/html.js';
+import { prettyDate } from '../../src/render/web/page.js';
 import { validateSpec, type Spec } from '../../src/spec/schema.js';
 
 function loadFixture(): Spec {
@@ -195,8 +196,8 @@ describe('renderHtml', () => {
     const spec = loadFixture();
     spec.nodes[0] = { ...spec.nodes[0]!, label: 'aws_lb.api', kind: 'other', status: 'changed' };
     const out = await html(spec);
-    expect(out).toContain('<h2>aws_lb.api (changed)</h2>');
-    expect(out).toMatch(/<h2>[^<]+ \((new|changed|removed|context|config) (table|enum|model|service|endpoint|component|file|config)\)<\/h2>/);
+    expect(out).toContain('<span>aws_lb.api (changed)</span></h2>');
+    expect(out).toMatch(/<h2 class="ptitle"><input [^>]*><span>[^<]+ \((new|changed|removed|context|config) (table|enum|model|service|endpoint|component|file|config)\)<\/span><\/h2>/);
   });
 
   it('cards are keyboard focusable buttons with aria-label', async () => {
@@ -249,5 +250,13 @@ describe('renderHtml', () => {
     it('has a toggle button', async () => {
       expect(await withTheme()).toContain('<button id="theme-toggle"');
     });
+  });
+});
+
+describe('the build time in the header', () => {
+  it('reads as a local day and time, with the exact instant in datetime and title', async () => {
+    expect(prettyDate(new Date(2026, 10, 6, 9, 4))).toBe('6 Nov 2026, 09:04');
+    const page = await html(loadFixture());
+    expect(page).toContain('<time datetime="2026-10-27T12:00:00.000Z" title="2026-10-27T12:00:00.000Z">');
   });
 });

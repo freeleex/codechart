@@ -1,10 +1,10 @@
 const DARK_VARS =
-  '--bg:#0f1115;--panel:#161b22;--card:#161b22;--line:#30363d;--text:#c9d1d9;--muted:#8b949e;--edge:#79c0ff;--new:#3fb950;--new-t:#7ee787;--chg:#d29922;--chg-t:#f2cc60;--cfg:#a371f7;--cfg-t:#d2a8ff;--add:#7ee787;--rem:#ff7b72';
+  '--bg:#0f1115;--panel:#161b22;--card:#161b22;--line:#30363d;--text:#c9d1d9;--muted:#8b949e;--edge:#79c0ff;--new:#3fb950;--new-t:#7ee787;--chg:#d29922;--chg-t:#f2cc60;--cfg:#a371f7;--cfg-t:#d2a8ff;--add:#7ee787;--rem:#ff7b72;--add-bg:rgba(46,160,67,.22);--rem-bg:rgba(248,81,73,.22);--gap-bg:rgba(110,118,129,.12);--hh-bg:rgba(56,139,253,.10);--hh-line:rgba(56,139,253,.28);--ln:#484f58;--ln-add:rgba(126,231,135,.55);--ln-rem:rgba(255,123,114,.55)';
 const DARK_AUTO = `@media (prefers-color-scheme: dark){:root[data-theme="auto"]{${DARK_VARS}}}`;
 const DARK_FORCED = `:root[data-theme="dark"]{${DARK_VARS}}`;
 
 export const CSS = `
-:root{color-scheme:light dark;--bg:#f6f8fa;--panel:#fff;--card:#fff;--line:#d0d7de;--text:#1f2328;--muted:#656d76;--edge:#0969da;--new:#2ea043;--new-t:#1a7f37;--chg:#d29922;--chg-t:#9a6700;--cfg:#8957e5;--cfg-t:#8250df;--add:#1a7f37;--rem:#cf222e}
+:root{color-scheme:light dark;--bg:#f6f8fa;--panel:#fff;--card:#fff;--line:#d0d7de;--text:#1f2328;--muted:#656d76;--edge:#0969da;--new:#2ea043;--new-t:#1a7f37;--chg:#d29922;--chg-t:#9a6700;--cfg:#8957e5;--cfg-t:#8250df;--add:#1a7f37;--rem:#cf222e;--add-bg:rgba(46,160,67,.18);--rem-bg:rgba(255,129,130,.25);--gap-bg:rgba(110,118,129,.12);--hh-bg:rgba(9,105,218,.07);--hh-line:rgba(9,105,218,.22);--ln:var(--muted);--ln-add:rgba(26,127,55,.6);--ln-rem:rgba(207,34,46,.6)}
 :root[data-theme="light"]{color-scheme:light}
 :root[data-theme="dark"]{color-scheme:dark}
 ${DARK_AUTO}
@@ -33,10 +33,13 @@ aside{width:clamp(300px,35vw,600px);min-width:300px;max-width:80vw;border-left:1
 #panel-nav button{padding:0 7px;font:13px/20px system-ui,sans-serif;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:10px;cursor:pointer}
 #panel-nav button:hover:not(:disabled){border-color:var(--edge)}#panel-nav button:disabled{opacity:.4;cursor:default}
 aside h2{margin:0 0 6px;font-size:13px;overflow-wrap:anywhere}
+aside .ptitle{display:flex;gap:7px;align-items:flex-start;min-height:26px;margin-bottom:8px;line-height:1.35}aside .ptitle input{flex:none;margin:2px 0 0}
 aside h3{margin:12px 0 4px;font-size:11px;text-transform:uppercase;color:var(--muted)}
+aside h3.ch-head{display:flex;justify-content:space-between;align-items:baseline}aside .ch-head .fh-stat{font:11px ui-monospace,monospace;text-transform:none}
+aside h4{margin:0 0 2px;font-size:11px;font-weight:600;color:var(--muted)}
 aside ul{margin:0;padding-left:18px}
-aside .tick-row{display:block;margin:0 0 6px;color:var(--muted)}
-aside .relations{list-style:none;padding:0}
+aside .relations{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:6px 14px}
+aside .rel-col ul{list-style:none;padding:0}aside .rel-none{margin:0;color:var(--muted);font-style:italic}
 aside .rel{padding:1px 0;font:inherit;color:var(--edge);background:none;border:0;cursor:pointer;text-align:left;overflow-wrap:anywhere}aside .rel:hover{text-decoration:underline}
 aside .fields-note{color:var(--muted);font-size:11.5px;font-style:italic;margin:6px 0 0}
 aside code{font-family:ui-monospace,monospace;font-size:11px;font-style:normal}
@@ -44,8 +47,18 @@ aside .path{font-family:ui-monospace,monospace;font-size:11px;overflow-wrap:anyw
 aside .snippet{font:11px/1.45 ui-monospace,monospace;background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:6px 8px;margin:6px 0;white-space:pre-wrap;overflow-wrap:anywhere}
 aside .snippet code{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:10px}
 aside .snippet .ln{min-width:3ch;color:var(--muted);text-align:right;user-select:none}
-aside .dr{display:flex}aside .dr .sg{flex:none;width:1ch;margin-right:1ch;user-select:none}aside .ind{white-space:pre;tab-size:4}aside .dr .cd{flex:1;min-width:0;white-space:pre-wrap;overflow-wrap:anywhere}
-aside .d-add{color:var(--add)}aside .d-del{color:var(--rem)}aside .d-hunk{color:var(--muted)}
+aside .snippet.diff{background:none;border:0;border-radius:0;padding:0;margin:2px 0}
+aside .snippet.diff code{display:flex;flex-direction:column}
+aside .dr{display:flex;padding:0 14px 0 4px}
+aside .dr .ln{flex:none;width:4.5ch;min-width:0;color:var(--ln);text-align:right;user-select:none}
+aside .dr .sg{flex:none;width:2.4ch;text-align:center;user-select:none}
+aside .ind{white-space:pre;tab-size:4}aside .dr .cd{flex:1;min-width:0;white-space:pre-wrap;overflow-wrap:anywhere}
+aside .dr.d-add{background:var(--add-bg)}aside .dr.d-add .ln{color:var(--ln-add)}aside .dr.d-add .sg{color:var(--add)}
+aside .dr.d-del{background:var(--rem-bg)}aside .dr.d-del .ln{color:var(--ln-rem)}aside .dr.d-del .sg{color:var(--rem)}
+aside .n-add{color:var(--add)}aside .n-del{color:var(--rem)}
+aside .cgap{display:flex;flex-direction:column}aside .cgap .gap-rows{display:none;flex-direction:column}aside .cgap.open .gap-rows{display:flex}
+aside .gap{display:flex;width:100%;padding:2px 14px 2px calc(4px + 4.5ch);font:11px ui-monospace,monospace;color:var(--muted);background:var(--gap-bg);text-align:left;white-space:nowrap}
+aside button.gap{border:0;cursor:pointer}aside button.gap:hover{color:var(--text)}
 aside .mismatch-note{color:var(--rem);margin:6px 0}
 aside .mismatch-why{color:var(--muted);font-size:11.5px;margin:0 0 6px}
 header .check{font-size:11px;color:var(--new-t)}header .check.bad{color:var(--rem);font-weight:600;font-family:inherit;background:none;border:0;padding:0;cursor:pointer;text-decoration:underline dotted}
@@ -89,6 +102,8 @@ body.focus .node:not(.lit),body.focus .edge:not(.lit){--dim:.25}
 .node.reviewed :is(.card,.fold,.shape){stroke:var(--muted)}
 .node.reviewed .tick-box{fill:var(--muted)}.node.reviewed .tick-mark{display:inline}
 .node.selected .card{stroke-width:2.5}
+.node.selected{filter:drop-shadow(0 0 6px color-mix(in srgb,var(--edge) 45%,transparent))}
+.node.selected :is(.card,.shape){stroke-width:3}
 .node:focus{outline:none}
 .node:focus-visible .card{stroke:var(--edge);stroke-width:3.5}
 .status-new :is(.card,.fold){stroke:var(--new)}.status-new .badge{fill:var(--new-t)}
@@ -99,24 +114,24 @@ body.focus .node:not(.lit),body.focus .edge:not(.lit){--dim:.25}
 .field-added-t{color:var(--add)}.field-removed-t{color:var(--muted);text-decoration:line-through}.field-modified-t{color:var(--chg-t)}
 
 #info-toggle[aria-expanded="true"]{border-color:var(--edge)}
-#info-toggle,#link-toggle,#mode-toggle,#theme-toggle{align-self:center;padding:4px 10px;font:11px system-ui,sans-serif;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:12px;cursor:pointer}
-#info-toggle:hover,#link-toggle:hover,#mode-toggle:hover,#theme-toggle:hover,#next-unreviewed:hover:not(:disabled){border-color:var(--edge)}
+#info-toggle,#link-toggle,#theme-toggle{align-self:center;padding:4px 10px;font:11px system-ui,sans-serif;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:12px;cursor:pointer}
+#info-toggle:hover,#link-toggle:hover,#theme-toggle:hover,#next-unreviewed:hover:not(:disabled){border-color:var(--edge)}
 #next-unreviewed{padding:0 8px;font:10.5px/16px system-ui,sans-serif;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:10px;cursor:pointer}
 #next-unreviewed:disabled{opacity:.4;cursor:default}
-html[data-mode="light"] .fo,html[data-mode="full"] .lo{display:none!important}
-aside .file-head{display:flex;gap:8px;align-items:baseline;justify-content:space-between;margin:6px 0 2px;color:var(--muted);font-size:11px}
+aside .file{margin:6px -14px}
+aside .file-head{display:flex;gap:8px;align-items:baseline;justify-content:space-between;margin:0 0 4px;padding:0 14px;color:var(--muted);font-size:11px}
 aside .file-head .path{min-width:0}
-aside .hunk{margin-left:-8px;padding-left:5px;border-left:3px solid transparent}
+aside .hunk{border-left:3px solid transparent}aside .hunk+.hunk{margin-top:4px}
 aside .hunk.cur{border-left-color:var(--edge)}
-aside .hunk-sum{display:flex;gap:8px;align-items:baseline;width:100%;padding:1px 0;font:11px ui-monospace,monospace;color:var(--muted);background:none;border:0;text-align:left;cursor:pointer;white-space:nowrap;overflow:hidden}
-aside .hunk-sum:hover{color:var(--text)}
-aside .hunk-sum>*{flex:none}
-aside .hunk-sum .caret::before{content:"\\25BE"}aside .hunk.folded .caret::before{content:"\\25B8"}
-aside .hunk-sum .hs-fn{flex:0 1 auto;max-width:50%;min-width:0;overflow:hidden;text-overflow:ellipsis;color:var(--edge)}
-aside .hunk-sum .hs-first{flex:1 1 0;min-width:0;overflow:hidden;text-overflow:ellipsis}
-html[data-mode="full"] aside .hunk.folded .hunk-body{display:none}
-html[data-mode="full"] aside .hunk.folded{margin-bottom:0}
-aside .see-full{padding:0;font:inherit;color:var(--edge);background:none;border:0;cursor:pointer}aside .see-full:hover{text-decoration:underline}
+aside .hh{display:flex;gap:8px;align-items:baseline;width:100%;padding:2px 14px 2px 5px;font:11px ui-monospace,monospace;color:var(--muted);background:var(--hh-bg);border:0;border-top:1px solid var(--hh-line);border-bottom:1px solid var(--hh-line);text-align:left;white-space:nowrap;overflow:hidden}
+aside button.hunk-sum{cursor:pointer}aside button.hunk-sum:hover{color:var(--text)}
+aside .hh>*{flex:none}
+aside .hh .caret{width:1ch}aside .hh .caret::before{content:"\\2304"}aside .hunk.folded .hh .caret::before{content:"\\203A"}
+aside .hh .hs-fn{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;color:var(--edge)}
+aside .hh .hs-first{flex:1 1 0;min-width:0;overflow:hidden;text-overflow:ellipsis}
+aside .hh .hs-stat{margin-left:auto}
+aside .hunk:not(.folded) .hs-first{display:none}
+aside .hunk.folded .hunk-body,aside .hunk.folded .gap-out{display:none}
 aside .hunk-end{margin:6px 0;color:var(--muted);font-size:11px;font-style:italic}
 #key-help{position:fixed;right:14px;bottom:14px;z-index:5;padding:8px 12px;font-size:11.5px;line-height:1.6;background:var(--panel);border:1px solid var(--line);border-radius:6px;box-shadow:0 2px 8px #0003;cursor:pointer}
 #key-help[hidden]{display:none}

@@ -7,7 +7,7 @@ import { IN_DIFF, repoPath, type Diff } from './check.js';
 import { clip } from './clip.js';
 import { generatedFiles } from './generated.js';
 
-/** Rows kept per file; the page decides how many of them each mode shows. */
+/** Rows kept per file. */
 const MAX_ROWS = 1000;
 const MAX_BYTES = 5 * 1024 * 1024;
 const MAX_TOTAL_BYTES = 25 * 1024 * 1024;

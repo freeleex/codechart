@@ -2,17 +2,12 @@
 // which the page inlines (the CSP allows that one script by hash).
 import { initChips } from './chips.js';
 import { dismissFocus, focus, select } from './focus.js';
+import { glide, nodeView, type View } from './glide.js';
 import { initHunks } from './hunks.js';
+import { initPanelResize } from './resize.js';
 import { startTrail, visitFromHash, type Trail, type Visit } from './history.js';
-import { initMode } from './mode.js';
 import { initReview } from './review.js';
 import { load, save } from './store.js';
-
-interface View {
-  x: number;
-  y: number;
-  k: number;
-}
 
 interface Drag {
   i: number;
@@ -31,6 +26,7 @@ const vps = [...document.querySelectorAll<SVGGElement>('.viewport')];
 const panel = document.getElementById('panel')!;
 const info = document.getElementById('page-info')!;
 const infoBtn = document.getElementById('info-toggle');
+const focusBtn = document.getElementById('nav-focus') as HTMLButtonElement;
 
 // One transform per pane; while linked, a move in one is copied to all so Now and After stay aligned.
 let ts: View[] = canvases.map(() => ({ x: 0, y: 0, k: 1 }));
@@ -39,6 +35,7 @@ let last = 0;
 let drag: Drag | null = null;
 let moved = false;
 let trail: Trail;
+let stopGlide = (): void => {};
 
 function apply(): void {
   vps.forEach((vp, i) => {
@@ -51,6 +48,19 @@ function move(i: number, t: View): void {
   last = i;
   ts = ts.map((old, j) => (linked || j === i ? { x: t.x, y: t.y, k: t.k } : old));
   apply();
+}
+
+/** Zooms in on the selected node and centres it. Linked panes follow the first pane that has it. */
+function zoomToSelected(): void {
+  const id = document.querySelector('.node.selected')?.getAttribute('data-id');
+  if (!id) return;
+  for (let i = 0; i < canvases.length; i++) {
+    const g = canvases[i]!.querySelector<SVGGraphicsElement>(`.node[data-id="${CSS.escape(id)}"]`);
+    if (!g) continue;
+    stopGlide();
+    stopGlide = glide(ts[i]!, nodeView(g.getBBox(), canvases[i]!.querySelector('svg')!.getBoundingClientRect()), (v) => move(i, v));
+    if (linked) break;
+  }
 }
 
 function fit(): void {
@@ -73,6 +83,7 @@ function initPanZoom(): void {
       'wheel',
       (e) => {
         e.preventDefault();
+        stopGlide();
         const t = ts[i]!;
         const r = svg.getBoundingClientRect();
         const px = e.clientX - r.left;
@@ -83,6 +94,7 @@ function initPanZoom(): void {
       { passive: false },
     );
     canvas.addEventListener('pointerdown', (e) => {
+      stopGlide();
       drag = { i, x: e.clientX - ts[i]!.x, y: e.clientY - ts[i]!.y, sx: e.clientX, sy: e.clientY, canvas };
       moved = false;
     });
@@ -131,6 +143,7 @@ function open(v: Visit): void {
     panel.appendChild(tpl.content.cloneNode(true));
   }
   setInfo(!tpl);
+  focusBtn.disabled = !tpl;
   review.paint();
   hunks.reset();
 }
@@ -178,6 +191,7 @@ function initPanel(): void {
   });
   backBtn.addEventListener('click', () => trail.back());
   forwardBtn.addEventListener('click', () => trail.forward());
+  focusBtn.addEventListener('click', zoomToSelected);
   window.addEventListener('keydown', (e) => {
     if (!e.altKey || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return;
     // At either end the browser's own shortcut takes over, leaving the page.
@@ -222,57 +236,14 @@ function initTheme(): void {
   });
 }
 
-function initPanelResize(): void {
-  const aside = document.querySelector('aside')!;
-  const handle = document.getElementById('resize')!;
-  let width = 0;
-  // Two panes need the room, so their panel starts at half width and remembers its own size.
-  const panes = !!document.getElementById('panes');
-  const widthKey = panes ? 'codechart.panel.panes' : 'codechart.panel';
-  const minWidth = panes ? 200 : 300;
-  const setWidth = (w: number, remember: boolean) => {
-    width = Math.round(Math.max(minWidth, Math.min(w, window.innerWidth * 0.8)));
-    aside.style.width = `${width}px`;
-    if (remember) save(widthKey, String(width));
-  };
-  const currentWidth = () => width || aside.getBoundingClientRect().width;
-  const savedWidth = Number(load(widthKey));
-  if (savedWidth > 0) setWidth(savedWidth, false);
-  let sizing = false;
-  handle.addEventListener('pointerdown', (e) => {
-    sizing = true;
-    handle.classList.add('drag');
-    if (handle.setPointerCapture) handle.setPointerCapture(e.pointerId);
-    e.preventDefault();
-  });
-  handle.addEventListener('pointermove', (e) => {
-    if (sizing) setWidth(window.innerWidth - e.clientX, false);
-  });
-  const endSize = () => {
-    if (!sizing) return;
-    sizing = false;
-    handle.classList.remove('drag');
-    setWidth(currentWidth(), true);
-  };
-  handle.addEventListener('pointerup', endSize);
-  handle.addEventListener('pointercancel', endSize);
-  handle.addEventListener('keydown', (e) => {
-    const step = e.key === 'ArrowLeft' ? 40 : e.key === 'ArrowRight' ? -40 : 0;
-    if (!step) return;
-    e.preventDefault();
-    setWidth(currentWidth() + step, true);
-  });
-}
-
 initPanZoom();
 initPaneLink();
 initTheme();
-initMode(panel);
 initPanelResize();
 window.addEventListener('resize', fit);
 fit();
 dismissFocus(canvases, () => moved);
 initChips();
 const review = initReview(data.repoKey, goTo);
-const hunks = initHunks(panel, review);
+const hunks = initHunks(panel, review, zoomToSelected);
 initPanel();

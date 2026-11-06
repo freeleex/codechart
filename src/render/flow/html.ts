@@ -4,7 +4,7 @@ import { flagMark, flagTitle, mismatchNote } from '../web/check-html.js';
 import { edgeEnds, infoButton, gapsHtml, pageInfoSection, renderDiagramPage, renderEdgeSvg, type EdgeEnds } from '../web/diagram.js';
 import { arrowMarker, CHANGE_ARROWS, esc, num, type HtmlMeta } from '../web/page.js';
 import type { Side } from '../web/states.js';
-import { relationsHtml, relationsOf, tickRow, tickSvg } from '../web/tools.js';
+import { relationsHtml, relationsOf, panelTitle, tickSvg } from '../web/tools.js';
 import { FLOW_SIDE_KEY, hasFlowNowAfter, isAltered, linkOn, linkTone, stepOn } from './states.js';
 import type { FlowSnippets, Snippet } from './anchors.js';
 import { BADGE_HEIGHT, LINE_HEIGHT, type FlowLayout, type FlowLayoutEdge, type FlowLayoutNode } from './layout.js';
@@ -13,7 +13,7 @@ const FLOW_CSS = `
 .node .shape{fill:var(--card);stroke:var(--muted);stroke-width:1.2}
 .node .label{font-weight:500;text-anchor:middle}
 .node .badge{text-anchor:middle;font-weight:600}
-.node.selected .shape{stroke-width:2.5}
+.node.selected .shape{stroke-width:3}
 .node:focus-visible .shape{stroke:var(--edge);stroke-width:3.5}
 .status-new .shape{stroke:var(--new)}
 .status-changed .shape{stroke:var(--chg)}
@@ -100,14 +100,13 @@ const splitIndent = (code: string): [number, string] => {
   return [width, lead ? `<span class="ind">${lead}</span>${rest}` : rest];
 };
 
-/** One code row; the number gets its own grid column so a wrapped line hangs under the code, and a diff sign its own column inside the code cell. */
-export const codeRow = (n: number | undefined, code: string, cls?: string, extra = '', sign?: string) => {
-  const both = (c?: string) => (c || extra ? ` class="${[c, extra].filter(Boolean).join(' ')}"` : '');
+/** One code row; the number gets its own grid column so a wrapped line hangs under the code. A diff row (with a sign) is one flex row: number, sign and code columns, tinted as a whole. */
+export const codeRow = (n: number | undefined, code: string, cls?: string, sign?: string) => {
+  const cl = (c?: string) => (c ? ` class="${c}"` : '');
   const [indent, text] = n === undefined ? [0, code] : splitIndent(code);
   const pad = indent ? ` style="padding-left:${indent}ch;text-indent:-${indent}ch"` : '';
-  const ln = `<span${both('ln')}>${n ?? ''}</span>`;
-  if (sign === undefined) return `${ln}<span${both(cls)}${pad}>${text}</span>`;
-  return `${ln}<span${both(`${cls} dr`)}><span class="sg">${sign}</span><span class="cd"${pad}>${text}</span></span>`;
+  if (sign === undefined) return `<span class="ln">${n ?? ''}</span><span${cl(cls)}${pad}>${text}</span>`;
+  return `<span class="${cls} dr"><span class="ln">${n ?? ''}</span><span class="sg">${sign}</span><span class="cd"${pad}>${text}</span></span>`;
 };
 
 export function snippetHtml(s: Snippet): string {
@@ -121,7 +120,7 @@ export function snippetHtml(s: Snippet): string {
 const tag = (status: string) => `<span class="tag tag-${esc(status)}">${esc(status)}</span>`;
 
 function stepPanel(spec: FlowSpec, step: FlowStep, snippets: FlowSnippets, byId: Map<string, FlowStep>, check: CheckSummary | undefined): string {
-  let out = `<h2>${esc(step.label)}</h2>${tickRow(step.id)}`;
+  let out = panelTitle(step.id, step.label);
   out += `<div class="status">${tag(step.status)} ${esc(step.type)}</div>`;
   out += mismatchNote(check, step.id);
   const snip = snippets.steps.get(step.id);

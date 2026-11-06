@@ -25,7 +25,7 @@ export function statusChips(statuses: string[]): string {
 }
 
 export const reviewControls = (total: number): string =>
-  `<div id="review" class="fo"><span id="review-count">0/${total} reviewed</span><span id="review-bar" aria-hidden="true"><i></i></span><button id="next-unreviewed" type="button" title="Next unreviewed: select the next node not ticked as reviewed" aria-label="Next unreviewed">Next ▸</button></div>`;
+  `<div id="review"><span id="review-count">0/${total} reviewed</span><span id="review-bar" aria-hidden="true"><i></i></span><button id="next-unreviewed" type="button" title="Next unreviewed: select the next node not ticked as reviewed" aria-label="Next unreviewed">Next ▸</button></div>`;
 
 /** Ties a node's tick to its code: the hash changes when the node's diff does. */
 export const diffRev = (p: Preview | undefined): string | undefined =>
@@ -33,11 +33,12 @@ export const diffRev = (p: Preview | undefined): string | undefined =>
 
 /** A tickbox centred on a node's top-left corner, clear of the label and badge. */
 export const tickSvg = (x: number, y: number): string =>
-  `<g class="tick fo" aria-hidden="true"><rect class="tick-hit" x="${num(x - 9)}" y="${num(y - 9)}" width="18" height="18"/>` +
+  `<g class="tick" aria-hidden="true"><rect class="tick-hit" x="${num(x - 9)}" y="${num(y - 9)}" width="18" height="18"/>` +
   `<rect class="tick-box" x="${num(x - 6)}" y="${num(y - 6)}" width="12" height="12" rx="2"/>` +
   `<path class="tick-mark" d="M${num(x - 3)},${num(y)} L${num(x - 1)},${num(y + 3)} L${num(x + 3.5)},${num(y - 3)}"/></g>`;
 
-export const tickRow = (id: string): string => `<label class="tick-row fo"><input type="checkbox" data-tick-for="${esc(id)}"> Reviewed</label>`;
+/** A panel's title with its Reviewed tickbox to the left, on the same line. */
+export const panelTitle = (id: string, text: string): string => `<h2 class="ptitle"><input type="checkbox" data-tick-for="${esc(id)}" aria-label="Reviewed"><span>${esc(text)}</span></h2>`;
 
 interface Relation {
   out: boolean;
@@ -59,10 +60,17 @@ export function relationsOf(id: string, links: { from: string; to: string; label
   });
 }
 
+const relList = (rels: Relation[]) =>
+  rels.length
+    ? `<ul>${rels.map((r) => `<li><button type="button" class="rel" data-goto="${esc(r.id)}">${esc(r.label)}${r.kind ? ` (${esc(r.kind)})` : ''}</button></li>`).join('')}</ul>`
+    : '<p class="rel-none">none</p>';
+
+/** Two columns that stack when the panel is narrow: what uses the node (incoming links) and what it uses (outgoing). */
 export function relationsHtml(rels: Relation[]): string {
   if (!rels.length) return '';
-  const rows = rels.map(
-    (r) => `<li><button type="button" class="rel" data-goto="${esc(r.id)}">${r.out ? '→' : '←'} ${esc(r.label)}${r.kind ? ` (${esc(r.kind)})` : ''}</button></li>`,
+  return (
+    `<h3>Relations</h3><div class="relations">` +
+    `<div class="rel-col"><h4>\u2190 Used by</h4>${relList(rels.filter((r) => !r.out))}</div>` +
+    `<div class="rel-col"><h4>Uses \u2192</h4>${relList(rels.filter((r) => r.out))}</div></div>`
   );
-  return `<h3>Relations</h3><ul class="relations">${rows.join('')}</ul>`;
 }
