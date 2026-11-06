@@ -55,6 +55,17 @@ describe('changesHtml', () => {
     );
   });
 
+  it('a pager of real labelled buttons comes with 2 or more hunks, Full only', () => {
+    const html = changesHtml(diff(2));
+    expect(html).toContain('<div class="pager fo" role="group" aria-label="Hunks">');
+    expect(html).toContain('aria-label="Previous hunk"');
+    expect(html).toContain('<span class="pg-count" aria-live="polite">2 hunks</span>');
+    expect(html).toContain('aria-label="Next hunk"');
+    expect(html).toContain('? keys</button>');
+    expect(changesHtml(diff(1))).not.toContain('pager');
+    expect(changesHtml({ ...diff(1), lines: [], note: 'binary file' })).not.toContain('pager');
+  });
+
   it('escapes the code and the function context', () => {
     const html = changesHtml(parseDiff('a', '@@ -1 +1 @@ <b>f</b>\n+<i>x</i>\n'));
     expect(html).not.toContain('<b>');
@@ -250,5 +261,78 @@ describe('hunk keys', () => {
     expect(selected()).not.toBe('users');
     key('?', { shiftKey: true });
     expect(q<HTMLElement>('#key-help').hidden).toBe(false);
+  });
+});
+
+describe('hunk pager', () => {
+  const count = () => q('#panel .pg-count').textContent;
+  const open = () => {
+    mount(withDiffs());
+    click(modeBtn());
+    click(node('tbl.orders'));
+  };
+
+  it('shows the hunk count, none current; a node with 2 hunks has it, a node with 0 or 1 does not', () => {
+    open();
+    expect(count()).toBe('8 hunks');
+    expect(q('#panel .pager').classList.contains('fo')).toBe(true);
+    click(node('tbl.invoices'));
+    expect(count()).toBe('2 hunks');
+    click(node('tbl.customers'));
+    expect(qa('#panel .pager')).toHaveLength(0);
+  });
+
+  it('the buttons do what n and p do, and the count follows', () => {
+    open();
+    click(q('#panel .pg-next'));
+    click(q('#panel .pg-next'));
+    expect(count()).toBe('hunk 2 of 8');
+    expect(current()).toEqual([1]);
+    expect(folded()[1]).toBe(false);
+    click(q('#panel .pg-prev'));
+    expect(count()).toBe('hunk 1 of 8');
+    key('n');
+    expect(count()).toBe('hunk 2 of 8');
+    key('p');
+    expect(count()).toBe('hunk 1 of 8');
+  });
+
+  it('› past the last hunk shows the end note and keeps the count', () => {
+    open();
+    for (let i = 0; i < 9; i++) click(q('#panel .pg-next'));
+    expect(count()).toBe('hunk 8 of 8');
+    expect(qa('#panel .hunk-end')).toHaveLength(1);
+    click(q('#panel .pg-prev'));
+    expect(qa('#panel .hunk-end')).toHaveLength(0);
+  });
+
+  it('clicking a hunk line updates the count; a new panel resets it', () => {
+    open();
+    click(q('#panel .hunk:nth-of-type(3) .hunk-sum'));
+    expect(count()).toBe('hunk 3 of 8');
+    click(node('tbl.invoices'));
+    expect(count()).toBe('2 hunks');
+    click(node('tbl.orders'));
+    expect(count()).toBe('8 hunks');
+    expect(current()).toEqual([]);
+  });
+
+  it('? keys toggles the key help', () => {
+    open();
+    click(q('#panel .pg-keys'));
+    expect(q<HTMLElement>('#key-help').hidden).toBe(false);
+    click(q('#panel .pg-keys'));
+    expect(q<HTMLElement>('#key-help').hidden).toBe(true);
+  });
+
+  it('Space and Enter on a pager button start no key action', () => {
+    open();
+    const next = q('#panel .pg-next');
+    for (const k of [' ', 'Enter']) key(k, {}, next);
+    expect(current()).toEqual([]);
+    expect(q<HTMLElement>('#key-help').hidden).toBe(true);
+    expect(qa('.node.reviewed')).toHaveLength(0);
+    key('n', {}, next);
+    expect(current()).toEqual([0]);
   });
 });

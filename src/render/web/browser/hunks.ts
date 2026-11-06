@@ -24,6 +24,13 @@ function setOpen(h: HTMLElement, open: boolean): void {
 
 const hunksIn = (panel: HTMLElement) => [...panel.querySelectorAll<HTMLElement>('.hunk')];
 
+function paintCount(panel: HTMLElement, cur: HTMLElement | null): void {
+  const label = panel.querySelector('.pg-count');
+  if (!label) return;
+  const hunks = hunksIn(panel);
+  label.textContent = cur ? `hunk ${hunks.indexOf(cur) + 1} of ${hunks.length}` : `${hunks.length} hunks`;
+}
+
 function endNote(panel: HTMLElement): HTMLElement {
   const note = document.createElement('p');
   note.className = 'hunk-end';
@@ -49,10 +56,12 @@ interface Nav {
 function walker(panel: HTMLElement, aside: Element): Nav {
   let cur: HTMLElement | null = null;
   let end: HTMLElement | null = null;
+  const paint = () => paintCount(panel, cur);
   const mark = (h: HTMLElement | null) => {
     cur?.classList.remove('cur');
     cur = h;
     h?.classList.add('cur');
+    paint();
   };
   const hideEnd = () => {
     end?.remove();
@@ -62,7 +71,8 @@ function walker(panel: HTMLElement, aside: Element): Nav {
     hideEnd();
     mark(h);
     setOpen(h, true);
-    aside.scrollTop += h.getBoundingClientRect().top - aside.getBoundingClientRect().top - 6;
+    const bar = panel.querySelector<HTMLElement>('.pager');
+    aside.scrollTop += h.getBoundingClientRect().top - aside.getBoundingClientRect().top - (bar?.offsetHeight ?? 0) - 6;
   };
   const showEnd = () => {
     end ??= endNote(panel);
@@ -99,6 +109,7 @@ function walker(panel: HTMLElement, aside: Element): Nav {
       cur = null;
       end = null;
       aside.scrollTop = 0;
+      paint();
     },
   };
 }
@@ -107,6 +118,9 @@ function walker(panel: HTMLElement, aside: Element): Nav {
 export function initHunks(panel: HTMLElement, review: Review): Hunks {
   const nav = walker(panel, panel.closest('aside')!);
   const help = document.getElementById('key-help')!;
+  const toggleHelp = () => {
+    help.hidden = !help.hidden;
+  };
   const keys: Record<string, () => void> = {
     n: () => nav.step(1),
     p: () => nav.step(-1),
@@ -115,13 +129,14 @@ export function initHunks(panel: HTMLElement, review: Review): Hunks {
     r: () => review.toggleSelected(),
     o: () => nav.toggle(),
     O: () => nav.toggleAll(),
-    '?': () => {
-      help.hidden = !help.hidden;
-    },
+    '?': toggleHelp,
   };
+  const buttons: Record<string, () => void> = { '.pg-prev': () => nav.step(-1), '.pg-next': () => nav.step(1), '.pg-keys': toggleHelp };
   panel.addEventListener('click', (e) => {
-    const h = (e.target as Element).closest('.hunk-sum')?.closest<HTMLElement>('.hunk');
+    const t = e.target as Element;
+    const h = t.closest('.hunk-sum')?.closest<HTMLElement>('.hunk');
     if (h) nav.pick(h);
+    for (const [sel, run] of Object.entries(buttons)) if (t.closest(sel)) run();
   });
   help.addEventListener('click', () => {
     help.hidden = true;

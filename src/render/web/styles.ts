@@ -119,4 +119,9 @@ aside .see-full{padding:0;font:inherit;color:var(--edge);background:none;border:
 aside .hunk-end{margin:6px 0;color:var(--muted);font-size:11px;font-style:italic}
 #key-help{position:fixed;right:14px;bottom:14px;z-index:5;padding:8px 12px;font-size:11.5px;line-height:1.6;background:var(--panel);border:1px solid var(--line);border-radius:6px;box-shadow:0 2px 8px #0003;cursor:pointer}
 #key-help[hidden]{display:none}
+aside .pager{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:6px;margin:0 -14px 4px;padding:4px 14px;background:var(--panel);border-bottom:1px solid var(--line);font-size:11px;color:var(--muted)}
+aside .pager button{padding:0 7px;font:13px/20px system-ui,sans-serif;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:10px;cursor:pointer}
+aside .pager button:hover{border-color:var(--edge)}
+aside .pager .pg-count{flex:1;min-width:0;text-align:center;white-space:nowrap}
+aside .pager .pg-keys{margin-left:auto;font-size:11px}
 `;

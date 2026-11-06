@@ -23,6 +23,13 @@ function hunksOf(lines: Line[]): Line[][] {
   return out;
 }
 
+const PAGER =
+  '<div class="pager fo" role="group" aria-label="Hunks">' +
+  '<button type="button" class="pg-prev" aria-label="Previous hunk" title="Previous hunk (p)">\u2039</button>' +
+  '<span class="pg-count" aria-live="polite">{n} hunks</span>' +
+  '<button type="button" class="pg-next" aria-label="Next hunk" title="Next hunk (n)">\u203a</button>' +
+  '<button type="button" class="pg-keys" aria-label="Show keys" title="Keys">? keys</button></div>';
+
 const count = (n: number) => `${n} changed line${n === 1 ? '' : 's'}`;
 
 /** One line that says what a folded hunk holds: counts, where it starts, its function and its first change. */
@@ -47,6 +54,7 @@ export function changesHtml(p: Preview): string {
   const title = '<h3>Changes</h3>';
   if (p.note) return `${title}<p class="more">${esc(p.note)}</p>`;
   const hunks = hunksOf(p.lines);
+  const pager = hunks.length > 1 ? PAGER.replace('{n}', String(hunks.length)) : '';
   const folded = p.total > SMALL_LINES || hunks.length > SMALL_HUNKS;
   let before = 0;
   let lightChanged = 0;
@@ -70,7 +78,7 @@ export function changesHtml(p: Preview): string {
       : count(p.total);
   const full = p.rows > p.lines.length ? `showing ${p.lines.length} of ${p.rows} lines` : count(p.total);
   return (
-    `${title}<div class="file"><div class="file-head fo"><span class="path">${pathHtml(p.path)}</span><span>${count(p.total)}</span></div>` +
+    `${title}${pager}<div class="file"><div class="file-head fo"><span class="path">${pathHtml(p.path)}</span><span>${count(p.total)}</span></div>` +
     `<div class="snippet diff">${body.join('')}</div></div>` +
     `<p class="more"><span class="lo">${light}</span><span class="fo">${full}</span> \u00b7 whole file: <span class="path">${pathHtml(p.path)}</span></p>`
   );
