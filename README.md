@@ -184,7 +184,7 @@ The skill fires when the agent summarizes a change, writes a plan or explains ho
 
 A diagram is about **2–3 extra API calls**. In a long session that's roughly 2–3% of your usage per diagram, and nothing for trivial changes. That's an estimate from Claude Code sessions with Sonnet; other agents and models will differ, and shorter sessions pay proportionally more. Measured runs are in [docs/efficiency.md](docs/efficiency.md).
 
-The CLI is small: a 106.1 kB package, 5 runtime dependencies, and a cold start around 150 ms.
+The CLI is small: a 110.3 kB package, 5 runtime dependencies, and a cold start around 150 ms.
 
 ## Safe to run
 
