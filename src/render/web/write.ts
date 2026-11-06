@@ -19,6 +19,7 @@ export interface HtmlWriteOptions {
   stderr: (s: string) => void;
   /** A newer codechart version to mention in the header. */
   update?: string;
+  updateNotes?: string[];
 }
 
 export interface WrittenHtml {
@@ -40,7 +41,7 @@ export function privateDir(dir: string): void {
 export async function writeHtml(build: (meta: HtmlMeta) => Promise<string>, o: HtmlWriteOptions): Promise<WrittenHtml> {
   const { config, now } = o;
   const file = htmlOutputPath(config, repoFolder(o.root), o.slug, now);
-  const html = await build({ generatedAt: now, repo: basename(o.root), repoKey: repoFolder(o.root), theme: o.theme, ...(o.update && { update: o.update }) });
+  const html = await build({ generatedAt: now, repo: basename(o.root), repoKey: repoFolder(o.root), theme: o.theme, ...(o.update && { update: o.update, updateNotes: o.updateNotes }) });
   const dir = dirname(file);
   privateDir(dir);
   writeFileSync(file, html, { mode: 0o600 });

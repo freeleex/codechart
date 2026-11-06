@@ -45,6 +45,7 @@ jobs:
       - run: npm run complexity
       - run: npm run dup
       - run: npm run knip
+      - run: node scripts/release-notes.mjs "$(node -p "require('./package.json').version")" > /dev/null
 
   supply-chain:
     runs-on: ubuntu-latest

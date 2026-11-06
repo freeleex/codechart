@@ -6,14 +6,13 @@ import { Command } from 'commander';
 import { packageFile } from '../assets.js';
 import { loadConfig } from '../config/load.js';
 import type { CommandOptions } from '../program.js';
-import { currentVersion, fetchLatest, isNewer, readState, skillDirs, writeState } from '../update/check.js';
+import { NOTES_URL, fetchHighlights, notesLines } from '../update/changelog.js';
+import { currentVersion, fetchLatest, isNewer, readState, skillDirs, withHighlights, writeState } from '../update/check.js';
 import { AGENTS, isCodechartSkill } from './agents.js';
 import { installCopy, skillFiles } from './install-skill.js';
 import { refreshReminder } from './nudges.js';
 import { installPlugin, pluginFile, pluginState } from './opencode-plugin.js';
 import { pluginBlocker } from './opencode-version.js';
-
-const RELEASES = 'https://github.com/freeleex/codechart/releases';
 
 interface Runner {
   /** Runs and returns stdout. */
@@ -85,14 +84,16 @@ async function update(o: { check?: boolean }, opts: CommandOptions, runner: Runn
   const latest = await fetchLatest(opts.fetch ?? fetch, 10_000);
   if (!latest) throw new Error("couldn't reach the npm registry to look up the newest version");
   const cacheDir = cacheDirOf(opts);
-  writeState(cacheDir, { ...readState(cacheDir), checkedAt: opts.now?.().getTime() ?? Date.now(), latest });
+  const state = { ...readState(cacheDir), checkedAt: opts.now?.().getTime() ?? Date.now(), latest };
+  const notes = isNewer(latest, current) ? await fetchHighlights(opts.fetch ?? fetch, current, latest, 10_000) : undefined;
+  writeState(cacheDir, withHighlights(state, current, latest, notes));
   if (!isNewer(latest, current)) {
     opts.stdout(`codechart ${current} is the newest version.\n`);
     if (!o.check) refreshInstalls(home, opts);
     return;
   }
   if (o.check) {
-    opts.stdout(`codechart ${latest} is available (you have ${current}): run codechart update\n`);
+    opts.stdout(`${[`codechart ${latest} is available (you have ${current}): run codechart update`, ...notesLines(notes)].join('\n')}\n`);
     return;
   }
   let npmRoot: string | undefined;
@@ -103,14 +104,15 @@ async function update(o: { check?: boolean }, opts: CommandOptions, runner: Runn
   }
   const how = installedBy(packageFile(''), npmRoot);
   if (!how.npm) {
-    opts.stdout(`codechart ${latest} is available (you have ${current}), but ${how.hint}.\n`);
+    opts.stdout(`${[`codechart ${latest} is available (you have ${current}), but ${how.hint}.`, ...notesLines(notes)].join('\n')}\n`);
     return;
   }
-  opts.stdout(`Updating codechart ${current} → ${latest}: npm install -g codechart@${latest}\n`);
+  const lines = [`Updating codechart ${current} → ${latest}: npm install -g codechart@${latest}`, ...notesLines(notes)];
+  opts.stdout(`${lines.join('\n')}\n`);
   runner.show('npm', ['install', '-g', `codechart@${latest}`]);
   // The new version's own files and code refresh the skill copies.
   runner.show('codechart', ['update', '--skills-only']);
-  opts.stdout(`codechart ${latest} installed. What changed: ${RELEASES}\n`);
+  opts.stdout(`codechart ${latest} installed. What changed: ${NOTES_URL}\n`);
 }
 
 /** The update command's work, for callers that handle its errors themselves. */

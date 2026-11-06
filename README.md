@@ -85,7 +85,7 @@ That's it. Open your coding agent in any repo and try:
 > show me the flow of accepting an invite
 ```
 
-Works with Claude Code, Codex, Gemini CLI, GitHub Copilot, Cursor, OpenCode and any other agent that supports [Agent Skills](https://agentskills.io). `install-skill` asks which agents get the skill, and adds a reminder line, a Claude Code hook and an OpenCode plugin so agents don't forget it in long sessions. `codechart update` brings everything up to date, and codechart tells you once a day when there's a new version. No diagram appeared? `codechart doctor` checks the setup (`--fix` repairs it, `--last` explains the last turn). Details, other agents, updating and uninstalling: [Install and agents](docs/install.md).
+Works with Claude Code, Codex, Gemini CLI, GitHub Copilot, Cursor, OpenCode and any other agent that supports [Agent Skills](https://agentskills.io). `install-skill` asks which agents get the skill, and adds a reminder line, a Claude Code hook and an OpenCode plugin so agents don't forget it in long sessions. `codechart update` brings everything up to date (what changed: [CHANGELOG.md](CHANGELOG.md)), and codechart tells you once a day when there's a new version. No diagram appeared? `codechart doctor` checks the setup (`--fix` repairs it, `--last` explains the last turn). Details, other agents, updating and uninstalling: [Install and agents](docs/install.md).
 
 ## What you get
 
@@ -184,11 +184,11 @@ The skill fires when the agent summarizes a change, writes a plan or explains ho
 
 A diagram is about **2–3 extra API calls**. In a long session that's roughly 2–3% of your usage per diagram, and nothing for trivial changes. That's an estimate from Claude Code sessions with Sonnet; other agents and models will differ, and shorter sessions pay proportionally more. Measured runs are in [docs/efficiency.md](docs/efficiency.md).
 
-The CLI is small: a 104.0 kB package, 5 runtime dependencies, and a cold start around 150 ms.
+The CLI is small: a 106.1 kB package, 5 runtime dependencies, and a cold start around 150 ms.
 
 ## Safe to run
 
-- No telemetry, no shell: only read-only `git` and your OS opener. The only network calls are a once-a-day version check to npm ([off with one setting](docs/install.md#updating)) and opt-in [PR maps](docs/pr-maps.md), whose CI job edits the PR description and publishes the map image.
+- No telemetry, no shell: only read-only `git` and your OS opener. The only network calls are a once-a-day version check to npm, plus a read of the changelog from GitHub when there's a newer one ([off with one setting](docs/install.md#updating)) and opt-in [PR maps](docs/pr-maps.md), whose CI job edits the PR description and publishes the map image.
 - HTML pages load nothing external, all text is escaped, and they're saved to `~/.cache/codechart`, never to your repo. A summary page holds your diff: share it only where you'd share the diff.
 - Audited before release across 8 areas, including untrusted repos and prompt-injected specs: [SECURITY.md](SECURITY.md) and [docs/security-review.md](docs/security-review.md).
 
