@@ -54,13 +54,15 @@ function move(i: number, t: View): void {
 function zoomToSelected(): void {
   const id = document.querySelector('.node.selected')?.getAttribute('data-id');
   if (!id) return;
+  stopGlide();
+  const stops: (() => void)[] = [];
   for (let i = 0; i < canvases.length; i++) {
     const g = canvases[i]!.querySelector<SVGGraphicsElement>(`.node[data-id="${CSS.escape(id)}"]`);
     if (!g) continue;
-    stopGlide();
-    stopGlide = glide(ts[i]!, nodeView(g.getBBox(), canvases[i]!.querySelector('svg')!.getBoundingClientRect()), (v) => move(i, v));
+    stops.push(glide(ts[i]!, nodeView(g.getBBox(), canvases[i]!.querySelector('svg')!.getBoundingClientRect()), (v) => move(i, v)));
     if (linked) break;
   }
+  stopGlide = () => stops.forEach((s) => s());
 }
 
 function fit(): void {

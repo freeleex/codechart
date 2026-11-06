@@ -234,4 +234,14 @@ describe('Focus button and f key', () => {
     expect(view()[0]).toBe('translate(125,225) scale(2.5)');
     expect(q('#key-help').textContent).toContain('f: zoom to the selected node');
   });
+
+  it('unlinked panes each focus the node, not only the last one', async () => {
+    mount(panesPage);
+    stub();
+    click(q('#link-toggle'));
+    click(node('users'));
+    click(q('#nav-focus'));
+    await settle();
+    expect(view()).toEqual(['translate(125,225) scale(2.5)', 'translate(125,225) scale(2.5)']);
+  });
 });
