@@ -4,6 +4,11 @@ Footprint of codechart: download size, startup, tokens. Re-measure with `npm run
 
 Commit refs in this doc are from pre-release history and do not resolve in this repo.
 
+## At a glance
+
+- A diagram is about **2–3 extra API calls**. In a long session that's roughly 2–3% of your usage per diagram, and nothing for trivial changes. That's an estimate from Claude Code sessions with Sonnet; other agents and models will differ, and shorter sessions pay proportionally more ([In a real session](#in-a-real-session-estimate)).
+- The CLI is small: a 112.2 kB package, 5 runtime dependencies, and a cold start around 150 ms.
+
 ## Baseline (2026-10-28)
 
 Before the final round, codechart 0.1.0:
