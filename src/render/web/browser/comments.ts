@@ -1,5 +1,5 @@
 // Runs in the generated page; scripts/client-build.ts puts it ahead of client.ts in the one inline script.
-import { typing } from './hunks.js';
+import { modalOpen, typing } from './hunks.js';
 import { MAX_NOTES, notesOn, persistNotes, savedNotes, type Change, type Note, type NoteStore } from './note-store.js';
 import { noteSelectedId, notePaint } from './note-paint.js';
 import { lineTarget, nodeOfTarget, targetKey, type NoteTarget } from './targets.js';
@@ -84,7 +84,7 @@ export function initComments(repo: string, change: Change): Comments {
       notePaint(s);
       return;
     }
-    if (e.key !== 'c' || e.ctrlKey || e.metaKey || e.altKey || typing(e.target) || document.querySelector('.cm-modal')) return;
+    if (e.key !== 'c' || e.ctrlKey || e.metaKey || e.altKey || typing(e.target) || modalOpen()) return;
     const id = noteSelectedId();
     if (id === null) return;
     e.preventDefault();

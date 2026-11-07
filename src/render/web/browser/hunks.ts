@@ -14,6 +14,9 @@ export const typing = (t: EventTarget | null): boolean => {
   return el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable === true;
 };
 
+/** The Finish review popup: the page behind it takes no keys. */
+export const modalOpen = (): boolean => document.querySelector('.cm-modal') !== null;
+
 const isOpen = (h: HTMLElement) => !h.classList.contains('folded');
 
 function setOpen(h: HTMLElement, open: boolean): void {
@@ -151,7 +154,7 @@ export function initHunks(panel: HTMLElement, review: Review, zoomToNode: () => 
   });
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') help.hidden = true;
-    if (e.ctrlKey || e.metaKey || e.altKey || typing(e.target)) return;
+    if (e.ctrlKey || e.metaKey || e.altKey || typing(e.target) || modalOpen()) return;
     const run = Object.hasOwn(keys, e.key) ? keys[e.key] : undefined;
     if (!run) return;
     e.preventDefault();

@@ -371,6 +371,22 @@ describe('Finish review', () => {
     expect(stored().every((s) => s.sent)).toBe(true);
   });
 
+  it('page shortcuts do nothing behind the popup; Esc still closes it', () => {
+    seed(note({ title: true }));
+    mount(shopNotes(), false);
+    click(node('tbl.orders'));
+    click(finishBtn());
+    for (const k of ['r', ']', '[', 'n', 'p', 'f', 'o', 'O', '?', 'c']) key(k);
+    expect(qa('.node.reviewed')).toHaveLength(0);
+    expect(q<HTMLElement>('#key-help').hidden).toBe(true);
+    expect(qa('.cm-composer')).toHaveLength(0);
+    expect(node('tbl.orders').classList.contains('selected')).toBe(true);
+    q('.cm-copy').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(qa('.cm-modal')).toHaveLength(0);
+    key('r');
+    expect(qa('.node.reviewed')).toHaveLength(1);
+  });
+
   it('a review too big for the importer is copied in batches, each one importable', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
