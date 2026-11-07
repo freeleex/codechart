@@ -157,6 +157,8 @@ Small diagrams stay in the reply. Big ones also get a self-contained HTML page: 
 
 You can review on the page too: 💬 in a node's panel (or `c`) adds a comment, question or "delete this" to the node; hover a diff line's number and click `+` for that line. Arrows, plan-vs-built notes, gaps, *Not on map* items and the title take notes too. Notes stay in your browser until you click *Finish review (N)* at the top right: it copies them as plain text with a short closing line, and you paste that into your agent chat. The agent saves them with your terminal notes and reads them back. Sent notes stay on the page, dimmed.
 
+![Map page with notes: a question on the Order node, a delete note under a removed line and a comment under a new line, each in its kind's colour; Finish review (3) at the top right](docs/images/page-notes.png)
+
 ### Maps in pull requests
 
 Reviewers get the map too. Turn it on once per repo (`codechart setup-pr-maps`, or ask your agent): it shows the CI file and asks before writing anything. From then on, PR and MR descriptions the agent writes end with a collapsed map, and CI redraws it on every push, so new ✗ flags appear when the code moves on. No AI or tokens in CI. [How it works and setup for GitHub and GitLab](docs/pr-maps.md).
