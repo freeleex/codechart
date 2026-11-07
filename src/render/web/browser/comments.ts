@@ -43,8 +43,17 @@ export function noteSubmit(s: NoteStore): void {
     const rev = id === undefined ? null : [...document.querySelectorAll('.node')].find((g) => g.getAttribute('data-id') === id)?.getAttribute('data-rev');
     s.notes.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8), t: e.t, ...(rev && { r: rev }), k: e.k, b: body, at: new Date().toISOString() });
   }
+  if (s.floating && targetKey(s.floating) === targetKey(e.t)) s.floating = null;
   s.edit = null;
   persistNotes(s);
+  notePaint(s);
+}
+
+/** A floating box closes on a click elsewhere or when the map moves, unless it holds a draft. */
+function closeFloating(s: NoteStore): void {
+  if (!s.floating || s.edit?.text.trim()) return;
+  s.floating = null;
+  s.edit = null;
   notePaint(s);
 }
 
@@ -78,6 +87,12 @@ export function initComments(repo: string, change: Change): Comments {
     const t = ln && id !== null ? lineTarget(ln.parentElement!, id) : null;
     if (t) noteBegin(s, t);
   });
+  document.addEventListener('pointerdown', (e) => {
+    if (!(e.target as Element).closest?.('.cm-float, [data-cm]')) closeFloating(s);
+  }, true);
+  window.addEventListener('wheel', (e) => {
+    if (!(e.target as Element).closest?.('.cm-float')) closeFloating(s);
+  }, { capture: true, passive: true });
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && s.floating && !s.edit) {
       s.floating = null;

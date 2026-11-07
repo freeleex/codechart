@@ -174,9 +174,32 @@ describe('notes on the rest of the page', () => {
     save('should be nullable?');
     expect(stored()).toMatchObject([{ t }]);
     expect(target(t).classList.contains('has')).toBe(true);
-    expect(q('.cm-float')).not.toBeNull();
+    expect(q('.cm-float')).toBeNull();
+    click(target(t));
+    expect(q('.cm-float .cm-body').textContent).toBe('should be nullable?');
     click(target(t));
     expect(q('.cm-float')).toBeNull();
+  });
+
+  it('a floating box closes on a click elsewhere or a zoom, but keeps a draft', () => {
+    mount(shopNotes());
+    const t = { edge: { from: 'tbl.orders', to: 'tbl.customers', label: 'customer_id' } };
+    const away = () => document.querySelector('header')!.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    click(target(t));
+    save('a note');
+    click(target(t));
+    away();
+    expect(q('.cm-float')).toBeNull();
+    click(target(t));
+    window.dispatchEvent(new Event('wheel'));
+    expect(q('.cm-float')).toBeNull();
+    click(target(t));
+    click(q('.cm-float .cm-more'));
+    const ta = q('.cm-float textarea') as HTMLTextAreaElement;
+    ta.value = 'half written';
+    ta.dispatchEvent(new Event('input'));
+    away();
+    expect(q('.cm-float textarea')).not.toBeNull();
   });
 
   it('a gap and a not-on-map item, by their text', () => {
@@ -194,6 +217,7 @@ describe('notes on the rest of the page', () => {
     click(q('header .cm-title-btn'));
     save('rename it');
     expect(stored()).toMatchObject([{ t: { title: true }, b: 'rename it' }]);
+    click(q('header .cm-title-btn'));
     expect(q('.cm-float .cm-body').textContent).toBe('rename it');
   });
 });
@@ -236,6 +260,7 @@ describe('saved notes', () => {
     expect(stored()).toMatchObject([{ id: 'one', b: 'second', k: 'question' }]);
     expect(stored()[0]).not.toHaveProperty('sent');
     expect(finishBtn().textContent).toBe('Finish review (1)');
+    click(q('header .cm-title-btn'));
     click(q('.cm-remove'));
     expect(stored()).toEqual([]);
     expect(finishBtn().hidden).toBe(true);
@@ -245,6 +270,7 @@ describe('saved notes', () => {
     mount(shopNotes());
     click(q('header .cm-title-btn'));
     save('<img src=x onerror="window.pwned=1"><b>hi</b>');
+    click(q('header .cm-title-btn'));
     expect(q('.cm-body').textContent).toBe('<img src=x onerror="window.pwned=1"><b>hi</b>');
     expect(qa('.cm-float img, .cm-body b')).toHaveLength(0);
     click(finishBtn());
