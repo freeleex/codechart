@@ -16,7 +16,9 @@ const NOTE = /^>(\?|del(?=\s|$))?\s*(.*)$/;
 const ROW = /^([ +-]) *(\d+)(?: {2}(.*))?$/;
 const KIND: Record<string, NoteKind> = { '': 'comment', '?': 'question', del: 'delete' };
 
-const sameNote = (a: Note, b: Note): boolean =>
+/** The same place, kind and words; the target of a note on something other than a node or line counts too. */
+export const sameNote = (a: Note, b: Note): boolean =>
+  JSON.stringify(a.target) === JSON.stringify(b.target) &&
   a.node === b.node && a.kind === b.kind && a.body === b.body && a.anchor?.line === b.anchor?.line && a.anchor?.side === b.anchor?.side;
 
 /** The pending notes the document holds; one equal to an existing pending note is that note. */
@@ -24,7 +26,7 @@ export function parseDoc(text: string, review: Review, now: Date): Parsed {
   const warnings: string[] = [];
   const notes: Note[] = [];
   let skipped = 0;
-  const existing = review.notes.filter((n) => n.state === 'pending');
+  const existing = review.notes.filter((n) => n.state === 'pending' && !n.target);
   let next = lastNoteNumber(review.notes);
   let node: ReviewNode | undefined;
   let anchor: Note['anchor'];

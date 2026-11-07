@@ -1,7 +1,7 @@
 import { closeSync, openSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { REVIEW_NAME } from '../render/output-path.js';
-import { carryNotes } from './carry.js';
+import { carryNotes, type Lists } from './carry.js';
 import { reviewSchema, type Range, type Review, type ReviewNode } from './schema.js';
 
 export interface Found {
@@ -14,6 +14,10 @@ export interface ReviewSnapshot {
   title?: string;
   nodes: ReviewNode[];
   range?: Range;
+  drift?: Review['drift'];
+  edges?: Review['edges'];
+  gaps?: string[];
+  omitted?: string[];
 }
 
 export function readReview(file: string): Review | undefined {
@@ -100,11 +104,13 @@ export function listReviews(dir: string, branch: string): Found[] {
     });
 }
 
+export const listsOf = (r: Pick<Review, 'drift' | 'edges' | 'gaps' | 'omitted'>): Lists => ({ drift: r.drift, edges: r.edges, gaps: r.gaps, omitted: r.omitted });
+
 const sameName = (r: Review, name: string): boolean => r.change.slug === name || (r.change.title ?? r.change.slug).toLowerCase() === name.toLowerCase();
 
-/** The newest change on `branch`, or the one with this title or file name slug. */
-export function findChange(dir: string, branch: string, name?: string): Found {
-  const found = listReviews(dir, branch).find((f) => name === undefined || sameName(f.review, name));
+/** The newest change on `branch`, or the one with this title or file name slug. `exact`: only a file name slug counts. */
+export function findChange(dir: string, branch: string, name?: string, exact = false): Found {
+  const found = listReviews(dir, branch).find((f) => name === undefined || (exact ? f.review.change.slug === name : sameName(f.review, name)));
   if (found) return found;
   const where = branch ? ` on branch ${branch}` : ' here';
   throw new Error(name === undefined ? `No map to review${where} yet. Ask your agent for a map first.` : `No map called "${name}"${where}. Check the title, or ask your agent to draw it.`);
@@ -118,6 +124,10 @@ export function saveReview(o: { dir: string; file: string; html?: string; slug: 
     version: 1,
     change: { slug, ...(snapshot.title && { title: snapshot.title }), kind: snapshot.kind, branch, ...(o.html && { html: o.html }), renderedAt: o.now.toISOString(), ...(snapshot.range && { range: snapshot.range }) },
     nodes: snapshot.nodes,
-    notes: prev ? carryNotes(prev.review, snapshot.nodes) : [],
+    ...(snapshot.drift && { drift: snapshot.drift }),
+    ...(snapshot.edges && { edges: snapshot.edges }),
+    ...(snapshot.gaps && { gaps: snapshot.gaps }),
+    ...(snapshot.omitted && { omitted: snapshot.omitted }),
+    notes: prev ? carryNotes(prev.review, snapshot.nodes, snapshot) : [],
   });
 }

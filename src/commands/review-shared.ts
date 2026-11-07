@@ -9,12 +9,12 @@ export interface Located extends Found {
   root: string;
 }
 
-/** The change a review command works on: the newest on this branch, or `--change <slug>`. `branch`: look there instead of the checked-out one. */
-export function locateChange(opts: CommandOptions, slug?: string, branch?: string): Located {
+/** The change a review command works on: the newest on this branch, or `--change <slug>`. `branch`: look there instead of the checked-out one; `exact`: `slug` must be the file name slug. */
+export function locateChange(opts: CommandOptions, slug?: string, branch?: string, exact = false): Located {
   const cwd = opts.cwd ?? process.cwd();
   const root = findRepoRoot(cwd) ?? resolve(cwd);
   const config = loadConfig({ cwd, home: opts.home, env: opts.env, warn: (l) => opts.stderr(`codechart: ${l}\n`) });
-  return { root, ...findChange(join(config.web.outDir, repoFolder(root)), branch ?? gitBranch(root), slug) };
+  return { root, ...findChange(join(config.web.outDir, repoFolder(root)), branch ?? gitBranch(root), slug, exact) };
 }
 
 /** Runs `fn`; an error is printed as `codechart: …` and fails the command. */
