@@ -98,6 +98,12 @@ describe('what a map shows besides its nodes', () => {
     expect(Object.keys(snap)).toEqual(['kind', 'title', 'nodes']);
   });
 
+  it('ghost links from the plan are listed after the spec\'s, sanitized, in maps and flows', () => {
+    const ghost = [{ from: 'a', to: 'g', label: `plans${EVIL}` }];
+    expect(mapSnapshot(spec, undefined, undefined, [], ghost).edges!.at(-1)).toEqual({ from: 'a', to: 'g', label: `plans${CLEAN}` });
+    expect(flowSnapshot(sampleFlow(), sampleSnippets(), undefined, [], ghost).edges!.at(-1)).toEqual({ from: 'a', to: 'g', label: `plans${CLEAN}` });
+  });
+
   it('flow: links with their labels and the gaps', () => {
     const f = { ...sampleFlow(), gaps: ['open question'] };
     const snap = flowSnapshot(f, sampleSnippets(), undefined, [item]);

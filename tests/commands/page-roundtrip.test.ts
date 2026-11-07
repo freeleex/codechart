@@ -174,6 +174,17 @@ describe('page → Finish review → feedback --import', () => {
     expect(review().notes.map((n) => [n.state, n.target])).toEqual([['pending', { type: 'gap', text: 'no tests here' }], ['pending', { type: 'omitted', text: 'cron job' }]]);
   });
 
+  it('a note on a faded arrow from the plan imports pending', async () => {
+    await render({ ...PLAN, edges: [{ from: 'Order', to: 'Cache', label: 'invalidates' }] }, planned, '--output', 'cli');
+    await render(SUMMARY, built, '--output', 'web');
+    mount(page());
+    click(target({ edge: { from: 'Order', to: 'Cache', label: 'invalidates' } }));
+    save('still wanted?');
+    const r = await run(['feedback', '--import'], built, stdin(await copyFinish()));
+    expect(r.err).toBe('✔ Imported 1 note into "Orders"\n');
+    expect(review().notes.map((n) => [n.state, n.target])).toEqual([['pending', { type: 'edge', from: 'Order', to: 'Cache', label: 'invalidates' }]]);
+  });
+
   it('the same text read from the clipboard imports the same way', async () => {
     await render(SUMMARY, built, '--output', 'web');
     mount(page());

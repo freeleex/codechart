@@ -39,7 +39,7 @@ export async function renderMap(spec: Spec, ctx: RenderContext): Promise<Rendere
   const termOpts = { maxNodes: ctx.maxNodes, keyLine: !ctx.md, color: ctx.color, width: ctx.width, check, drift: view };
   let cached: ReturnType<typeof nodePreviews> | undefined;
   const previews = () => (diff ? (cached ??= nodePreviews(spec, root, diff, diffRange(root, ctx.selection), check.found, ctx.cwd)) : undefined);
-  const snapshot = () => mapSnapshot(spec, previews(), rangeOf(root, ctx.selection), drift?.items);
+  const snapshot = () => mapSnapshot(spec, previews(), rangeOf(root, ctx.selection), drift?.items, ghosts?.links);
   const canvases = hasNowAfter(spec) ? PANE_CANVASES : undefined;
   const chosen = await chooseOutput(
     ctx.output,
