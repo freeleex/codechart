@@ -157,7 +157,7 @@ Small diagrams stay in the reply. Big ones also get a self-contained HTML page: 
 
 You can review on the page too: 💬 in a node's panel (or `c`) adds a comment, question or "delete this" to the node; hover a diff line's number and click `+` for that line. Arrows, plan-vs-built notes, gaps, *Not on map* items and the title take notes too. Notes stay in your browser until you click *Finish review (N)* at the top right: it copies them as plain text with a short closing line, and you paste that into your agent chat. The agent saves them with your terminal notes and reads them back. Sent notes stay on the page, dimmed.
 
-![Map page with notes: a question on the Order node, a delete note under a removed line and a comment under a new line, each in its kind's colour; Finish review (3) at the top right](docs/images/page-notes.png)
+<img src="docs/images/page-review.gif" alt="On the map page the user opens the orders node and its diff, adds a comment under a new line, a delete note under a removed line and a question on the node, then clicks Finish review (3), copies the message, and codechart feedback --import --take prints the three numbered notes for the agent" width="960">
 
 ### Maps in pull requests
 
