@@ -49,12 +49,14 @@ function noteBox(e: Edit, onSave: () => void, onCancel: () => void): HTMLTextAre
 
 /** The small form: text, kind (Comment / Question / Delete), Save and Cancel. */
 export function composerEl(e: Edit, onSave: () => void, onCancel: () => void): HTMLElement {
+  const box = cmEl('div', `cm-composer cm-k-${e.k}`);
   const kinds = cmEl('div', 'cm-kinds');
   kinds.setAttribute('role', 'group');
   kinds.setAttribute('aria-label', 'Kind of note');
   for (const k of NOTE_KINDS) {
-    const b = cmButton('cm-kind-btn', KIND_LABEL[k], KIND_LABEL[k], () => {
+    const b = cmButton(`cm-kind-btn cm-k-${k}`, KIND_LABEL[k], KIND_LABEL[k], () => {
       e.k = k;
+      box.className = `cm-composer cm-k-${k}`;
       kinds.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
     });
     b.setAttribute('aria-pressed', String(k === e.k));
@@ -64,14 +66,13 @@ export function composerEl(e: Edit, onSave: () => void, onCancel: () => void): H
   actions.append(cmButton('cm-cancel', 'Cancel', 'Cancel', onCancel), cmButton('cm-save', 'Save', 'Save note', onSave));
   const row = cmEl('div', 'cm-row');
   row.append(kinds, actions);
-  const box = cmEl('div', 'cm-composer');
   box.append(noteBox(e, onSave, onCancel), row);
   return box;
 }
 
 /** A saved note: its kind, its text (as text, never markup) and Edit / Remove. */
 export function noteRow(n: Note, onEdit: () => void, onRemove: () => void): HTMLElement {
-  const row = cmEl('div', `cm-note${n.sent ? ' sent' : ''}`);
+  const row = cmEl('div', `cm-note cm-k-${n.k}${n.sent ? ' sent' : ''}`);
   if (n.sent) row.title = 'Already copied for the agent. Editing it makes it unsent again.';
   const actions = cmEl('span', 'cm-actions');
   actions.append(cmButton('cm-edit', 'Edit', 'Edit note', onEdit), cmButton('cm-remove', 'Remove', 'Remove note', onRemove));

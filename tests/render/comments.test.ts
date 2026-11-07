@@ -261,6 +261,7 @@ describe('saved notes', () => {
     expect(stored()[0]).not.toHaveProperty('sent');
     expect(finishBtn().textContent).toBe('Finish review (1)');
     click(q('header .cm-title-btn'));
+    expect(q('.cm-note').classList.contains('cm-k-question')).toBe(true);
     click(q('.cm-remove'));
     expect(stored()).toEqual([]);
     expect(finishBtn().hidden).toBe(true);

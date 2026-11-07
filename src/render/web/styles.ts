@@ -151,23 +151,24 @@ aside li .cm-btn{margin-left:6px}
 aside .drift{position:relative}aside .drift-chip~.cm-drift-btn{position:absolute;top:9px;right:34px}
 aside .dr .ln{position:relative;cursor:default}
 body.cm aside .dr:hover .ln::before{content:"+";position:absolute;inset:0;display:block;text-align:center;font-weight:700;color:#fff;background:var(--edge);cursor:pointer}
-.cm-thread{margin:4px 0;padding:4px 8px;font:12px/1.4 system-ui,sans-serif;white-space:normal;background:var(--bg);border:1px solid var(--line);border-left:3px solid var(--edge);border-radius:4px}
+.cm-thread{margin:4px 0;padding:4px 8px;font:12px/1.4 system-ui,sans-serif;white-space:normal;background:var(--bg);border:1px solid var(--line);border-radius:4px}
 aside .cm-thread{margin-right:14px}aside .dr+.cm-thread{margin-left:calc(4px + 4.5ch)}
 .cm-float{position:fixed;z-index:6;width:320px;background:var(--panel);box-shadow:0 2px 10px #0004}
-.cm-note{display:flex;gap:6px;align-items:baseline;padding:2px 0}
+.cm-k-comment{--k:var(--chg)}.cm-k-question{--k:var(--edge)}.cm-k-delete{--k:var(--rem)}
+.cm-note{display:flex;gap:6px;align-items:baseline;padding:2px 0 2px 7px;border-left:3px solid var(--k)}
 .cm-note.sent{opacity:.5}
-.cm-kind{flex:none;font-size:10.5px;text-transform:uppercase;color:var(--muted)}
+.cm-kind{flex:none;font-size:10.5px;text-transform:uppercase;color:var(--k)}
 .cm-body{flex:1;min-width:0;white-space:pre-wrap;overflow-wrap:anywhere}
 .cm-actions{display:flex;gap:6px}
 .cm-note .cm-actions{flex:none}
 .cm-thread button:not(.cm-btn),.cm-dialog button{padding:0 8px;font:11px/18px system-ui,sans-serif;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:10px;cursor:pointer}
 .cm-thread button:hover,.cm-dialog button:hover{border-color:var(--edge)}
-.cm-composer{display:flex;flex-direction:column;gap:6px;padding:4px 0}
+.cm-composer{display:flex;flex-direction:column;gap:6px;padding:4px 0 4px 7px;border-left:3px solid var(--k)}
 .cm-composer textarea,.cm-preview{width:100%;padding:5px 7px;font:12px/1.4 system-ui,sans-serif;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:4px;resize:vertical}
 .cm-kinds{display:flex;gap:4px}
 .cm-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px}
 .cm-composer .cm-actions{margin-left:auto}
-.cm-composer .cm-kinds button[aria-pressed="true"]{color:var(--edge);border-color:var(--edge);font-weight:600}
+.cm-composer .cm-kinds button[aria-pressed="true"]{color:var(--k);border-color:var(--k);font-weight:600}
 .cm-composer button.cm-save{color:#fff;background:var(--new);border-color:var(--new);font-weight:600}
 .cm-composer button.cm-cancel{color:var(--muted);background:none;border-color:transparent}
 .cm-composer button.cm-cancel:hover{color:var(--text)}
