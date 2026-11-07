@@ -22,6 +22,22 @@ function finishMessage(title: string, change: Change, notes: Note[]): string {
   return `Review done: ${countOf(notes.length)} on "${title}".\n${lines.join('\n')}\n\ncodechart review · ${countOf(notes.length)} · ${noteToken(change, notes)}`;
 }
 
+/** A message over this is split into batches; tests keep it under the importer's cap. */
+export const FINISH_LIMIT = 448 * 1024;
+
+/** The most unsent notes, from the first, whose message stays under FINISH_LIMIT; always at least one. */
+function fitBatch(title: string, change: Change, notes: Note[]): { text: string; count: number } {
+  const size = (n: number) => new TextEncoder().encode(finishMessage(title, change, notes.slice(0, n))).length;
+  let lo = 1;
+  let hi = notes.length;
+  while (lo < hi) {
+    const mid = Math.ceil((lo + hi) / 2);
+    if (size(mid) <= FINISH_LIMIT) lo = mid;
+    else hi = mid - 1;
+  }
+  return { text: finishMessage(title, change, notes.slice(0, lo)), count: lo };
+}
+
 async function copyNoteText(text: string, box: HTMLTextAreaElement): Promise<boolean> {
   try {
     await navigator.clipboard.writeText(text);
@@ -45,7 +61,7 @@ interface FinishDialog {
   cancel: HTMLButtonElement;
 }
 
-function finishDialog(text: string): FinishDialog {
+function finishDialog(text: string, partial?: string): FinishDialog {
   const dialog = cmEl('div', 'cm-dialog');
   dialog.id = 'finish-dialog';
   dialog.setAttribute('role', 'dialog');
@@ -65,7 +81,9 @@ function finishDialog(text: string): FinishDialog {
   copy.type = cancel.type = 'button';
   const actions = cmEl('div', 'cm-actions');
   actions.append(copy, cancel);
-  dialog.append(cmEl('h2', '', 'Finish review'), cmEl('p', '', 'Copy this and paste it into your agent chat.'), preview, hint, actions, alt);
+  dialog.append(cmEl('h2', '', 'Finish review'), cmEl('p', '', 'Copy this and paste it into your agent chat.'));
+  if (partial) dialog.append(cmEl('p', 'cm-part', partial));
+  dialog.append(preview, hint, actions, alt);
   const modal = cmEl('div', 'cm-modal');
   modal.append(dialog);
   return { modal, preview, hint, copy, cancel };
@@ -102,8 +120,9 @@ function toast(text: string): void {
 function openFinish(comments: Comments, change: Change, opener: HTMLElement): void {
   const list = comments.unsent();
   if (!list.length) return;
-  const text = finishMessage(document.querySelector('header h1')!.textContent!, change, list);
-  const d = finishDialog(text);
+  const { text, count } = fitBatch(document.querySelector('header h1')!.textContent!, change, list);
+  const batch = list.slice(0, count);
+  const d = finishDialog(text, count < list.length ? `This message has ${count} of ${countOf(list.length)}. Paste it, then click Finish review again for the rest.` : undefined);
   const close = () => {
     d.modal.remove();
     opener.focus();
@@ -112,7 +131,7 @@ function openFinish(comments: Comments, change: Change, opener: HTMLElement): vo
   d.copy.addEventListener('click', async () => {
     if (await copyNoteText(text, d.preview)) {
       close();
-      comments.markSent(list.map((n) => n.id));
+      comments.markSent(batch.map((n) => n.id));
       toast('Copied');
       return;
     }

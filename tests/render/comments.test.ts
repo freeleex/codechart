@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { compareMaps } from '../../src/render/map-drift.js';
 import { parseDiff } from '../../src/render/preview.js';
 import { ghostsFor } from '../../src/render/web/drift-html.js';
+import { FINISH_LIMIT } from '../../src/render/web/browser/finish.js';
+import { MAX_IMPORT_BYTES, parseReviewText } from '../../src/review/import.js';
 import { renderHtml } from '../../src/render/web/html.js';
 import { layoutSpec } from '../../src/render/web/layout.js';
 import { change, click, flowNotes, key, mount, node, panesNotes, q, qa, shopNotes, shopPage, usePages } from '../helpers/page.js';
@@ -367,6 +369,50 @@ describe('Finish review', () => {
     expect(exec).toHaveBeenCalledWith('copy');
     expect(qa('.cm-modal')).toHaveLength(0);
     expect(stored().every((s) => s.sent)).toBe(true);
+  });
+
+  it('a review too big for the importer is copied in batches, each one importable', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    seed(...Array.from({ length: 100 }, (_, i) => note({ title: true }, 'comment', `${String(i).padStart(3, '0')} ${'x'.repeat(3990)}`)));
+    mount(shopNotes(), false);
+    const bodies: string[] = [];
+    let left = 100;
+    for (let round = 0; left > 0; round++) {
+      expect(round).toBeLessThan(10);
+      click(finishBtn());
+      const text = message();
+      const got = parseReviewText(text).notes;
+      expect(Buffer.byteLength(text)).toBeLessThan(FINISH_LIMIT);
+      expect(got.length).toBeLessThan(100);
+      if (got.length < left) {
+        expect(q('#finish-dialog').textContent).toContain(`${got.length} of ${left} notes`);
+        expect(q('#finish-dialog').textContent).toContain('click Finish review again for the rest');
+      } else {
+        expect(q('#finish-dialog').textContent).not.toContain('for the rest');
+      }
+      bodies.push(...got.map((g) => g.b.slice(0, 3)));
+      click(q('.cm-copy'));
+      await tick();
+      expect(writeText).toHaveBeenLastCalledWith(text);
+      left -= got.length;
+      expect(finishBtn().hidden).toBe(left === 0);
+      if (left) expect(finishBtn().textContent).toBe(`Finish review (${left})`);
+    }
+    expect(bodies).toEqual(Array.from({ length: 100 }, (_, i) => String(i).padStart(3, '0')));
+  });
+
+  it('a batch holds at least one note, and a review that fits is not split', () => {
+    seed(note({ title: true }, 'comment', '\u0001'.repeat(4000)));
+    mount(shopNotes(), false);
+    click(finishBtn());
+    expect(Buffer.byteLength(message())).toBeLessThan(FINISH_LIMIT);
+    expect(q('#finish-dialog').textContent).not.toContain('for the rest');
+    expect(parseReviewText(message()).notes).toHaveLength(1);
+  });
+
+  it('the page limit is below what the importer accepts', () => {
+    expect(FINISH_LIMIT).toBeLessThan(MAX_IMPORT_BYTES);
   });
 
   it('when nothing can copy, the popup stays with the text selected and a hint', async () => {
