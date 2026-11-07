@@ -5,7 +5,7 @@ import { api, note, review } from './fixture.js';
 
 const payload = (notes: ImportPayload['notes'] = [{ t: { node: 'api' }, r: 'rev-api', k: 'comment', b: 'check this' }]): ImportPayload => ({ v: 1, slug: 'invites', branch: 'feat/invites', at: '2026-10-28T08:05:03.000Z', notes });
 const LABEL = { comment: 'Comment', question: 'Question', delete: 'Delete' };
-type Words = { k: keyof typeof LABEL; b: string };
+type Words = { t?: unknown; r?: string; k: keyof typeof LABEL; b: string };
 const notesOf = (p: unknown): Words[] => (p as { notes?: Words[] }).notes ?? [];
 const token = (p: unknown): string => Buffer.from(JSON.stringify({ ...(p as object), ...(typeof p === 'object' && 'notes' in (p as object) && { notes: notesOf(p).map(({ t, r, k }) => ({ t, r, k })) }) })).toString('base64url');
 const items = (p: unknown = payload()): string => notesOf(p).map((n, i) => `${i + 1}. On somewhere: ${LABEL[n.k]}: ${n.b.replace(/\n/g, '\n   ')}`).join('\n');
