@@ -61,9 +61,11 @@ export function composerEl(e: Edit, onSave: () => void, onCancel: () => void): H
     kinds.append(b);
   }
   const actions = cmEl('div', 'cm-actions');
-  actions.append(cmButton('cm-save', 'Save', 'Save note', onSave), cmButton('cm-cancel', 'Cancel', 'Cancel', onCancel));
+  actions.append(cmButton('cm-cancel', 'Cancel', 'Cancel', onCancel), cmButton('cm-save', 'Save', 'Save note', onSave));
+  const row = cmEl('div', 'cm-row');
+  row.append(kinds, actions);
   const box = cmEl('div', 'cm-composer');
-  box.append(noteBox(e, onSave, onCancel), kinds, actions);
+  box.append(noteBox(e, onSave, onCancel), row);
   return box;
 }
 

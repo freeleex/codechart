@@ -165,8 +165,12 @@ aside .cm-thread{margin-right:14px}aside .dr+.cm-thread{margin-left:calc(4px + 4
 .cm-composer{display:flex;flex-direction:column;gap:6px;padding:4px 0}
 .cm-composer textarea,.cm-preview{width:100%;padding:5px 7px;font:12px/1.4 system-ui,sans-serif;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:4px;resize:vertical}
 .cm-kinds{display:flex;gap:4px}
-.cm-kinds button[aria-pressed="true"]{color:#fff;background:var(--edge);border-color:var(--edge)}
-.cm-save{color:#fff;background:var(--edge);border-color:var(--edge)}
+.cm-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px}
+.cm-composer .cm-actions{margin-left:auto}
+.cm-composer .cm-kinds button[aria-pressed="true"]{color:var(--edge);border-color:var(--edge);font-weight:600}
+.cm-composer button.cm-save{color:#fff;background:var(--new);border-color:var(--new);font-weight:600}
+.cm-composer button.cm-cancel{color:var(--muted);background:none;border-color:transparent}
+.cm-composer button.cm-cancel:hover{color:var(--text)}
 .cm-badge{pointer-events:none}.cm-badge circle{fill:var(--edge)}.cm-badge text{fill:#fff;font-size:9px;font-weight:700;text-anchor:middle}
 .cm-hit{fill:none;stroke:transparent;stroke-width:14px;pointer-events:stroke}
 .cm-edge-btn{cursor:pointer;opacity:0}
