@@ -1,6 +1,8 @@
 // Runs in the generated page, not in node. `npm run gen:client` compiles it into ../client.ts,
 // which the page inlines (the CSP allows that one script by hash).
 import { initChips } from './chips.js';
+import { initComments } from './comments.js';
+import { initFinish } from './finish.js';
 import { dismissFocus, focus, select } from './focus.js';
 import { glide, nodeView, type View } from './glide.js';
 import { initHunks } from './hunks.js';
@@ -21,7 +23,7 @@ interface Drag {
 
 const THEMES = ['auto', 'light', 'dark'];
 
-const data = JSON.parse(document.getElementById('spec-data')!.textContent!) as { width: number; height: number; repoKey: string };
+const data = JSON.parse(document.getElementById('spec-data')!.textContent!) as { width: number; height: number; repoKey: string; change?: { slug: string; branch: string; at: string } };
 const canvases = [...document.querySelectorAll<HTMLElement>('.canvas')];
 const vps = [...document.querySelectorAll<SVGGElement>('.viewport')];
 const panel = document.getElementById('panel')!;
@@ -157,6 +159,7 @@ function open(v: Visit): void {
   setInfo(!tpl);
   focusBtn.disabled = !tpl;
   review.paint();
+  comments?.paint();
   hunks.reset();
 }
 
@@ -265,5 +268,7 @@ dismissFocus(canvases, () => moved);
 initChips();
 initWhy(panel);
 const review = initReview(data.repoKey, goTo);
+const comments = data.change ? initComments(data.repoKey, data.change) : null;
+if (comments && data.change) initFinish(comments, data.change);
 const hunks = initHunks(panel, review, zoomToSelected);
 initPanel();

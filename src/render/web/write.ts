@@ -70,11 +70,12 @@ export function writeReviewOnly(snapshot: () => ReviewSnapshot, o: Pick<HtmlWrit
 export async function writeHtml(build: (meta: HtmlMeta) => Promise<string>, o: HtmlWriteOptions): Promise<WrittenHtml> {
   const { config, now } = o;
   const file = htmlOutputPath(config, repoFolder(o.root), o.slug, now);
-  const html = await build({ generatedAt: now, repo: basename(o.root), repoKey: repoFolder(o.root), theme: o.theme, ...(o.update && { update: o.update, updateNotes: o.updateNotes }) });
+  const branch = gitBranch(o.root);
+  const change = o.review && { slug: o.slug, branch, at: now.toISOString() };
+  const html = await build({ generatedAt: now, repo: basename(o.root), repoKey: repoFolder(o.root), theme: o.theme, ...(o.update && { update: o.update, updateNotes: o.updateNotes }), ...(change && { change }) });
   const dir = dirname(file);
   privateDir(dir);
   writeFileSync(file, html, { mode: 0o600 });
-  const branch = gitBranch(o.root);
   const saved = !o.review || saveReviewFile(dir, reviewFile(file), file, branch, o, o.review);
   // A failed save keeps the earlier page and review: they hold the user's notes.
   pruneHtml(dir, { ...config.web, now, replaceSlug: saved ? o.slug : undefined, replaceBranch: branch });

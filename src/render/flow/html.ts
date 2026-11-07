@@ -1,3 +1,4 @@
+import { stepRev } from '../../review/snapshot.js';
 import { isPlannedLink, isRemovedLink, type FlowLink, type FlowSpec, type FlowStep } from '../../spec/flow.js';
 import type { CheckSummary } from '../terminal/check-lines.js';
 import { flagMark, flagTitle, mismatchNote } from '../web/check-html.js';
@@ -49,7 +50,7 @@ function shape(step: FlowStep, b: FlowLayoutNode): string {
 }
 
 /** `flag`: the hover title of a step that doesn't match the code, else empty. */
-function renderStep(step: FlowStep, b: FlowLayoutNode, flag: string, side?: Side, drift?: DriftItem<FlowStep>, ghost = false): string {
+function renderStep(step: FlowStep, b: FlowLayoutNode, flag: string, side: Side | undefined, { drift, ghost = false, rev }: { drift?: DriftItem<FlowStep>; ghost?: boolean; rev?: string } = {}): string {
   const flagged = flag !== '';
   const cx = num(b.x + b.w / 2);
   const content = b.lines.length * LINE_HEIGHT + (b.badge ? BADGE_HEIGHT : 0);
@@ -67,7 +68,7 @@ function renderStep(step: FlowStep, b: FlowLayoutNode, flag: string, side?: Side
     y += LINE_HEIGHT;
   }
   return (
-    `<g class="node type-${step.type} status-${status}${ghost ? ' ghost' : ''}" data-id="${esc(step.id)}" data-status="${step.status}" tabindex="0" role="button" aria-label="${esc(`${step.label} (${step.status} ${step.type}${flagged ? ", doesn't match the code" : ''}${drift ? `, ${drift.kind === 'missing' ? 'in the plan, not built' : 'differs from the plan'}` : ''})`)}">` +
+    `<g class="node type-${step.type} status-${status}${ghost ? ' ghost' : ''}" data-id="${esc(step.id)}" data-label="${esc(step.label)}" data-status="${step.status}"${rev ? ` data-rev="${rev}"` : ''} tabindex="0" role="button" aria-label="${esc(`${step.label} (${step.status} ${step.type}${flagged ? ", doesn't match the code" : ''}${drift ? `, ${drift.kind === 'missing' ? 'in the plan, not built' : 'differs from the plan'}` : ''})`)}">` +
     flag +
     shape(step, b) +
     text +
@@ -162,7 +163,7 @@ function pageInfo(spec: FlowSpec, anyPlanned: boolean, sides: boolean, check: Ch
       ? '<p class="removed-note">Red steps and arrows are removed by the plan.</p>'
       : '';
   const hint = 'Click a step for its status, source and code. Scroll to zoom, drag to pan';
-  return pageInfoSection(hint, sides, check, driftInfo(ghosts?.drift, now), planned, removed, gapsHtml('Gaps', spec.gaps));
+  return pageInfoSection(hint, sides, check, driftInfo(ghosts?.drift, now), planned, removed, gapsHtml('Gaps', spec.gaps, 'gap'));
 }
 
 const mark = (drift: DriftItem<FlowStep> | undefined, ghost: boolean) => (drift ? { drift, ghost } : undefined);
@@ -172,7 +173,7 @@ export const withGhosts = (spec: FlowSpec, ghosts: Ghosts<FlowStep, FlowLink> | 
   ghosts ? { ...spec, steps: [...spec.steps, ...ghosts.nodes], links: [...spec.links, ...ghosts.links] } : spec;
 
 /** Without `side`: the whole plan or summary in one picture. `spec` is laid out with its ghosts. */
-function viewport(spec: FlowSpec, layout: FlowLayout, check: CheckSummary | undefined, side?: Side, ghosts?: Ghosts<FlowStep, FlowLink>): string {
+function viewport(spec: FlowSpec, layout: FlowLayout, check: CheckSummary | undefined, side?: Side, ghosts?: Ghosts<FlowStep, FlowLink>, revs?: Map<string, string>): string {
   const drifted = itemsById(ghosts?.drift);
   const ghostIds = new Set(ghosts?.nodes.map((g) => g.id));
   const ghostLinks = new Set(ghosts?.links);
@@ -189,7 +190,7 @@ function viewport(spec: FlowSpec, layout: FlowLayout, check: CheckSummary | unde
     .filter((s) => !side || stepOn(side, s))
     .map((s) => {
       const b = boxes.get(s.id);
-      return b ? renderStep(s, b, flagTitle(check, s.id), side, drifted.get(s.id), ghostIds.has(s.id)) : '';
+      return b ? renderStep(s, b, flagTitle(check, s.id), side, { drift: drifted.get(s.id), ghost: ghostIds.has(s.id), rev: revs?.get(s.id) }) : '';
     })
     .join('');
   return `${edges}${nodes}`;
@@ -203,6 +204,7 @@ export function renderFlowHtml(spec: FlowSpec, layout: FlowLayout, snippets: Flo
   const ghostIds = new Set(ghosts?.nodes.map((g) => g.id));
   const drift = Boolean(ghosts?.drift.items.length);
   const sides = hasFlowNowAfter(spec);
+  const revs = meta.change ? new Map(spec.steps.map((s) => [s.id, stepRev(spec, s, snippets)])) : undefined;
   const anyPlanned = spec.links.some((l) => isPlannedLink(spec, l)) || spec.steps.some((s) => s.status === 'planned');
   return renderDiagramPage({
     title: spec.title,
@@ -221,7 +223,7 @@ export function renderFlowHtml(spec: FlowSpec, layout: FlowLayout, snippets: Flo
     statuses: spec.steps.map((s) => s.status),
     sides,
     paneKey: FLOW_SIDE_KEY,
-    viewport: (side) => viewport(all, layout, check, side, ghosts),
+    viewport: (side) => viewport(all, layout, check, side, ghosts, revs),
     aside: `${pageInfo(spec, anyPlanned, sides, check, ghosts, meta.generatedAt)}<div id="panel" hidden></div>${all.steps.map((s) => stepPanel(all, s, snippets, byId, check, mark(drifted.get(s.id), ghostIds.has(s.id)))).join('')}`,
     width: layout.width,
     height: layout.height,

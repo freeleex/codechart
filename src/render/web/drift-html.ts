@@ -75,7 +75,7 @@ export function driftSection(i: DriftItem<unknown> | undefined, open = false): s
   }
   rows.push(whyRow(i));
   return (
-    `<div class="drift drift-${i.kind}"><button type="button" class="drift-chip" aria-expanded="${open}"><span class="drift-icon" aria-hidden="true">${ICON[i.kind]}</span>` +
+    `<div class="drift drift-${i.kind}" data-drift-id="${esc(i.id)}" data-drift-kind="${i.kind}"><button type="button" class="drift-chip" aria-expanded="${open}"><span class="drift-icon" aria-hidden="true">${ICON[i.kind]}</span>` +
     `<span class="drift-title"><b>${KIND_PHRASE[i.kind]}</b><span class="drift-sub">${text(sentence(i))}</span></span><span class="drift-chev" aria-hidden="true">›</span></button>` +
     `<div class="drift-rows"${open ? '' : ' hidden'}>${rows.join('')}</div></div>`
   );

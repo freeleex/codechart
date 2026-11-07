@@ -60,7 +60,9 @@ export function pageInfoSection(hint: string, sides: boolean, check: CheckSummar
   return `<section id="page-info"><p>${hint}${panes}.</p>${checkSection(check)}${notes.join('')}</section>`;
 }
 
-export const gapsHtml = (heading: string, items: string[] | undefined): string => (items?.length ? `<h3>${heading}</h3>${list(items)}` : '');
+/** `kind` marks the list for the page's notes: what a note on one of its items is about. */
+export const gapsHtml = (heading: string, items: string[] | undefined, kind: 'gap' | 'omitted'): string =>
+  items?.length ? `<h3>${heading}</h3>${list(items, ` data-notes="${kind}"`)}` : '';
 
 interface DiagramPage {
   title: string;

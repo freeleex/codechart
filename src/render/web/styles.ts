@@ -141,4 +141,43 @@ aside .pager button{padding:0 7px;font:13px/20px system-ui,sans-serif;color:var(
 aside .pager button:hover,aside .pager button:focus-visible{border-color:var(--edge)}aside .pager button:focus:not(:focus-visible){outline:none}
 aside .pager .pg-count{flex:1;min-width:0;text-align:center;white-space:nowrap}
 aside .pager .pg-keys{margin-left:auto;font-size:11px}aside .pager .pg-all{font:11px/20px system-ui,sans-serif}
+#finish-review{align-self:center;padding:4px 12px;font:600 11px system-ui,sans-serif;color:#fff;background:var(--edge);border:1px solid var(--edge);border-radius:12px;cursor:pointer}
+#finish-review[hidden]{display:none}#finish-review:hover{filter:brightness(1.1)}
+.cm-btn{padding:0 6px;font:11px/18px system-ui,sans-serif;color:var(--muted);background:var(--panel);border:1px solid var(--line);border-radius:10px;cursor:pointer}
+.cm-btn:hover,.cm-btn:focus-visible{color:var(--text);border-color:var(--edge)}
+header .cm-title-btn{align-self:center;margin-left:-6px}
+aside .cm-node-btn{margin:0 0 0 auto}
+aside li .cm-btn{margin-left:6px}
+aside .drift{position:relative}aside .drift-chip~.cm-drift-btn{position:absolute;top:9px;right:34px}
+aside .dr .ln{position:relative;cursor:default}
+body.cm aside .dr:hover .ln::before{content:"+";position:absolute;inset:0;display:block;text-align:center;font-weight:700;color:#fff;background:var(--edge);cursor:pointer}
+.cm-thread{margin:4px 0;padding:4px 8px;font:12px/1.4 system-ui,sans-serif;white-space:normal;background:var(--bg);border:1px solid var(--line);border-left:3px solid var(--edge);border-radius:4px}
+aside .cm-thread{margin-right:14px}aside .dr+.cm-thread{margin-left:calc(4px + 4.5ch)}
+.cm-float{position:fixed;z-index:6;width:320px;background:var(--panel);box-shadow:0 2px 10px #0004}
+.cm-note{display:flex;gap:6px;align-items:baseline;padding:2px 0}
+.cm-note.sent{opacity:.5}
+.cm-kind{flex:none;font-size:10.5px;text-transform:uppercase;color:var(--muted)}
+.cm-body{flex:1;min-width:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.cm-actions{display:flex;gap:6px}
+.cm-note .cm-actions{flex:none}
+.cm-thread button:not(.cm-btn),.cm-dialog button{padding:0 8px;font:11px/18px system-ui,sans-serif;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:10px;cursor:pointer}
+.cm-thread button:hover,.cm-dialog button:hover{border-color:var(--edge)}
+.cm-composer{display:flex;flex-direction:column;gap:6px;padding:4px 0}
+.cm-composer textarea,.cm-preview{width:100%;padding:5px 7px;font:12px/1.4 system-ui,sans-serif;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:4px;resize:vertical}
+.cm-kinds{display:flex;gap:4px}
+.cm-kinds button[aria-pressed="true"]{color:#fff;background:var(--edge);border-color:var(--edge)}
+.cm-save{color:#fff;background:var(--edge);border-color:var(--edge)}
+.cm-badge{pointer-events:none}.cm-badge circle{fill:var(--edge)}.cm-badge text{fill:#fff;font-size:9px;font-weight:700;text-anchor:middle}
+.cm-hit{fill:none;stroke:transparent;stroke-width:14px;pointer-events:stroke}
+.cm-edge-btn{cursor:pointer;opacity:0}
+.edge:hover .cm-edge-btn,.cm-edge-btn.has,.cm-edge-btn:focus{opacity:1}.cm-edge-btn:focus{outline:none}
+.cm-edge-btn circle{fill:var(--panel);stroke:var(--edge)}.cm-edge-btn.has circle{fill:var(--edge)}
+.cm-edge-btn text{font-size:9px;text-anchor:middle;fill:var(--text)}.cm-edge-btn.has text{fill:#fff;font-weight:700}
+.cm-modal{position:fixed;inset:0;z-index:10;display:grid;place-items:center;background:#0006}
+.cm-dialog{width:min(560px,92vw);padding:14px 16px;background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:0 4px 18px #0006}
+.cm-dialog h2{margin:0 0 6px;font-size:14px}.cm-dialog p{margin:0 0 8px}
+.cm-preview{font:11px/1.4 ui-monospace,monospace}
+.cm-dialog .cm-actions{margin:8px 0}.cm-dialog .cm-copy{color:#fff;background:var(--edge);border-color:var(--edge)}
+.cm-alt,.cm-hint{color:var(--muted);font-size:11.5px}.cm-hint{color:var(--chg-t)}.cm-hint[hidden]{display:none}
+.cm-toast{position:fixed;right:14px;bottom:14px;z-index:11;padding:6px 12px;font-size:12px;color:#fff;background:var(--new);border-radius:6px}
 `;

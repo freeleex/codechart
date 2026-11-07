@@ -26,6 +26,8 @@ export interface HtmlMeta {
   update?: string;
   /** What changed in it, for the header note's tooltip. */
   updateNotes?: string[];
+  /** The review file this page is paired with; without it the page takes no notes. `at` is that file's `renderedAt`. */
+  change?: { slug: string; branch: string; at: string };
 }
 
 export function esc(s: string): string {
@@ -53,8 +55,8 @@ export const arrowMarker = (id: string): string =>
 /** Arrowheads in the colour of a link the plan adds or removes. */
 export const CHANGE_ARROWS = arrowMarker('arrow-added') + arrowMarker('arrow-removed');
 
-export function list(items: string[]): string {
-  return `<ul>${items.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>`;
+export function list(items: string[], attrs = ''): string {
+  return `<ul${attrs}>${items.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>`;
 }
 
 export function midpoint(points: Point[]): Point {
@@ -103,12 +105,13 @@ interface PageParts {
 }
 
 const KEY_HELP = ['n / p: next / previous hunk (opens it, folds the others)', '] / [: next / previous unreviewed node', 'r: toggle reviewed', 'o / O: fold this hunk / toggle all hunks', 'f: zoom to the selected node', '?: this help'];
+const NOTE_KEY_HELP = 'c: add a note to the selected node';
 
 const CSP = `default-src 'none'; style-src 'unsafe-inline'; script-src 'sha256-${createHash('sha256').update(CLIENT_JS).digest('base64')}'; img-src data:; base-uri 'none'; form-action 'none'`;
 
 export function renderPage(p: PageParts): string {
   const theme: Theme = p.meta.theme && THEMES.includes(p.meta.theme) ? p.meta.theme : 'auto';
-  const data = { width: p.width, height: p.height, repoKey: p.meta.repoKey ?? p.meta.repo };
+  const data = { width: p.width, height: p.height, repoKey: p.meta.repoKey ?? p.meta.repo, ...(p.meta.change && { change: p.meta.change }) };
   const defs = `<defs>${arrowMarker('arrow')}${p.extraDefs ?? ''}</defs>`;
   // Ids are document-wide, so the second pane's url(#arrow) finds the first pane's defs.
   const canvas = (viewport: string, i: number) =>
@@ -128,7 +131,7 @@ ${body}
 <div id="resize" role="separator" aria-orientation="vertical" aria-label="Resize panel" tabindex="0" title="Drag to resize the panel"></div>
 <aside><div id="aside-scroll"><nav id="panel-nav" aria-label="Panel history"><button id="nav-focus" type="button" disabled aria-label="Focus node (f)" title="Focus node (f)">◎</button><button id="nav-back" type="button" disabled aria-label="Back" title="Back (Alt+←)">←</button><button id="nav-forward" type="button" disabled aria-label="Forward" title="Forward (Alt+→)">→</button></nav>${p.aside}</div><div id="panel-rel" hidden></div></aside>
 </main>
-<div id="key-help" role="dialog" aria-label="Keys" hidden><b>Keys</b>${KEY_HELP.map((k) => `<div>${esc(k)}</div>`).join('')}</div>
+<div id="key-help" role="dialog" aria-label="Keys" hidden><b>Keys</b>${(p.meta.change ? [...KEY_HELP.slice(0, -1), NOTE_KEY_HELP, KEY_HELP.at(-1)!] : KEY_HELP).map((k) => `<div>${esc(k)}</div>`).join('')}</div>
 <script type="application/json" id="spec-data">${jsonForScript(data)}</script>
 <script>${CLIENT_JS}</script>
 </body></html>

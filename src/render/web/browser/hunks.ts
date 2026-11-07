@@ -7,7 +7,7 @@ export interface Hunks {
 }
 
 /** A checkbox keeps focus after a click, and keys must still work then. */
-const typing = (t: EventTarget | null): boolean => {
+export const typing = (t: EventTarget | null): boolean => {
   const el = t as HTMLElement | null;
   if (!el) return false;
   if (el.tagName === 'INPUT') return !['checkbox', 'radio', 'button', 'submit', 'reset'].includes((el as HTMLInputElement).type);

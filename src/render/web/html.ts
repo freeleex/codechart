@@ -100,7 +100,7 @@ function renderNode(n: SpecNode, box: Box, flag: string, fields: Field[], rev: s
   const shape = SHAPE[n.kind];
   const top = y + 18 + KIND_ROW;
   return (
-    `<g class="node status-${n.status} shape-${shape}${ghost ? ' ghost' : ''}" data-id="${esc(n.id)}" data-status="${n.status}"${rev ? ` data-rev="${rev}"` : ''} tabindex="0" role="button" aria-label="${esc(`${n.label} (${nodeWhat(n)}${flagged ? ", doesn't match the code" : ''}${drift ? `, ${drift.kind === 'missing' ? 'in the plan, not built' : 'differs from the plan'}` : ''})`)}">` +
+    `<g class="node status-${n.status} shape-${shape}${ghost ? ' ghost' : ''}" data-id="${esc(n.id)}" data-label="${esc(n.label)}" data-status="${n.status}"${rev ? ` data-rev="${rev}"` : ''} tabindex="0" role="button" aria-label="${esc(`${n.label} (${nodeWhat(n)}${flagged ? ", doesn't match the code" : ''}${drift ? `, ${drift.kind === 'missing' ? 'in the plan, not built' : 'differs from the plan'}` : ''})`)}">` +
     flag +
     cardShape(shape, { x, y, w, h: height }, head) +
     `<line class="head" x1="${x}" y1="${y + head}" x2="${x + w}" y2="${y + head}"/>` +
@@ -153,7 +153,7 @@ const labelOf = (spec: Spec) => (id: string) => spec.nodes.find((n) => n.id === 
 
 function pageInfo(spec: Spec, check: MapCheck | undefined, sides: boolean, ghosts: Ghosts<SpecNode, SpecEdge> | undefined, now: Date): string {
   const hint = 'Click a node for details. Scroll to zoom, drag to pan';
-  return pageInfoSection(hint, sides, check, driftInfo(ghosts?.drift, now), gapsHtml('Gaps', spec.gaps), gapsHtml('Not on map', spec.omitted));
+  return pageInfoSection(hint, sides, check, driftInfo(ghosts?.drift, now), gapsHtml('Gaps', spec.gaps, 'gap'), gapsHtml('Not on map', spec.omitted, 'omitted'));
 }
 
 /** The spec with the plan's missing nodes and their links added, to lay out and draw. */

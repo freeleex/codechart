@@ -131,8 +131,8 @@ describe('renderHtml', () => {
       spec.omitted = ['docs/ not drawn'];
       const out = await html(spec);
       const info = out.match(/<section id="page-info"[^>]*>([\s\S]*?)<\/section>/)![1]!;
-      expect(info).toContain('<h3>Gaps</h3><ul><li>no tests for backfill</li></ul>');
-      expect(info).toContain('<h3>Not on map</h3><ul><li>docs/ not drawn</li></ul>');
+      expect(info).toContain('<h3>Gaps</h3><ul data-notes="gap"><li>no tests for backfill</li></ul>');
+      expect(info).toContain('<h3>Not on map</h3><ul data-notes="omitted"><li>docs/ not drawn</li></ul>');
       for (const m of out.matchAll(/<template class="card-panel"[^>]*>([\s\S]*?)<\/template>/g)) {
         expect(m[1]).not.toContain('no tests for backfill');
         expect(m[1]).not.toContain('docs/ not drawn');
