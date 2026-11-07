@@ -194,6 +194,9 @@ describe('notes on the rest of the page', () => {
     window.dispatchEvent(new Event('wheel'));
     expect(q('.cm-float')).toBeNull();
     click(target(t));
+    key('f');
+    expect(q('.cm-float')).toBeNull();
+    click(target(t));
     click(q('.cm-float .cm-more'));
     const ta = q('.cm-float textarea') as HTMLTextAreaElement;
     ta.value = 'half written';

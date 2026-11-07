@@ -981,6 +981,8 @@ export const CLIENT_JS = [
   "            notePaint(s);",
   "            return;",
   "        }",
+  "        if (e.key === 'f' && !typing(e.target))",
+  "            closeFloating(s);",
   "        if (e.key !== 'c' || e.ctrlKey || e.metaKey || e.altKey || typing(e.target) || modalOpen())",
   "            return;",
   "        const id = noteSelectedId();",

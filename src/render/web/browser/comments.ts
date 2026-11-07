@@ -99,6 +99,7 @@ export function initComments(repo: string, change: Change): Comments {
       notePaint(s);
       return;
     }
+    if (e.key === 'f' && !typing(e.target)) closeFloating(s);
     if (e.key !== 'c' || e.ctrlKey || e.metaKey || e.altKey || typing(e.target) || modalOpen()) return;
     const id = noteSelectedId();
     if (id === null) return;
