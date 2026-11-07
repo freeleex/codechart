@@ -1008,7 +1008,7 @@ export const CLIENT_JS = [
   "",
   "const countOf = (n) => `${n} note${n === 1 ? '' : 's'}`;",
   "function noteToken(change, notes) {",
-  "    const json = JSON.stringify({ v: 1, slug: change.slug, branch: change.branch, at: change.at, notes: notes.map((n) => ({ t: n.t, ...(n.r !== undefined && { r: n.r }), k: n.k, b: n.b.trim() })) });",
+  "    const json = JSON.stringify({ v: 1, slug: change.slug, branch: change.branch, at: change.at, notes: notes.map((n) => ({ t: n.t, ...(n.r !== undefined && { r: n.r }), k: n.k })) });",
   "    let binary = '';",
   "    new TextEncoder().encode(json).forEach((b) => {",
   "        binary += String.fromCharCode(b);",

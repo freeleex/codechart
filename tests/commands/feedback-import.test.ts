@@ -43,8 +43,10 @@ const file = () => join(dir(), readdirSync(dir()).find((n) => n.endsWith('.revie
 const current = () => readReview(file())!;
 
 type Note = { t: object; r?: string; k: 'comment' | 'question' | 'delete'; b: string };
-const token = (notes: Note[], over: object = {}) => Buffer.from(JSON.stringify({ v: 1, slug: 'orders', branch: gitBranch(repo), at: t0.toISOString(), notes, ...over })).toString('base64url');
-const copied = (notes: Note[], over: object = {}) => `Please fix:\n\n1. something\n\ncodechart review · ${notes.length} notes · ${token(notes, over)}\n`;
+const token = (notes: Note[], over: object = {}) => Buffer.from(JSON.stringify({ v: 1, slug: 'orders', branch: gitBranch(repo), at: t0.toISOString(), notes: notes.map(({ t, r, k }) => ({ t, r, k })), ...over })).toString('base64url');
+const LABEL = { comment: 'Comment', question: 'Question', delete: 'Delete' };
+const items = (notes: Note[]) => notes.map((n, i) => `${i + 1}. On somewhere: ${LABEL[n.k]}: ${n.b.replace(/\n/g, '\n   ')}`).join('\n');
+const copied = (notes: Note[], over: object = {}) => `Review done:\n${items(notes)}\n\ncodechart review · ${notes.length} notes · ${token(notes, over)}\n`;
 const stdin = (text: string) => ({ stdin: async () => text });
 const rev = () => current().nodes.find((n) => n.id === 'Order')!.rev!;
 
@@ -131,6 +133,9 @@ describe('feedback --import', () => {
     process.exitCode = undefined;
     const bad = await run(['feedback', '--import'], stdin('codechart review · 1 note · AAAA'));
     expect(bad.err).toBe('codechart: The codechart review is damaged; copy it again with "Finish review" on the page.\n');
+    const mismatch = await run(['feedback', '--import'], stdin(copied(mixed()).replace('1. On somewhere: Comment: validate', '1. On somewhere: Delete: validate')));
+    expect(mismatch.err).toBe('codechart: The review text doesn\'t match its last line; copy it again with "Finish review" on the page.\n');
+    expect(current().notes).toEqual([]);
   });
 
   it('a clipboard that cannot be read points to the pipe', async () => {

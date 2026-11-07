@@ -138,6 +138,26 @@ describe('page → Finish review → feedback --import', () => {
     expect(review().notes).toHaveLength(9);
   });
 
+  it('multi-line bodies, a body with ": Comment: " and a gap with ": " survive the trip; the token holds no words', async () => {
+    const gap = 'retry: tests';
+    await render({ ...SUMMARY, gaps: [gap] }, built, '--output', 'web');
+    mount(page());
+    click(node('Order'));
+    click(q('#panel .cm-node-btn'));
+    save('line one\n\n  indented: Comment: two\n3. not an item', 'Question');
+    click(q('#page-info [data-notes="gap"] .cm-btn'));
+    save('add: them\nplease');
+    const text = await copyFinish();
+    expect(text.split(' · ').at(-1)!.length).toBeLessThan(400);
+    expect(text.split(' · ').at(-1)).not.toContain('line');
+    const r = await run(['feedback', '--import'], built, stdin(text));
+    expect(r.err).toBe('✔ Imported 2 notes into "Orders"\n');
+    expect(review().notes.map((n) => [n.kind, n.body, n.target])).toEqual([
+      ['question', 'line one\n\n  indented: Comment: two\n3. not an item', undefined],
+      ['comment', 'add: them\nplease', { type: 'gap', text: gap }],
+    ]);
+  });
+
   it('a note on a line of a node that changed since the page was drawn comes in outdated; the others stay pending', async () => {
     await render(SUMMARY, built, '--output', 'web');
     mount(page());

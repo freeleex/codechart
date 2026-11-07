@@ -6,9 +6,9 @@ import { KIND_LABEL, placeText } from './targets.js';
 
 const countOf = (n: number) => `${n} note${n === 1 ? '' : 's'}`;
 
-/** What the agent can read back: the notes as base64url of UTF-8 JSON, no padding. */
+/** What the importer reads back, besides the note words above it: the places and kinds as base64url of UTF-8 JSON, no padding. */
 function noteToken(change: Change, notes: Note[]): string {
-  const json = JSON.stringify({ v: 1, slug: change.slug, branch: change.branch, at: change.at, notes: notes.map((n) => ({ t: n.t, ...(n.r !== undefined && { r: n.r }), k: n.k, b: n.b.trim() })) });
+  const json = JSON.stringify({ v: 1, slug: change.slug, branch: change.branch, at: change.at, notes: notes.map((n) => ({ t: n.t, ...(n.r !== undefined && { r: n.r }), k: n.k })) });
   let binary = '';
   new TextEncoder().encode(json).forEach((b) => {
     binary += String.fromCharCode(b);

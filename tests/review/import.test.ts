@@ -4,9 +4,14 @@ import type { Review } from '../../src/review/schema.js';
 import { api, note, review } from './fixture.js';
 
 const payload = (notes: ImportPayload['notes'] = [{ t: { node: 'api' }, r: 'rev-api', k: 'comment', b: 'check this' }]): ImportPayload => ({ v: 1, slug: 'invites', branch: 'feat/invites', at: '2026-10-28T08:05:03.000Z', notes });
-const token = (p: unknown): string => Buffer.from(JSON.stringify(p)).toString('base64url');
-const pasted = (p: unknown = payload(), count = 1): string => `Fix these:\n\n1. api\n   Comment: check this\n\ncodechart review · ${count} note${count === 1 ? '' : 's'} · ${token(p)}\n`;
+const LABEL = { comment: 'Comment', question: 'Question', delete: 'Delete' };
+type Words = { k: keyof typeof LABEL; b: string };
+const notesOf = (p: unknown): Words[] => (p as { notes?: Words[] }).notes ?? [];
+const token = (p: unknown): string => Buffer.from(JSON.stringify({ ...(p as object), ...(typeof p === 'object' && 'notes' in (p as object) && { notes: notesOf(p).map(({ t, r, k }) => ({ t, r, k })) }) })).toString('base64url');
+const items = (p: unknown = payload()): string => notesOf(p).map((n, i) => `${i + 1}. On somewhere: ${LABEL[n.k]}: ${n.b.replace(/\n/g, '\n   ')}`).join('\n');
+const pasted = (p: unknown = payload()): string => `Review done: ${notesOf(p).length} notes.\n${items(p)}\n\ncodechart review · ${notesOf(p).length} notes · ${token(p)}\n`;
 const DAMAGED = 'The codechart review is damaged; copy it again with "Finish review" on the page.';
+const MISMATCH = 'The review text doesn\'t match its last line; copy it again with "Finish review" on the page.';
 const now = new Date('2026-10-29T10:00:00.000Z');
 
 describe('parseReviewText', () => {
@@ -16,14 +21,14 @@ describe('parseReviewText', () => {
 
   it('survives a token wrapped over lines, with spaces and CRLF', () => {
     const t = token(payload());
-    const wrapped = `codechart review · 1 note · ${t.slice(0, 20)}\r\n${t.slice(20, 50)} \r\n  ${t.slice(50)}`;
+    const wrapped = `${items()}\n\ncodechart review · 1 note · ${t.slice(0, 20)}\r\n${t.slice(20, 50)} \r\n  ${t.slice(50)}`;
     expect(parseReviewText(wrapped)).toEqual(payload());
   });
 
   it('survives quote marks and a code fence', () => {
     const t = token(payload());
-    expect(parseReviewText(`> codechart review · 1 note · ${t.slice(0, 30)}\n> ${t.slice(30)}`)).toEqual(payload());
-    expect(parseReviewText(`\`\`\`\n  codechart review · 1 note · ${t}\n\`\`\`\n`)).toEqual(payload());
+    expect(parseReviewText(`> ${items()}\n>\n> codechart review · 1 note · ${t.slice(0, 30)}\n> ${t.slice(30)}`)).toEqual(payload());
+    expect(parseReviewText(`\`\`\`\n${items()}\n\n  codechart review · 1 note · ${t}\n\`\`\`\n`)).toEqual(payload());
   });
 
   it('the last closing line wins', () => {
@@ -38,7 +43,7 @@ describe('parseReviewText', () => {
   it('a damaged token', () => {
     const t = token(payload());
     for (const bad of ['codechart review · 1 note ·', `codechart review · 1 note · ${t.slice(0, -8)}`, 'codechart review · 1 note · !!!!', `codechart review · 1 note · ${token('x').slice(0, 3)}`]) {
-      expect(() => parseReviewText(bad), bad).toThrow(DAMAGED);
+      expect(() => parseReviewText(`${items()}\n\n${bad}`), bad).toThrow(DAMAGED);
     }
   });
 
@@ -69,6 +74,37 @@ describe('parseReviewText', () => {
     expect(() => parseReviewText(pasted(payload([one('x'.repeat(4001))])))).toThrow(DAMAGED);
     expect(() => parseReviewText(pasted({ ...payload(), slug: 'x'.repeat(2001) }))).toThrow(DAMAGED);
     expect(() => parseReviewText(`${'x'.repeat(512 * 1024)}\n${pasted()}`)).toThrow('too long');
+  });
+
+  it('the token is small: no bodies in it', () => {
+    const long = (b: string) => ({ t: { node: 'api', path: 'src/a.ts', side: 'new' as const, line: 3 }, r: 'rev-api', k: 'comment' as const, b });
+    const text = pasted(payload([long('x'.repeat(3000)), long('y'.repeat(3000))]));
+    expect(text.split(' · ').at(-1)!.trim().length).toBeLessThan(400);
+    expect(parseReviewText(text).notes.map((n) => n.b.length)).toEqual([3000, 3000]);
+  });
+
+  it('bodies come from the numbered lines: first mark only, continuation lines, quotes, CRLF', () => {
+    const p = payload([
+      { t: { gap: 'a: Comment: b' }, k: 'comment', b: 'one: Comment: two\nsecond\n\nfourth' },
+      { t: { title: true }, k: 'delete', b: '  3. not an item  ' },
+    ]);
+    const crlf = pasted(p).replace(/\n/g, '\r\n');
+    const quoted = pasted(p).split('\n').map((l) => `> ${l}  `).join('\n');
+    for (const text of [pasted(p), crlf, quoted]) expect(parseReviewText(text).notes.map((n) => n.b)).toEqual(['one: Comment: two\nsecond\n\nfourth', '3. not an item']);
+  });
+
+  it('text that does not match the token is refused in plain words', () => {
+    const two = payload([{ t: { title: true }, k: 'comment', b: 'a' }, { t: { title: true }, k: 'question', b: 'b' }]);
+    const body = (text: string) => `${text}\n\ncodechart review · 2 notes · ${token(two)}`;
+    const bad = {
+      'no items': body(''),
+      'item missing': body('1. On the title: Comment: a'),
+      'extra item': body(`${items(two)}\n3. On the title: Comment: c`),
+      'out of order': body('2. On the title: Question: b\n1. On the title: Comment: a'),
+      'other kind': body('1. On the title: Comment: a\n2. On the title: Delete: b'),
+      'empty body': body('1. On the title: Comment: a\n2. On the title: Question:  '),
+    };
+    for (const [name, text] of Object.entries(bad)) expect(() => parseReviewText(text), name).toThrow(MISMATCH);
   });
 });
 

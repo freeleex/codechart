@@ -302,7 +302,7 @@ describe('Finish review', () => {
     expect(finishBtn().textContent).toBe('Finish review (1)');
   });
 
-  it('opens an accessible popup with the message in plain words and a token that decodes to the notes', () => {
+  it('opens an accessible popup with the message in plain words and a token with the places and kinds, not the words', () => {
     all();
     mount(shopNotes(), false);
     click(finishBtn());
@@ -334,13 +334,13 @@ describe('Finish review', () => {
       branch: change.branch,
       at: change.at,
       notes: [
-        { t: { node: 'tbl.orders' }, k: 'comment', b: 'first' },
-        { t: { node: 'tbl.orders', path: 'shop/models/order.py', side: 'new', line: 13 }, r: 'abc', k: 'question', b: 'second\nmore' },
-        { t: { drift: 'tbl.orders', kind: 'missing' }, k: 'delete', b: 'gone' },
-        { t: { edge: { from: 'tbl.orders', to: 'tbl.customers', label: 'customer_id' } }, k: 'comment', b: 'a note' },
-        { t: { gap: 'customers: columns besides id not read' }, k: 'comment', b: 'a note' },
-        { t: { omitted: 'tests: test_invoice_backfill.py' }, k: 'question', b: 'a note' },
-        { t: { title: true }, k: 'comment', b: 'naïve ✓' },
+        { t: { node: 'tbl.orders' }, k: 'comment' },
+        { t: { node: 'tbl.orders', path: 'shop/models/order.py', side: 'new', line: 13 }, r: 'abc', k: 'question' },
+        { t: { drift: 'tbl.orders', kind: 'missing' }, k: 'delete' },
+        { t: { edge: { from: 'tbl.orders', to: 'tbl.customers', label: 'customer_id' } }, k: 'comment' },
+        { t: { gap: 'customers: columns besides id not read' }, k: 'comment' },
+        { t: { omitted: 'tests: test_invoice_backfill.py' }, k: 'question' },
+        { t: { title: true }, k: 'comment' },
       ],
     });
     expect(Object.keys(decode(token!) as object)).toEqual(['v', 'slug', 'branch', 'at', 'notes']);
@@ -417,17 +417,17 @@ describe('Finish review', () => {
   it('a review too big for the importer is copied in batches, each one importable', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
-    seed(...Array.from({ length: 100 }, (_, i) => note({ title: true }, 'comment', `${String(i).padStart(3, '0')} ${'x'.repeat(3990)}`)));
+    seed(...Array.from({ length: 130 }, (_, i) => note({ title: true }, 'comment', `${String(i).padStart(3, '0')} ${'x'.repeat(3990)}`)));
     mount(shopNotes(), false);
     const bodies: string[] = [];
-    let left = 100;
+    let left = 130;
     for (let round = 0; left > 0; round++) {
       expect(round).toBeLessThan(10);
       click(finishBtn());
       const text = message();
       const got = parseReviewText(text).notes;
       expect(Buffer.byteLength(text)).toBeLessThan(FINISH_LIMIT);
-      expect(got.length).toBeLessThan(100);
+      expect(got.length).toBeLessThan(130);
       if (got.length < left) {
         expect(q('#finish-dialog').textContent).toContain(`${got.length} of ${left} notes`);
         expect(q('#finish-dialog').textContent).toContain('click Finish review again for the rest');
@@ -442,7 +442,7 @@ describe('Finish review', () => {
       expect(finishBtn().hidden).toBe(left === 0);
       if (left) expect(finishBtn().textContent).toBe(`Finish review (${left})`);
     }
-    expect(bodies).toEqual(Array.from({ length: 100 }, (_, i) => String(i).padStart(3, '0')));
+    expect(bodies).toEqual(Array.from({ length: 130 }, (_, i) => String(i).padStart(3, '0')));
   });
 
   it('a batch holds at least one note, and a review that fits is not split', () => {

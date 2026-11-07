@@ -11,6 +11,8 @@ const MAX_NOTES = 500;
 const NO_REVIEW = 'No codechart review found. Copy it again with "Finish review" on the page.';
 const DAMAGED = 'The codechart review is damaged; copy it again with "Finish review" on the page.';
 
+const MISMATCH = 'The review text doesn\'t match its last line; copy it again with "Finish review" on the page.';
+
 const str = z.string().max(2000);
 const target = z.union([
   z.strictObject({ node: str, path: str, side: z.enum(['old', 'new']), line: z.number().int().min(1) }),
@@ -22,23 +24,52 @@ const target = z.union([
   z.strictObject({ title: z.literal(true) }),
 ]);
 
-const payloadSchema = z.strictObject({
+const kind = z.enum(['comment', 'question', 'delete']);
+const KIND_LABEL = { comment: 'Comment', question: 'Question', delete: 'Delete' } as const;
+
+const tokenSchema = z.strictObject({
   v: z.literal(1),
   slug: str,
   branch: str,
   at: str,
-  notes: z
-    .array(z.strictObject({ t: target, r: str.optional(), k: z.enum(['comment', 'question', 'delete']), b: z.string().max(4000) }))
-    .max(MAX_NOTES),
+  notes: z.array(z.strictObject({ t: target, r: str.optional(), k: kind })).max(MAX_NOTES),
 });
 
-export type ImportPayload = z.infer<typeof payloadSchema>;
+type Token = z.infer<typeof tokenSchema>;
+export type ImportPayload = Omit<Token, 'notes'> & { notes: (Token['notes'][number] & { b: string })[] };
 
 const MARKER = /^[\s>`]*codechart review ·/;
+const ITEM = /^\d+\. On /;
+
+/** A line without quote marks and trailing spaces. */
+const unquote = (l: string): string => l.replace(/^(?:[ \t]*>)+ ?/, '').trimEnd();
+
+/** The body of every numbered item above the closing line, found from the last one up; undefined when one is missing, out of order or of another kind. */
+function itemBodies(lines: string[], kinds: Token['notes'][number]['k'][]): string[] | undefined {
+  const starts: number[] = [];
+  let end = lines.length;
+  for (let i = kinds.length; i >= 1; i--) {
+    let at = end - 1;
+    while (at >= 0 && !lines[at]!.startsWith(`${i}. On `)) at--;
+    if (at < 0) return undefined;
+    starts[i - 1] = at;
+    end = at;
+  }
+  if (lines.slice((starts.at(-1) ?? lines.length) + 1).some((l) => ITEM.test(l))) return undefined;
+  return kinds.map((k, i) => {
+    const first = lines[starts[i]!]!;
+    const mark = `: ${KIND_LABEL[k]}: `;
+    const cut = first.indexOf(mark);
+    if (cut < 0) return '';
+    const rest = lines.slice(starts[i]! + 1, starts[i + 1] ?? lines.length).map((l) => l.replace(/^ {1,3}/, ''));
+    return [first.slice(cut + mark.length), ...rest].join('\n').trim();
+  });
+}
 
 /**
  * The review a page copied: the text after the last `codechart review ·` line, minus whitespace, quote marks and fences, is a
- * base64url JSON token. Throws an Error in plain words when there is none or it is damaged.
+ * base64url JSON token (where the notes are); their words are the numbered lines above it. Throws an Error in plain words when
+ * there is no such line, the token is damaged or the lines do not match it.
  */
 export function parseReviewText(text: string): ImportPayload {
   if (Buffer.byteLength(text) > MAX_IMPORT_BYTES) throw new Error('The pasted text is too long to be a codechart review (over 512 KB).');
@@ -48,11 +79,16 @@ export function parseReviewText(text: string): ImportPayload {
   const rest = lines.slice(at).join('\n');
   const token = rest.slice(rest.lastIndexOf('·') + 1).replace(/[\s>`]/g, '');
   if (!/^[A-Za-z0-9_-]+$/.test(token)) throw new Error(DAMAGED);
+  let decoded: Token;
   try {
-    return payloadSchema.parse(JSON.parse(Buffer.from(token, 'base64url').toString('utf8')));
+    decoded = tokenSchema.parse(JSON.parse(Buffer.from(token, 'base64url').toString('utf8')));
   } catch {
     throw new Error(DAMAGED);
   }
+  const bodies = itemBodies(lines.slice(0, at).map(unquote), decoded.notes.map((n) => n.k));
+  if (!bodies || bodies.some((b) => !b)) throw new Error(MISMATCH);
+  if (bodies.some((b) => b.length > 4000)) throw new Error(DAMAGED);
+  return { ...decoded, notes: decoded.notes.map((n, i) => ({ ...n, b: bodies[i]! })) };
 }
 
 type Pasted = ImportPayload['notes'][number];
