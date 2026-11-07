@@ -26,6 +26,8 @@ export interface ProgramOptions {
   stderr?: (s: string) => void;
   isTTY?: boolean;
   stdin?: () => Promise<string>;
+  /** The system clipboard's text, for `feedback --import` off a pipe. */
+  readClipboard?: () => string;
   /** `checked`: whether items start selected (default true). */
   choose?: (title: string, items: { label: string; hint: string }[], checked?: boolean) => Promise<number[] | undefined>;
   now?: () => Date;

@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import type { DriftItem } from '../render/drift.js';
 import type { FlowSnippets } from '../render/flow/anchors.js';
 import type { Preview } from '../render/preview.js';
 import { sanitizeText } from '../render/strip.js';
@@ -14,32 +15,51 @@ const MAX_DIRTY = 2000;
 
 const clean = (s: string): string => sanitizeText(s);
 
+interface Extras {
+  edges: { from: string; to: string; label?: string }[];
+  gaps?: string[];
+  omitted?: string[];
+}
+
+/** What a map shows besides its nodes, for notes on it; a list with nothing in it is left out. */
+function extrasOf(drift: readonly DriftItem<unknown>[] | undefined, x: Extras): Pick<ReviewSnapshot, 'drift' | 'edges' | 'gaps' | 'omitted'> {
+  const text = (list: string[] | undefined) => list?.map(clean);
+  const gaps = text(x.gaps);
+  const omitted = text(x.omitted);
+  return {
+    ...(drift?.length && { drift: drift.map((d) => ({ id: clean(d.id), kind: d.kind, label: clean(d.label) })) }),
+    ...(x.edges.length && { edges: x.edges.map((e) => ({ from: clean(e.from), to: clean(e.to), ...(e.label && { label: clean(e.label) }) })) }),
+    ...(gaps?.length && { gaps }),
+    ...(omitted?.length && { omitted }),
+  };
+}
+
 /** What the map showed, per node: the diff lines at render time and their hash. Text from the repo is sanitized: it reaches the terminal. */
-export function mapSnapshot(spec: Spec, previews: Map<string, Preview> | undefined, range: Range | undefined): ReviewSnapshot {
+export function mapSnapshot(spec: Spec, previews: Map<string, Preview> | undefined, range: Range | undefined, drift?: readonly DriftItem<unknown>[], ghostLinks: Extras['edges'] = []): ReviewSnapshot {
   const nodes = spec.nodes.map((n): ReviewNode => {
     const p = previews?.get(n.id);
     const path = p?.path ?? n.path;
     const lines = p?.lines.map((l) => ({ ...l, text: clean(l.text) }));
     return { id: n.id, label: clean(n.label), ...(path && { path: clean(path) }), ...(p && { rev: diffRev(p), lines, ...(p.note && { note: clean(p.note) }) }) };
   });
-  return { kind: 'map', title: clean(spec.title), nodes, ...(range && { range }) };
+  return { kind: 'map', title: clean(spec.title), nodes, ...(range && { range }), ...extrasOf(drift, { edges: [...spec.edges, ...ghostLinks], gaps: spec.gaps, omitted: spec.omitted }) };
 }
 
 const hash = (v: unknown): string => createHash('sha256').update(JSON.stringify(v)).digest('hex').slice(0, 12);
 
 /** A step's hash covers what its panel shows: label, status, type, source, its code and its outgoing links with theirs. */
-function stepRev(spec: FlowSpec, step: FlowStep, snippets: FlowSnippets): string {
+export function stepRev(spec: FlowSpec, step: FlowStep, snippets: FlowSnippets): string {
   const { id, label, status, type, source, match } = step;
   const next = spec.links.flatMap((l, i) => (l.from === id ? [{ to: l.to, label: l.label, source: l.source, match: l.match, planned: l.planned, removed: l.removed, code: snippets.links[i] }] : []));
   return hash({ label, status, type, source, match, code: snippets.steps.get(id), next });
 }
 
-export function flowSnapshot(spec: FlowSpec, snippets: FlowSnippets, range: Range | undefined): ReviewSnapshot {
+export function flowSnapshot(spec: FlowSpec, snippets: FlowSnippets, range: Range | undefined, drift?: readonly DriftItem<unknown>[], ghostLinks: Extras['edges'] = []): ReviewSnapshot {
   const nodes = spec.steps.map((s): ReviewNode => {
     const path = s.source?.replace(/:\d+(?:-\d+)?$/, '');
     return { id: s.id, label: clean(s.label), ...(path && { path: clean(path) }), rev: stepRev(spec, s, snippets) };
   });
-  return { kind: 'flow', title: clean(spec.title), nodes, ...(range && { range }) };
+  return { kind: 'flow', title: clean(spec.title), nodes, ...(range && { range }), ...extrasOf(drift, { edges: [...spec.links, ...ghostLinks], gaps: spec.gaps }) };
 }
 
 /** Where the code stood at render time, for the review's stale check; none for a commit, which never changes, or `--head`, which is not HEAD. */

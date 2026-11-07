@@ -24,6 +24,11 @@ export const shopPage = renderHtml(shop, shopLayout, meta);
 export const shopWith = (previews: Map<string, Preview>, repo = 'demo', repoKey?: string) =>
   renderHtml(shop, shopLayout, { ...meta, repo, ...(repoKey && { repoKey }) }, undefined, previews);
 
+/** What a page paired with a review file carries. */
+export const change = { slug: 'shop', branch: 'feat/invoices', at: '2026-11-05T12:00:00.000Z' };
+/** The shop map as a page that takes notes. */
+export const shopNotes = (previews?: Map<string, Preview>) => renderHtml(shop, shopLayout, { ...meta, change }, undefined, previews);
+
 const plan = mapSpec({
   title: 'Users join teams',
   kind: 'plan',
@@ -47,6 +52,8 @@ export const panesPage = renderHtml(plan, await layoutSpec(plan, PANE_CANVASES),
 
 const flow = sampleFlow();
 export const flowPage = renderFlowHtml(flow, await layoutFlow(flow), sampleSnippets(), meta);
+export const flowNotes = renderFlowHtml(flow, await layoutFlow(flow), sampleSnippets(), { ...meta, change });
+export const panesNotes = renderHtml(plan, await layoutSpec(plan, PANE_CANVASES), { ...meta, change });
 
 export const q = <T extends Element>(sel: string) => document.querySelector(sel) as T;
 export const qa = <T extends Element>(sel: string) => [...document.querySelectorAll<T>(sel)];

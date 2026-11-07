@@ -74,3 +74,19 @@ describe('a review file that could not be saved', () => {
     expect(readReview(old.review)!.notes).toHaveLength(1);
   });
 });
+
+describe('the change a page carries', () => {
+  it('names the slug, branch and render time of the review file written with it', async () => {
+    let seen: unknown;
+    const { file } = await writeHtml(async (meta) => ((seen = meta.change), '<html></html>'), { ...base(), review: () => ({ kind: 'map', nodes: [api] }) });
+    const saved = readReview(file.replace('.html', '.review.json'))!;
+    expect(seen).toEqual({ slug: 'orders', branch: saved.change.branch, at: saved.change.renderedAt });
+    expect(saved.change.renderedAt).toBe(t2.toISOString());
+  });
+
+  it('is left out when no review file is written', async () => {
+    let seen: unknown = 'unset';
+    await writeHtml(async (meta) => ((seen = meta.change), '<html></html>'), base());
+    expect(seen).toBeUndefined();
+  });
+});

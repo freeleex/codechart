@@ -39,14 +39,14 @@ describe('map drift in HTML', () => {
   it('adds a Drift section to the panel with the reason', async () => {
     const out = await mapHtml(plan, summary([{ node: 'extra', cause: 'bug-found', why: 'needed it' }]));
     const extra = panelOf(out, 'extra');
-    expect(extra).toContain('<div class="drift drift-unplanned"><button type="button" class="drift-chip" aria-expanded="false">');
+    expect(extra).toContain('<div class="drift drift-unplanned" data-drift-id="extra" data-drift-kind="unplanned"><button type="button" class="drift-chip" aria-expanded="false">');
     expect(extra).toContain('<b>Built, not in the plan</b><span class="drift-sub">This node was added, but the plan didn&#39;t include it.</span>');
     expect(extra).toContain('<div class="drift-rows" hidden>');
     expect(extra).toContain('<span class="drift-pill">Found a bug</span><div class="drift-note">needed it</div>');
     expect(extra).not.toContain('drift-why-btn');
     expect(extra).not.toContain('<span class="drift-l">Plan</span>');
     const b = panelOf(out, 'b');
-    expect(b).toContain('<div class="drift drift-different">');
+    expect(b).toContain('<div class="drift drift-different" data-drift-id="b" data-drift-kind="different">');
     expect(b).toContain('<span class="drift-l">Plan</span><div class="drift-v drift-plan"><code>x.ts</code></div>');
     expect(b).toContain('<span class="drift-l">Built</span><div class="drift-v drift-built"><code>y.ts</code></div>');
     expect(b).toContain('<div class="drift-warn">⚠ No reason given. Ask the agent why it changed.</div>');

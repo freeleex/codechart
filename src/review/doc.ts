@@ -73,7 +73,7 @@ function nodeBlock(node: ReviewNode, notes: Note[], width: number, seen: Map<str
 export function buildDoc(review: Review): string {
   const { change, nodes, notes } = review;
   const digits = Math.max(3, ...nodes.flatMap((n) => (n.lines ?? []).map((l) => String(l.n ?? 0).length)));
-  const of = (n: ReviewNode) => notes.filter((x) => x.node === n.id);
+  const of = (n: ReviewNode) => notes.filter((x) => !x.target && x.node === n.id);
   const branch = change.branch ? ` · branch ${change.branch}` : '';
   const out = [`# Review: ${oneLine(changeTitle(review))}${branch} · drawn at ${hhmm(change.renderedAt)}`, ...HEAD];
   const seen = new Map<string, string>();
@@ -84,7 +84,7 @@ export function buildDoc(review: Review): string {
     for (const node of rest) out.push(nodeHeader(node), ...of(node).map(noteText));
   }
   const ids = new Set(nodes.map((n) => n.id));
-  const gone = notes.filter((n) => !ids.has(n.node));
+  const gone = notes.filter((n) => !n.target && n.node !== undefined && !ids.has(n.node));
   if (gone.length) out.push('', '# Notes on nodes the map no longer has:', ...gone.map((n) => `# ${n.state === 'sent' ? 'Sent' : 'Outdated'} (${n.kind}) on [${n.node}]: ${n.body}`));
   return sanitizeText(`${out.join('\n')}\n`);
 }

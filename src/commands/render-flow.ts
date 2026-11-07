@@ -20,7 +20,7 @@ export async function renderFlow(spec: FlowSpec, anchors: { snippets: FlowSnippe
   const view = drift && { drift, now: ctx.now };
   const ghosts = drift && ctx.plan?.diagram === 'flow' ? ghostsFor(drift, new Set(spec.steps.map((s) => s.id)), ctx.plan.spec.links) : undefined;
   const tree = { maxNodes: ctx.maxNodes, width: ctx.width, color: ctx.color, md: ctx.md, check, drift: view };
-  const snapshot = () => flowSnapshot(spec, snippets, rangeOf(ctx.root, ctx.selection));
+  const snapshot = () => flowSnapshot(spec, snippets, rangeOf(ctx.root, ctx.selection), drift?.items, ghosts?.links);
   const chosen = await chooseOutput(
     ctx.output,
     // Now and After side by side exist only in the HTML.

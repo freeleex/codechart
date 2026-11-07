@@ -8,10 +8,11 @@ import type { Note, Review } from './schema.js';
  * a note added meanwhile stays.
  */
 export function mergeNotes(opened: Review, parsed: Note[], fresh: Review): Note[] {
-  const wasPending = new Set(opened.notes.filter((n) => n.state === 'pending').map((n) => n.id));
+  // A note on a drift item, arrow, gap or the title is not in the editor: it stays as it is.
+  const wasPending = new Set(opened.notes.filter((n) => n.state === 'pending' && !n.target).map((n) => n.id));
   const freshState = new Map(fresh.notes.map((n) => [n.id, n.state]));
   const kept = fresh.notes.filter((n) => !(wasPending.has(n.id) && n.state !== 'sent'));
-  const carried = carryNotes({ ...opened, notes: parsed }, fresh.nodes).filter((n) => !(wasPending.has(n.id) && freshState.get(n.id) === 'sent'));
+  const carried = carryNotes({ ...opened, notes: parsed }, fresh.nodes, fresh).filter((n) => !(wasPending.has(n.id) && freshState.get(n.id) === 'sent'));
   let next = lastNoteNumber([...fresh.notes, ...carried.filter((n) => wasPending.has(n.id))]);
   return [...kept, ...carried.map((n) => (wasPending.has(n.id) ? n : { ...n, id: `n${++next}` }))];
 }

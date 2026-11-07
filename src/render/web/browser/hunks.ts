@@ -7,12 +7,15 @@ export interface Hunks {
 }
 
 /** A checkbox keeps focus after a click, and keys must still work then. */
-const typing = (t: EventTarget | null): boolean => {
+export const typing = (t: EventTarget | null): boolean => {
   const el = t as HTMLElement | null;
   if (!el) return false;
   if (el.tagName === 'INPUT') return !['checkbox', 'radio', 'button', 'submit', 'reset'].includes((el as HTMLInputElement).type);
   return el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable === true;
 };
+
+/** The Finish review popup: the page behind it takes no keys. */
+export const modalOpen = (): boolean => document.querySelector('.cm-modal') !== null;
 
 const isOpen = (h: HTMLElement) => !h.classList.contains('folded');
 
@@ -151,7 +154,7 @@ export function initHunks(panel: HTMLElement, review: Review, zoomToNode: () => 
   });
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') help.hidden = true;
-    if (e.ctrlKey || e.metaKey || e.altKey || typing(e.target)) return;
+    if (e.ctrlKey || e.metaKey || e.altKey || typing(e.target) || modalOpen()) return;
     const run = Object.hasOwn(keys, e.key) ? keys[e.key] : undefined;
     if (!run) return;
     e.preventDefault();

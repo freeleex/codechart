@@ -11,9 +11,22 @@ const nodeSchema = z.object({
   note: z.string().optional(),
 });
 
+const driftKind = z.enum(['missing', 'unplanned', 'different']);
+
+const targetSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('drift'), id: z.string(), kind: driftKind }),
+  z.object({ type: z.literal('edge'), from: z.string(), to: z.string(), label: z.string().optional() }),
+  z.object({ type: z.literal('gap'), text: z.string() }),
+  z.object({ type: z.literal('omitted'), text: z.string() }),
+  z.object({ type: z.literal('title') }),
+]);
+
+const edgeSchema = z.object({ from: z.string(), to: z.string(), label: z.string().optional() });
+
 const noteSchema = z.object({
   id: z.string(),
-  node: z.string(),
+  node: z.string().optional(),
+  target: targetSchema.optional(),
   rev: z.string().optional(),
   anchor: z.object({ path: z.string(), side: z.enum(['old', 'new']), line: z.number(), text: z.string() }).optional(),
   kind: z.enum(['comment', 'question', 'delete']),
@@ -36,6 +49,10 @@ export const reviewSchema = z.object({
     range: rangeSchema.optional(),
   }),
   nodes: z.array(nodeSchema),
+  drift: z.array(z.object({ id: z.string(), kind: driftKind, label: z.string() })).optional(),
+  edges: z.array(edgeSchema).optional(),
+  gaps: z.array(z.string()).optional(),
+  omitted: z.array(z.string()).optional(),
   notes: z.array(noteSchema),
 });
 
@@ -45,3 +62,4 @@ export type Note = z.infer<typeof noteSchema>;
 export type NoteKind = Note['kind'];
 export type Range = z.infer<typeof rangeSchema>;
 export type DiffLine = z.infer<typeof lineSchema>;
+export type Target = z.infer<typeof targetSchema>;

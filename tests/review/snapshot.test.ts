@@ -75,3 +75,40 @@ describe('flow step rev', () => {
     expect(carryNotes(r, after.nodes).map((n) => [n.node, n.state])).toEqual([['mode', 'outdated'], ['read', 'pending']]);
   });
 });
+
+describe('what a map shows besides its nodes', () => {
+  const spec = {
+    title: 't',
+    kind: 'summary',
+    nodes: [{ id: 'a', label: 'A', kind: 'model', status: 'changed', layer: 'x' }],
+    edges: [{ from: 'a', to: 'b', label: `calls${EVIL}` }, { from: 'b', to: 'a' }],
+    gaps: [`no tests${EVIL}`],
+    omitted: ['cron'],
+  } as unknown as Spec;
+  const item = { id: 'g', label: `Ghost${EVIL}`, kind: 'missing' as const, noun: 'service' };
+
+  it('map: arrows, gaps, not-on-map items and drift items, sanitized', () => {
+    const snap = mapSnapshot(spec, undefined, undefined, [item]);
+    expect(snap.edges).toEqual([{ from: 'a', to: 'b', label: `calls${CLEAN}` }, { from: 'b', to: 'a' }]);
+    expect(snap).toMatchObject({ gaps: [`no tests${CLEAN}`], omitted: ['cron'], drift: [{ id: 'g', kind: 'missing', label: `Ghost${CLEAN}` }] });
+  });
+
+  it('map: nothing to list leaves the fields out', () => {
+    const snap = mapSnapshot({ ...spec, edges: [], gaps: undefined, omitted: [] } as unknown as Spec, undefined, undefined, []);
+    expect(Object.keys(snap)).toEqual(['kind', 'title', 'nodes']);
+  });
+
+  it('ghost links from the plan are listed after the spec\'s, sanitized, in maps and flows', () => {
+    const ghost = [{ from: 'a', to: 'g', label: `plans${EVIL}` }];
+    expect(mapSnapshot(spec, undefined, undefined, [], ghost).edges!.at(-1)).toEqual({ from: 'a', to: 'g', label: `plans${CLEAN}` });
+    expect(flowSnapshot(sampleFlow(), sampleSnippets(), undefined, [], ghost).edges!.at(-1)).toEqual({ from: 'a', to: 'g', label: `plans${CLEAN}` });
+  });
+
+  it('flow: links with their labels and the gaps', () => {
+    const f = { ...sampleFlow(), gaps: ['open question'] };
+    const snap = flowSnapshot(f, sampleSnippets(), undefined, [item]);
+    expect(snap.edges).toEqual(f.links.map((l) => ({ from: l.from, to: l.to, ...(l.label && { label: l.label }) })));
+    expect(snap).toMatchObject({ gaps: ['open question'], drift: [{ id: 'g' }] });
+    expect(snap.omitted).toBeUndefined();
+  });
+});
