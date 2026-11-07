@@ -3,6 +3,12 @@
 **Using codechart**
 
 - [Install and agents](install.md): install, supported agents, the reminder line and Claude Code hook, uninstall
+- [Flows](flows.md): what the code does, step by step, tied to real lines
+- [Plans](plans.md): Now and After panes, and plan vs built
+- [Infrastructure maps](infrastructure.md): Terraform, OpenTofu, Helm, Kustomize and Kubernetes
+- [The full page](page.md): node panel, diffs, reviewed ticks, keys
+- [Review](review.md): notes on the page or in the terminal, sent to your agent
+- [Why you can trust the diagram](trust.md): what codechart checks against your code
 - [Configuration](configuration.md): when a diagram is drawn, rules, every config key, HTML pages
 - [Maps in pull requests and merge requests](pr-maps.md): turning PR maps on, GitHub and GitLab setup, what CI does
 - [CLI commands](cli.md): every command and flag
