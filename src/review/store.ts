@@ -1,7 +1,7 @@
 import { closeSync, openSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { REVIEW_NAME } from '../render/output-path.js';
-import { carryNotes, type Lists } from './carry.js';
+import { carryNotes } from './carry.js';
 import { reviewSchema, type Range, type Review, type ReviewNode } from './schema.js';
 
 export interface Found {
@@ -103,8 +103,6 @@ export function listReviews(dir: string, branch: string): Found[] {
       return review && review.change.branch === branch ? [{ file: join(dir, n), review }] : [];
     });
 }
-
-export const listsOf = (r: Pick<Review, 'drift' | 'edges' | 'gaps' | 'omitted'>): Lists => ({ drift: r.drift, edges: r.edges, gaps: r.gaps, omitted: r.omitted });
 
 const sameName = (r: Review, name: string): boolean => r.change.slug === name || (r.change.title ?? r.change.slug).toLowerCase() === name.toLowerCase();
 

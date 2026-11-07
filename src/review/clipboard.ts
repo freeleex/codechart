@@ -10,7 +10,7 @@ const OTHER: [string, string[]][] = [
   ['xsel', ['-b', '-o']],
 ];
 
-export const NO_CLIPBOARD = "Can't read the clipboard here. Pipe the copied review in instead: codechart feedback --import < review.txt";
+const NO_CLIPBOARD = "Can't read the clipboard here. Pipe the copied review in instead: codechart feedback --import < review.txt";
 
 /** The system clipboard's text, from the first tool of this platform that works; throws when none does. */
 export function readClipboard(max = 1024 * 1024): string {

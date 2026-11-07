@@ -8,7 +8,7 @@ import type { Note, Review, Target } from './schema.js';
 export const MAX_IMPORT_BYTES = 512 * 1024;
 const MAX_NOTES = 500;
 
-export const NO_REVIEW = 'No codechart review found. Copy it again with "Finish review" on the page.';
+const NO_REVIEW = 'No codechart review found. Copy it again with "Finish review" on the page.';
 const DAMAGED = 'The codechart review is damaged; copy it again with "Finish review" on the page.';
 
 const str = z.string().max(2000);

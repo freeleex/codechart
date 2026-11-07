@@ -63,4 +63,3 @@ export type NoteKind = Note['kind'];
 export type Range = z.infer<typeof rangeSchema>;
 export type DiffLine = z.infer<typeof lineSchema>;
 export type Target = z.infer<typeof targetSchema>;
-export type ReviewEdge = z.infer<typeof edgeSchema>;

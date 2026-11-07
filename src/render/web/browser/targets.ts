@@ -1,7 +1,7 @@
 // Runs in the generated page; scripts/client-build.ts puts it ahead of client.ts in the one inline script.
 
 export type NoteKind = 'comment' | 'question' | 'delete';
-export type DriftKindName = 'missing' | 'unplanned' | 'different';
+type DriftKindName = 'missing' | 'unplanned' | 'different';
 export type NoteTarget =
   | { node: string }
   | { node: string; path: string; side: 'old' | 'new'; line: number }
@@ -44,7 +44,7 @@ export const targetKey = (t: NoteTarget): string => JSON.stringify(t);
 /** The node a target belongs to, if it is on one. */
 export const nodeOfTarget = (t: NoteTarget): string | undefined => ('node' in t ? t.node : 'drift' in t ? t.drift : undefined);
 
-export function nodeLabel(id: string): string {
+function nodeLabel(id: string): string {
   const g = [...document.querySelectorAll('.node')].find((n) => n.getAttribute('data-id') === id);
   return g?.getAttribute('data-label') ?? id;
 }
