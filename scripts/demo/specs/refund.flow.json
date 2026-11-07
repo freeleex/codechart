@@ -1,0 +1,23 @@
+{
+  "kind": "summary", "title": "Refund an order", "rules": ["behaviour-flow"], "start": "request",
+  "steps": [
+    { "id": "request", "label": "refund requested", "status": "new", "source": "shop/api/refunds.py", "match": "def refund(order_id: str):" },
+    { "id": "flag", "label": "refunds enabled?", "status": "new", "source": "shop/api/refunds.py", "match": "if not flag(\"refundsEnabled\"):" },
+    { "id": "404", "label": "404 not found", "status": "new", "source": "shop/api/refunds.py", "match": "raise HTTPException(404)" },
+    { "id": "load", "label": "load the order", "status": "new", "source": "shop/api/refunds.py", "match": "order = get_order(order_id)" },
+    { "id": "paid", "label": "order is paid?", "status": "new", "source": "shop/api/refunds.py", "match": "if order.status != OrderStatus.PAID:" },
+    { "id": "409", "label": "409 only paid orders", "status": "new", "source": "shop/api/refunds.py", "match": "raise HTTPException(409," },
+    { "id": "mark", "label": "mark order refunded", "status": "new", "source": "shop/api/refunds.py", "match": "order.status = OrderStatus.REFUNDED" },
+    { "id": "done", "label": "return the order", "status": "new", "source": "shop/api/refunds.py", "match": "return order" }
+  ],
+  "links": [
+    { "from": "request", "to": "flag" },
+    { "from": "flag", "to": "404", "label": "no", "source": "shop/api/refunds.py", "match": "raise HTTPException(404)" },
+    { "from": "flag", "to": "load", "label": "yes", "source": "shop/api/refunds.py", "match": "order = get_order(order_id)" },
+    { "from": "load", "to": "paid" },
+    { "from": "paid", "to": "409", "label": "no", "source": "shop/api/refunds.py", "match": "raise HTTPException(409," },
+    { "from": "paid", "to": "mark", "label": "yes", "source": "shop/api/refunds.py", "match": "order.status = OrderStatus.REFUNDED" },
+    { "from": "mark", "to": "done" }
+  ],
+  "gaps": ["did not check what happens when two refunds arrive for the same order at once"]
+}

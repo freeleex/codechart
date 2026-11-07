@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Records docs/images/page-review.gif. Needs vhs and ffmpeg (brew install vhs), and a built dist/.
+# Records docs/images/page-review-full.gif. Needs vhs and ffmpeg (brew install vhs), and a built dist/.
 set -euo pipefail
 demo="$(cd "$(dirname "$0")" && pwd)"
 root="$(cd "$demo/../.." && pwd)"
@@ -33,6 +33,6 @@ ffmpeg -loglevel error -y -i "$page" -i "$work/shop/page-review-term.mp4" -filte
   [p][t]xfade=transition=fade:duration=0.4:offset=$off,split[a][b];
   [a]palettegen=max_colors=80:stats_mode=diff[pal];
   [b][pal]paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle" \
-  "$root/docs/images/page-review.gif"
-ls -la "$root/docs/images/page-review.gif"
+  "$root/docs/images/page-review-full.gif"
+ls -la "$root/docs/images/page-review-full.gif"
 echo "work dir (trash it when done): $work"

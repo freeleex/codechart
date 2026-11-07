@@ -1,9 +1,10 @@
-// node page-review.mjs <map.html> <out dir> <message file>: records the page scene of docs/images/page-review.gif
-// and saves the text "Finish review" copied. Needs playwright, installed outside the repo (see record-page-review.sh).
+// node page-review.mjs <map.html> <out dir> <message file> [short]: records the page scene of docs/images/page-review-full.gif
+// (or, with "short", of page-review.gif: two notes, no node note) and saves the text "Finish review" copied. Needs playwright, installed outside the repo (see record-page-review.sh).
 import { writeFileSync } from 'node:fs';
 import { chromium } from 'playwright';
 
-const [html, out, messageFile] = process.argv.slice(2);
+const [html, out, messageFile, mode] = process.argv.slice(2);
+const short = mode === 'short';
 const size = { width: 1180, height: 620 };
 const browser = await chromium.launch();
 const context = await browser.newContext({
@@ -72,16 +73,18 @@ await note('comment', 'default needs a data migration for old rows');
 await click('.hunk:not(.folded) .dr.d-del:has-text("status = Column") .ln', 500);
 await note('delete', 'drop this line, keep the old column');
 
-await click('#panel .cm-node-btn');
-await note('question', 'should coupon_code be indexed?');
+if (!short) {
+  await click('#panel .cm-node-btn');
+  await note('question', 'should coupon_code be indexed?');
+}
 
 await moveTo('#finish-review');
 await page.waitForTimeout(500);
 await click('#finish-review');
 await page.waitForSelector('#finish-dialog');
-await page.waitForTimeout(2200);
+await page.waitForTimeout(short ? 1500 : 2200);
 await click('#finish-dialog .cm-copy');
-await page.waitForTimeout(1300);
+await page.waitForTimeout(short ? 1500 : 1300);
 
 writeFileSync(messageFile, await page.evaluate(() => navigator.clipboard.readText()));
 await context.close();
