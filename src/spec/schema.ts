@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { validateBusinessSpec, type BusinessSpec } from './business.js';
 import { matchSchema, validateFlowSpec, type FlowSpec } from './flow.js';
 import { codeLabelIssue, driftBase, driftIssues, formatIssues, ident, labelIssues, long, pathStr, short, shortOpt, type ValidationResult as Result } from './shared.js';
 
@@ -151,6 +152,12 @@ export function validateSpec(input: unknown): ValidationResult {
   if (!result.success) return { ok: false, errors: formatIssues(result.error) };
   const nodes = result.data.nodes.map((n) => ({ ...n, kind: n.kind ?? 'file' }));
   return { ok: true, spec: { ...result.data, nodes } };
+}
+
+/** Any kind of spec `render` takes: a business spec, a flow or a map. */
+export function validateAnySpec(input: unknown): Result<Spec | FlowSpec | BusinessSpec> {
+  const isBusiness = typeof input === 'object' && input !== null && (input as { diagram?: unknown }).diagram === 'business';
+  return isBusiness ? validateBusinessSpec(input) : validateSpec(input);
 }
 
 export function specJsonSchema(): object {

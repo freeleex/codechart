@@ -1,6 +1,7 @@
 // Runs in the generated page; scripts/client-build.ts puts it ahead of client.ts in the one inline script.
 
-export type NoteKind = 'comment' | 'question' | 'delete';
+type MapKind = 'comment' | 'question' | 'delete';
+export type NoteKind = MapKind | 'answer' | 'confirm' | 'reject';
 type DriftKindName = 'missing' | 'unplanned' | 'different';
 export type NoteTarget =
   | { node: string }
@@ -11,8 +12,8 @@ export type NoteTarget =
   | { omitted: string }
   | { title: true };
 
-export const NOTE_KINDS: NoteKind[] = ['comment', 'question', 'delete'];
-export const KIND_LABEL: Record<NoteKind, string> = { comment: 'Comment', question: 'Question', delete: 'Delete' };
+export const NOTE_KINDS: MapKind[] = ['comment', 'question', 'delete'];
+export const KIND_LABEL: Record<NoteKind, string> = { comment: 'Comment', question: 'Question', delete: 'Delete', answer: 'Answer', confirm: 'Confirmed', reject: 'Rejected' };
 const DRIFT_WORDS: Record<DriftKindName, string> = { missing: 'not built', unplanned: 'built, not in the plan', different: 'built differently' };
 
 export const isStr = (v: unknown): v is string => typeof v === 'string' && v.length > 0;

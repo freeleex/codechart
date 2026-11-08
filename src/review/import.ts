@@ -24,8 +24,8 @@ const target = z.union([
   z.strictObject({ title: z.literal(true) }),
 ]);
 
-const kind = z.enum(['comment', 'question', 'delete']);
-const KIND_LABEL = { comment: 'Comment', question: 'Question', delete: 'Delete' } as const;
+const kind = z.enum(['comment', 'question', 'delete', 'answer', 'confirm', 'reject']);
+const KIND_LABEL = { comment: 'Comment', question: 'Question', delete: 'Delete', answer: 'Answer', confirm: 'Confirmed', reject: 'Rejected' } as const;
 
 const tokenSchema = z.strictObject({
   v: z.literal(1),
@@ -35,11 +35,23 @@ const tokenSchema = z.strictObject({
   notes: z.array(z.strictObject({ t: target, r: str.optional(), k: kind })).max(MAX_NOTES),
 });
 
+const BIZ_KIND = { c: 'comment', a: 'answer', y: 'confirm', n: 'reject' } as const;
+
+/** The business page's short token: `s` is the slug without `.business`, each note `[item id, kind code, 6-character rev]`. */
+const tokenV2 = z.strictObject({
+  v: z.literal(2),
+  s: str,
+  b: str,
+  n: z.array(z.tuple([str, z.enum(['c', 'a', 'y', 'n']), z.string().regex(/^[A-Za-z0-9_-]{6}$/)])).max(MAX_NOTES),
+});
+
 type Token = z.infer<typeof tokenSchema>;
 export type ImportPayload = Omit<Token, 'notes'> & { notes: (Token['notes'][number] & { b: string })[] };
 
 const MARKER = /^[\s>`]*codechart review ·/;
 const ITEM = /^\d+\. On /;
+
+const fromV2 = (t: z.infer<typeof tokenV2>): Token => ({ v: 1, slug: `${t.s}.business`, branch: t.b, at: '', notes: t.n.map(([node, k, r]) => ({ t: { node }, r, k: BIZ_KIND[k] })) });
 
 /** A line without quote marks and trailing spaces. */
 const unquote = (l: string): string => l.replace(/^(?:[ \t]*>)+ ?/, '').trimEnd();
@@ -60,8 +72,8 @@ function itemBodies(lines: string[], kinds: Token['notes'][number]['k'][]): stri
     const first = lines[starts[i]!]!;
     const mark = `: ${KIND_LABEL[k]}: `;
     const cut = first.indexOf(mark);
-    if (cut < 0) return '';
     const rest = lines.slice(starts[i]! + 1, starts[i + 1] ?? lines.length).map((l) => l.replace(/^ {1,3}/, ''));
+    if (cut < 0) return (k === 'confirm' || k === 'reject') && first.endsWith(`: ${KIND_LABEL[k]}`) && !rest.join('').trim() ? KIND_LABEL[k] : '';
     return [first.slice(cut + mark.length), ...rest].join('\n').trim();
   });
 }
@@ -81,7 +93,8 @@ export function parseReviewText(text: string): ImportPayload {
   if (!/^[A-Za-z0-9_-]+$/.test(token)) throw new Error(DAMAGED);
   let decoded: Token;
   try {
-    decoded = tokenSchema.parse(JSON.parse(Buffer.from(token, 'base64url').toString('utf8')));
+    const json = JSON.parse(Buffer.from(token, 'base64url').toString('utf8')) as { v?: unknown };
+    decoded = json.v === 2 ? fromV2(tokenV2.parse(json)) : tokenSchema.parse(json);
   } catch {
     throw new Error(DAMAGED);
   }
@@ -134,7 +147,7 @@ function build(review: Review, p: Pasted, id: string, now: Date): Note | undefin
   return tgt ? targetNote(review, base, node, tgt) : nodeNote(review, base, node, p);
 }
 
-/** `review` with the pasted notes added; one equal to a note already there, in any state, is not added twice. Counts: `added`, of which `outdated` (what the map changed since the page was drawn). */
+/** `review` with the pasted notes added; one equal to a note already there (same rev too), in any state, is not added twice. Counts: `added`, of which `outdated` (what the map changed since the page was drawn). */
 export function importNotes(review: Review, payload: ImportPayload, now: Date): { review: Review; added: number; outdated: number } {
   const notes = [...review.notes];
   let next = lastNoteNumber(notes);
@@ -142,7 +155,7 @@ export function importNotes(review: Review, payload: ImportPayload, now: Date): 
   let added = 0;
   for (const p of payload.notes) {
     const note = build(review, p, `n${next + 1}`, now);
-    if (!note || notes.some((n) => sameNote(n, note))) continue;
+    if (!note || notes.some((n) => sameNote(n, note) && n.rev === note.rev)) continue;
     next++;
     added++;
     if (note.state === 'outdated') outdated++;

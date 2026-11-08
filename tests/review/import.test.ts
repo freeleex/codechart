@@ -211,6 +211,13 @@ describe('importNotes', () => {
     expect(added(once.review, target({ omitted: 'no tests' }, 'x')).added).toBe(1);
   });
 
+  it('the same words on a newer rev are a new note: a confirmation of reworded text is not dropped', () => {
+    const old = added(review(), target({ node: 'api' }, 'Confirmed', 'old'));
+    const again = added(old.review, target({ node: 'api' }, 'Confirmed', 'rev-api'));
+    expect(again).toMatchObject({ added: 1, outdated: 0 });
+    expect(again.review.notes.map((n) => [n.rev, n.state])).toEqual([['old', 'outdated'], ['rev-api', 'pending']]);
+  });
+
   it('a body with control characters is cleaned, one that is empty after that is skipped', () => {
     const out = added(review(), [...target({ title: true }, 'a\x1b]52;c;ZXZpbA==\x07b\x1b[2J‮c​d\nline 2'), ...target({ title: true }, '\x1b​  ')]);
     expect(out.added).toBe(1);

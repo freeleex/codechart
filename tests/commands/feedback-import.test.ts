@@ -126,6 +126,12 @@ describe('feedback --import', () => {
     expect(other.err).toContain('No map called "orders" on branch elsewhere.');
   });
 
+  it('a business page whose record is gone says it was kept 30 days', async () => {
+    const r = await run(['feedback', '--import'], stdin(copied(mixed(), { slug: 'orders.business' })));
+    expect(r.err).toBe(`codechart: No business page called "orders.business" on branch ${gitBranch(repo)}: its saved record is gone (kept 30 days). Render the business map again and send the new page.\n`);
+    expect(r.code).toBe(1);
+  });
+
   it('text without a review, and a damaged one, fail in plain words', async () => {
     const none = await run(['feedback', '--import'], stdin('hello'));
     expect(none.err).toBe('codechart: No codechart review found. Copy it again with "Finish review" on the page.\n');

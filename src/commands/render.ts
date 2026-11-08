@@ -1,4 +1,3 @@
-import { constants, closeSync, fstatSync, openSync, readSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { Command, Option } from 'commander';
 import { findRepoRoot, loadConfig } from '../config/load.js';
@@ -12,41 +11,21 @@ import { fileSlug, repoFolder } from '../render/output-path.js';
 import { loadPlan, savePlan, type PlanStoreOptions, type StoredPlan } from '../render/plan-store.js';
 import { flagged, type CheckSummary } from '../render/terminal/check-lines.js';
 import { defaultWidth } from '../render/terminal/render.js';
-import { privateDir, writeHtml, writeReviewOnly } from '../render/web/write.js';
+import { privateDir, writeReviewOnly } from '../render/web/write.js';
 import { gitHead, gitMergeBase, gitParent, resolveCommit } from '../rules/git-files.js';
-import { checkAllowed, currentVersion, knownHighlights, knownUpdate, readState } from '../update/check.js';
 import { unionOutputs, unmappedFiles } from '../rules/resolve.js';
 import { gitFiles, hasGitSelection, selectionError, type GitSelection } from '../rules/selection.js';
 import type { FlowSpec } from '../spec/flow.js';
-import { validateSpec, type Spec } from '../spec/schema.js';
+import type { BusinessSpec } from '../spec/business.js';
+import { validateAnySpec, type Spec } from '../spec/schema.js';
 import { MAX_SPEC_BYTES } from '../spec/shared.js';
 import type { RenderContext } from './choose-output.js';
-import { inCodeEditor, openInBrowser } from './open.js';
+import { htmlWriter } from './html-writer.js';
 import { renderFlow } from './render-flow.js';
 import { renderMap } from './render-map.js';
+import { renderBusinessSpec } from './render-business.js';
+import { InvalidSpec, readSpecJson, TOO_BIG } from './spec-input.js';
 import { readStdin } from './stdin.js';
-
-class InvalidSpec extends Error {
-  constructor(readonly errors: string[]) {
-    super('invalid spec');
-  }
-}
-
-const TOO_BIG = 'spec is larger than 2 MB';
-
-function readSpecFile(file: string): string {
-  const fd = openSync(file, constants.O_RDONLY | (constants.O_NONBLOCK ?? 0));
-  try {
-    if (!fstatSync(fd).isFile()) throw new Error('not a regular file');
-    const buf = Buffer.alloc(MAX_SPEC_BYTES + 1);
-    let n = 0;
-    for (let r = 1; r > 0 && n < buf.length; n += r) r = readSync(fd, buf, n, buf.length - n, null);
-    if (n > MAX_SPEC_BYTES) throw new Error(TOO_BIG);
-    return buf.toString('utf8', 0, n);
-  } finally {
-    closeSync(fd);
-  }
-}
 
 function specOutput(config: Config, ruleNames: string[], diagram: Diagram): Output {
   const outputs = ruleNames.map((name) => {
@@ -58,26 +37,18 @@ function specOutput(config: Config, ruleNames: string[], diagram: Diagram): Outp
   return unionOutputs(outputs);
 }
 
-async function readSpec(arg: string, cwd: string, stdin: () => Promise<string>): Promise<Spec | FlowSpec> {
-  const source = arg === '-' ? 'stdin' : resolve(cwd, arg);
-  let raw: unknown;
-  try {
-    const text = arg === '-' ? await stdin() : readSpecFile(source);
-    if (Buffer.byteLength(text) > MAX_SPEC_BYTES) throw new Error(TOO_BIG);
-    raw = JSON.parse(text);
-  } catch (e) {
-    throw new Error(`${source}: ${(e as Error).message}`);
-  }
-  const result = validateSpec(raw);
+async function readSpec(arg: string, cwd: string, stdin: () => Promise<string>): Promise<Spec | FlowSpec | BusinessSpec> {
+  const result = validateAnySpec(await readSpecJson(arg, cwd, stdin));
   if (!result.ok) throw new InvalidSpec(result.errors);
   return result.spec;
 }
 
 type Target = { diagram: 'flow'; spec: FlowSpec; snippets: FlowSnippets; checked: number } | { diagram: 'map'; spec: Spec };
 
-function targetOf(spec: Spec | FlowSpec, root: string, at: string | undefined, cwd: string, pr: boolean): Target {
+function targetOf(spec: Spec | FlowSpec, root: string, at: string | undefined, cwd: string, o: RenderFlags): Target {
+  if (o.tech !== undefined) throw new Error('--tech only applies to business maps');
   if (spec.diagram !== 'flow') return { diagram: 'map', spec };
-  if (pr) throw new Error('--pr draws maps only');
+  if (o.pr) throw new Error('--pr draws maps only');
   const anchors = checkFlowAnchors(spec, root, at, cwd);
   if (!anchors.ok) throw new InvalidSpec(anchors.errors);
   return { diagram: 'flow', spec, snippets: anchors.snippets, checked: anchors.checked };
@@ -93,6 +64,7 @@ interface RenderFlags extends GitSelection {
   imageUrl?: string;
   at?: string;
   strict?: boolean;
+  tech?: string;
 }
 
 function renderSelectionError(o: RenderFlags): string | undefined {
@@ -151,10 +123,11 @@ const clock = (opts: CommandOptions): Date => opts.now?.() ?? new Date();
 
 async function renderSpec(arg: string, o: RenderFlags, opts: CommandOptions, cwd: string): Promise<void> {
   const spec = await readSpec(arg, cwd, opts.stdin ?? (() => readStdin(MAX_SPEC_BYTES, new Error(TOO_BIG))));
+  if (spec.diagram === 'business') return renderBusinessSpec(spec, o, opts, cwd);
   const repoRoot = findRepoRoot(cwd);
   const root = repoRoot ?? resolve(cwd);
   const at = resolveAt(o, repoRoot, root);
-  const target = targetOf(spec, root, at, resolve(cwd), o.pr === true);
+  const target = targetOf(spec, root, at, resolve(cwd), o);
   const diff = selectedDiff(o, repoRoot, root);
   const config = loadConfig({ cwd, home: opts.home, env: opts.env, warn: (l) => opts.stderr(`codechart: ${l}\n`) });
   const rules = spec.rules ?? [];
@@ -169,7 +142,6 @@ async function renderSpec(arg: string, o: RenderFlags, opts: CommandOptions, cwd
   const env = opts.env ?? process.env;
   const now = clock(opts);
   const slug = fileSlug(spec.title, target.diagram);
-  const update = checkAllowed({ enabled: config.updateCheck, env: { ...process.env, ...env } }) ? knownUpdate(config.web.outDir) : undefined;
   const ctx: RenderContext = {
     output,
     minNodes: config.web.minNodes,
@@ -188,21 +160,7 @@ async function renderSpec(arg: string, o: RenderFlags, opts: CommandOptions, cwd
     now,
     plan: planFor(spec, target.diagram, { cacheDir: config.web.outDir, root, now, inRepo: repoRoot !== undefined }, o),
     saveReview: (snapshot) => writeReviewOnly(snapshot, { config, root, slug, now, stderr: opts.stderr }),
-    write: (build, review) =>
-      writeHtml(build, {
-        review,
-        config,
-        root,
-        slug,
-        theme: o.theme ?? config.web.theme,
-        now,
-        forceOpen: o.open === true,
-        inEditor: inCodeEditor(env),
-        open: opts.open ?? openInBrowser,
-        stderr: opts.stderr,
-        update,
-        updateNotes: update ? knownHighlights(readState(config.web.outDir), currentVersion(), update)?.bullets : undefined,
-      }),
+    write: htmlWriter({ config, root, slug, theme: o.theme, now, open: o.open }, opts),
   };
   const { text, check, html, drift } = target.diagram === 'flow' ? await renderFlow(target.spec, target, ctx) : await renderMap(target.spec, ctx);
   // A blank line after --md output keeps two renders in one Bash call from gluing together.
@@ -215,7 +173,7 @@ async function renderSpec(arg: string, o: RenderFlags, opts: CommandOptions, cwd
 export function renderCommand(opts: CommandOptions): Command {
   const cwd = opts.cwd ?? process.cwd();
   return new Command('render')
-    .description('render a spec as a terminal map and/or a self-contained HTML map')
+    .description('render a spec as a terminal map and/or a self-contained HTML map (business maps: HTML only)')
     .argument('<spec>', "spec JSON file, or '-' for stdin")
     .addOption(new Option('--output <mode>', 'override the output mode').choices(['auto', 'cli', 'web', 'both']))
     .addOption(new Option('--theme <theme>', 'HTML theme').choices(THEMES))
@@ -229,6 +187,7 @@ export function renderCommand(opts: CommandOptions): Command {
     .option('--commit <sha>', 'check claims against the files one commit changed')
     .option('--since <base>', 'check claims against the files committed since <base>; add --git for uncommitted ones too')
     .option('--head <ref>', 'with --since: compare <base>...<ref> instead of HEAD')
+    .option('--tech <file>', "business maps: the tech map's spec file, whose boxes the business map links to (default: the newest saved map on this branch)")
     .option('--strict', "exit 1 when a claim doesn't match the code or the build drifted from the plan without a reason")
     .action(async (arg: string, o: RenderFlags, cmd: Command) => {
       const usage = renderSelectionError(o) ?? (!o.pr && (o.svg !== undefined || o.imageUrl !== undefined) ? '--svg and --image-url need --pr' : undefined);

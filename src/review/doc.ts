@@ -1,7 +1,7 @@
 import { sanitizeText } from '../render/strip.js';
 import type { DiffLine, Note, NoteKind, Review, ReviewNode } from './schema.js';
 
-const NOTE_MARK: Record<NoteKind, string> = { comment: '>', question: '>?', delete: '>del' };
+const NOTE_MARK: Record<NoteKind, string> = { comment: '>', question: '>?', delete: '>del', answer: '>', confirm: '>', reject: '>' };
 
 /** The highest `n<number>` note id, so a new note takes the next. */
 export const lastNoteNumber = (notes: Note[]): number => Math.max(0, ...notes.map((n) => Number(/^n(\d+)$/.exec(n.id)?.[1] ?? 0)));

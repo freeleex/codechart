@@ -2,13 +2,19 @@
 import type { Comments } from './comments.js';
 import type { Change, Note } from './note-store.js';
 import { cmEl } from './note-view.js';
-import { KIND_LABEL, placeText } from './targets.js';
+import { KIND_LABEL, placeText, type NoteTarget } from './targets.js';
+
+const BIZ_CODE: Record<string, string> = { comment: 'c', answer: 'a', confirm: 'y', reject: 'n' };
 
 const countOf = (n: number) => `${n} note${n === 1 ? '' : 's'}`;
 
-/** What the importer reads back, besides the note words above it: the places and kinds as base64url of UTF-8 JSON, no padding. */
-function noteToken(change: Change, notes: Note[]): string {
-  const json = JSON.stringify({ v: 1, slug: change.slug, branch: change.branch, at: change.at, notes: notes.map((n) => ({ t: n.t, ...(n.r !== undefined && { r: n.r }), k: n.k })) });
+/** What the importer reads back, besides the note words above it: the places and kinds as base64url of UTF-8 JSON, no padding. `compact` is the business page's shorter v2 form. */
+function noteToken(change: Change, notes: Note[], compact: boolean): string {
+  const json = JSON.stringify(
+    compact
+      ? { v: 2, s: change.slug.replace(/\.business$/, ''), b: change.branch, n: notes.map((n) => [(n.t as { node: string }).node, BIZ_CODE[n.k], n.r]) }
+      : { v: 1, slug: change.slug, branch: change.branch, at: change.at, notes: notes.map((n) => ({ t: n.t, ...(n.r !== undefined && { r: n.r }), k: n.k })) },
+  );
   let binary = '';
   new TextEncoder().encode(json).forEach((b) => {
     binary += String.fromCharCode(b);
@@ -17,9 +23,9 @@ function noteToken(change: Change, notes: Note[]): string {
 }
 
 /** The notes as plain lines for the agent chat, then a closing line with the token. */
-function finishMessage(title: string, change: Change, notes: Note[]): string {
-  const lines = notes.map((n, i) => `${i + 1}. On ${placeText(n.t)}: ${KIND_LABEL[n.k]}: ${n.b.trim().replace(/\n/g, '\n   ')}`);
-  return `Review done: ${countOf(notes.length)} on "${title}".\n${lines.join('\n')}\n\ncodechart review · ${countOf(notes.length)} · ${noteToken(change, notes)}`;
+export function finishMessage(title: string, change: Change, notes: Note[], place: (t: NoteTarget) => string = placeText, count: (n: number) => string = countOf, compact = false): string {
+  const lines = notes.map((n, i) => `${i + 1}. On ${place(n.t)}: ${KIND_LABEL[n.k]}${n.b.trim() ? `: ${n.b.trim().replace(/\n/g, '\n   ')}` : ''}`);
+  return `Review done: ${count(notes.length)} on "${title}".\n${lines.join('\n')}\n\ncodechart review · ${countOf(notes.length)} · ${noteToken(change, notes, compact)}`;
 }
 
 /** A message over this is split into batches; tests keep it under the importer's cap. */
@@ -38,13 +44,13 @@ function fitBatch(title: string, change: Change, notes: Note[]): { text: string;
   return { text: finishMessage(title, change, notes.slice(0, lo)), count: lo };
 }
 
-async function copyNoteText(text: string, box: HTMLTextAreaElement): Promise<boolean> {
+/** `select` shows the text selected for a manual copy when the clipboard is blocked. */
+export async function copyNoteText(text: string, select: () => void): Promise<boolean> {
   try {
     await navigator.clipboard.writeText(text);
     return true;
   } catch {
-    box.focus();
-    box.select();
+    select();
   }
   try {
     return document.execCommand('copy');
@@ -129,7 +135,10 @@ function openFinish(comments: Comments, change: Change, opener: HTMLElement): vo
   };
   trapKeys(d, close);
   d.copy.addEventListener('click', async () => {
-    if (await copyNoteText(text, d.preview)) {
+    if (await copyNoteText(text, () => {
+      d.preview.focus();
+      d.preview.select();
+    })) {
       close();
       comments.markSent(batch.map((n) => n.id));
       toast('Copied');

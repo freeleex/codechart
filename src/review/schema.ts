@@ -9,6 +9,9 @@ const nodeSchema = z.object({
   rev: z.string().optional(),
   lines: z.array(lineSchema).optional(),
   note: z.string().optional(),
+  item: z.enum(['journey', 'rule', 'data', 'question']).optional(),
+  links: z.array(z.string()).optional(),
+  about: z.string().optional(),
 });
 
 const driftKind = z.enum(['missing', 'unplanned', 'different']);
@@ -29,7 +32,7 @@ const noteSchema = z.object({
   target: targetSchema.optional(),
   rev: z.string().optional(),
   anchor: z.object({ path: z.string(), side: z.enum(['old', 'new']), line: z.number(), text: z.string() }).optional(),
-  kind: z.enum(['comment', 'question', 'delete']),
+  kind: z.enum(['comment', 'question', 'delete', 'answer', 'confirm', 'reject']),
   body: z.string(),
   state: z.enum(['pending', 'sent', 'outdated']),
   at: z.string(),
@@ -42,7 +45,7 @@ export const reviewSchema = z.object({
   change: z.object({
     slug: z.string(),
     title: z.string().optional(),
-    kind: z.enum(['map', 'flow']),
+    kind: z.enum(['map', 'flow', 'business']),
     branch: z.string(),
     html: z.string().optional(),
     renderedAt: z.string(),

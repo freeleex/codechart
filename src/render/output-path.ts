@@ -2,9 +2,9 @@ import { createHash } from 'node:crypto';
 import { basename, join } from 'node:path';
 import type { Config } from '../config/schema.js';
 
-export const HTML_NAME = /^(\d{8}-\d{6})-([a-z0-9-]+(?:\.flow)?)\.html$/;
+export const HTML_NAME = /^(\d{8}-\d{6})-([a-z0-9-]+(?:\.flow|\.business)?)\.html$/;
 
-export const REVIEW_NAME = /^(\d{8}-\d{6}-[a-z0-9-]+(?:\.flow)?)\.review\.json$/;
+export const REVIEW_NAME = /^(\d{8}-\d{6}-[a-z0-9-]+(?:\.flow|\.business)?)\.review\.json$/;
 
 /** The review notes file that sits next to a page. */
 export const reviewFile = (html: string): string => html.replace(/\.html$/, '.review.json');
@@ -29,9 +29,9 @@ function slugify(title: string): string {
   return slug || 'map';
 }
 
-// `.` can't come from a title, so a flow file never collides with a map file.
-export const fileSlug = (title: string, diagram: 'map' | 'flow'): string =>
-  diagram === 'flow' ? `${slugify(title)}.flow` : slugify(title);
+// `.` can't come from a title, so a flow or business file never collides with a map file.
+export const fileSlug = (title: string, diagram: 'map' | 'flow' | 'business'): string =>
+  diagram === 'map' ? slugify(title) : `${slugify(title)}.${diagram}`;
 
 export function htmlOutputPath(config: Config, repo: string, slug: string, now: Date): string {
   return join(config.web.outDir, repo, `${stamp(now)}-${slug}.html`);

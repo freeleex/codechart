@@ -6,6 +6,7 @@ import { sanitizeText } from '../render/strip.js';
 import { diffRev } from '../render/web/tools.js';
 import { gitDirtyHashes, gitHead } from '../rules/git-files.js';
 import { hasGitSelection, type GitSelection } from '../rules/selection.js';
+import type { BusinessSpec } from '../spec/business.js';
 import type { FlowSpec, FlowStep } from '../spec/flow.js';
 import type { Spec } from '../spec/schema.js';
 import type { Range, ReviewNode } from './schema.js';
@@ -60,6 +61,32 @@ export function flowSnapshot(spec: FlowSpec, snippets: FlowSnippets, range: Rang
     return { id: s.id, label: clean(s.label), ...(path && { path: clean(path) }), rev: stepRev(spec, s, snippets) };
   });
   return { kind: 'flow', title: clean(spec.title), nodes, ...(range && { range }), ...extrasOf(drift, { edges: [...spec.links, ...ghostLinks], gaps: spec.gaps }) };
+}
+
+const REV_FIELDS = {
+  journey: ['name', 'who', 'now', 'after', 'links'],
+  rule: ['name', 'before', 'after', 'exceptions', 'links'],
+  data: ['name', 'what', 'why', 'links'],
+  question: ['about', 'text'],
+} as const;
+
+/** An item's hash covers its words and links, so a confirmation of the old words never counts for new ones; 6 characters keep the page's token short. */
+export function businessRev(kind: keyof typeof REV_FIELDS, item: object): string {
+  const fields = item as Record<string, unknown>;
+  return hash(REV_FIELDS[kind].map((f) => fields[f])).slice(0, 6);
+}
+
+/** A business page takes notes on its items: journeys, rules, saved data and questions, by id. */
+export function businessSnapshot(spec: BusinessSpec): ReviewSnapshot {
+  const items = [
+    ...spec.journeys.map((x) => ({ ...x, item: 'journey' as const })),
+    ...spec.rules.map((x) => ({ ...x, item: 'rule' as const })),
+    ...spec.data.map((x) => ({ ...x, item: 'data' as const })),
+  ];
+  const linksOf = new Map(items.map((x) => [x.id, x.links]));
+  const nodes = items.map((x) => ({ id: clean(x.id), label: clean(x.name), item: x.item, rev: businessRev(x.item, x), links: x.links.map(clean) }));
+  const questions = spec.questions.map((q) => ({ id: clean(q.id), label: clean(q.text), item: 'question' as const, rev: businessRev('question', q), about: clean(q.about), links: (linksOf.get(q.about) ?? []).map(clean) }));
+  return { kind: 'business', title: clean(spec.title), nodes: [...nodes, ...questions] };
 }
 
 /** Where the code stood at render time, for the review's stale check; none for a commit, which never changes, or `--head`, which is not HEAD. */

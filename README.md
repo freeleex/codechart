@@ -174,6 +174,18 @@ More: [Maps in pull requests](docs/pr-maps.md)
 </td>
 <td width="54%" valign="middle"><img src="docs/images/pr-map.png" alt="PR description with the Map section open: check line, the map image, what was left out or not read, collapsed node details and the key"></td>
 </tr>
+<tr>
+<td width="46%" valign="middle">
+
+### Business map
+
+On request, a plain-words page for a product owner with no repo access: journeys, rules, saved data and questions. They answer, confirm and send it back.
+
+More: [Business map](docs/business-map.md)
+
+</td>
+<td width="54%" valign="middle"><img src="docs/images/business-map.png" alt="Business page: a journey with Now and After columns, rule cards, one dashed card asking for a yes or no, and a question with an answer box"></td>
+</tr>
 </table>
 
 ## The full page

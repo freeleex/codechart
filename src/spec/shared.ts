@@ -38,24 +38,24 @@ export function driftIssues(kind: 'plan' | 'summary', ids: readonly string[] | u
 }
 
 // Catches ~96% of 7-char short SHAs; rare hex words with a digit (e.g. "cafe123") are rejected too, by choice.
-function hashToken(label: string): string | undefined {
+export function hashToken(label: string): string | undefined {
   return label
     .split(/[^A-Za-z0-9]+/)
     .find((t) => /^[0-9a-f]{7,}$/i.test(t) && /\d/.test(t) && /[a-f]/i.test(t));
 }
 
 // `list_projects()`, `values[]`, `{id}` and `>=` stay allowed: a reader still sees what they name.
-const CODE_PATTERNS = [
-  /[\w$.]\([^)]/, // a call with arguments
-  /\[[^\]]/, // an index or list literal
-  /["`]|(?:^|\W)'[^']*'/, // a string literal
-  /\.\.\./,
-  /(?:^|[^<>=!])=(?!=)/, // an assignment
+export const CODE_PATTERNS = [
+  { name: 'call', re: /[\w$.]\([^)]/ }, // a call with arguments
+  { name: 'list', re: /\[[^\]]/ }, // an index or list literal
+  { name: 'quote', re: /["`]|(?:^|\W)'[^']*'/ }, // a string literal
+  { name: 'ellipsis', re: /\.\.\./ },
+  { name: 'assignment', re: /(?:^|[^<>=!])=(?!=)/ },
 ];
 
 /** A label that pastes code (`_l(["rag"])`) instead of naming the thing in words. */
 export function codeLabelIssue(label: string, example: string): string | undefined {
-  const hit = CODE_PATTERNS.some((p) => p.test(label));
+  const hit = CODE_PATTERNS.some((p) => p.re.test(label));
   return hit ? `reads as code ("${label}"); name it in plain words (e.g. "${example}") and render again` : undefined;
 }
 
@@ -78,7 +78,7 @@ export function labelIssues(label: string, noun: string, fileField: string, exam
 
 export type ValidationResult<T> = { ok: true; spec: T } | { ok: false; errors: string[] };
 
-function formatPath(path: PropertyKey[]): string {
+export function formatPath(path: PropertyKey[]): string {
   if (path.length === 0) return '$';
   return path.reduce<string>((acc, seg) => {
     if (typeof seg === 'number') return `${acc}[${seg}]`;

@@ -2,6 +2,15 @@
 
 What's new in each codechart release. Update with `codechart update`; the [releases page](https://github.com/freeleex/codechart/releases) has the same notes.
 
+## Unreleased
+
+### New
+
+- Business map: ask your agent for a plain-words page of a change for a product owner. It shows what people will experience (today and after), the rules before and after, what the business now keeps, and up to 7 questions. No code, file names or ids on it, and the owner needs no repo access.
+- The owner answers the questions, says Yes or No to what the agent only worked out, adds notes, and presses *Send back to developer*; paste the copied text to your agent. `codechart feedback` shows those notes with the part of the change each belongs to.
+- The owner can reply days later: a business page's saved record is kept 30 days, even after the page is cleaned up, and `feedback --import` says so if it is gone.
+- `codechart render --tech <spec.json>` names the technical map a business map links to (default: the newest saved one on the branch); `codechart schema --business` prints the format.
+
 ## 0.7.0 (2026-11-06)
 
 ### New

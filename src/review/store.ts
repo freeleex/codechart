@@ -10,7 +10,7 @@ export interface Found {
 }
 
 export interface ReviewSnapshot {
-  kind: 'map' | 'flow';
+  kind: 'map' | 'flow' | 'business';
   title?: string;
   nodes: ReviewNode[];
   range?: Range;
@@ -86,8 +86,10 @@ export function updateReview(file: string, change: (current: Review) => Review, 
   );
 }
 
-/** The review files of `branch` in `dir`, newest page first. */
-export function listReviews(dir: string, branch: string): Found[] {
+export type Which = 'tech' | 'business' | 'all';
+
+/** The review files of `branch` in `dir`, newest page first: those of tech maps and flows, or `business` pages, or `all`. */
+export function listReviews(dir: string, branch: string, which: Which = 'tech'): Found[] {
   let names: string[];
   try {
     names = readdirSync(dir);
@@ -100,15 +102,15 @@ export function listReviews(dir: string, branch: string): Found[] {
     .reverse()
     .flatMap((n) => {
       const review = readReview(join(dir, n));
-      return review && review.change.branch === branch ? [{ file: join(dir, n), review }] : [];
+      return review && review.change.branch === branch && (which === 'all' || (review.change.kind === 'business') === (which === 'business')) ? [{ file: join(dir, n), review }] : [];
     });
 }
 
 const sameName = (r: Review, name: string): boolean => r.change.slug === name || (r.change.title ?? r.change.slug).toLowerCase() === name.toLowerCase();
 
-/** The newest change on `branch`, or the one with this title or file name slug. `exact`: only a file name slug counts. */
-export function findChange(dir: string, branch: string, name?: string, exact = false): Found {
-  const found = listReviews(dir, branch).find((f) => name === undefined || (exact ? f.review.change.slug === name : sameName(f.review, name)));
+/** The newest change on `branch`, or the one with this title or file name slug. `exact`: only a file name slug counts. `which`: tech maps and flows unless it says business pages. */
+export function findChange(dir: string, branch: string, name?: string, exact = false, which: Which = 'tech'): Found {
+  const found = listReviews(dir, branch, which).find((f) => name === undefined || (exact ? f.review.change.slug === name : sameName(f.review, name)));
   if (found) return found;
   const where = branch ? ` on branch ${branch}` : ' here';
   throw new Error(name === undefined ? `No map to review${where} yet. Ask your agent for a map first.` : `No map called "${name}"${where}. Check the title, or ask your agent to draw it.`);
@@ -117,7 +119,7 @@ export function findChange(dir: string, branch: string, name?: string, exact = f
 /** Writes the review file `file`, taking over the notes of the last render of this slug on this branch. */
 export function saveReview(o: { dir: string; file: string; html?: string; slug: string; branch: string; now: Date; snapshot: ReviewSnapshot }): void {
   const { slug, branch, snapshot } = o;
-  const prev = listReviews(o.dir, branch).find((f) => f.review.change.slug === slug);
+  const prev = listReviews(o.dir, branch, 'all').find((f) => f.review.change.slug === slug);
   writeReview(o.file, {
     version: 1,
     change: { slug, ...(snapshot.title && { title: snapshot.title }), kind: snapshot.kind, branch, ...(o.html && { html: o.html }), renderedAt: o.now.toISOString(), ...(snapshot.range && { range: snapshot.range }) },

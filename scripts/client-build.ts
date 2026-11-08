@@ -3,7 +3,7 @@ import ts from 'typescript';
 
 export const CLIENT_SOURCE = 'src/render/web/browser/client.ts';
 /** Modules client.ts imports, in the order the page runs them. */
-export const CLIENT_DEPS = ['src/render/web/browser/store.ts', 'src/render/web/browser/history.ts', 'src/render/web/browser/focus.ts', 'src/render/web/browser/chips.ts', 'src/render/web/browser/review.ts', 'src/render/web/browser/glide.ts', 'src/render/web/browser/resize.ts', 'src/render/web/browser/hunks.ts', 'src/render/web/browser/why.ts', 'src/render/web/browser/targets.ts', 'src/render/web/browser/note-store.ts', 'src/render/web/browser/note-view.ts', 'src/render/web/browser/note-paint.ts', 'src/render/web/browser/comments.ts', 'src/render/web/browser/finish.ts'];
+export const CLIENT_DEPS = ['src/render/web/browser/store.ts', 'src/render/web/browser/history.ts', 'src/render/web/browser/focus.ts', 'src/render/web/browser/chips.ts', 'src/render/web/browser/review.ts', 'src/render/web/browser/glide.ts', 'src/render/web/browser/resize.ts', 'src/render/web/browser/hunks.ts', 'src/render/web/browser/why.ts', 'src/render/web/browser/targets.ts', 'src/render/web/browser/note-store.ts', 'src/render/web/browser/note-view.ts', 'src/render/web/browser/note-paint.ts', 'src/render/web/browser/comments.ts', 'src/render/web/browser/finish.ts', 'src/render/web/browser/business.ts'];
 export const CLIENT_OUTPUT = 'src/render/web/client.ts';
 
 function transpile(file: string): string {
