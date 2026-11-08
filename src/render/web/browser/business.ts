@@ -39,18 +39,19 @@ function bizSaved(key: string, ids: Set<string>): BizState {
 function bizNotes(s: BizState): Note[] {
   const at = new Date().toISOString();
   const out: Note[] = [];
-  const add = (id: string, k: Note['k'], b: string) => out.push({ id: `${id}:${k}`, t: { node: id }, k, b, at });
   for (const card of bizCards()) {
     const id = card.dataset.item!;
+    const r = card.dataset.rev;
+    const add = (k: Note['k'], b: string) => out.push({ id: `${id}:${k}`, t: { node: id }, ...(r && { r }), k, b, at });
     const comment = (s.note[id] ?? '').trim();
     if (card.dataset.kind === 'question') {
       const answer = (s.answer[id] ?? '').trim();
-      if (answer) add(id, 'answer', answer);
+      if (answer) add('answer', answer);
       continue;
     }
-    if (s.verdict[id] === 'yes') add(id, 'confirm', comment);
-    else if (s.verdict[id] === 'no') add(id, 'reject', comment);
-    else if (comment) add(id, 'comment', comment);
+    if (s.verdict[id] === 'yes') add('confirm', comment);
+    else if (s.verdict[id] === 'no') add('reject', comment);
+    else if (comment) add('comment', comment);
   }
   return out;
 }

@@ -161,7 +161,7 @@ describe('render: business map', () => {
     const dir = join(sb.out, readdirSync(sb.out)[0]!);
     const file = join(dir, readdirSync(dir).find((n) => n.endsWith('.business.review.json'))!);
     const review = JSON.parse(readFileSync(file, 'utf8'));
-    review.notes.push({ id: 'n1', node: 'R1', kind: 'comment', body: 'Why 14?', state: 'pending', at: '2026-11-08T10:00:00Z' });
+    review.notes.push({ id: 'n1', node: 'R1', rev: review.nodes.find((n: { id: string }) => n.id === 'R1').rev, kind: 'comment', body: 'Why 14?', state: 'pending', at: '2026-11-08T10:00:00Z' });
     writeFileSync(file, JSON.stringify(review));
     await renderBusiness(business(), '--tech', tech());
     expect(reviewOf().notes).toEqual([expect.objectContaining({ id: 'n1', node: 'R1', state: 'pending' })]);

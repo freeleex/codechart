@@ -63,6 +63,19 @@ export function flowSnapshot(spec: FlowSpec, snippets: FlowSnippets, range: Rang
   return { kind: 'flow', title: clean(spec.title), nodes, ...(range && { range }), ...extrasOf(drift, { edges: [...spec.links, ...ghostLinks], gaps: spec.gaps }) };
 }
 
+const REV_FIELDS = {
+  journey: ['name', 'who', 'now', 'after', 'links'],
+  rule: ['name', 'before', 'after', 'exceptions', 'links'],
+  data: ['name', 'what', 'why', 'links'],
+  question: ['about', 'text'],
+} as const;
+
+/** An item's hash covers its words and links, so a confirmation of the old words never counts for new ones. */
+export function businessRev(kind: keyof typeof REV_FIELDS, item: object): string {
+  const fields = item as Record<string, unknown>;
+  return hash(REV_FIELDS[kind].map((f) => fields[f]));
+}
+
 /** A business page takes notes on its items: journeys, rules, saved data and questions, by id. */
 export function businessSnapshot(spec: BusinessSpec): ReviewSnapshot {
   const items = [
@@ -71,8 +84,8 @@ export function businessSnapshot(spec: BusinessSpec): ReviewSnapshot {
     ...spec.data.map((x) => ({ ...x, item: 'data' as const })),
   ];
   const linksOf = new Map(items.map((x) => [x.id, x.links]));
-  const nodes = items.map((x) => ({ id: clean(x.id), label: clean(x.name), item: x.item, links: x.links.map(clean) }));
-  const questions = spec.questions.map((q) => ({ id: clean(q.id), label: clean(q.text), item: 'question' as const, about: clean(q.about), links: (linksOf.get(q.about) ?? []).map(clean) }));
+  const nodes = items.map((x) => ({ id: clean(x.id), label: clean(x.name), item: x.item, rev: businessRev(x.item, x), links: x.links.map(clean) }));
+  const questions = spec.questions.map((q) => ({ id: clean(q.id), label: clean(q.text), item: 'question' as const, rev: businessRev('question', q), about: clean(q.about), links: (linksOf.get(q.about) ?? []).map(clean) }));
   return { kind: 'business', title: clean(spec.title), nodes: [...nodes, ...questions] };
 }
 

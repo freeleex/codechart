@@ -1,9 +1,13 @@
 // @vitest-environment happy-dom
 import { describe, expect, it, vi } from 'vitest';
 import { businessPage } from '../../src/render/business/html.js';
-import { parseReviewText } from '../../src/review/import.js';
+import { carryNotes } from '../../src/review/carry.js';
+import { importNotes, parseReviewText } from '../../src/review/import.js';
+import type { Note, Review, ReviewNode } from '../../src/review/schema.js';
+import { businessSnapshot } from '../../src/review/snapshot.js';
 import { validateBusinessSpec } from '../../src/spec/business.js';
 import { business } from '../fixtures/business.js';
+import { review } from '../review/fixture.js';
 import { click, mount, q, qa, usePages } from '../helpers/page.js';
 
 usePages();
@@ -194,5 +198,52 @@ describe('business page in the browser', () => {
   it('does not start the map script: no map markup is needed', () => {
     mount(html);
     expect(qa('.canvas, #panel, #theme-toggle')).toHaveLength(0);
+  });
+});
+
+describe('business items that change', () => {
+  const pageOf = (raw: ReturnType<typeof business>) => {
+    const r = validateBusinessSpec(raw);
+    if (!r.ok) throw new Error(r.errors.join('\n'));
+    return { spec: r.spec, html: businessPage(r.spec, { generatedAt: new Date(), repo: 'demo', change }) };
+  };
+  const reviewOf = (nodes: ReviewNode[], notes: Note[] = []): Review => ({ ...review(notes, nodes), change: { ...review().change, kind: 'business' } });
+
+  it('the rev of an item follows its words and links, not its neighbours', () => {
+    const nodes = (raw: ReturnType<typeof business>) => Object.fromEntries(businessSnapshot(pageOf(raw).spec).nodes.map((n) => [n.id, n.rev]));
+    const before = nodes(business());
+    const raw = business();
+    raw.rules[1].after = 'A refund above €50 waits for the agent\'s manager.';
+    const after = nodes(raw);
+    expect(before.R2).toMatch(/^[0-9a-f]{12}$/);
+    expect(after.R2).not.toBe(before.R2);
+    expect({ ...after, R2: 0 }).toEqual({ ...before, R2: 0 });
+  });
+
+  it('a Yes on an item whose words changed arrives outdated', async () => {
+    mount(pageOf(business()).html);
+    verdict('R2', 'yes');
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    click(send());
+    await tick();
+    const pasted = parseReviewText(writeText.mock.calls[0]![0] as string);
+    expect(pasted.notes[0]!.r).toMatch(/^[0-9a-f]{12}$/);
+
+    const changed = business();
+    changed.rules[1].after = 'A refund above €50 waits for the agent\'s manager.';
+    const same = importNotes(reviewOf(businessSnapshot(pageOf(business()).spec).nodes), pasted, new Date());
+    expect(same).toMatchObject({ added: 1, outdated: 0 });
+    const out = importNotes(reviewOf(businessSnapshot(pageOf(changed).spec).nodes), pasted, new Date());
+    expect(out).toMatchObject({ added: 1, outdated: 1 });
+  });
+
+  it('a pending note on an item whose words changed turns outdated when carried', () => {
+    const old = businessSnapshot(pageOf(business()).spec).nodes;
+    const n: Note = { id: 'n1', node: 'R2', rev: old.find((x) => x.id === 'R2')!.rev, kind: 'confirm', body: 'Confirmed', state: 'pending', at: '' };
+    const changed = business();
+    changed.rules[1].after = 'A refund above €50 waits for the agent\'s manager.';
+    const [out] = carryNotes(reviewOf(old, [n]), businessSnapshot(pageOf(changed).spec).nodes);
+    expect(out!.state).toBe('outdated');
   });
 });
