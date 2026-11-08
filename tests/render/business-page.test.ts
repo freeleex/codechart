@@ -112,17 +112,92 @@ describe('business page in the browser', () => {
   it('a blank answer or note counts for nothing', () => {
     mount(html);
     answer('Q1', '   ');
-    note('R1', '');
+    note('R1', '  ');
+    click(card('R1').querySelector('[data-cbtn]')!);
     expect(count()).toBe('0');
     expect(card('R1').querySelector('[data-cbtn]')!.textContent).toBe('Add a note');
   });
 
-  it('the note button shows when a note is there', () => {
+  it('the note box is Done while open, then a preview with Edit note and Remove', () => {
+    mount(html);
+    const btn = () => card('R1').querySelector<HTMLElement>('[data-cbtn]')!;
+    const box = () => card('R1').querySelector('[data-cbox]')!;
+    const view = () => card('R1').querySelector<HTMLElement>('[data-cview]')!;
+    const remove = () => card('R1').querySelector<HTMLElement>('[data-crm]')!;
+    note('R1', 'Hello');
+    expect(btn().textContent).toBe('Done');
+    expect(btn().getAttribute('aria-expanded')).toBe('true');
+    expect(btn().getAttribute('aria-controls')).toBe(box().querySelector('textarea')!.id);
+    expect(view().hidden).toBe(true);
+    click(btn());
+    expect(box().classList.contains('open')).toBe(false);
+    expect(btn().textContent).toBe('Edit note');
+    expect(btn().getAttribute('aria-expanded')).toBe('false');
+    expect(view().hidden).toBe(false);
+    expect(view().textContent).toBe('Your note:Hello');
+    expect(view().querySelector('[data-cprev]')!.getAttribute('title')).toBe('Hello');
+    expect(remove().hidden).toBe(false);
+    expect(q('#note-label').textContent).toBe('answer or note');
+  });
+
+  it('a note shows as text, never as markup', () => {
+    mount(html);
+    note('R1', '<img src=x onerror=alert(1)>');
+    click(card('R1').querySelector('[data-cbtn]')!);
+    expect(card('R1').querySelector('[data-cview] img')).toBeNull();
+    expect(card('R1').querySelector('[data-cview]')!.textContent).toContain('<img src=x onerror=alert(1)>');
+  });
+
+  it('Edit note reopens the box with the words; the preview does too', () => {
     mount(html);
     note('R1', 'Hello');
-    expect(card('R1').querySelector('[data-cbtn]')!.textContent).toBe('Edit note');
-    expect(card('R1').querySelector('[data-cbtn]')!.classList.contains('has')).toBe(true);
-    expect(q('#note-label').textContent).toBe('answer or note');
+    click(card('R1').querySelector('[data-cbtn]')!);
+    click(card('R1').querySelector('[data-cbtn]')!);
+    const area = card('R1').querySelector<HTMLTextAreaElement>('[data-note]')!;
+    expect(card('R1').querySelector('[data-cbox]')!.classList.contains('open')).toBe(true);
+    expect(area.value).toBe('Hello');
+    expect(document.activeElement).toBe(area);
+    expect(area.selectionStart).toBe(5);
+    click(card('R1').querySelector('[data-cbtn]')!);
+    click(card('R1').querySelector('[data-cprev]')!);
+    expect(card('R1').querySelector('[data-cbox]')!.classList.contains('open')).toBe(true);
+  });
+
+  it('Remove clears the note, the count and what is saved', () => {
+    mount(html);
+    note('R1', 'Hello');
+    note('R2', 'Again');
+    click(card('R1').querySelector('[data-cbtn]')!);
+    click(card('R2').querySelector('[data-cbtn]')!);
+    expect(count()).toBe('2');
+    click(card('R1').querySelector('[data-crm]')!);
+    expect(count()).toBe('1');
+    expect(card('R1').querySelector<HTMLTextAreaElement>('[data-note]')!.value).toBe('');
+    expect(card('R1').querySelector('[data-cbtn]')!.textContent).toBe('Add a note');
+    expect(card('R1').querySelector<HTMLElement>('[data-cview]')!.hidden).toBe(true);
+    expect(card('R1').querySelector<HTMLElement>('[data-crm]')!.hidden).toBe(true);
+    expect(JSON.parse(localStorage.getItem(KEY)!).note.R1).toBeUndefined();
+    expect(JSON.parse(localStorage.getItem(KEY)!).note.R2).toBe('Again');
+  });
+
+  it('closing an empty box goes back to Add a note with no preview', () => {
+    mount(html);
+    click(card('R1').querySelector('[data-cbtn]')!);
+    expect(card('R1').querySelector('[data-cbtn]')!.textContent).toBe('Done');
+    click(card('R1').querySelector('[data-cbtn]')!);
+    expect(card('R1').querySelector('[data-cbtn]')!.textContent).toBe('Add a note');
+    expect(card('R1').querySelector<HTMLElement>('[data-cview]')!.hidden).toBe(true);
+  });
+
+  it('Escape in the box closes it; Done after No keeps the No', () => {
+    mount(html);
+    verdict('R2', 'no');
+    const area = card('R2').querySelector<HTMLTextAreaElement>('[data-note]')!;
+    type(area, 'Below €100');
+    area.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(card('R2').querySelector('[data-cbox]')!.classList.contains('open')).toBe(false);
+    expect(card('R2').querySelector<HTMLElement>('[data-cview]')!.hidden).toBe(false);
+    expect(card('R2').querySelector('[data-verdict="no"]')!.getAttribute('aria-pressed')).toBe('true');
   });
 
   it('a reload keeps the answers, the verdicts and the notes', () => {
@@ -135,7 +210,10 @@ describe('business page in the browser', () => {
     expect(card('Q1').querySelector<HTMLTextAreaElement>('[data-answer]')!.value).toBe('Owner');
     expect(card('R2').querySelector('[data-verdict="no"]')!.getAttribute('aria-pressed')).toBe('true');
     expect(card('R2').querySelector<HTMLTextAreaElement>('[data-note]')!.value).toBe('Below €100');
-    expect(card('R2').querySelector('[data-cbox]')!.classList.contains('open')).toBe(true);
+    expect(card('R2').querySelector('[data-cbox]')!.classList.contains('open')).toBe(false);
+    expect(card('R2').querySelector<HTMLElement>('[data-cview]')!.hidden).toBe(false);
+    expect(card('R2').querySelector('[data-cview]')!.textContent).toBe('Your note:Below €100');
+    expect(card('R2').querySelector('[data-cbtn]')!.textContent).toBe('Edit note');
   });
 
   it('ignores saved junk: unknown items, bad verdicts, oversized text, wrong shapes', () => {

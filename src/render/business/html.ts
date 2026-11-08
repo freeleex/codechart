@@ -21,10 +21,12 @@ const tag = (e: Evidence): string => (e === 'checked' ? '<span class="ev ok">Che
 
 const attrs = (kind: Kind, item: { id: string }, name: string): string => `id="i-${esc(item.id)}" data-item="${esc(item.id)}" data-kind="${kind}" data-name="${esc(name)}" data-rev="${businessRev(kind, item)}"`;
 
-const noteButton = (id: string): string => `<button type="button" class="cbtn" data-cbtn="${esc(id)}" aria-expanded="false"><span>Add a note</span></button>`;
+const noteButton = (id: string): string =>
+  `<span class="cacts"><button type="button" class="cbtn" data-cbtn="${esc(id)}" aria-expanded="false" aria-controls="note-${esc(id)}"><span>Add a note</span></button><button type="button" class="cbtn crm" data-crm="${esc(id)}" hidden>Remove</button></span>`;
 
 const noteBox = (id: string, cls = ''): string =>
-  `<div class="cbox${cls}" data-cbox="${esc(id)}"><textarea data-note="${esc(id)}" maxlength="4000" aria-label="Your note" placeholder="Your note to the developer…"></textarea></div>`;
+  `<div class="cbox${cls}" data-cbox="${esc(id)}"><textarea id="note-${esc(id)}" data-note="${esc(id)}" maxlength="4000" aria-label="Your note" placeholder="Your note to the developer…"></textarea></div>
+<div class="cview${cls}" data-cview="${esc(id)}" hidden><button type="button" class="cprev" data-cprev="${esc(id)}"><b>Your note:</b><span></span></button></div>`;
 
 const confirm = (): string =>
   '<span class="confirm" role="group" aria-label="Is the agent\'s reading right?"><button type="button" class="yes" data-verdict="yes" aria-pressed="false">Yes, that\'s right</button><button type="button" class="no" data-verdict="no" aria-pressed="false">No</button></span>';

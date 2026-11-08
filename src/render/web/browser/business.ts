@@ -107,6 +107,24 @@ interface BizPage {
 const bizCard = (p: BizPage, id: string): HTMLElement => p.cards.find((c) => c.dataset.item === id)!;
 const bizBox = (p: BizPage, id: string): HTMLElement | null => bizCard(p, id).querySelector<HTMLElement>('[data-cbox]');
 
+function bizView(p: BizPage, c: HTMLElement): void {
+  const id = c.dataset.item!;
+  const btn = c.querySelector<HTMLElement>('[data-cbtn]');
+  if (!btn) return;
+  const open = bizBox(p, id)!.classList.contains('open');
+  const text = (p.s.note[id] ?? '').trim();
+  const preview = !open && !!text;
+  btn.firstElementChild!.textContent = open ? 'Done' : text ? 'Edit note' : 'Add a note';
+  btn.classList.toggle('on', open);
+  btn.classList.toggle('has', preview);
+  btn.setAttribute('aria-expanded', String(open));
+  c.querySelector<HTMLElement>('[data-crm]')!.hidden = !preview;
+  c.querySelector<HTMLElement>('[data-cview]')!.hidden = !preview;
+  const shown = c.querySelector<HTMLElement>('[data-cprev]')!;
+  shown.title = text;
+  shown.lastElementChild!.textContent = text;
+}
+
 function bizRefresh(p: BizPage): void {
   const n = bizNotes(p.s).length;
   bizEl('note-count').textContent = String(n);
@@ -115,11 +133,7 @@ function bizRefresh(p: BizPage): void {
   for (const c of p.cards) {
     const id = c.dataset.item!;
     c.querySelectorAll('[data-verdict]').forEach((b) => b.setAttribute('aria-pressed', String(p.s.verdict[id] === (b as HTMLElement).dataset.verdict)));
-    const btn = c.querySelector<HTMLElement>('[data-cbtn]');
-    if (!btn) continue;
-    const has = !!(p.s.note[id] ?? '').trim();
-    btn.classList.toggle('has', has);
-    btn.firstElementChild!.textContent = has ? 'Edit note' : 'Add a note';
+    bizView(p, c);
   }
   save(p.key, JSON.stringify(p.s));
 }
@@ -128,11 +142,22 @@ function bizToggle(p: BizPage, id: string, open: boolean): void {
   const b = bizBox(p, id);
   if (!b) return;
   b.classList.toggle('open', open);
-  bizCard(p, id).querySelector('[data-cbtn]')!.setAttribute('aria-expanded', String(open));
-  if (open) b.querySelector('textarea')!.focus();
+  bizRefresh(p);
+  const area = b.querySelector('textarea')!;
+  if (!open) return;
+  area.focus();
+  area.setSelectionRange(area.value.length, area.value.length);
 }
 
-/** Puts the saved words back in their boxes, a note's box open. */
+function bizRemove(p: BizPage, id: string): void {
+  const c = bizCard(p, id);
+  delete p.s.note[id];
+  c.querySelector<HTMLTextAreaElement>('[data-note]')!.value = '';
+  bizRefresh(p);
+  c.querySelector<HTMLElement>('[data-cbtn]')!.focus();
+}
+
+/** Puts the saved words back in their boxes; a note shows closed, as a preview. */
 function bizRestore(p: BizPage): void {
   for (const c of p.cards) {
     const id = c.dataset.item!;
@@ -140,13 +165,21 @@ function bizRestore(p: BizPage): void {
     const answer = c.querySelector<HTMLTextAreaElement>('[data-answer]');
     if (note) note.value = p.s.note[id] ?? '';
     if (answer) answer.value = p.s.answer[id] ?? '';
-    if (note?.value) bizBox(p, id)!.classList.add('open');
   }
 }
 
-function bizClick(p: BizPage, t: Element): void {
+function bizNoteClick(p: BizPage, t: Element): boolean {
   const cbtn = t.closest<HTMLElement>('[data-cbtn]');
-  if (cbtn) return bizToggle(p, cbtn.dataset.cbtn!, !bizBox(p, cbtn.dataset.cbtn!)!.classList.contains('open'));
+  if (cbtn) bizToggle(p, cbtn.dataset.cbtn!, !bizBox(p, cbtn.dataset.cbtn!)!.classList.contains('open'));
+  const prev = t.closest<HTMLElement>('[data-cprev]');
+  if (prev) bizToggle(p, prev.dataset.cprev!, true);
+  const rm = t.closest<HTMLElement>('[data-crm]');
+  if (rm) bizRemove(p, rm.dataset.crm!);
+  return !!(cbtn || prev || rm);
+}
+
+function bizClick(p: BizPage, t: Element): void {
+  if (bizNoteClick(p, t)) return;
   const verdict = t.closest<HTMLElement>('[data-verdict]');
   if (verdict) {
     const id = verdict.closest<HTMLElement>('[data-item]')!.dataset.item!;
@@ -195,6 +228,12 @@ export function initBusiness(repo: string, change: Change = { slug: 'business', 
     if (t.dataset.note) p.s.note[t.dataset.note] = t.value;
     if (t.dataset.answer) p.s.answer[t.dataset.answer] = t.value;
     bizRefresh(p);
+  });
+  window.addEventListener('keydown', (e) => {
+    const t = e.target as HTMLElement;
+    if (e.key !== 'Escape' || !t.dataset?.note) return;
+    bizToggle(p, t.dataset.note, false);
+    bizCard(p, t.dataset.note).querySelector<HTMLElement>('[data-cbtn]')!.focus();
   });
   bizDialog(p, change);
   bizRefresh(p);

@@ -99,6 +99,14 @@ ol.steps{list-style:none;margin:0;padding:0;counter-reset:s}
 .cbox textarea,.qa textarea{width:100%;min-height:62px;resize:vertical;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:14px/1.45 var(--sans);color:var(--text);background:var(--paper)}
 .cbox textarea:focus,.qa textarea:focus{outline:2px solid var(--edge);border-color:var(--edge)}
 .j-cbox{padding:0 20px 12px;background:var(--sunk)}
+.cacts{display:inline-flex;gap:6px;flex-wrap:wrap}
+.cbtn.on{color:var(--bg);border-color:var(--edge);background:var(--edge);font-weight:600}
+.cbtn[hidden],.cview[hidden]{display:none}
+.cview{padding:0 0 4px;position:relative;z-index:2}
+.cprev{display:block;width:100%;text-align:left;border:0;border-left:3px solid var(--edge);border-radius:6px;background:var(--edge-bg);color:var(--text);padding:6px 10px;font:13.5px/1.45 var(--sans);cursor:pointer}
+.cprev b{display:block;color:var(--edge);font-size:11px;text-transform:uppercase;letter-spacing:.07em}
+.cprev span{display:-webkit-box;-webkit-line-clamp:3;line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-wrap;overflow-wrap:anywhere}
+.cprev:focus-visible{outline:2px solid var(--edge);outline-offset:2px}
 .data{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px;align-items:start}
 .datum{padding:14px 16px;display:flex;flex-direction:column;gap:8px}
 .datum h3{font-family:var(--sans);font-size:15px;font-weight:650;letter-spacing:0}
