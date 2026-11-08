@@ -66,6 +66,7 @@ describe('business page in the browser', () => {
     expect(q<HTMLElement>('#send-modal').hidden).toBe(false);
     expect(q('#send-title').textContent).toBe('Copied — paste it to the developer');
     expect(q('#send-text').textContent).toBe(text);
+    expect(q('#send-when').textContent).toBe("You can send it whenever you're ready, in an email or chat message.");
     expect(text).toMatch(
       /^Review done: 4 answers and notes on "New refund rules"\.\n1\. On journey "Money reaches the customer": Confirmed\n2\. On rule "Manager approval": Rejected: Applies below €100 only\n3\. On saved data "Refund reason": Comment: Keep for 7 years\n4\. On question "What happens when an agent has no manager\?": Answer: Send it to the owner\n\ncodechart review · 4 notes · [A-Za-z0-9_-]+$/,
     );

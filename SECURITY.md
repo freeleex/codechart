@@ -39,7 +39,7 @@ Details: `docs/security-review.md`.
 
 ## Cache
 
-Rendered HTML lives in the user cache dir (`~/.cache/codechart` by default, `web.outDir`), and so does the map SVG of `render --pr` (one `<slug>.svg` per map title, overwritten on each render). Summary pages include diff hunks of changed files (not of files that look like secrets or are generated), and so do the `.review.json` files beside them, with your review notes. Per repo, the newest 20 files and anything younger than `web.maxAgeDays` are kept; saved plans under `plans/` go after 7 days. Purge with `rm -rf ~/.cache/codechart`.
+Rendered HTML lives in the user cache dir (`~/.cache/codechart` by default, `web.outDir`), and so does the map SVG of `render --pr` (one `<slug>.svg` per map title, overwritten on each render). Summary pages include diff hunks of changed files (not of files that look like secrets or are generated), and so do the `.review.json` files beside them, with your review notes. Per repo, the newest 20 files and anything younger than `web.maxAgeDays` are kept; a business page's `.review.json` is kept 30 days regardless; saved plans under `plans/` go after 7 days. Purge with `rm -rf ~/.cache/codechart`.
 
 ## Release integrity
 

@@ -38,7 +38,7 @@ The owner can type an answer under a question and add a note to any item.
 2. They paste it into the chat or ticket where you work.
 3. You paste it to your agent, which runs `codechart feedback --import --take` and reads each note with the journey, rule or saved item it belongs to, and the technical boxes behind it.
 
-Pasting twice adds nothing new. Notes stay in the owner's browser until they send them; the page itself sends nothing.
+The owner can reply days later: you paste their text into any agent session in the repo. The page's saved record is kept 30 days, even after the page itself is cleaned up; after that, render the map again and send the new page. Pasting twice adds nothing new. Notes stay in the owner's browser until they send them; the page itself sends nothing.
 
 Run `codechart feedback` yourself to see the notes: it shows the business page's when it holds notes you haven't read.
 

@@ -4,6 +4,7 @@ import { readReview } from '../review/store.js';
 import { HTML_NAME, parseStamp, REVIEW_NAME, stamp } from './output-path.js';
 
 const DAY_MS = 86_400_000;
+const BUSINESS_KEEP_DAYS = 30;
 
 interface PruneOptions {
   keep: number;
@@ -54,10 +55,13 @@ const remove = (file: string): boolean => {
   }
 };
 
+/** The owner may reply days after getting a business page, so its review file outlives the page. */
+const retained = (e: Entry, now: Date): boolean => e.slug.endsWith('.business') && now.getTime() - parseStamp(e.stamp).getTime() < BUSINESS_KEEP_DAYS * DAY_MS;
+
 /** A review file whose page was recorded and is gone, or that can't be read, is removed. One written without a page stays. */
-function sweepReviews(dir: string, entries: Entry[]): void {
+function sweepReviews(dir: string, entries: Entry[], now: Date): void {
   for (const e of entries) {
-    if (!e.review || e.page) continue;
+    if (!e.review || e.page || retained(e, now)) continue;
     const review = readReview(join(dir, e.review));
     if (!review || review.change.html !== undefined) remove(join(dir, e.review));
   }
@@ -80,17 +84,18 @@ export function pruneHtml(dir: string, opts: PruneOptions): string[] {
     if (e.slug === opts.replaceSlug && e.stamp < current && onBranch(dir, e, opts.replaceBranch) && !(opts.pageless && e.page)) doomed.add(e);
   }
   const cutoff = opts.now.getTime() - opts.maxAgeDays * DAY_MS;
+  const aged = new Set<Entry>();
   entries
     .filter((e) => !doomed.has(e))
     .forEach((e, i) => {
-      if (e.stamp !== current && i >= opts.keep && parseStamp(e.stamp).getTime() < cutoff) doomed.add(e);
+      if (e.stamp !== current && i >= opts.keep && parseStamp(e.stamp).getTime() < cutoff) aged.add(e);
     });
 
   const deleted: string[] = [];
-  for (const e of doomed) {
+  for (const e of [...doomed, ...aged]) {
     if (e.page && remove(join(dir, e.page))) deleted.push(join(dir, e.page));
-    if (e.review) remove(join(dir, e.review));
+    if (e.review && !(aged.has(e) && retained(e, opts.now))) remove(join(dir, e.review));
   }
-  sweepReviews(dir, entries.filter((e) => !doomed.has(e)));
+  sweepReviews(dir, entries.filter((e) => !doomed.has(e) && !aged.has(e)), opts.now);
   return deleted;
 }

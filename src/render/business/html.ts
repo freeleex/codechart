@@ -107,6 +107,7 @@ const LEGEND = `<div class="legend"><div class="grp"><span class="lab">How sure<
 const DIALOG = `<div class="modal" id="send-modal" role="dialog" aria-modal="true" aria-labelledby="send-title" hidden>
 <div class="sheet"><h3 id="send-title">Your message for the developer</h3>
 <p id="send-hint">Paste it into the chat or ticket where the developer works.</p>
+<p id="send-when">You can send it whenever you're ready, in an email or chat message.</p>
 <pre id="send-text"></pre>
 <div class="row"><button type="button" id="send-copy">Copy again</button><button type="button" class="send" id="send-done">Done</button></div></div></div>`;
 

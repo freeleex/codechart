@@ -272,6 +272,7 @@ Validation errors (unknown edge endpoints, duplicate ids, bad enums) are printed
 - **No pile-up of files:**
   - **Re-renders replace.** Writing a file deletes earlier files for the same repo and slug, so iterating on one plan leaves one file. Pages drawn on another branch stay (see Console review).
   - **Cleanup on every render.** After writing, `render` deletes files in that repo's folder that are both outside the newest `web.keep` (20) and older than `web.maxAgeDays` (7). No background job.
+  - **Business records.** A business page's `.review.json` is kept 30 days whatever `web.keep` and `web.maxAgeDays` say, so the owner's late reply still imports; its page follows the rules above. After that, `feedback --import` says the record is gone.
   - **Only its own files.** Cleanup deletes only `*.html` files matching codechart's name pattern, never anything else in the folder.
 
 ### Console review

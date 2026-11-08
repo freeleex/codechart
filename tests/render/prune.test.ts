@@ -88,6 +88,31 @@ describe('pruneHtml', () => {
     expect(readdirSync(dir)).toHaveLength(20);
   });
 
+  it("a business page's review file outlives its page for 30 days, then goes", () => {
+    const page = (ago: number, slug: string) => {
+      const html = htmlAt(ago, `${slug}.business`);
+      writeReview(html.replace('.html', '.review.json'), {
+        version: 1,
+        change: { slug: `${slug}.business`, kind: 'business', branch: 'a', html, renderedAt: now.toISOString() },
+        nodes: [],
+        notes: [],
+      });
+      return html;
+    };
+    const fresh = page(10 * DAY, 'fresh');
+    const stale = page(31 * DAY, 'stale');
+    const map = htmlAt(10 * DAY, 'plain');
+    withBranch(map, 'a');
+    for (let i = 0; i < 20; i++) htmlAt(i * 1000, `s${i}`);
+    pruneHtml(dir, opts);
+    pruneHtml(dir, opts);
+    expect(existsSync(fresh)).toBe(false);
+    expect(existsSync(fresh.replace('.html', '.review.json'))).toBe(true);
+    expect(existsSync(stale)).toBe(false);
+    expect(existsSync(stale.replace('.html', '.review.json'))).toBe(false);
+    expect(existsSync(map.replace('.html', '.review.json'))).toBe(false);
+  });
+
   it('age and count pruning still reach other branches', () => {
     const old = htmlAt(8 * DAY, 'teams');
     withBranch(old, 'b');

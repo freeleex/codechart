@@ -31,6 +31,9 @@ async function importReview(opts: CommandOptions): Promise<Found> {
   try {
     found = locateChange(opts, payload.slug, payload.branch, true, 'all');
   } catch {
+    if (payload.slug.endsWith('.business')) {
+      throw new Error(`No business page called "${payload.slug}"${payload.branch ? ` on branch ${payload.branch}` : ''}: its saved record is gone (kept 30 days). Render the business map again and send the new page.`);
+    }
     throw new Error(`No map called "${payload.slug}"${payload.branch ? ` on branch ${payload.branch}` : ''}. Render it again, then copy the review again.`);
   }
   const now = opts.now?.() ?? new Date();
