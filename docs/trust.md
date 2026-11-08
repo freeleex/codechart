@@ -38,6 +38,16 @@ A summary rendered without a diff says `diff not checked` instead of looking ver
 
 Every step that exists in code names its `file:line` or quotes the line. If the line doesn't exist, the render fails and the agent has to fix it. For a commit that isn't checked out, `--at <rev>` reads the lines from that revision. See [Flows](flows.md).
 
+## Business maps
+
+A [business map](business-map.md) is for readers who can't check the code, so more is checked before it is drawn:
+
+- Every journey, rule and saved item links to boxes that exist on the technical map, which is the latest saved one on the branch or the spec you pass with `--tech`. An item with no link, or a link to nothing, fails the render.
+- No sentence may look like code, a file name or path, a web address, a setting name, a technical id or a secret. A match fails the render with the offending word, and a secret is shown only as its first characters.
+- Each item says how sure it is: **Checked in code**, or **Agent's reading, please confirm**, which the owner answers Yes or No.
+
+Limits: a link proves where to look, not that the words are right. The check cannot tell whether a sentence about the code is true, and plain words can still be wrong. Your agent is told to re-read the code behind each *Checked in code* item before drawing the page, but that is the agent's own spot-check, not something codechart verifies.
+
 ## Gaps are explicit
 
 Whatever the agent didn't read is listed under `gaps`, not guessed.

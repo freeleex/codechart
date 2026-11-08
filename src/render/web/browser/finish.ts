@@ -2,7 +2,7 @@
 import type { Comments } from './comments.js';
 import type { Change, Note } from './note-store.js';
 import { cmEl } from './note-view.js';
-import { KIND_LABEL, placeText } from './targets.js';
+import { KIND_LABEL, placeText, type NoteTarget } from './targets.js';
 
 const countOf = (n: number) => `${n} note${n === 1 ? '' : 's'}`;
 
@@ -17,8 +17,8 @@ function noteToken(change: Change, notes: Note[]): string {
 }
 
 /** The notes as plain lines for the agent chat, then a closing line with the token. */
-function finishMessage(title: string, change: Change, notes: Note[]): string {
-  const lines = notes.map((n, i) => `${i + 1}. On ${placeText(n.t)}: ${KIND_LABEL[n.k]}: ${n.b.trim().replace(/\n/g, '\n   ')}`);
+export function finishMessage(title: string, change: Change, notes: Note[], place: (t: NoteTarget) => string = placeText): string {
+  const lines = notes.map((n, i) => `${i + 1}. On ${place(n.t)}: ${KIND_LABEL[n.k]}: ${n.b.trim().replace(/\n/g, '\n   ')}`);
   return `Review done: ${countOf(notes.length)} on "${title}".\n${lines.join('\n')}\n\ncodechart review · ${countOf(notes.length)} · ${noteToken(change, notes)}`;
 }
 
@@ -38,13 +38,13 @@ function fitBatch(title: string, change: Change, notes: Note[]): { text: string;
   return { text: finishMessage(title, change, notes.slice(0, lo)), count: lo };
 }
 
-async function copyNoteText(text: string, box: HTMLTextAreaElement): Promise<boolean> {
+/** `select` shows the text selected for a manual copy when the clipboard is blocked. */
+export async function copyNoteText(text: string, select: () => void): Promise<boolean> {
   try {
     await navigator.clipboard.writeText(text);
     return true;
   } catch {
-    box.focus();
-    box.select();
+    select();
   }
   try {
     return document.execCommand('copy');
@@ -129,7 +129,10 @@ function openFinish(comments: Comments, change: Change, opener: HTMLElement): vo
   };
   trapKeys(d, close);
   d.copy.addEventListener('click', async () => {
-    if (await copyNoteText(text, d.preview)) {
+    if (await copyNoteText(text, () => {
+      d.preview.focus();
+      d.preview.select();
+    })) {
       close();
       comments.markSent(batch.map((n) => n.id));
       toast('Copied');

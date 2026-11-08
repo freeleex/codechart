@@ -5,7 +5,7 @@ import { readClipboard } from '../review/clipboard.js';
 import { changeTitle } from '../review/doc.js';
 import { countsLine, feedbackText, osc52 } from '../review/feedback.js';
 import { importNotes, MAX_IMPORT_BYTES, parseReviewText } from '../review/import.js';
-import { updateReview, type Found } from '../review/store.js';
+import { updateReview, type Found, type Which } from '../review/store.js';
 import { guarded, locateChange } from './review-shared.js';
 import { readStdin } from './stdin.js';
 
@@ -29,7 +29,7 @@ async function importReview(opts: CommandOptions): Promise<Found> {
   const payload = parseReviewText(await pastedText(opts));
   let found;
   try {
-    found = locateChange(opts, payload.slug, payload.branch, true);
+    found = locateChange(opts, payload.slug, payload.branch, true, 'all');
   } catch {
     throw new Error(`No map called "${payload.slug}"${payload.branch ? ` on branch ${payload.branch}` : ''}. Render it again, then copy the review again.`);
   }
@@ -49,8 +49,44 @@ async function importReview(opts: CommandOptions): Promise<Found> {
   return { file: found.file, review: saved };
 }
 
+const hasPending = (f: Found): boolean => f.review.notes.some((n) => n.state === 'pending');
+
+function tryLocate(opts: CommandOptions, which: Which): Found | Error {
+  try {
+    return locateChange(opts, undefined, undefined, false, which);
+  } catch (e) {
+    return e as Error;
+  }
+}
+
+/** The newest map, unless the newest business page holds notes to read and the map holds none or is older. */
+function newestChange(opts: CommandOptions): Found {
+  const tech = tryLocate(opts, 'tech');
+  const business = tryLocate(opts, 'business');
+  if (business instanceof Error) {
+    if (tech instanceof Error) throw tech;
+    return tech;
+  }
+  if (tech instanceof Error) return business;
+  const newer = business.review.change.renderedAt > tech.review.change.renderedAt;
+  return hasPending(business) && (!hasPending(tech) || newer) ? business : tech;
+}
+
+/** A map or flow with this title; a business page only when none matches. */
+function locateTitled(opts: CommandOptions, title: string): Found {
+  try {
+    return locateChange(opts, title, undefined, false, 'tech');
+  } catch (e) {
+    try {
+      return locateChange(opts, title, undefined, false, 'business');
+    } catch {
+      throw e;
+    }
+  }
+}
+
 async function feedback(o: FeedbackFlags, opts: CommandOptions): Promise<void> {
-  const { file, review } = o.import ? await importReview(opts) : locateChange(opts, o.change);
+  const { file, review } = o.import ? await importReview(opts) : o.change === undefined ? newestChange(opts) : locateTitled(opts, o.change);
   if (o.import && !o.take) return opts.stdout(`${countsLine(review)}\n`);
   let text = feedbackText(review);
   if (o.take) {

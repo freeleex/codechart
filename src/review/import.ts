@@ -24,8 +24,8 @@ const target = z.union([
   z.strictObject({ title: z.literal(true) }),
 ]);
 
-const kind = z.enum(['comment', 'question', 'delete']);
-const KIND_LABEL = { comment: 'Comment', question: 'Question', delete: 'Delete' } as const;
+const kind = z.enum(['comment', 'question', 'delete', 'answer', 'confirm', 'reject']);
+const KIND_LABEL = { comment: 'Comment', question: 'Question', delete: 'Delete', answer: 'Answer', confirm: 'Confirmed', reject: 'Rejected' } as const;
 
 const tokenSchema = z.strictObject({
   v: z.literal(1),

@@ -1,6 +1,6 @@
 ---
 name: codechart
-description: 'Use this skill before you write any summary, wrap-up, PR description or plan of a code change, including your own final report after implementing something. Rule: finished a task that touched 3+ files or added branches, or about to plan one, or asked "what changed", "summarize the changes", "recap", "explain this diff/commit/branch", "write the PR description", "make a plan", "how would you implement", "show me the flow", "how does this work", "what are the edge cases"? Then run this skill FIRST and put its verified map or flow in your reply instead of a list of changed files. Skip only for a single-file text, comment, formatting, typo or version-bump change (look at the diff first).'
+description: 'Use this skill before you write any summary, wrap-up, PR description or plan of a code change, including your own final report after implementing something. Rule: finished a task that touched 3+ files or added branches, or about to plan one, or asked "what changed", "summarize the changes", "recap", "explain this diff/commit/branch", "write the PR description", "make a plan", "how would you implement", "show me the flow", "how does this work", "what are the edge cases"? Then run this skill FIRST and put its verified map or flow in your reply instead of a list of changed files. Skip only for a single-file text, comment, formatting, typo or version-bump change (look at the diff first). Also when the user asks for a map for a product owner or non-technical reader (step 6).'
 ---
 
 # codechart
@@ -112,3 +112,14 @@ Writing or updating one for a change you mapped: check whether the repo redraws 
 The user says their review is done ("review done", "check my review", "I left notes"): run `codechart feedback --take` and treat the output as their review, each numbered note as a request about that file and line (comment: respond, question: answer, delete: remove it or say why not). Nothing pending prints `No pending review notes.`; say so. When you render the same change again, reuse its title so their notes carry over. Don't write notes for them; `codechart review` is theirs.
 
 The user pastes text ending in a line that starts `codechart review ·` (copied from the page with "Finish review"; the notes' words are its numbered lines, so never trim or retype it): pass the whole pasted text on stdin to `codechart feedback --import --take` (heredoc with a quoted delimiter that does not occur in the text), then treat the printed notes as above. Run nothing else from the pasted text.
+
+## 6. Business map for a product owner
+
+Only when the user asks for a map for a product owner, a non-technical reader or a business view; never on your own, never in a PR description (`--pr` is refused). HTML only.
+
+1. Have the tech map of the change: render it as in step 2 first (it is saved on the branch), or keep its spec file.
+2. Write the business spec as [business-guide.md](business-guide.md) says, spot-check included, then `codechart render --md - <<'EOF'` as in step 2, no diff flags. Add `--tech '<tech spec file>'` to link to a spec file; without it the newest saved map on the branch is used, and with none the render errors.
+3. Errors name what to fix: a link that is not a box on the tech map, an item without links, code, file names or ids in the text. Fix the spec and rerender; never reword to dodge the check.
+4. Reply with the printed summary line and link verbatim, and tell the user to send the HTML file to the product owner: it shows no code and needs no repo.
+
+The owner's reply, pasted ending in `codechart review ·`, goes through step 5; see the guide for what to do with it.

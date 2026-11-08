@@ -1,5 +1,6 @@
 // Runs in the generated page, not in node. `npm run gen:client` compiles it into ../client.ts,
 // which the page inlines (the CSP allows that one script by hash).
+import { initBusiness } from './business.js';
 import { initChips } from './chips.js';
 import { initComments } from './comments.js';
 import { initFinish } from './finish.js';
@@ -23,7 +24,7 @@ interface Drag {
 
 const THEMES = ['auto', 'light', 'dark'];
 
-const data = JSON.parse(document.getElementById('spec-data')!.textContent!) as { width: number; height: number; repoKey: string; change?: { slug: string; branch: string; at: string } };
+const data = JSON.parse(document.getElementById('spec-data')!.textContent!) as { page?: string; width: number; height: number; repoKey: string; change?: { slug: string; branch: string; at: string } };
 const canvases = [...document.querySelectorAll<HTMLElement>('.canvas')];
 const vps = [...document.querySelectorAll<SVGGElement>('.viewport')];
 const panel = document.getElementById('panel')!;
@@ -257,18 +258,21 @@ function initTheme(): void {
     setTheme(THEMES[(i + 1) % THEMES.length]!, true);
   });
 }
-
-initPanZoom();
-initPaneLink();
-initTheme();
-initPanelResize();
-window.addEventListener('resize', fit);
-fit();
-dismissFocus(canvases, () => moved);
-initChips();
-initWhy(panel);
-const review = initReview(data.repoKey, goTo);
-const comments = data.change ? initComments(data.repoKey, data.change) : null;
-if (comments && data.change) initFinish(comments, data.change);
-const hunks = initHunks(panel, review, zoomToSelected);
-initPanel();
+let review: ReturnType<typeof initReview>, comments: ReturnType<typeof initComments> | null = null, hunks: ReturnType<typeof initHunks>;
+function initMap(): void {
+  initPanZoom();
+  initPaneLink();
+  initTheme();
+  initPanelResize();
+  window.addEventListener('resize', fit);
+  fit();
+  dismissFocus(canvases, () => moved);
+  initChips();
+  initWhy(panel);
+  review = initReview(data.repoKey, goTo);
+  comments = data.change ? initComments(data.repoKey, data.change) : null;
+  if (comments && data.change) initFinish(comments, data.change);
+  hunks = initHunks(panel, review, zoomToSelected);
+  initPanel();
+}
+if (data.page === 'business') initBusiness(data.repoKey, data.change); else initMap();

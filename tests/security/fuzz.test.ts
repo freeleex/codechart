@@ -6,9 +6,12 @@ import { FLOW_KEY, flowMarkdown } from '../../src/render/flow/tree.js';
 import { sanitizeText } from '../../src/render/strip.js';
 import { flat } from '../../src/render/terminal/wrap.js';
 import { renderTerminal } from '../../src/render/terminal/render.js';
+import { businessPage } from '../../src/render/business/html.js';
 import { esc, renderHtml } from '../../src/render/web/html.js';
 import { layoutSpec } from '../../src/render/web/layout.js';
+import { validateBusinessSpec } from '../../src/spec/business.js';
 import { validateSpec, type Spec } from '../../src/spec/schema.js';
+import { business } from '../fixtures/business.js';
 
 const RUNS = { numRuns: 150, interruptAfterTimeLimit: 20_000, markInterruptAsFailure: true };
 const NASTY = [
@@ -98,6 +101,25 @@ describe('renderers on hostile labels (property)', () => {
       { numRuns: 40, interruptAfterTimeLimit: 20_000, markInterruptAsFailure: true },
     );
   }, 30_000);
+});
+
+describe('business page on hostile words (property)', () => {
+  it('keeps the same script tags and has no control or invisible characters', () => {
+    const base = validateBusinessSpec(business());
+    if (!base.ok) throw new Error('baseline invalid');
+    const meta = { generatedAt: new Date(0), repo: 'r' };
+    const baseline = businessPage(base.spec, meta);
+    const tags = (h: string) => [h.match(/<script/gi)?.length, h.match(/<\/script>/gi)?.length];
+    fc.assert(fc.property(text, (t) => {
+      const s = base.spec;
+      const hostile = { ...s, title: t, summary: t, journeys: [{ ...s.journeys[0]!, name: t, who: t, now: [{ text: t }], after: [{ text: t, change: 'new' as const }] }], rules: [{ ...s.rules[0]!, name: t, before: t, after: t, exceptions: [t] }], data: [{ ...s.data[0]!, name: t, what: t, why: t }], questions: [{ ...s.questions[0]!, about: 'R1', text: t }] };
+      const html = businessPage(hostile, meta);
+      expect(tags(html)).toEqual(tags(baseline));
+      const body = html.slice(html.indexOf('<body'), html.indexOf('<script type="application/json"'));
+      expect(body).not.toMatch(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/);
+      expect(body).not.toMatch(BIDI);
+    }), { numRuns: 60, interruptAfterTimeLimit: 20_000, markInterruptAsFailure: true });
+  });
 });
 
 describe('validators (property)', () => {

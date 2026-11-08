@@ -40,7 +40,7 @@ export function esc(s: string): string {
     .replace(/'/g, '&#39;');
 }
 
-function jsonForScript(v: unknown): string {
+export function jsonForScript(v: unknown): string {
   return JSON.stringify(v)
     .replace(/</g, '\\u003c')
     .replace(/\u2028/g, '\\u2028')
@@ -107,7 +107,7 @@ interface PageParts {
 const KEY_HELP = ['n / p: next / previous hunk (opens it, folds the others)', '] / [: next / previous unreviewed node', 'r: toggle reviewed', 'o / O: fold this hunk / toggle all hunks', 'f: zoom to the selected node', '?: this help'];
 const NOTE_KEY_HELP = 'c: add a note to the selected node';
 
-const CSP = `default-src 'none'; style-src 'unsafe-inline'; script-src 'sha256-${createHash('sha256').update(CLIENT_JS).digest('base64')}'; img-src data:; base-uri 'none'; form-action 'none'`;
+export const PAGE_CSP = `default-src 'none'; style-src 'unsafe-inline'; script-src 'sha256-${createHash('sha256').update(CLIENT_JS).digest('base64')}'; img-src data:; base-uri 'none'; form-action 'none'`;
 
 export function renderPage(p: PageParts): string {
   const theme: Theme = p.meta.theme && THEMES.includes(p.meta.theme) ? p.meta.theme : 'auto';
@@ -121,7 +121,7 @@ export function renderPage(p: PageParts): string {
     : canvas(p.viewport, 0);
   return `<!doctype html>
 <html lang="en" data-theme="${theme}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="${CSP}">
+<meta http-equiv="Content-Security-Policy" content="${PAGE_CSP}">
 <title>${esc(p.title)}</title>
 <style>${CSS}${p.extraCss ?? ''}</style></head>
 <body>
