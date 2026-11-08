@@ -91,8 +91,8 @@ export function savePlan(o: PlanStoreOptions, spec: Spec | FlowSpec): void {
   }
 }
 
-/** The plan saved on this branch, if it is a week old at most and built on commits HEAD still has. Never throws. */
-export function loadPlan(o: PlanStoreOptions, diagram: 'map' | 'flow'): StoredPlan | undefined {
+/** The plan saved on this branch, if it is a week old at most and built on commits HEAD still has. With `start` (a full sha), the summary's range must start there or before the plan's commit. Never throws. */
+export function loadPlan(o: PlanStoreOptions, diagram: 'map' | 'flow', start?: string): StoredPlan | undefined {
   try {
     const dir = branchDir(o);
     if (!dir) return undefined;
@@ -101,6 +101,7 @@ export function loadPlan(o: PlanStoreOptions, diagram: 'map' | 'flow'): StoredPl
     if (typeof base !== 'string' || typeof savedAt !== 'string') return undefined;
     const age = o.now.getTime() - Date.parse(savedAt);
     if (!(age <= MAX_AGE_MS) || !gitIsAncestor(o.root, base)) return undefined;
+    if (start !== undefined && !gitIsAncestor(o.root, start, base)) return undefined;
     const checked = validateSpec(saved.spec);
     if (!checked.ok || checked.spec.kind !== 'plan') return undefined;
     const { spec } = checked;

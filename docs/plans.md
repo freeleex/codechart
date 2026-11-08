@@ -26,7 +26,7 @@ When the work is done, codechart compares the change summary with the plan and s
 ### How it works
 
 - A plan rendered in a git repo is kept for a week, per branch, in the cache folder.
-- The change summary drawn after it on the same branch is compared with that plan.
+- The change summary drawn after it on the same branch is compared with that plan, if its range starts at or before the plan's commit (a summary with no diff flag always is).
 - Each difference is one of: planned and not built, built and not planned, or built differently.
 - Each one shows the reason the agent gave. With no reason, it's flagged: `✗ … no reason given`.
 - `--strict` makes the render fail on a difference without a reason.

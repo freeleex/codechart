@@ -13,7 +13,7 @@ import { loadPlan, savePlan, type PlanStoreOptions, type StoredPlan } from '../r
 import { flagged, type CheckSummary } from '../render/terminal/check-lines.js';
 import { defaultWidth } from '../render/terminal/render.js';
 import { privateDir, writeHtml, writeReviewOnly } from '../render/web/write.js';
-import { resolveCommit } from '../rules/git-files.js';
+import { gitHead, gitMergeBase, gitParent, resolveCommit } from '../rules/git-files.js';
 import { checkAllowed, currentVersion, knownHighlights, knownUpdate, readState } from '../update/check.js';
 import { unionOutputs, unmappedFiles } from '../rules/resolve.js';
 import { gitFiles, hasGitSelection, selectionError, type GitSelection } from '../rules/selection.js';
@@ -122,10 +122,26 @@ function prTarget(o: RenderFlags, cwd: string, cacheFile: string): RenderContext
   return { svg: cacheFile, imageUrl: o.imageUrl ?? basename(cacheFile) };
 }
 
-/** A plan is saved for the summary that follows it, a summary gets the saved plan: neither for `--pr`, no plan saved for an older commit, and no plan for a summary of another target (`--at`, `--head`): the branch's plan and HEAD don't apply to it. */
+/** Full sha of where the selected diff starts; undefined without a diff flag, null when no commit precedes it (root commit) or none is found. */
+function rangeStart(o: RenderFlags, root: string): string | null | undefined {
+  if (!hasGitSelection(o)) return undefined;
+  try {
+    if (o.commit !== undefined) return gitParent(root, resolveCommit(root, '--commit', o.commit)) ?? null;
+    if (o.since !== undefined) return gitMergeBase(root, o.since);
+    return gitHead(root) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** A plan is saved for the summary that follows it, a summary gets the saved plan: neither for `--pr`, no plan saved for an older commit, and no plan for a summary of another target (`--at`, `--head`): the branch's plan and HEAD don't apply to it. A summary with a diff flag gets it only when its range starts at the plan's commit or before. */
 function planFor(spec: Spec | FlowSpec, diagram: Diagram, store: PlanStoreOptions & { inRepo: boolean }, o: RenderFlags): StoredPlan | undefined {
   if (!store.inRepo || o.pr) return undefined;
-  if (spec.kind === 'summary') return o.at === undefined && o.head === undefined ? loadPlan(store, diagram) : undefined;
+  if (spec.kind === 'summary') {
+    if (o.at !== undefined || o.head !== undefined) return undefined;
+    const start = rangeStart(o, store.root);
+    return start === null ? undefined : loadPlan(store, diagram, start);
+  }
   if (o.at === undefined && o.head === undefined) savePlan(store, spec);
   return undefined;
 }

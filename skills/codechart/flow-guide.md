@@ -48,7 +48,7 @@ An invented branch is the worst failure: it destroys the user's trust in the too
 
 ## Drift from the plan
 
-A summary written after a plan in this repo is compared with that plan (plans are kept a week, per branch). Reuse the plan's step ids so steps match; one with the same `source` (and `match`) matches too. Note the reason when you deviate, then list each deviation in the summary's `drift` (a plan rejects `drift`):
+A summary written after a plan in this repo is compared with that plan (plans are kept a week, per branch; compared only when the summary's range starts at or before the plan's commit, and a summary with no diff flag always is). Reuse the plan's step ids so steps match; one with the same `source` (and `match`) matches too. Note the reason when you deviate, then list each deviation in the summary's `drift` (a plan rejects `drift`):
 
 ```json
 "drift": [{ "step": "revoked", "cause": "cleaner-way", "why": "Checking expiry and revocation separately meant two database reads. Revocation is now part of the expiry check, so a revoked invite fails there with the same error." }]
