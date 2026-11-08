@@ -101,6 +101,19 @@ describe('plan store', () => {
     expect(loadPlan(store(), 'map')).toBeUndefined();
   });
 
+  it('loads only for a range starting at the plan\'s commit or before', () => {
+    const a = git(root, 'rev-parse', 'HEAD').trim();
+    commit('b');
+    savePlan(store(), mapPlan());
+    const b = git(root, 'rev-parse', 'HEAD').trim();
+    commit('c');
+    const c = git(root, 'rev-parse', 'HEAD').trim();
+    expect(loadPlan(store(), 'map', a)).toBeDefined();
+    expect(loadPlan(store(), 'map', b)).toBeDefined();
+    expect(loadPlan(store(), 'map', c)).toBeUndefined();
+    expect(loadPlan(store(), 'map', '--output=x')).toBeUndefined();
+  });
+
   it('ignores a plan a week old', () => {
     savePlan(store(), mapPlan());
     expect(loadPlan(store(new Date(t0.getTime() + 6 * DAY)), 'map')).toBeDefined();

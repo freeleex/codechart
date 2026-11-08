@@ -119,6 +119,27 @@ describe('render: plan vs built drift', () => {
     }
   });
 
+  it('a summary gets the plan only when its range starts at the plan\'s commit or before', async () => {
+    const commitFile = (name: string) => {
+      writeFileSync(join(sb.repo, name), name);
+      git(sb.repo, 'add', '.');
+      git(sb.repo, 'commit', '-q', '-m', name);
+    };
+    const gets = async (...args: string[]) => /Plan vs built|built as planned/.test((await summary(DRIFTED, '--output', 'cli', ...args)).out);
+    await plan(PLAN, '--output', 'cli');
+    const planned = git(sb.repo, 'rev-parse', 'HEAD').trim();
+    commitFile('b.ts');
+    const work = git(sb.repo, 'rev-parse', 'HEAD').trim();
+    expect(await gets('--git'), '--git after the work').toBe(false);
+    commitFile('c.ts');
+    expect(await gets('--commit', 'HEAD'), '--commit of an unrelated commit').toBe(false);
+    expect(await gets('--git'), '--git at HEAD').toBe(false);
+    expect(await gets('--since', work), '--since after the plan').toBe(false);
+    expect(await gets('--since', planned), '--since the plan').toBe(true);
+    expect(await gets('--commit', work), '--commit of the work').toBe(true);
+    expect(await gets(), 'no diff flag').toBe(true);
+  });
+
   it('saves no plan for --pr, --at or a repo-less folder', async () => {
     const plans = join(sb.out, 'plans');
     await plan(PLAN, '--pr');
