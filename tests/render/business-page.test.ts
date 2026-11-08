@@ -246,4 +246,17 @@ describe('business items that change', () => {
     const [out] = carryNotes(reviewOf(old, [n]), businessSnapshot(pageOf(changed).spec).nodes);
     expect(out!.state).toBe('outdated');
   });
+
+  it('items named like Object properties work', () => {
+    const raw = business();
+    raw.rules[0].id = 'toString';
+    raw.rules[1].id = 'constructor';
+    raw.questions[0].about = 'constructor';
+    mount(pageOf(raw).html);
+    verdict('constructor', 'yes');
+    note('toString', 'Check this');
+    expect(count()).toBe('2');
+    mount(pageOf(raw).html, false);
+    expect(count()).toBe('2');
+  });
 });

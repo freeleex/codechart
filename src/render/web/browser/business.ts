@@ -17,9 +17,11 @@ const BIZ_WORD: Record<string, string> = { journey: 'journey', rule: 'rule', dat
 
 const bizCards = (): HTMLElement[] => [...document.querySelectorAll<HTMLElement>('[data-item]')];
 
+const bare = <T>(): Record<string, T> => Object.create(null) as Record<string, T>;
+
 /** What the page saved for the visitor, limited to the items it has and to text of a sane size. */
 function bizSaved(key: string, ids: Set<string>): BizState {
-  const out: BizState = { verdict: {}, note: {}, answer: {} };
+  const out: BizState = { verdict: bare(), note: bare(), answer: bare() };
   try {
     const v = JSON.parse(load(key) ?? '{}') as unknown;
     if (!isObj(v)) return out;
