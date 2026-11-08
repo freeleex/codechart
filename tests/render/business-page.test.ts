@@ -63,14 +63,14 @@ describe('business page in the browser', () => {
     expect(q('#send-title').textContent).toBe('Copied — paste it to the developer');
     expect(q('#send-text').textContent).toBe(text);
     expect(text).toMatch(
-      /^Review done: 4 notes on "New refund rules"\.\n1\. On journey "Money reaches the customer": Confirmed: Yes, that's right\n2\. On rule "Manager approval": Rejected: Applies below €100 only\n3\. On saved data "Refund reason": Comment: Keep for 7 years\n4\. On question "What happens when an agent has no manager\?": Answer: Send it to the owner\n\ncodechart review · 4 notes · [A-Za-z0-9_-]+$/,
+      /^Review done: 4 answers and notes on "New refund rules"\.\n1\. On journey "Money reaches the customer": Confirmed\n2\. On rule "Manager approval": Rejected: Applies below €100 only\n3\. On saved data "Refund reason": Comment: Keep for 7 years\n4\. On question "What happens when an agent has no manager\?": Answer: Send it to the owner\n\ncodechart review · 4 notes · [A-Za-z0-9_-]+$/,
     );
     expect(parseReviewText(text)).toMatchObject({
       slug: change.slug,
       branch: change.branch,
       at: change.at,
       notes: [
-        { t: { node: 'J2' }, k: 'confirm', b: "Yes, that's right" },
+        { t: { node: 'J2' }, k: 'confirm', b: 'Confirmed' },
         { t: { node: 'R2' }, k: 'reject', b: 'Applies below €100 only' },
         { t: { node: 'D1' }, k: 'comment', b: 'Keep for 7 years' },
         { t: { node: 'Q1' }, k: 'answer', b: 'Send it to the owner' },
@@ -91,17 +91,16 @@ describe('business page in the browser', () => {
     expect(count()).toBe('0');
   });
 
-  it('a No without a note says so; a Yes with a note is two notes', async () => {
+  it('a Yes or No without a note says just that; with a note it carries it', async () => {
     mount(html);
     verdict('R2', 'no');
     verdict('J2', 'yes');
     note('J2', 'Also for bank transfers?');
-    expect(count()).toBe('3');
+    expect(count()).toBe('2');
     const notes = parseReviewText(await sendBack()).notes.map((n) => [n.t, n.k, n.b]);
     expect(notes).toEqual([
-      [{ node: 'J2' }, 'confirm', "Yes, that's right"],
-      [{ node: 'J2' }, 'comment', 'Also for bank transfers?'],
-      [{ node: 'R2' }, 'reject', "No, that's not right"],
+      [{ node: 'J2' }, 'confirm', 'Also for bank transfers?'],
+      [{ node: 'R2' }, 'reject', 'Rejected'],
     ]);
   });
 
@@ -181,8 +180,8 @@ describe('business page in the browser', () => {
     mount(businessPage(r.spec, { generatedAt: new Date(), repo: 'demo', change }));
     verdict('R2', 'no');
     const text = await sendBack();
-    expect(text).toContain('On rule "Approval – managers": Rejected: No, that\'s not right');
-    expect(parseReviewText(text).notes[0]!.b).toBe("No, that's not right");
+    expect(text).toContain('On rule "Approval – managers": Rejected\n');
+    expect(parseReviewText(text).notes[0]!.b).toBe('Rejected');
   });
 
   it('the "about" link scrolls to its item and flashes it', () => {

@@ -17,9 +17,9 @@ function noteToken(change: Change, notes: Note[]): string {
 }
 
 /** The notes as plain lines for the agent chat, then a closing line with the token. */
-export function finishMessage(title: string, change: Change, notes: Note[], place: (t: NoteTarget) => string = placeText): string {
-  const lines = notes.map((n, i) => `${i + 1}. On ${place(n.t)}: ${KIND_LABEL[n.k]}: ${n.b.trim().replace(/\n/g, '\n   ')}`);
-  return `Review done: ${countOf(notes.length)} on "${title}".\n${lines.join('\n')}\n\ncodechart review · ${countOf(notes.length)} · ${noteToken(change, notes)}`;
+export function finishMessage(title: string, change: Change, notes: Note[], place: (t: NoteTarget) => string = placeText, count: (n: number) => string = countOf): string {
+  const lines = notes.map((n, i) => `${i + 1}. On ${place(n.t)}: ${KIND_LABEL[n.k]}${n.b.trim() ? `: ${n.b.trim().replace(/\n/g, '\n   ')}` : ''}`);
+  return `Review done: ${count(notes.length)} on "${title}".\n${lines.join('\n')}\n\ncodechart review · ${countOf(notes.length)} · ${noteToken(change, notes)}`;
 }
 
 /** A message over this is split into batches; tests keep it under the importer's cap. */

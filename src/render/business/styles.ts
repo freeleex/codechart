@@ -75,9 +75,9 @@ ol.steps{list-style:none;margin:0;padding:0;counter-reset:s}
 .step.same .box{color:var(--soft);padding-left:2px}
 .j-foot,.r-foot{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
 .j-foot{padding:10px 20px;border-top:1px solid var(--line-soft);background:var(--sunk);font-size:13px}
-.rules{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px}
+.rules{display:grid;grid-template-columns:repeat(auto-fill,minmax(400px,1fr));gap:16px;align-items:start}
 .rule{padding:16px 18px 14px;display:flex;flex-direction:column;gap:10px}
-.r-top{display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap}
+.r-top{display:flex;justify-content:flex-start;gap:6px 10px;align-items:center;flex-wrap:wrap}
 .rule h3{font-size:18px;line-height:1.25}
 .ba{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;font-size:14px;margin:0}
 .ba dt{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);padding-top:3px}
@@ -88,10 +88,10 @@ ol.steps{list-style:none;margin:0;padding:0;counter-reset:s}
 .exc ul{margin:2px 0 0;padding-left:18px}
 .r-foot{margin-top:auto;padding-top:6px;position:relative;z-index:1}
 .confirm{display:flex;gap:6px;flex-wrap:wrap}
-.confirm button,.cbtn{border:1px solid var(--line);background:var(--paper);color:var(--text);border-radius:6px;padding:3px 10px;font-size:13px}
+.confirm button,.cbtn{border:1px solid var(--line);background:var(--paper);color:var(--text);border-radius:6px;padding:0 12px;min-height:30px;font-size:13px}
 .confirm button[aria-pressed="true"].yes{background:var(--new-t);border-color:var(--new-t);color:var(--bg)}
 .confirm button[aria-pressed="true"].no{background:var(--rem);border-color:var(--rem);color:var(--bg)}
-.cbtn{color:var(--muted);display:inline-flex;gap:6px;align-items:center}
+.cbtn{color:var(--soft);border-color:var(--muted);display:inline-flex;gap:6px;align-items:center}
 .cbtn:hover{color:var(--edge);border-color:var(--edge)}
 .cbtn.has{color:var(--edge);border-color:var(--edge);background:var(--edge-bg);font-weight:600}
 .cbox{display:none;padding:0 0 4px;position:relative;z-index:2}
@@ -99,7 +99,7 @@ ol.steps{list-style:none;margin:0;padding:0;counter-reset:s}
 .cbox textarea,.qa textarea{width:100%;min-height:62px;resize:vertical;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:14px/1.45 var(--sans);color:var(--text);background:var(--paper)}
 .cbox textarea:focus,.qa textarea:focus{outline:2px solid var(--edge);border-color:var(--edge)}
 .j-cbox{padding:0 20px 12px;background:var(--sunk)}
-.data{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.data{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px;align-items:start}
 .datum{padding:14px 16px;display:flex;flex-direction:column;gap:8px}
 .datum h3{font-family:var(--sans);font-size:15px;font-weight:650;letter-spacing:0}
 .datum p{margin:0;font-size:14px;color:var(--soft)}

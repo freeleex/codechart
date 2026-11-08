@@ -60,8 +60,8 @@ function itemBodies(lines: string[], kinds: Token['notes'][number]['k'][]): stri
     const first = lines[starts[i]!]!;
     const mark = `: ${KIND_LABEL[k]}: `;
     const cut = first.indexOf(mark);
-    if (cut < 0) return '';
     const rest = lines.slice(starts[i]! + 1, starts[i + 1] ?? lines.length).map((l) => l.replace(/^ {1,3}/, ''));
+    if (cut < 0) return (k === 'confirm' || k === 'reject') && first.endsWith(`: ${KIND_LABEL[k]}`) && !rest.join('').trim() ? KIND_LABEL[k] : '';
     return [first.slice(cut + mark.length), ...rest].join('\n').trim();
   });
 }

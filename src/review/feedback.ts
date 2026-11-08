@@ -45,7 +45,7 @@ export function feedbackText(review: Review): string | undefined {
   const notes = pending(review);
   if (!notes.length) return undefined;
   const items = notes.map((n, i) => {
-    const body = `${LABEL[n.kind]}: ${n.body.replace(/\n/g, '\n   ')}`;
+    const body = n.body === LABEL[n.kind] ? n.body : `${LABEL[n.kind]}: ${n.body.replace(/\n/g, '\n   ')}`;
     if (n.target) return `${i + 1}. ${targetHeading(review, n.target)}\n   ${body}`;
     const node = review.nodes.find((x) => x.id === n.node);
     if (node?.item) return `${i + 1}. ${itemHeading(review, { ...node, item: node.item })}\n   ${body}`;

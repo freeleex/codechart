@@ -75,7 +75,7 @@ describe('business page → Send back → feedback --import', () => {
         '# Review feedback: New refund rules (3 notes)',
         '',
         '1. Journey "Money reaches the customer" [J2] (links: instant-refunds-flag)',
-        "   Confirmed: Yes, that's right",
+        '   Confirmed',
         '',
         '2. Rule "Manager approval" [R2] (links: approvals)',
         '   Rejected: Annual plans also get 14 days',

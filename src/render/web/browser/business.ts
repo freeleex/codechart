@@ -14,8 +14,6 @@ interface BizState {
 
 const BIZ_MAX = 4000;
 const BIZ_WORD: Record<string, string> = { journey: 'journey', rule: 'rule', data: 'saved data', question: 'question' };
-const BIZ_YES = "Yes, that's right";
-const BIZ_NO = "No, that's not right";
 
 const bizCards = (): HTMLElement[] => [...document.querySelectorAll<HTMLElement>('[data-item]')];
 
@@ -37,7 +35,7 @@ function bizSaved(key: string, ids: Set<string>): BizState {
   return out;
 }
 
-/** The notes the answers, verdicts and comments make, in page order. A No takes the comment as its words; a Yes keeps the comment as one of its own. */
+/** The notes the answers, verdicts and comments make, in page order. A Yes or No takes the comment as its words, none when there is no comment. */
 function bizNotes(s: BizState): Note[] {
   const at = new Date().toISOString();
   const out: Note[] = [];
@@ -50,8 +48,8 @@ function bizNotes(s: BizState): Note[] {
       if (answer) add(id, 'answer', answer);
       continue;
     }
-    if (s.verdict[id] === 'yes') add(id, 'confirm', BIZ_YES);
-    if (s.verdict[id] === 'no') add(id, 'reject', comment || BIZ_NO);
+    if (s.verdict[id] === 'yes') add(id, 'confirm', comment);
+    else if (s.verdict[id] === 'no') add(id, 'reject', comment);
     else if (comment) add(id, 'comment', comment);
   }
   return out;
@@ -66,6 +64,8 @@ function bizPlace(t: NoteTarget): string {
   return `${BIZ_WORD[card.dataset.kind!]} "${shown}"`.replace(/: /g, ' – ');
 }
 
+const bizCount = (n: number): string => `${n} ${n === 1 ? 'answer or note' : 'answers and notes'}`;
+
 const bizEl = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
 
 function bizSelect(pre: HTMLElement): void {
@@ -79,7 +79,7 @@ function bizSelect(pre: HTMLElement): void {
 function bizSend(s: BizState, change: Change): void {
   const list = bizNotes(s);
   if (!list.length) return;
-  const text = finishMessage(document.querySelector('h1')!.textContent!, change, list, bizPlace);
+  const text = finishMessage(document.querySelector('h1')!.textContent!, change, list, bizPlace, bizCount);
   const modal = bizEl('send-modal');
   const pre = bizEl('send-text');
   const title = bizEl('send-title');
