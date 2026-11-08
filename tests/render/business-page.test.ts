@@ -43,6 +43,29 @@ async function sendBack(): Promise<string> {
 }
 
 describe('business page in the browser', () => {
+  it('sends a short v2 token, shows the closing line on one line and keeps the full text for the clipboard', async () => {
+    mount(html);
+    answer('Q1', 'Send it to the owner');
+    verdict('R2', 'no');
+    note('R2', 'Applies below €100 only');
+    verdict('J2', 'yes');
+    note('D1', 'Keep for 7 years');
+    note('J1', 'Rename it');
+    const text = await sendBack();
+    const token = text.split(' · ').at(-1)!;
+    expect(token.length).toBeLessThanOrEqual(230);
+    const json = JSON.parse(Buffer.from(token, 'base64url').toString('utf8')) as { v: number; s: string; n: string[][] };
+    expect(json.v).toBe(2);
+    expect(json.s).toBe('new-refund-rules');
+    expect(json.n.map((x) => x[1])).toEqual(['c', 'y', 'n', 'c', 'a']);
+    expect(json.n.every((x) => /^[A-Za-z0-9_-]{6}$/.test(x[2]!))).toBe(true);
+    const line = q('#send-token');
+    expect(line.textContent).toBe(`codechart review · 5 notes · ${token}`);
+    expect(line.getAttribute('aria-label')).toBe("Code that tells the developer's tool which page this is");
+    expect((line as HTMLElement).title).toBe("Code that tells the developer's tool which page this is");
+    expect(q('#send-text').textContent).toBe(text);
+  });
+
   it('starts with nothing to send', () => {
     mount(html);
     expect(count()).toBe('0');
@@ -73,7 +96,6 @@ describe('business page in the browser', () => {
     expect(parseReviewText(text)).toMatchObject({
       slug: change.slug,
       branch: change.branch,
-      at: change.at,
       notes: [
         { t: { node: 'J2' }, k: 'confirm', b: 'Confirmed' },
         { t: { node: 'R2' }, k: 'reject', b: 'Applies below €100 only' },
@@ -294,7 +316,7 @@ describe('business items that change', () => {
     const raw = business();
     raw.rules[1].after = 'A refund above €50 waits for the agent\'s manager.';
     const after = nodes(raw);
-    expect(before.R2).toMatch(/^[0-9a-f]{12}$/);
+    expect(before.R2).toMatch(/^[0-9a-f]{6}$/);
     expect(after.R2).not.toBe(before.R2);
     expect({ ...after, R2: 0 }).toEqual({ ...before, R2: 0 });
   });
@@ -307,7 +329,7 @@ describe('business items that change', () => {
     click(send());
     await tick();
     const pasted = parseReviewText(writeText.mock.calls[0]![0] as string);
-    expect(pasted.notes[0]!.r).toMatch(/^[0-9a-f]{12}$/);
+    expect(pasted.notes[0]!.r).toMatch(/^[0-9a-f]{6}$/);
 
     const changed = business();
     changed.rules[1].after = 'A refund above €50 waits for the agent\'s manager.';

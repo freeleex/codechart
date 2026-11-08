@@ -4,11 +4,17 @@ import type { Change, Note } from './note-store.js';
 import { cmEl } from './note-view.js';
 import { KIND_LABEL, placeText, type NoteTarget } from './targets.js';
 
+const BIZ_CODE: Record<string, string> = { comment: 'c', answer: 'a', confirm: 'y', reject: 'n' };
+
 const countOf = (n: number) => `${n} note${n === 1 ? '' : 's'}`;
 
-/** What the importer reads back, besides the note words above it: the places and kinds as base64url of UTF-8 JSON, no padding. */
-function noteToken(change: Change, notes: Note[]): string {
-  const json = JSON.stringify({ v: 1, slug: change.slug, branch: change.branch, at: change.at, notes: notes.map((n) => ({ t: n.t, ...(n.r !== undefined && { r: n.r }), k: n.k })) });
+/** What the importer reads back, besides the note words above it: the places and kinds as base64url of UTF-8 JSON, no padding. `compact` is the business page's shorter v2 form. */
+function noteToken(change: Change, notes: Note[], compact: boolean): string {
+  const json = JSON.stringify(
+    compact
+      ? { v: 2, s: change.slug.replace(/\.business$/, ''), b: change.branch, n: notes.map((n) => [(n.t as { node: string }).node, BIZ_CODE[n.k], n.r]) }
+      : { v: 1, slug: change.slug, branch: change.branch, at: change.at, notes: notes.map((n) => ({ t: n.t, ...(n.r !== undefined && { r: n.r }), k: n.k })) },
+  );
   let binary = '';
   new TextEncoder().encode(json).forEach((b) => {
     binary += String.fromCharCode(b);
@@ -17,9 +23,9 @@ function noteToken(change: Change, notes: Note[]): string {
 }
 
 /** The notes as plain lines for the agent chat, then a closing line with the token. */
-export function finishMessage(title: string, change: Change, notes: Note[], place: (t: NoteTarget) => string = placeText, count: (n: number) => string = countOf): string {
+export function finishMessage(title: string, change: Change, notes: Note[], place: (t: NoteTarget) => string = placeText, count: (n: number) => string = countOf, compact = false): string {
   const lines = notes.map((n, i) => `${i + 1}. On ${place(n.t)}: ${KIND_LABEL[n.k]}${n.b.trim() ? `: ${n.b.trim().replace(/\n/g, '\n   ')}` : ''}`);
-  return `Review done: ${count(notes.length)} on "${title}".\n${lines.join('\n')}\n\ncodechart review · ${countOf(notes.length)} · ${noteToken(change, notes)}`;
+  return `Review done: ${count(notes.length)} on "${title}".\n${lines.join('\n')}\n\ncodechart review · ${countOf(notes.length)} · ${noteToken(change, notes, compact)}`;
 }
 
 /** A message over this is split into batches; tests keep it under the importer's cap. */

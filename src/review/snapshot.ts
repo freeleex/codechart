@@ -70,10 +70,10 @@ const REV_FIELDS = {
   question: ['about', 'text'],
 } as const;
 
-/** An item's hash covers its words and links, so a confirmation of the old words never counts for new ones. */
+/** An item's hash covers its words and links, so a confirmation of the old words never counts for new ones; 6 characters keep the page's token short. */
 export function businessRev(kind: keyof typeof REV_FIELDS, item: object): string {
   const fields = item as Record<string, unknown>;
-  return hash(REV_FIELDS[kind].map((f) => fields[f]));
+  return hash(REV_FIELDS[kind].map((f) => fields[f])).slice(0, 6);
 }
 
 /** A business page takes notes on its items: journeys, rules, saved data and questions, by id. */

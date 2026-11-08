@@ -87,6 +87,31 @@ describe('business page → Send back → feedback --import', () => {
     );
   });
 
+  it('the copied token is the short v2 one', async () => {
+    const text = await takeNotes();
+    const token = text.trim().split(' · ').at(-1)!;
+    expect(JSON.parse(Buffer.from(token, 'base64url').toString('utf8'))).toMatchObject({ v: 2, s: 'new-refund-rules' });
+    expect(token.length).toBeLessThanOrEqual(230);
+  });
+
+  it('changing a rule\'s words after the page was drawn marks its note outdated', async () => {
+    const text = await takeNotes();
+    const spec = business();
+    spec.rules = spec.rules.map((r: { id: string }) => (r.id === 'R2' ? { ...r, after: 'Other words entirely' } : r));
+    await run(['render', fileOf('business2.json', spec), '--tech', fileOf('tech.json', TECH)]);
+    const r = await run(['feedback', '--import'], stdin(text));
+    expect(r.err).toBe('✔ Imported 3 notes into "New refund rules" (1 outdated: the map changed since the page was drawn)\n');
+    expect(ids(businessReview())).toEqual([['J2', 'confirm', 'pending'], ['R2', 'reject', 'outdated'], ['Q1', 'answer', 'pending']]);
+  });
+
+  it('a v2 token with an unknown kind code or a bad rev is refused', async () => {
+    for (const n of [['J1', 'x', 'abcdef'], ['J1', 'c', 'abc']]) {
+      const token = Buffer.from(JSON.stringify({ v: 2, s: 'x', b: 'b', n: [n] })).toString('base64url');
+      const r = await run(['feedback', '--import'], stdin(`1. On rule "R": Comment: ok\n\ncodechart review · 1 note · ${token}\n`));
+      expect(r.err).toContain('damaged');
+    }
+  });
+
   it('--take marks them sent, and the same text imports once', async () => {
     const text = await takeNotes();
     expect((await run(['feedback', '--import', '--take'], stdin(text))).out).toContain('Rejected: Annual plans also get 14 days');

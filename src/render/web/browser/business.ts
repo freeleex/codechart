@@ -82,12 +82,19 @@ function bizSelect(pre: HTMLElement): void {
 function bizSend(s: BizState, change: Change): void {
   const list = bizNotes(s);
   if (!list.length) return;
-  const text = finishMessage(document.querySelector('h1')!.textContent!, change, list, bizPlace, bizCount);
+  const text = finishMessage(document.querySelector('h1')!.textContent!, change, list, bizPlace, bizCount, true);
   const modal = bizEl('send-modal');
   const pre = bizEl('send-text');
   const title = bizEl('send-title');
   const hint = bizEl('send-hint');
-  pre.textContent = text;
+  const cut = text.lastIndexOf('\n\ncodechart review ·') + 2;
+  const tip = "Code that tells the developer's tool which page this is";
+  const last = document.createElement('span');
+  last.id = 'send-token';
+  last.title = tip;
+  last.setAttribute('aria-label', tip);
+  last.textContent = text.slice(cut);
+  pre.replaceChildren(text.slice(0, cut), last);
   title.textContent = 'Your message for the developer';
   modal.hidden = false;
   bizEl('send-done').focus();

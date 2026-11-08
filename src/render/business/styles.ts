@@ -133,6 +133,7 @@ footer{color:var(--muted);font-size:12.5px;padding:30px 0 10px}
 .sheet p{margin:0 0 12px;color:var(--muted);font-size:14px}
 .sheet #send-hint{margin-bottom:4px}
 .sheet pre{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px 14px;white-space:pre-wrap;overflow-wrap:anywhere;font:13.5px/1.55 var(--sans);max-height:50vh;overflow:auto;margin:0 0 14px}
+.sheet #send-token{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted);font-size:12px}
 .sheet .row{display:flex;justify-content:flex-end;gap:8px}
 .sheet .row button{border:1px solid var(--line);background:var(--paper);color:var(--text);border-radius:8px;padding:7px 14px}
 .sheet .row .send{border:0;background:var(--btn);color:#fff}

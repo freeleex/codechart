@@ -35,11 +35,23 @@ const tokenSchema = z.strictObject({
   notes: z.array(z.strictObject({ t: target, r: str.optional(), k: kind })).max(MAX_NOTES),
 });
 
+const BIZ_KIND = { c: 'comment', a: 'answer', y: 'confirm', n: 'reject' } as const;
+
+/** The business page's short token: `s` is the slug without `.business`, each note `[item id, kind code, 6-character rev]`. */
+const tokenV2 = z.strictObject({
+  v: z.literal(2),
+  s: str,
+  b: str,
+  n: z.array(z.tuple([str, z.enum(['c', 'a', 'y', 'n']), z.string().regex(/^[A-Za-z0-9_-]{6}$/)])).max(MAX_NOTES),
+});
+
 type Token = z.infer<typeof tokenSchema>;
 export type ImportPayload = Omit<Token, 'notes'> & { notes: (Token['notes'][number] & { b: string })[] };
 
 const MARKER = /^[\s>`]*codechart review ·/;
 const ITEM = /^\d+\. On /;
+
+const fromV2 = (t: z.infer<typeof tokenV2>): Token => ({ v: 1, slug: `${t.s}.business`, branch: t.b, at: '', notes: t.n.map(([node, k, r]) => ({ t: { node }, r, k: BIZ_KIND[k] })) });
 
 /** A line without quote marks and trailing spaces. */
 const unquote = (l: string): string => l.replace(/^(?:[ \t]*>)+ ?/, '').trimEnd();
@@ -81,7 +93,8 @@ export function parseReviewText(text: string): ImportPayload {
   if (!/^[A-Za-z0-9_-]+$/.test(token)) throw new Error(DAMAGED);
   let decoded: Token;
   try {
-    decoded = tokenSchema.parse(JSON.parse(Buffer.from(token, 'base64url').toString('utf8')));
+    const json = JSON.parse(Buffer.from(token, 'base64url').toString('utf8')) as { v?: unknown };
+    decoded = json.v === 2 ? fromV2(tokenV2.parse(json)) : tokenSchema.parse(json);
   } catch {
     throw new Error(DAMAGED);
   }
