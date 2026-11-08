@@ -103,6 +103,7 @@ ol.steps{list-style:none;margin:0;padding:0;counter-reset:s}
 .cbtn.on{color:var(--bg);border-color:var(--edge);background:var(--edge);font-weight:600}
 .cbtn[hidden],.cview[hidden]{display:none}
 .cview{padding:0 0 4px;position:relative;z-index:2}
+.cview.j-cbox{padding:8px 20px 12px}
 .cprev{display:block;width:100%;text-align:left;border:0;border-left:3px solid var(--edge);border-radius:6px;background:var(--edge-bg);color:var(--text);padding:6px 10px;font:13.5px/1.45 var(--sans);cursor:pointer}
 .cprev b{display:block;color:var(--edge);font-size:11px;text-transform:uppercase;letter-spacing:.07em}
 .cprev span{display:-webkit-box;-webkit-line-clamp:3;line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-wrap;overflow-wrap:anywhere}
