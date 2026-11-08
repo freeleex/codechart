@@ -1,5 +1,5 @@
 import { businessTexts, type BusinessSpec } from './business.js';
-import { techIdIssue } from './plain-text.js';
+import { quotable, techIdIssue } from './plain-text.js';
 import { formatPath } from './shared.js';
 
 /** A box on the tech map: a node of a map, or a step of a flow. */
@@ -16,7 +16,7 @@ export function businessLinkIssues(spec: BusinessSpec, boxes: readonly TechBox[]
   for (const [group, items] of groups) {
     items.forEach((item, i) =>
       item.links.forEach((link, j) => {
-        if (!ids.has(link)) issues.push(`${formatPath([group, i, 'links', j])}: "${link}" is not a box on the tech map`);
+        if (!ids.has(link)) issues.push(`${formatPath([group, i, 'links', j])}: "${quotable(link)}" is not a box on the tech map`);
       }),
     );
   }

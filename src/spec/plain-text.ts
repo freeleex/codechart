@@ -75,6 +75,11 @@ const CHECKS: Check[] = [
   ['looks like code', (t) => matchToken(t, DOTTED)],
 ];
 
+/** `text` for quoting in a message: shortened to its first 4 characters when it looks like a secret. */
+export function quotable(text: string): string {
+  return SECRETS.some((re) => matchToken(text, re)) ? redact(text) : text;
+}
+
 /** What reads as code, a path, a secret or an id in `text`, as messages for a writer who must use plain words. Quoted phrases stay allowed. */
 export function plainTextIssues(text: string): string[] {
   if (hasHiddenChars(text)) return ['must not contain control or invisible characters'];

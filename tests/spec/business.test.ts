@@ -124,6 +124,13 @@ describe('business links', () => {
     expect(businessLinkIssues(spec as never, boxes)).toEqual(['journeys[1].links[0]: "refund-api" is not a box on the tech map']);
   });
 
+  it('does not print a secret-looking link in full', () => {
+    const spec = business();
+    spec.journeys[1].links[0] = 'ghp_abcdefghijklmnop1234';
+    const [issue] = businessLinkIssues(spec as never, boxes);
+    expect(issue).toBe('journeys[1].links[0]: "ghp_…" is not a box on the tech map');
+  });
+
   it('rejects a multi-word tech id copied into prose, not a single word', () => {
     const spec = business();
     spec.rules[0].after = 'The subscription-model decides it; refunds stay open.';
