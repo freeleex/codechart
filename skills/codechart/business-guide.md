@@ -56,4 +56,4 @@ For each `checked` item, re-read the code behind its links and confirm each sent
 
 ## Feedback from the owner
 
-Pasted answers come back through step 5 of SKILL.md. Each note names its item and its tech links. Answer: apply it to code or plan. Rejected (a "No"): the reading was wrong; fix the code, plan or your understanding. Confirmed: nothing to do. Never argue in the spec; if the map changes, render a new one.
+Pasted answers come back through step 5 of SKILL.md. Each note names its item and its tech links. Answer: apply it to code or plan. Rejected (a "No"): the reading was wrong; fix the code, plan or your understanding. Confirmed: nothing to do. Never argue in the spec; if the map changes, render a new one. Import says the saved record is gone (over 30 days): tell the user to render the business map again and send the owner the new page.
