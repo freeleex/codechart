@@ -2,14 +2,24 @@
 
 What's new in each codechart release. Update with `codechart update`; the [releases page](https://github.com/freeleex/codechart/releases) has the same notes.
 
-## Unreleased
+## 0.8.0 (2026-11-08)
 
 ### New
 
-- Business map: ask your agent for a plain-words page of a change for a product owner. It shows what people will experience (today and after), the rules before and after, what the business now keeps, and up to 7 questions. No code, file names or ids on it, and the owner needs no repo access.
-- The owner answers the questions, says Yes or No to what the agent only worked out, adds notes, and presses *Send back to developer*; paste the copied text to your agent. `codechart feedback` shows those notes with the part of the change each belongs to.
-- The owner can reply days later: a business page's saved record is kept 30 days, even after the page is cleaned up, and `feedback --import` says so if it is gone.
-- `codechart render --tech <spec.json>` names the technical map a business map links to (default: the newest saved one on the branch); `codechart schema --business` prints the format.
+- Business map: ask your agent for a plain-words page of a change for a product owner with no repo access: journeys today and after, rules before and after, saved data, questions.
+- The owner answers, says Yes or No to the agent's guesses, adds notes and presses *Send back to developer*, even days later; paste the text to your agent.
+- Review on the page: comment on any node, diff line or arrow, ask a question or ask for a deletion. *Finish review* copies your notes; paste them into your agent chat.
+- Review in the terminal: `codechart review` opens the map in your editor as a diff. Write notes under any line, save, and tell your agent "review done".
+- Plan vs built: when the work is done, the summary is compared with the saved plan. What was dropped, added or built differently is marked, each with the agent's reason.
+- `codechart render --tech <spec.json>` names the technical map a business map links to; `codechart schema --business` prints the business map format.
+
+### Fixed
+
+- Plan vs built no longer compares an old plan with later, unrelated summaries on the same branch.
+
+### Changed
+
+- README is shorter, with a features table; details moved to pages under [docs](https://github.com/freeleex/codechart/tree/main/docs).
 
 ## 0.7.0 (2026-11-06)
 
