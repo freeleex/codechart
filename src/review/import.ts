@@ -147,7 +147,7 @@ function build(review: Review, p: Pasted, id: string, now: Date): Note | undefin
   return tgt ? targetNote(review, base, node, tgt) : nodeNote(review, base, node, p);
 }
 
-/** `review` with the pasted notes added; one equal to a note already there, in any state, is not added twice. Counts: `added`, of which `outdated` (what the map changed since the page was drawn). */
+/** `review` with the pasted notes added; one equal to a note already there (same rev too), in any state, is not added twice. Counts: `added`, of which `outdated` (what the map changed since the page was drawn). */
 export function importNotes(review: Review, payload: ImportPayload, now: Date): { review: Review; added: number; outdated: number } {
   const notes = [...review.notes];
   let next = lastNoteNumber(notes);
@@ -155,7 +155,7 @@ export function importNotes(review: Review, payload: ImportPayload, now: Date): 
   let added = 0;
   for (const p of payload.notes) {
     const note = build(review, p, `n${next + 1}`, now);
-    if (!note || notes.some((n) => sameNote(n, note))) continue;
+    if (!note || notes.some((n) => sameNote(n, note) && n.rev === note.rev)) continue;
     next++;
     added++;
     if (note.state === 'outdated') outdated++;
