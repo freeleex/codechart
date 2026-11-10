@@ -62,7 +62,7 @@ Without `product` the cover uses the repo name. The logo is a repo-relative `.sv
 | `draw` | makes the release map, once: when a PDF or page for that version is already saved, `check` says `"action": "done"` with its `path`, and the agent just mentions it |
 | `off` | says nothing; no `release` key |
 
-A branch with no version in its name can't be matched to a saved PDF, so there `check` only says `suggest`, even with `draw`. A detached HEAD, or any other branch, has no `release` key. `--head <branch>` checks that branch instead.
+A saved page matches when its version is the same, ignoring trailing `.0`: `release-2.1.0` finds a `2.1` page, `release/1.2` finds `1.2.0` but not `1.2.1`. A branch with no version in its name can't be matched to a saved PDF, so there `check` only says `suggest`, even with `draw`. A detached HEAD, or any other branch, has no `release` key. `--head <branch>` checks that branch instead.
 
 ## What is checked
 

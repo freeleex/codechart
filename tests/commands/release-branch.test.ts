@@ -122,6 +122,26 @@ describe('check on release branches', () => {
       expect(await release()).toEqual({ action: 'done', branch: 'release-2.0.0', version: '2.0.0', path: pdf });
     });
 
+    it('matches the version exactly, ignoring trailing .0 groups', async () => {
+      const pdf = save('20261109-100000-v2-1-what-is-new.release.pdf');
+      on('release-2.1.0');
+      expect(await release()).toMatchObject({ action: 'done', path: pdf });
+      on('release/2.1');
+      expect(await release()).toMatchObject({ action: 'done', path: pdf });
+      on('release-2.1.1');
+      expect(await release()).toMatchObject({ action: 'draw' });
+      on('release-2.0.0');
+      expect(await release()).toMatchObject({ action: 'draw' });
+    });
+
+    it('release/1.2 matches v1-2-0 but not v1-2-1', async () => {
+      on('release/1.2');
+      save('20261109-100000-v1-2-1-patch.release.pdf');
+      expect(await release()).toMatchObject({ action: 'draw' });
+      const pdf = save('20261109-100000-v1-2-0-minor.release.pdf');
+      expect(await release()).toMatchObject({ action: 'done', path: pdf });
+    });
+
     it('falls back to the page when the PDF is gone, and takes the newest one', async () => {
       save('20261101-100000-v2-0-0-older.release.html');
       const page = save('20261109-100000-v2-0-0-newer.release.html');

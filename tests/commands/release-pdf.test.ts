@@ -1,6 +1,7 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, type rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { browserArgs, findBrowser, pdfFlagPath, printPdf } from '../../src/commands/release-pdf.js';
 import { repoFolder } from '../../src/render/output-path.js';
@@ -56,7 +57,7 @@ describe('browserArgs', () => {
       '--no-default-browser-check',
       '--user-data-dir=/tmp/profile',
       '--print-to-pdf=/tmp/x.pdf',
-      'file:///tmp/out/a%20b.html',
+      pathToFileURL('/tmp/out/a b.html').href,
     ]);
   });
 });
@@ -82,6 +83,15 @@ describe('printPdf', () => {
     const out = join(sb.tmp, 'out.pdf');
     expect(await printPdf('/fake/chrome', '/x/a.html', out, async () => Promise.reject(new Error('Command failed: boom\nmore')))).toBe('Command failed: boom');
     expect(existsSync(out)).toBe(false);
+  });
+
+  it('a profile folder that cannot be removed never replaces the result', async () => {
+    const out = join(sb.tmp, 'out.pdf');
+    const locked = (() => {
+      throw Object.assign(new Error('EBUSY'), { code: 'EBUSY' });
+    }) as typeof rmSync;
+    expect(await printPdf('/fake/chrome', '/x/a.html', out, fakeBrowser().run, locked)).toBeUndefined();
+    expect(await printPdf('/fake/chrome', '/x/a.html', out, async () => Promise.reject(new Error('boom')), locked)).toBe('boom');
   });
 
   it('a browser that exits 0 without a PDF, or with something else, is a failure', async () => {
@@ -140,14 +150,14 @@ describe('codechart render of a release map', () => {
     expect(r.out.split('\n')).toEqual([
       'Release map: What is new in Shop 2.0 (2.0.0) · 3 features · 1 new · 1 changed · 1 fixed',
       `PDF: ${join(r.dir, `${name}.pdf`)}`,
-      `full map → file://${join(r.dir, `${name}.html`)}`,
+      `full map → ${pathToFileURL(join(r.dir, `${name}.html`)).href}`,
       '',
     ]);
     expect(readFileSync(join(r.dir, `${name}.pdf`), 'latin1').startsWith('%PDF')).toBe(true);
     expect(calls).toHaveLength(1);
     expect(calls[0]!.browser).toBe('/fake/chrome');
     expect(calls[0]!.args[0]).toBe('--headless=new');
-    expect(calls[0]!.args.at(-1)).toBe(`file://${join(r.dir, `${name}.html`)}`);
+    expect(calls[0]!.args.at(-1)).toBe(pathToFileURL(join(r.dir, `${name}.html`)).href);
   });
 
   it('writes no review file: nothing of a release map is sent back', async () => {

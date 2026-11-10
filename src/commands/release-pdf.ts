@@ -1,7 +1,7 @@
 import { execFile } from 'node:child_process';
 import { closeSync, copyFileSync, existsSync, mkdtempSync, openSync, readSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, isAbsolute, join, resolve, win32 } from 'node:path';
+import { dirname, join, posix, resolve, win32 } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const TIMEOUT_MS = 60_000;
@@ -29,8 +29,8 @@ export interface BrowserLookup {
 function candidates({ platform = process.platform, env = process.env }: BrowserLookup): string[] {
   if (platform === 'darwin') return MAC;
   if (platform === 'win32') return WINDOWS.flatMap(([base, rest]) => (env[base] ? [win32.join(env[base]!, rest)] : []));
-  const dirs = (env.PATH ?? '').split(':').filter((d) => isAbsolute(d));
-  return dirs.flatMap((d) => LINUX.map((n) => join(d, n)));
+  const dirs = (env.PATH ?? '').split(':').filter((d) => posix.isAbsolute(d));
+  return dirs.flatMap((d) => LINUX.map((n) => posix.join(d, n)));
 }
 
 /** The browser that prints the PDF: `release.browser` when set (and then only it), else the first installed Chromium-family one. */
@@ -74,7 +74,7 @@ function isPdf(file: string): boolean {
 }
 
 /** Prints `html` to `pdf` with `browser`; resolves to an error message, or undefined once `pdf` is written and starts with `%PDF`. */
-export async function printPdf(browser: string, html: string, pdf: string, run: RunBrowser = runBrowser): Promise<string | undefined> {
+export async function printPdf(browser: string, html: string, pdf: string, run: RunBrowser = runBrowser, remove: typeof rmSync = rmSync): Promise<string | undefined> {
   const profile = mkdtempSync(join(tmpdir(), 'codechart-pdf-'));
   // Printed inside the throwaway profile, so a failed run never leaves a partial or old file at `pdf`.
   const printed = join(profile, 'release.pdf');
@@ -86,6 +86,11 @@ export async function printPdf(browser: string, html: string, pdf: string, run: 
   } catch (e) {
     return (e as Error).message.split('\n')[0]!.slice(0, 200);
   } finally {
-    rmSync(profile, { recursive: true, force: true });
+    try {
+      // Windows keeps the profile locked for a moment after the browser is killed; a leftover temp folder is not a failure.
+      remove(profile, { recursive: true, force: true, maxRetries: 3, retryDelay: 200 });
+    } catch {
+      /* ignored */
+    }
   }
 }

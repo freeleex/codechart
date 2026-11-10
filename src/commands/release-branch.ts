@@ -20,17 +20,30 @@ const VERSION = /(?:^|[^0-9A-Za-z])v?(\d+\.\d+(?:\.\d+)?)(?![0-9A-Za-z])/;
 /** The first x.y.z or x.y in a branch name, after an optional `v`: "release-0.8.0" gives "0.8.0". */
 export const branchVersion = (branch: string): string | undefined => VERSION.exec(branch)?.[1];
 
+/** "2-1-0" and "2-1" both give "2-1": trailing zero groups go, but x.y stays. */
+function normalised(slug: string): string {
+  const groups = slug.split('-');
+  while (groups.length > 2 && groups.at(-1) === '0') groups.pop();
+  return groups.join('-');
+}
+
+/** The version a saved page's name leads with: up to three number groups after the stamp's `v`. */
+const normalisedSaved = (name: string): string | undefined => {
+  const slug = /^v(\d+(?:-\d+){0,2})-/.exec(name.slice(16))?.[1];
+  return slug && normalised(slug);
+};
+
 /** The newest saved release page or PDF for `version`: the PDF when there is one. */
 function existing(config: Config, root: string, version: string): string | undefined {
   const dir = join(config.web.outDir, repoFolder(root));
-  const stem = `v${versionSlug(version)}-`;
+  const wanted = normalised(versionSlug(version));
   let names: string[];
   try {
     names = readdirSync(dir);
   } catch {
     return undefined;
   }
-  const found = (ext: string) => names.filter((n) => /^\d{8}-\d{6}-/.test(n) && n.slice(16).startsWith(stem) && n.endsWith(`.release.${ext}`)).sort().at(-1);
+  const found = (ext: string) => names.filter((n) => /^\d{8}-\d{6}-/.test(n) && normalisedSaved(n) === wanted && n.endsWith(`.release.${ext}`)).sort().at(-1);
   const name = found('pdf') ?? found('html');
   return name && join(dir, name);
 }
