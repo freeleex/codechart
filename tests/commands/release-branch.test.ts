@@ -134,6 +134,26 @@ describe('check on release branches', () => {
       expect(await release()).toMatchObject({ action: 'draw' });
     });
 
+    it('matches a title that starts with digits, and an older name without the separator', async () => {
+      on('release-2.1.0');
+      const pdf = save('20261109-100000-v2-1--2026-roadmap.release.pdf');
+      expect(await release()).toMatchObject({ action: 'done', path: pdf });
+      on('release-2.1.2026');
+      expect(await release()).toMatchObject({ action: 'draw' });
+      on('release-0.9.0');
+      const old = save('20261109-100000-v0-9-0-what-is-new.release.pdf');
+      expect(await release()).toMatchObject({ action: 'done', path: old });
+    });
+
+    it('reads a saved build or pre-release version the way it reads the branch', async () => {
+      on('release-2.1.0-5');
+      const pdf = save('20261109-100000-v2-1-0-5--what-is-new.release.pdf');
+      expect(await release()).toMatchObject({ action: 'done', version: '2.1.0', path: pdf });
+      on('release-3.0.0-rc.1');
+      const rc = save('20261109-100000-v3-0-0-rc-1--what-is-new.release.pdf');
+      expect(await release()).toMatchObject({ action: 'done', path: rc });
+    });
+
     it('release/1.2 matches v1-2-0 but not v1-2-1', async () => {
       on('release/1.2');
       save('20261109-100000-v1-2-1-patch.release.pdf');

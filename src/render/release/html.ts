@@ -30,8 +30,11 @@ const cards = <T>(items: T[], card: (x: T) => string, wrap = ''): string => {
   return body && wrap ? `<div class="${wrap}">${body}</div>` : body;
 };
 
+const COMPACT_CARDS = 3;
+
 function section(s: Section): string {
-  return `<section class="feature">
+  const compact = s.journeys.length + s.rules.length + s.data.length <= COMPACT_CARDS;
+  return `<section class="feature${compact ? ' compact' : ''}">
 <div class="f-head"><span class="chg-badge chg-${s.change}">${LABEL[s.change]}</span><h2>${esc(s.title)}</h2></div>
 <p class="f-sum">${esc(s.summary)}</p>
 ${group('How it works', cards(s.journeys, journeyCard))}

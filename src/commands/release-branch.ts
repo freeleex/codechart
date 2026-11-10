@@ -20,16 +20,17 @@ const VERSION = /(?:^|[^0-9A-Za-z])v?(\d+\.\d+(?:\.\d+)?)(?![0-9A-Za-z])/;
 /** The first x.y.z or x.y in a branch name, after an optional `v`: "release-0.8.0" gives "0.8.0". */
 export const branchVersion = (branch: string): string | undefined => VERSION.exec(branch)?.[1];
 
-/** "2-1-0" and "2-1" both give "2-1": trailing zero groups go, but x.y stays. */
-function normalised(slug: string): string {
-  const groups = slug.split('-');
+/** x.y.z at most, like `branchVersion`, so "2-1-0-5" gives "2-1-0"; then "2-1-0" and "2-1" both give "2-1": trailing zero groups go, but x.y stays. */
+function normalised(slug: string): string | undefined {
+  const groups = /^\d+(?:-\d+){0,2}/.exec(slug)?.[0].split('-');
+  if (!groups) return undefined;
   while (groups.length > 2 && groups.at(-1) === '0') groups.pop();
   return groups.join('-');
 }
 
-/** The version a saved page's name leads with: up to three number groups after the stamp's `v`. */
+/** The version a saved page's name leads with; `--` ends it, so a title's digits never join it (older names have no `--`). */
 const normalisedSaved = (name: string): string | undefined => {
-  const slug = /^v(\d+(?:-\d+){0,2})-/.exec(name.slice(16))?.[1];
+  const slug = /^v(\d+(?:-\d+)*)(?=-)/.exec(name.slice(16))?.[1];
   return slug && normalised(slug);
 };
 
@@ -37,6 +38,7 @@ const normalisedSaved = (name: string): string | undefined => {
 function existing(config: Config, root: string, version: string): string | undefined {
   const dir = join(config.web.outDir, repoFolder(root));
   const wanted = normalised(versionSlug(version));
+  if (wanted === undefined) return undefined;
   let names: string[];
   try {
     names = readdirSync(dir);

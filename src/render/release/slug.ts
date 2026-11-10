@@ -8,5 +8,5 @@ export const versionSlug = (version: string): string =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
 
-/** The file slug of a release page: the version leads, so `check` can tell whether a release was already drawn. */
-export const releaseSlug = (version: string, title: string): string => fileSlug(`v${versionSlug(version)} ${title}`, 'release');
+/** The file slug of a release page: the version leads, then `--` (a title slug never has one), so `check` can tell whether a release was already drawn even when the title starts with digits. */
+export const releaseSlug = (version: string, title: string): string => `v${versionSlug(version)}--${fileSlug(title, 'release')}`;

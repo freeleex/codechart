@@ -144,7 +144,7 @@ describe('codechart render of a release map', () => {
   it('writes the page and the PDF next to it and prints the summary, the PDF and the page link', async () => {
     const calls: { browser: string; args: string[] }[] = [];
     const r = await render(fakeBrowser(calls));
-    const name = '20261109-100000-v2-0-0-what-is-new-in-shop-2-0.release';
+    const name = '20261109-100000-v2-0-0--what-is-new-in-shop-2-0.release';
     expect(r.files).toEqual([`${name}.html`, `${name}.pdf`]);
     expect(r.err).toBe('');
     expect(r.out.split('\n')).toEqual([
@@ -197,7 +197,7 @@ describe('codechart render of a release map', () => {
 
   it('no browser: keeps the page, says how to get a PDF in one line, and exits 0', async () => {
     const r = await render({ find: () => undefined });
-    expect(r.files).toEqual(['20261109-100000-v2-0-0-what-is-new-in-shop-2-0.release.html']);
+    expect(r.files).toEqual(['20261109-100000-v2-0-0--what-is-new-in-shop-2-0.release.html']);
     expect(r.err).toBe(`codechart: no PDF (no Chromium-based browser found): open ${join(r.dir, r.files[0]!)} in a browser and use Save as PDF, or set release.browser to a Chrome, Chromium, Edge or Brave path in your global config\n`);
     expect(r.code).toBeUndefined();
     expect(r.out).not.toContain('PDF:');
@@ -231,7 +231,7 @@ describe('codechart render of a release map', () => {
     await runCli({ cwd: sb.repo, home: sb.home, now: () => new Date(2026, 10, 9, 11), isTTY: false, pdf: fakeBrowser() }, ['render', file]);
     const after = readdirSync(join(sb.out, repoFolder(sb.repo)));
     expect(first.filter((f) => f.endsWith('.html'))).toHaveLength(1);
-    expect(after.filter((f) => f.endsWith('.release.html'))).toEqual(['20261109-110000-v2-0-0-what-is-new-in-shop-2-0.release.html']);
+    expect(after.filter((f) => f.endsWith('.release.html'))).toEqual(['20261109-110000-v2-0-0--what-is-new-in-shop-2-0.release.html']);
   });
 });
 
