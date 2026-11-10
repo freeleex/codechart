@@ -25,8 +25,22 @@ function scopedFlowCss(): string {
 
 export const VIEW_CSS = `
 .defs{position:absolute;width:0;height:0}
-.view{flex:1;min-width:0;min-height:0;display:flex}.view[hidden]{display:none}
+#viewpanes{flex:1;min-width:0;display:flex}
+.view{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column}.view[hidden]{display:none}
+.view>.pane-title{display:none}body.sbs .view>.pane-title{display:block}
+body.sbs .view.flowview{border-left:1px solid var(--line)}
+@media (max-width:900px){body.sbs #viewpanes{flex-direction:column}body.sbs .view.flowview{border-left:0;border-top:1px solid var(--line)}}
+.pane-dim .node:not(.lit),.pane-dim .edge:not(.lit){--dim:.25}
+.node.linked .card{stroke-width:2.5}
+.node.linked{filter:drop-shadow(0 0 6px color-mix(in srgb,var(--edge) 45%,transparent))}
+.node.linked :is(.card,.shape){stroke-width:3}
 #view-bar{background:var(--panel);border-bottom:1px solid var(--line)}
+#view-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+#sbs{display:flex;align-items:center;gap:6px;padding:0 14px;font:11px system-ui,sans-serif;color:var(--muted);cursor:pointer}
+#sbs input{appearance:none;flex:none;width:26px;height:14px;margin:0;position:relative;border-radius:7px;background:var(--line);cursor:pointer}
+#sbs input::before{content:"";position:absolute;top:2px;left:2px;width:10px;height:10px;border-radius:50%;background:#fff;transition:left .12s}
+#sbs input:checked{background:var(--edge)}#sbs input:checked::before{left:14px}
+#sbs input:focus-visible{outline:2px solid var(--edge);outline-offset:2px}
 #view-tabs{display:flex;flex-wrap:wrap;gap:20px;padding:0 14px}
 #view-tabs button{padding:8px 2px 6px;font:600 13px system-ui,sans-serif;color:var(--muted);background:none;border:0;border-bottom:2px solid transparent;border-radius:0;cursor:pointer}
 #view-tabs button:hover{color:var(--text)}
@@ -43,11 +57,12 @@ aside .partof{margin:6px 0}
 ${scopedFlowCss()}
 `;
 
-/** The tab row, and under it one sub-tab per flow. */
+/** The tab row with the Side by side switch at its right end, and under it one sub-tab per flow. */
 export function viewTabs(flows: FlowView[]): string {
   const tab = (attr: string, label: string, selected: boolean) => `<button type="button" role="tab" ${attr} aria-selected="${selected}">${esc(label)}</button>`;
   return (
-    `<div id="view-bar"><div id="view-tabs" role="tablist" aria-label="Views">${tab(`data-tab="${COMPONENTS_VIEW}"`, 'Components', true)}${tab('data-tab="flows"', `Flows (${flows.length})`, false)}</div>` +
+    `<div id="view-bar"><div id="view-row"><div id="view-tabs" role="tablist" aria-label="Views">${tab(`data-tab="${COMPONENTS_VIEW}"`, 'Components', true)}${tab('data-tab="flows"', `Flows (${flows.length})`, false)}</div>` +
+    `<label id="sbs" title="Show Components and the selected flow next to each other"><input type="checkbox" id="sbs-toggle" role="switch">Side by side</label></div>` +
     `<div id="flow-tabs" role="tablist" aria-label="Flows" hidden>${flows.map((f) => tab(`data-view="${esc(viewId(f.id))}"`, f.title, false)).join('')}</div></div>`
   );
 }

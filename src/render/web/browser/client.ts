@@ -5,10 +5,11 @@ import { initChips } from './chips.js';
 import { initComments } from './comments.js';
 import { initFinish } from './finish.js';
 import { dismissFocus, focus, select } from './focus.js';
-import { glide, nodeView, type View } from './glide.js';
+import { glide, nodeView, revealView, type View } from './glide.js';
 import { initHunks } from './hunks.js';
 import { initPanelResize } from './resize.js';
 import { shownVisit, startTrail, viewOfVisit, viewVisit, type Trail, type Visit } from './history.js';
+import { initSide } from './side.js';
 import { initReview } from './review.js';
 import { load, save } from './store.js';
 import { initTheme } from './theme.js';
@@ -47,6 +48,8 @@ let drag: Drag | null = null;
 let moved = false;
 let trail: Trail;
 let stopGlide = (): void => {};
+// Side by side also lights what a node is linked to in the other pane
+let light: (id: string | null) => void = focus;
 
 function apply(): void {
   vps.forEach((vp, i) => {
@@ -76,19 +79,22 @@ function zoomToSelected(): void {
   stopGlide = () => stops.forEach((s) => s());
 }
 
-/** Fits the view showing (the only one without views) to its canvas. */
-function fit(): void {
-  const section = views ? views.section() : null;
-  const dims = (views && data.views!.find((v) => v.id === views!.active())) || data;
-  const r = canvases[sections.indexOf(section)]!.querySelector('svg')!.getBoundingClientRect();
-  const k = Math.min(r.width / dims.width, r.height / dims.height, 1) || 1;
-  const t = { k, x: (r.width - dims.width * k) / 2, y: (r.height - dims.height * k) / 2 };
-  ts = ts.map((old, j) => (sections[j] === section ? { x: t.x, y: t.y, k: t.k } : old));
-  if (views) fitted.add(views.active());
+/** Fits the views showing (the only canvas without views) to their canvases, each on its own; with `all` false, just those not fitted yet. */
+function fit(all = true): void {
+  for (const id of views ? views.showing() : [undefined]) {
+    if (id !== undefined && !all && fitted.has(id)) continue;
+    const section = id === undefined ? null : views!.section(id);
+    const dims = data.views?.find((v) => v.id === id) ?? data;
+    const r = canvases[sections.indexOf(section)]!.querySelector('svg')!.getBoundingClientRect();
+    const k = Math.min(r.width / dims.width, r.height / dims.height, 1) || 1;
+    const t = { k, x: (r.width - dims.width * k) / 2, y: (r.height - dims.height * k) / 2 };
+    ts = ts.map((old, j) => (sections[j] === section ? { x: t.x, y: t.y, k: t.k } : old));
+    if (id !== undefined) fitted.add(id);
+  }
   apply();
 }
 
-/** A view's canvas has no size while hidden, so it is fitted when first shown; a resize refits the one showing. */
+/** A view's canvas has no size while hidden, so it is fitted when first shown; a resize refits those showing. */
 function refit(): void {
   fitted.clear();
   fit();
@@ -166,7 +172,7 @@ function open(v: Visit): void {
   const shown = view ?? (id === null ? (views ? COMPONENTS : undefined) : tpl ? views?.of(id) : undefined);
   if (shown !== undefined && views) views.show(shown);
   select(tpl ? id : null);
-  focus(tpl ? id : null);
+  light(tpl ? id : null);
   if (tpl) {
     const filled = tpl.content.cloneNode(true) as DocumentFragment;
     panel.textContent = '';
@@ -188,12 +194,8 @@ function reveal(v: Visit): void {
   if (v === null) return;
   canvases.forEach((canvas, i) => {
     const g = canvas.querySelector(`.node[data-id="${CSS.escape(v)}"]`);
-    if (!g) return;
-    const c = canvas.getBoundingClientRect();
-    const r = g.getBoundingClientRect();
-    if (r.left >= c.left && r.right <= c.right && r.top >= c.top && r.bottom <= c.bottom) return;
-    const t = ts[i]!;
-    move(i, { x: t.x + (c.left + c.right - r.left - r.right) / 2, y: t.y + (c.top + c.bottom - r.top - r.bottom) / 2, k: t.k });
+    const t = g && revealView(ts[i]!, canvas.getBoundingClientRect(), g.getBoundingClientRect());
+    if (t) move(i, t);
   });
 }
 
@@ -201,7 +203,7 @@ function reveal(v: Visit): void {
 function visit(id: string): void {
   if (!panelFor(id)) return;
   trail.go(id);
-  focus(id);
+  light(id);
 }
 
 function goTo(id: string): void {
@@ -266,7 +268,8 @@ function initMap(): void {
   initTheme();
   initPanelResize();
   window.addEventListener('resize', refit);
-  views = initViews((id) => trail.go(viewVisit(id)), (id) => { if (!fitted.has(id)) fit(); });
+  views = initViews((id) => trail.go(viewVisit(id)), () => fit(false));
+  if (views) light = initSide(views, refit, () => review.paint());
   fit();
   dismissFocus(canvases, () => moved);
   initChips();

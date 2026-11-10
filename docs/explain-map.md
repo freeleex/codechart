@@ -34,7 +34,7 @@ Click a box for its code (the function, class or block the quoted line opens, up
 
 The Flows tab has one sub-tab per behaviour of the area (up to five): "Create an invoice", "Refund an order". Each is the same flow diagram codechart draws for "show me the flow": steps, decisions with *yes* and *no* branches, and for every step the line of code it happens in, shown when you click it.
 
-<img src="images/explain-map-flows.png" alt="The Flows tab of the refunds map: the Refund an order flow with its two decisions, a step selected, and its panel saying it is part of the refund endpoint, with the line of code" width="720">
+<img src="images/explain-map-flows.png" alt="The Flows tab of the refunds map: the Refund an order flow with its two decisions, a step selected, and its panel saying it is part of the Order model, with the line of code" width="720">
 
 The two tabs link to each other:
 
@@ -42,6 +42,18 @@ The two tabs link to each other:
 - A step's panel says **Part of:** and the box it happens in; a click goes back to Components with that box selected.
 
 Each view keeps its own pan and zoom, and the keys (`]` and `[` for the next and previous unreviewed one, `r`, `f`) and the *Reviewed* count act on the view you are in. *Back* (`Alt+←`) walks across views, and the link in the address bar names the tab and what is selected, so you can share it. In the terminal, the map block is followed by one line, `Flows on the page: Refund an order · Create invoices for paid orders`; the flow diagrams are in the page only.
+
+## Side by side
+
+The **Side by side** switch, at the right end of the tab row, shows Components on the left and a flow on the right, so you can read a step next to the box it happens in. The flow tabs under the tab row choose the flow on the right; a main tab ends it and shows its own view.
+
+<img src="images/explain-map-side-by-side.png" alt="Side by side on the refunds map: Components on the left with the Order box lit, the Refund an order flow on the right with the step mark the order refunded selected, and its panel" width="720">
+
+- Click a step: its box lights up on the left and the other boxes fade. A step in no box lights none.
+- Click a box: every step of the flow on the right that happens in it lights up and the others fade.
+- *Esc* or a click on an empty canvas lights everything again.
+
+Each pane has its own pan and zoom. The keys act on what is selected, in either pane (`r`, `f`); *Reviewed* counts every box and the steps of the flow on the right, and `]` and `[` go through the boxes first, then the steps. The address bar carries `&sbs=1`, so a reload or a shared link opens it side by side; the flow on the right is the one the link's step is in, else the first. Under 900px wide the panes stack, one above the other.
 
 ## What is checked
 

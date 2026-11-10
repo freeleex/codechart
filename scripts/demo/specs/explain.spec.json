@@ -104,8 +104,8 @@
   ],
   "edges": [
     { "from": "refund", "to": "flag", "label": "checks", "kind": "reads" },
-    { "from": "refund", "to": "order", "label": "get_order", "kind": "calls" },
-    { "from": "refund", "to": "status", "label": "PAID → REFUNDED", "kind": "writes" },
+    { "from": "refund", "to": "order", "label": "get_order, mark_refunded", "kind": "calls" },
+    { "from": "refund", "to": "status", "label": "OrderStatus.PAID", "kind": "reads" },
     { "from": "migration", "to": "invoice", "label": "creates", "kind": "writes" },
     { "from": "migration", "to": "prefix", "label": "number prefix", "kind": "reads" },
     { "from": "order", "to": "status", "label": "status", "kind": "fk" },
@@ -127,6 +127,14 @@
           "box": "refund",
           "source": "shop/api/refunds.py",
           "match": "def refund(order_id: str):"
+        },
+        {
+          "id": "lookup",
+          "label": "look up the refundsEnabled flag",
+          "status": "existing",
+          "box": "flag",
+          "source": "config/flags.yaml",
+          "match": "refundsEnabled: false"
         },
         {
           "id": "enabled",
@@ -172,14 +180,18 @@
           "id": "mark",
           "label": "mark the order refunded",
           "status": "existing",
-          "box": "refund",
-          "source": "shop/api/refunds.py",
-          "match": "order.status = OrderStatus.REFUNDED"
+          "box": "order",
+          "source": "shop/models/order.py",
+          "match": "self.status = OrderStatus.REFUNDED"
         }
       ],
       "links": [
         {
           "from": "receive",
+          "to": "lookup"
+        },
+        {
+          "from": "lookup",
           "to": "enabled"
         },
         {
@@ -212,7 +224,7 @@
           "to": "mark",
           "label": "yes",
           "source": "shop/api/refunds.py",
-          "match": "order.status = OrderStatus.REFUNDED"
+          "match": "order.mark_refunded()"
         }
       ]
     },
@@ -254,6 +266,14 @@
           "match": "FROM orders WHERE status = 'paid'"
         },
         {
+          "id": "prefix",
+          "label": "read the INVOICE_PREFIX setting",
+          "status": "existing",
+          "box": "prefix",
+          "source": "shop/settings.py",
+          "match": "INVOICE_PREFIX = os.environ.get"
+        },
+        {
           "id": "number",
           "label": "number each invoice with the prefix",
           "status": "existing",
@@ -277,6 +297,10 @@
         },
         {
           "from": "paid",
+          "to": "prefix"
+        },
+        {
+          "from": "prefix",
           "to": "number"
         }
       ]

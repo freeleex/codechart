@@ -16,6 +16,12 @@ export function nodeView(b: { x: number; y: number; width: number; height: numbe
   return { k, x: pane.width / 2 - (b.x + b.width / 2) * k, y: pane.height / 2 - (b.y + b.height / 2) * k };
 }
 
+/** The view that moves a node into the middle of its pane, or null when it is inside the pane already. */
+export function revealView(t: View, pane: DOMRect, node: DOMRect): View | null {
+  if (node.left >= pane.left && node.right <= pane.right && node.top >= pane.top && node.bottom <= pane.bottom) return null;
+  return { x: t.x + (pane.left + pane.right - node.left - node.right) / 2, y: t.y + (pane.top + pane.bottom - node.top - node.bottom) / 2, k: t.k };
+}
+
 /** Eases from one view to another, calling `set` each frame; returns what cancels it. Reduced motion jumps. */
 export function glide(from: View, to: View, set: (v: View) => void): () => void {
   if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches || !window.requestAnimationFrame) {

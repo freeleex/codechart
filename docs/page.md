@@ -19,7 +19,7 @@ Small diagrams stay in the agent's reply; big ones also get an interactive HTML 
 A row under the header counts the nodes per status (`+4 new  ~5 changed  −1 removed  ◆2 config  ·3 context`). It doubles as the colour key.
 
 - Click a chip to fade that status.
-- *Δ changes only* fades the unchanged nodes, so only what changed stands out. An [explain map](explain-map.md) has only an *Outside* chip (nothing in it changed), and when it has flows, a tab row above it: **Components** and **Flows (n)**, with one sub-tab per flow. The chip belongs to Components; each view has its own pan and zoom, and *Reviewed* and *Next* count the view you are in.
+- *Δ changes only* fades the unchanged nodes, so only what changed stands out. An [explain map](explain-map.md) has only an *Outside* chip (nothing in it changed), and when it has flows, a tab row above it: **Components** and **Flows (n)**, with one sub-tab per flow. The chip belongs to Components; each view has its own pan and zoom, and *Reviewed* and *Next* count the view you are in. A *Side by side* switch at the right end of the tab row shows Components and a flow together, then counts both: see [Explain map](explain-map.md#side-by-side).
 - Your choice is remembered.
 
 ## The node panel

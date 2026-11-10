@@ -87,7 +87,7 @@ interface DiagramPage {
   extraDefs?: string;
   /** An explain map with flows: tab rows, and one canvas per view instead of `viewport`. */
   tabs?: string;
-  views?: { id: string; title?: string; cls?: string; viewport: string; width: number; height: number }[];
+  views?: { id: string; title?: string; pane?: string; cls?: string; viewport: string; width: number; height: number }[];
 }
 
 export function renderDiagramPage(p: DiagramPage): string {
