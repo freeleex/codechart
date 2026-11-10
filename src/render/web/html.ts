@@ -7,11 +7,13 @@ import type { Preview } from '../preview.js';
 import { flagMark, flagTitle, mismatchNote } from './check-html.js';
 import { blockHtml } from './block-html.js';
 import { changesHtml } from './changes.js';
+import { flowGaps, type LaidOutCheck } from '../explain-flows.js';
+import { flowPanels, flowSections, flowsThrough, FLOW_DEFS, viewTabs, VIEW_CSS } from './explain-flows-html.js';
 import { DRIFT_CSS, driftInfo, driftMark, driftSection, itemsById, type Ghosts } from './drift-html.js';
 import { edgeEnds, gapsHtml, infoButton, pageInfoSection, renderDiagramPage, renderEdgeSvg, type EdgeEnds } from './diagram.js';
 import { CHANGE_ARROWS, esc, list, num, type HtmlMeta } from './page.js';
 import { edgeChange, edgeOn, fieldsOn, hasNowAfter, nodeOn, SIDE_KEY, type Side } from './states.js';
-import { diffRev, panelShell, relationsHtml, relationsOf, panelTitle, tickSvg } from './tools.js';
+import { COMPONENTS_VIEW, diffRev, panelShell, relationsHtml, relationsOf, panelTitle, tickSvg } from './tools.js';
 
 export { esc, type Theme } from './page.js';
 
@@ -152,6 +154,7 @@ function cardPanel(spec: Spec, n: SpecNode, check: MapCheck | undefined, preview
     if (n.fieldsComplete === false) out += `<p class="fields-note">${FIELDS_NOTE}</p>`;
   }
   if (n.notes?.length) out += `<h3>Notes</h3>${list(n.notes)}`;
+  out += flowsThrough(n.id, check);
   return `<template class="card-panel" data-for="${esc(n.id)}">${panelShell(out, relationsHtml(relationsOf(n.id, spec.edges, labelOf(spec))))}</template>`;
 }
 
@@ -161,7 +164,7 @@ const labelOf = (spec: Spec) => (id: string) => spec.nodes.find((n) => n.id === 
 
 function pageInfo(spec: Spec, check: MapCheck | undefined, sides: boolean, ghosts: Ghosts<SpecNode, SpecEdge> | undefined, now: Date): string {
   const hint = 'Click a node for details. Scroll to zoom, drag to pan';
-  return pageInfoSection(hint, sides, check, driftInfo(ghosts?.drift, now), gapsHtml('Gaps', spec.gaps, 'gap'), gapsHtml('Not on map', spec.omitted, 'omitted'));
+  return pageInfoSection(hint, sides, check, driftInfo(ghosts?.drift, now), gapsHtml('Gaps', flowGaps(spec), 'gap'), gapsHtml('Not on map', spec.omitted, 'omitted'));
 }
 
 /** The spec with the plan's missing nodes and their links added, to lay out and draw. */
@@ -204,19 +207,20 @@ export function viewport(spec: Spec, layout: Layout, check: MapCheck | undefined
 }
 
 /** `previews`: each node's diff, when the render was given one. `ghosts`: a summary's drift from its plan; `layout` is of `withGhosts(spec, ghosts)`. */
-export function renderHtml(spec: Spec, layout: Layout, meta: HtmlMeta, check?: MapCheck, previews?: Map<string, Preview>, ghosts?: Ghosts<SpecNode, SpecEdge>): string {
+export function renderHtml(spec: Spec, layout: Layout, meta: HtmlMeta, check?: MapCheck | LaidOutCheck, previews?: Map<string, Preview>, ghosts?: Ghosts<SpecNode, SpecEdge>): string {
   const sides = hasNowAfter(spec);
   const all = withGhosts(spec, ghosts);
   const drifted = itemsById(ghosts?.drift);
   const ghostIds = new Set(ghosts?.nodes.map((g) => g.id));
   const drift = Boolean(ghosts?.drift.items.length);
   const explain = spec.kind === 'explain';
+  const flows = check && 'views' in check ? check : undefined;
   return renderDiagramPage({
     title: spec.title,
     meta,
     check,
     drift: ghosts?.drift,
-    infoButton: infoButton(check, Boolean(spec.gaps?.length || spec.omitted?.length || drift), {
+    infoButton: infoButton(check, Boolean(flowGaps(spec).length || spec.omitted?.length || drift), {
       mismatch: {
         label: drift ? 'Check / differences / gaps' : 'Check / gaps',
         title: "Show what doesn't match the code, how the build differs from the plan, what is not on the map and what the agent did not read",
@@ -227,15 +231,20 @@ export function renderHtml(spec: Spec, layout: Layout, meta: HtmlMeta, check?: M
           ? { label: 'Differences / gaps', title: 'Show how the build differs from the plan, what is not on the map and what the agent did not read' }
           : { label: 'Not on map / gaps', title: 'Show what is not on the map and what the agent did not read' },
     }),
-    statuses: spec.nodes.map((n) => n.status),
+    statuses: [...spec.nodes.map((n) => n.status), ...(flows?.views.flatMap((v) => v.spec.steps.map(() => 'existing')) ?? [])],
     explain,
     sides,
     paneKey: SIDE_KEY,
     viewport: (side) => viewport(all, layout, check, side, previews, ghosts),
-    aside: `${pageInfo(spec, check, sides, ghosts, meta.generatedAt)}<div id="panel" hidden></div>${all.nodes.map((n) => cardPanel(all, n, check, previews, sides, mark(drifted.get(n.id), ghostIds.has(n.id)))).join('')}`,
+    aside: `${pageInfo(spec, check, sides, ghosts, meta.generatedAt)}<div id="panel" hidden></div>${all.nodes.map((n) => cardPanel(all, n, check, previews, sides, mark(drifted.get(n.id), ghostIds.has(n.id)))).join('')}${flows ? flowPanels(flows, spec) : ''}`,
     width: layout.width,
     height: layout.height,
-    extraDefs: CHANGE_ARROWS,
+    extraDefs: flows ? CHANGE_ARROWS + FLOW_DEFS : CHANGE_ARROWS,
     ...(ghosts && { extraCss: DRIFT_CSS }),
+    ...(flows && {
+      extraCss: VIEW_CSS,
+      tabs: viewTabs(flows.views),
+      views: [{ id: COMPONENTS_VIEW, viewport: viewport(all, layout, check, undefined, previews, ghosts), width: layout.width, height: layout.height }, ...flowSections(flows, meta.change !== undefined)],
+    }),
   });
 }

@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { repoFolder } from '../../src/render/output-path.js';
 import { readReview } from '../../src/review/store.js';
-import { explain, EXPLAIN_FILES } from '../fixtures/explain.js';
+import { explain, EXPLAIN_FILES, withFlows } from '../fixtures/explain.js';
 import { click, mount, node, q, qa, usePages } from '../helpers/page.js';
 import { git, makeSandbox, removeSandbox, runCli } from '../helpers/sandbox.js';
 
@@ -65,5 +65,29 @@ describe('explain page → Finish review → feedback --import', () => {
     const review = readReview(join(dir(), names('.review.json')[0]!))!;
     expect(review.change.kind).toBe('map');
     expect(review.notes.map((n) => n.state)).toEqual(['sent', 'sent']);
+  });
+
+  it('a note on a flow step comes back with its flow title and step label, and stays fresh', async () => {
+    writeFileSync(join(tmp, 'spec.json'), JSON.stringify(withFlows()));
+    const r = await run(['render', join(tmp, 'spec.json'), '--output', 'web']);
+    expect(r.err).toBe('');
+    mount(readFileSync(join(dir(), names('.html')[0]!), 'utf8'));
+    click(q('#view-tabs [data-tab="flows"]'));
+    click(node('flow:create/zero'));
+    click(q('#panel .cm-node-btn'));
+    save('what if the total is negative?');
+
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    click(q('#finish-review'));
+    click(q('.cm-copy'));
+    await new Promise((res) => setTimeout(res, 0));
+    const text = writeText.mock.calls[0]![0] as string;
+
+    const imported = await run(['feedback', '--import', '--take'], text);
+    expect(imported.err).toBe('✔ Imported 1 note into "How billing works"\n');
+    expect(imported.out).toContain('1. Create an invoice: Is the total zero? (app/billing.ts)  [flow:create/zero]\n   Comment: what if the total is negative?');
+    const review = readReview(join(dir(), names('.review.json')[0]!))!;
+    expect(review.notes.map((n) => [n.node, n.state])).toEqual([['flow:create/zero', 'sent']]);
   });
 });

@@ -2,13 +2,16 @@ import { createHash } from 'node:crypto';
 import type { Preview } from '../preview.js';
 import { esc, num } from './page.js';
 
+/** The view of an explain map's boxes, next to one per flow. */
+export const COMPONENTS_VIEW = 'components';
+
 const CHIP_ORDER = ['new', 'changed', 'removed', 'planned', 'config', 'context', 'existing', 'outside'];
 const CHIP_MARK: Record<string, string> = { new: '+', changed: '~', removed: '−', planned: '○', config: '◆', context: '·', existing: '·', outside: '○' };
 /** The statuses a "Δ changes only" chip fades. */
 const UNCHANGED = ['context', 'existing'];
 
 /** The toolbar's status key and filter: a chip per status present, led by "Δ changes only" when unchanged nodes exist. An explain map has nothing changed: only its Outside chip. */
-export function statusChips(statuses: string[], explain = false): string {
+export function statusChips(statuses: string[], explain = false, onlyView?: string): string {
   const counts = new Map<string, number>();
   for (const s of statuses) counts.set(s, (counts.get(s) ?? 0) + 1);
   const chips = CHIP_ORDER.filter((s) => counts.has(s) && (!explain || s === 'outside')).map(
@@ -21,7 +24,7 @@ export function statusChips(statuses: string[], explain = false): string {
       `<button type="button" class="chip chip-delta" data-delta="${unchanged}" aria-pressed="false" title="Fade ${unchanged} nodes, leaving only the changes">Δ changes only</button>`,
     );
   }
-  return chips.length ? `<div id="chips" role="group" aria-label="Status filter">${chips.join('')}</div>` : '';
+  return chips.length ? `<div id="chips" role="group" aria-label="Status filter"${onlyView ? ` data-only-view="${onlyView}"` : ''}>${chips.join('')}</div>` : '';
 }
 
 export const reviewControls = (total: number): string =>

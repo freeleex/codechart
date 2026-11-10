@@ -8,9 +8,11 @@ import { dismissFocus, focus, select } from './focus.js';
 import { glide, nodeView, type View } from './glide.js';
 import { initHunks } from './hunks.js';
 import { initPanelResize } from './resize.js';
-import { startTrail, visitFromHash, type Trail, type Visit } from './history.js';
+import { shownVisit, startTrail, viewOfVisit, viewVisit, type Trail, type Visit } from './history.js';
 import { initReview } from './review.js';
 import { load, save } from './store.js';
+import { initTheme } from './theme.js';
+import { COMPONENTS, initViews, type Views } from './views.js';
 import { expandDrift, gotoOf, initWhy } from './why.js';
 
 interface Drag {
@@ -22,9 +24,7 @@ interface Drag {
   canvas: HTMLElement;
 }
 
-const THEMES = ['auto', 'light', 'dark'];
-
-const data = JSON.parse(document.getElementById('spec-data')!.textContent!) as { page?: string; width: number; height: number; repoKey: string; change?: { slug: string; branch: string; at: string } };
+const data = JSON.parse(document.getElementById('spec-data')!.textContent!) as { page?: string; width: number; height: number; views?: { id: string; width: number; height: number }[]; repoKey: string; change?: { slug: string; branch: string; at: string } };
 const canvases = [...document.querySelectorAll<HTMLElement>('.canvas')];
 const vps = [...document.querySelectorAll<SVGGElement>('.viewport')];
 const panel = document.getElementById('panel')!;
@@ -37,6 +37,10 @@ const focusBtn = document.getElementById('nav-focus') as HTMLButtonElement;
 
 // One transform per pane; while linked, a move in one is copied to all so Now and After stay aligned.
 let ts: View[] = canvases.map(() => ({ x: 0, y: 0, k: 1 }));
+// Panes that share a view move together while linked; a page with views has one canvas in each.
+const sections = canvases.map((c) => c.closest('.view'));
+let views: Views | null = null;
+const fitted = new Set<string>();
 let linked = true;
 let last = 0;
 let drag: Drag | null = null;
@@ -53,7 +57,7 @@ function apply(): void {
 
 function move(i: number, t: View): void {
   last = i;
-  ts = ts.map((old, j) => (linked || j === i ? { x: t.x, y: t.y, k: t.k } : old));
+  ts = ts.map((old, j) => ((linked && sections[j] === sections[i]) || j === i ? { x: t.x, y: t.y, k: t.k } : old));
   apply();
 }
 
@@ -72,12 +76,22 @@ function zoomToSelected(): void {
   stopGlide = () => stops.forEach((s) => s());
 }
 
+/** Fits the view showing (the only one without views) to its canvas. */
 function fit(): void {
-  const r = canvases[0]!.querySelector('svg')!.getBoundingClientRect();
-  const k = Math.min(r.width / data.width, r.height / data.height, 1) || 1;
-  const t = { k, x: (r.width - data.width * k) / 2, y: (r.height - data.height * k) / 2 };
-  ts = ts.map(() => ({ x: t.x, y: t.y, k: t.k }));
+  const section = views ? views.section() : null;
+  const dims = (views && data.views!.find((v) => v.id === views!.active())) || data;
+  const r = canvases[sections.indexOf(section)]!.querySelector('svg')!.getBoundingClientRect();
+  const k = Math.min(r.width / dims.width, r.height / dims.height, 1) || 1;
+  const t = { k, x: (r.width - dims.width * k) / 2, y: (r.height - dims.height * k) / 2 };
+  ts = ts.map((old, j) => (sections[j] === section ? { x: t.x, y: t.y, k: t.k } : old));
+  if (views) fitted.add(views.active());
   apply();
+}
+
+/** A view's canvas has no size while hidden, so it is fitted when first shown; a resize refits the one showing. */
+function refit(): void {
+  fitted.clear();
+  fit();
 }
 
 function endDrag(): void {
@@ -145,9 +159,14 @@ function setInfo(on: boolean): void {
 const panelFor = (id: string) => document.querySelector<HTMLTemplateElement>(`template.card-panel[data-for="${CSS.escape(id)}"]`);
 
 function open(v: Visit): void {
-  const tpl = v === null ? null : panelFor(v);
-  select(tpl ? v : null);
-  focus(tpl ? v : null);
+  const view = viewOfVisit(v);
+  const id = view === null ? v : null;
+  const tpl = id === null ? null : panelFor(id);
+  // The page info of a page with views is its Components view's.
+  const shown = view ?? (id === null ? (views ? COMPONENTS : undefined) : tpl ? views?.of(id) : undefined);
+  if (shown !== undefined && views) views.show(shown);
+  select(tpl ? id : null);
+  focus(tpl ? id : null);
   if (tpl) {
     const filled = tpl.content.cloneNode(true) as DocumentFragment;
     panel.textContent = '';
@@ -199,10 +218,7 @@ function goToExpanded(id: string, open: boolean): void {
 function initPanel(): void {
   const backBtn = document.getElementById('nav-back') as HTMLButtonElement;
   const forwardBtn = document.getElementById('nav-forward') as HTMLButtonElement;
-  const asked = () => {
-    const v = visitFromHash(location.hash);
-    return v === undefined || (v !== null && !panelFor(v)) ? undefined : v;
-  };
+  const asked = () => shownVisit(location.hash, { view: (id) => Boolean(views?.has(id)), node: (id) => panelFor(id) !== null });
   const show = (v: Visit, travelled: boolean) => {
     open(v);
     if (travelled) reveal(v);
@@ -210,7 +226,7 @@ function initPanel(): void {
   trail = startTrail(asked, show, (back, forward) => {
     backBtn.disabled = !back;
     forwardBtn.disabled = !forward;
-  });
+  }, views?.of); // a page with views names the view in the URL as well
   backBtn.addEventListener('click', () => trail.back());
   forwardBtn.addEventListener('click', () => trail.forward());
   focusBtn.addEventListener('click', zoomToSelected);
@@ -225,7 +241,7 @@ function initPanel(): void {
       if (link) goToExpanded(link.id, link.expand);
     });
   }
-  const showInfo = () => trail.go(null);
+  const showInfo = () => trail.go(views ? viewVisit(views.active()) : null);
   if (infoBtn) infoBtn.addEventListener('click', showInfo);
   document.querySelectorAll('header button.check').forEach((b) => b.addEventListener('click', showInfo));
   document.querySelectorAll<SVGGElement>('.node').forEach((g) => {
@@ -243,28 +259,14 @@ function initPanel(): void {
   });
 }
 
-function initTheme(): void {
-  const root = document.documentElement;
-  const btn = document.getElementById('theme-toggle')!;
-  const setTheme = (v: string, remember: boolean) => {
-    root.setAttribute('data-theme', v);
-    btn.textContent = `Theme: ${v}`;
-    if (remember) save('codechart.theme', v);
-  };
-  const saved = load('codechart.theme');
-  setTheme(saved !== null && THEMES.includes(saved) ? saved : root.getAttribute('data-theme')!, false);
-  btn.addEventListener('click', () => {
-    const i = THEMES.indexOf(root.getAttribute('data-theme')!);
-    setTheme(THEMES[(i + 1) % THEMES.length]!, true);
-  });
-}
 let review: ReturnType<typeof initReview>, comments: ReturnType<typeof initComments> | null = null, hunks: ReturnType<typeof initHunks>;
 function initMap(): void {
   initPanZoom();
   initPaneLink();
   initTheme();
   initPanelResize();
-  window.addEventListener('resize', fit);
+  window.addEventListener('resize', refit);
+  views = initViews((id) => trail.go(viewVisit(id)), (id) => { if (!fitted.has(id)) fit(); });
   fit();
   dismissFocus(canvases, () => moved);
   initChips();

@@ -1,10 +1,11 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { businessPage } from '../../src/render/business/html.js';
 import { esc } from '../../src/render/web/page.js';
 import { validateBusinessSpec } from '../../src/spec/business.js';
 import { business } from '../fixtures/business.js';
+import { EXPLAIN_FILES, withFlows } from '../fixtures/explain.js';
 import { makeSandbox, removeSandbox, runCli } from '../helpers/sandbox.js';
 
 const CTRL = /[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/;
@@ -35,6 +36,25 @@ describe('S-38 control characters in HTML', () => {
     const dirty = 'x\u001b]0;pwn\u0007\u0000y';
     const nodes = [{ id: 'a', label: dirty, kind: 'other', status: 'outside', layer: 'l', summary: dirty }];
     await run(['render', '-', '--output', 'web'], JSON.stringify({ title: 't', kind: 'explain', nodes, edges: [] }));
+    const dir = join(outDir, readdirSync(outDir)[0]!);
+    const html = readFileSync(join(dir, readdirSync(dir).find((n) => n.endsWith('.html'))!), 'utf8');
+    expect(html).toContain('x]0;pwny');
+    expect(html).not.toMatch(CTRL);
+  });
+
+  it('an explain flow with ESC/NUL in its title, step label and gap reaches the page and the terminal without them', async () => {
+    for (const [file, text] of Object.entries(EXPLAIN_FILES)) {
+      mkdirSync(join(repo, file, '..'), { recursive: true });
+      writeFileSync(join(repo, file), text);
+    }
+    const dirty = 'x\u001b]0;pwn\u0007\u0000y';
+    const raw = withFlows();
+    raw.flows[1].title = dirty;
+    raw.flows[1].steps[0].label = dirty;
+    raw.flows[1].gaps = [dirty];
+    const r = await run(['render', '-', '--output', 'both'], JSON.stringify(raw));
+    expect(r.out).toContain('Flows on the page: Create an invoice · x ]0;pwn y');
+    expect(r.out).not.toMatch(CTRL);
     const dir = join(outDir, readdirSync(outDir)[0]!);
     const html = readFileSync(join(dir, readdirSync(dir).find((n) => n.endsWith('.html'))!), 'utf8');
     expect(html).toContain('x]0;pwny');

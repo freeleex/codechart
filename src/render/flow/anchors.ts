@@ -273,15 +273,21 @@ function indexList(group: string, idx: number[]): string {
   return `${group}[${parts.join(',')}].source`;
 }
 
-/** `at`: a commit sha to read the files from instead of the working tree. `cwd`: where cwd-relative paths resolve from. */
-export function checkFlowAnchors(spec: FlowSpec, root: string, at?: string, cwd?: string): AnchorResult {
-  const ctx = anchorContext(root, at, cwd);
-  const errors: (string | undefined)[] = [];
-  const snippets: FlowSnippets = { steps: new Map(), links: {} };
-  let checked = 0;
-  const gone = new Map<string, { detail: string; at: number[]; uses: { group: string; i: number }[] }>();
+/** An anchor that did not resolve. `at`: the index of the step or link; `missing` is set when its file does not exist. */
+export interface AnchorFailure {
+  group: 'steps' | 'links';
+  at: number;
+  field: 'source' | 'match';
+  error: string;
+  missing?: { path: string; detail: string };
+}
 
-  const check = (group: 'steps' | 'links', i: number, { source, match }: { source?: string; match?: string }, store: (s: Snippet) => void) => {
+/** Resolves every anchor of the flow; what it could not resolve is in `failures`. */
+export function scanFlowAnchors(spec: Pick<FlowSpec, 'steps' | 'links'>, ctx: AnchorCtx): { snippets: FlowSnippets; checked: number; failures: AnchorFailure[] } {
+  const snippets: FlowSnippets = { steps: new Map(), links: {} };
+  const failures: AnchorFailure[] = [];
+  let checked = 0;
+  const check = (group: 'steps' | 'links', at: number, { source, match }: { source?: string; match?: string }, store: (s: Snippet) => void) => {
     if (!source) return;
     const r = resolveAnchor(source, match, ctx);
     if (!('error' in r)) {
@@ -289,16 +295,25 @@ export function checkFlowAnchors(spec: FlowSpec, root: string, at?: string, cwd?
       store(r.snippet);
       return;
     }
-    if (r.missing) {
-      const g = gone.get(r.missing.path) ?? { detail: r.missing.detail, at: [], uses: [] };
-      g.at.push(errors.length);
-      g.uses.push({ group, i });
-      gone.set(r.missing.path, g);
-    }
-    errors.push(`${group}[${i}].${r.field ?? 'source'}: ${r.error}`);
+    failures.push({ group, at, field: r.field ?? 'source', error: r.error, ...(r.missing && { missing: r.missing }) });
   };
   spec.steps.forEach((step, i) => check('steps', i, step, (s) => snippets.steps.set(step.id, s)));
   spec.links.forEach((link, i) => check('links', i, link, (s) => (snippets.links[i] = s)));
+  return { snippets, checked, failures };
+}
+
+/** `at`: a commit sha to read the files from instead of the working tree. `cwd`: where cwd-relative paths resolve from. */
+export function checkFlowAnchors(spec: FlowSpec, root: string, at?: string, cwd?: string): AnchorResult {
+  const { snippets, checked, failures } = scanFlowAnchors(spec, anchorContext(root, at, cwd));
+  const errors: (string | undefined)[] = failures.map((f) => `${f.group}[${f.at}].${f.field}: ${f.error}`);
+  const gone = new Map<string, { detail: string; at: number[]; uses: { group: string; i: number }[] }>();
+  failures.forEach((f, k) => {
+    if (!f.missing) return;
+    const g = gone.get(f.missing.path) ?? { detail: f.missing.detail, at: [], uses: [] };
+    g.at.push(k);
+    g.uses.push({ group: f.group, i: f.at });
+    gone.set(f.missing.path, g);
+  });
 
   // Each repeat of the repo-root sentence costs tokens, so a file two or more anchors share is said once.
   for (const [path, g] of gone) {

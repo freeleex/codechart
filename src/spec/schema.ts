@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { validateBusinessSpec, type BusinessSpec } from './business.js';
 import { matchSchema, validateFlowSpec, type FlowSpec } from './flow.js';
 import { validateReleaseSpec, type ReleaseSpec } from './release.js';
-import { explainIssues } from './explain.js';
+import { explainFlowSchema, explainIssues, MAX_FLOWS, withTypes, type ExplainFlow } from './explain.js';
 import { codeLabelIssue, driftBase, driftIssues, formatIssues, ident, labelIssues, long, pathStr, short, shortOpt, type ValidationResult as Result } from './shared.js';
 
 export const STATUSES = ['new', 'changed', 'removed', 'context', 'config', 'existing', 'outside'] as const;
@@ -60,6 +60,7 @@ const specSchema = z
     gaps: z.array(long()).optional(),
     omitted: z.array(long()).optional(),
     drift: z.array(driftSchema).max(MAX_NODES).optional().describe('Summary only: how the build differs from the plan, one entry per node'),
+    flows: z.array(explainFlowSchema).max(MAX_FLOWS, `at most ${MAX_FLOWS} flows; keep the main behaviours`).optional().describe('Explain map only: step-by-step behaviours of the area, shown on the page\'s Flows tab'),
   })
   // eslint-disable-next-line max-lines-per-function -- ratchet: one superRefine; barely over
   .superRefine((spec, ctx) => {
@@ -137,7 +138,7 @@ const specSchema = z
 type ParsedSpec = z.infer<typeof specSchema>;
 export type NodeKind = (typeof NODE_KINDS)[number];
 export type SpecNode = ParsedSpec['nodes'][number] & { kind: NodeKind };
-export type Spec = Omit<ParsedSpec, 'nodes'> & { nodes: SpecNode[] };
+export type Spec = Omit<ParsedSpec, 'nodes' | 'flows'> & { nodes: SpecNode[]; flows?: ExplainFlow[] };
 export type SpecEdge = Spec['edges'][number];
 export type Field = NonNullable<SpecNode['fields']>[number];
 export type Status = (typeof STATUSES)[number];
@@ -155,7 +156,9 @@ export function validateSpec(input: unknown): ValidationResult {
   const result = specSchema.safeParse(input);
   if (!result.success) return { ok: false, errors: formatIssues(result.error) };
   const nodes = result.data.nodes.map((n) => ({ ...n, kind: n.kind ?? 'file' }));
-  return { ok: true, spec: { ...result.data, nodes } };
+  const { flows: raw, ...rest } = result.data;
+  const flows = withTypes(raw);
+  return { ok: true, spec: { ...rest, nodes, ...(flows && { flows }) } };
 }
 
 /** Any kind of spec `render` takes: a release map, a business spec, a flow or a map. */

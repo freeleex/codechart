@@ -12,7 +12,7 @@ import { FLOW_SIDE_KEY, hasFlowNowAfter, isAltered, linkOn, linkTone, stepOn } f
 import type { FlowSnippets, Snippet } from './anchors.js';
 import { BADGE_HEIGHT, LINE_HEIGHT, type FlowLayout, type FlowLayoutEdge, type FlowLayoutNode } from './layout.js';
 
-const FLOW_CSS = `
+export const FLOW_CSS = `
 .node .shape{fill:var(--card);stroke:var(--muted);stroke-width:1.2}
 .node .label{font-weight:500;text-anchor:middle}
 .node .badge{text-anchor:middle;font-weight:600}
@@ -123,10 +123,12 @@ export function snippetHtml(s: Snippet): string {
 
 const tag = (status: string) => `<span class="tag tag-${esc(status)}">${esc(status)}</span>`;
 
-function stepPanel(spec: FlowSpec, step: FlowStep, snippets: FlowSnippets, byId: Map<string, FlowStep>, check: CheckSummary | undefined, mark?: { drift: DriftItem<FlowStep>; ghost: boolean }): string {
+/** `partOf`: html for the line saying which box of an explain map the step happens in. `plain`: an explain map's step: no status tag, and the panel's body in a `.steppanel` the flow's panel rules are scoped to. */
+export function stepPanel(spec: FlowSpec, step: FlowStep, snippets: FlowSnippets, byId: Map<string, FlowStep>, check: CheckSummary | undefined, extra: { mark?: { drift: DriftItem<FlowStep>; ghost: boolean }; partOf?: string; plain?: boolean } = {}): string {
+  const { mark, partOf = '', plain = false } = extra;
   const ghost = mark?.ghost ?? false;
   let out = panelTitle(step.id, step.label, !ghost);
-  out += `<div class="status">${ghost ? '<span class="tag">not built</span>' : tag(step.status)} ${esc(step.type)}</div>`;
+  out += `<div class="status">${ghost ? '<span class="tag">not built</span>' : plain ? '' : `${tag(step.status)} `}${esc(step.type)}</div>${partOf}`;
   out += mismatchNote(check, step.id);
   const snip = snippets.steps.get(step.id);
   if (step.status === 'planned') {
@@ -153,7 +155,7 @@ function stepPanel(spec: FlowSpec, step: FlowStep, snippets: FlowSnippets, byId:
   }
   const links = spec.links.map((l) => ({ from: l.from, to: l.to, label: l.label }));
   const relations = relationsHtml(relationsOf(step.id, links, (id) => byId.get(id)?.label ?? id));
-  return `<template class="card-panel" data-for="${esc(step.id)}">${panelShell(out, relations)}</template>`;
+  return `<template class="card-panel" data-for="${esc(step.id)}">${panelShell(plain ? `<div class="steppanel">${out}</div>` : out, relations)}</template>`;
 }
 
 function pageInfo(spec: FlowSpec, anyPlanned: boolean, sides: boolean, check: CheckSummary | undefined, ghosts: Ghosts<FlowStep, FlowLink> | undefined, now: Date): string {
@@ -173,7 +175,7 @@ export const withGhosts = (spec: FlowSpec, ghosts: Ghosts<FlowStep, FlowLink> | 
   ghosts ? { ...spec, steps: [...spec.steps, ...ghosts.nodes], links: [...spec.links, ...ghosts.links] } : spec;
 
 /** Without `side`: the whole plan or summary in one picture. `spec` is laid out with its ghosts. */
-function viewport(spec: FlowSpec, layout: FlowLayout, check: CheckSummary | undefined, side?: Side, ghosts?: Ghosts<FlowStep, FlowLink>, revs?: Map<string, string>): string {
+export function flowViewport(spec: FlowSpec, layout: FlowLayout, check: CheckSummary | undefined, side?: Side, ghosts?: Ghosts<FlowStep, FlowLink>, revs?: Map<string, string>): string {
   const drifted = itemsById(ghosts?.drift);
   const ghostIds = new Set(ghosts?.nodes.map((g) => g.id));
   const ghostLinks = new Set(ghosts?.links);
@@ -223,8 +225,8 @@ export function renderFlowHtml(spec: FlowSpec, layout: FlowLayout, snippets: Flo
     statuses: spec.steps.map((s) => s.status),
     sides,
     paneKey: FLOW_SIDE_KEY,
-    viewport: (side) => viewport(all, layout, check, side, ghosts, revs),
-    aside: `${pageInfo(spec, anyPlanned, sides, check, ghosts, meta.generatedAt)}<div id="panel" hidden></div>${all.steps.map((s) => stepPanel(all, s, snippets, byId, check, mark(drifted.get(s.id), ghostIds.has(s.id)))).join('')}`,
+    viewport: (side) => flowViewport(all, layout, check, side, ghosts, revs),
+    aside: `${pageInfo(spec, anyPlanned, sides, check, ghosts, meta.generatedAt)}<div id="panel" hidden></div>${all.steps.map((s) => stepPanel(all, s, snippets, byId, check, { mark: mark(drifted.get(s.id), ghostIds.has(s.id)) })).join('')}`,
     width: layout.width,
     height: layout.height,
     extraCss: ghosts ? FLOW_CSS + DRIFT_CSS : FLOW_CSS,

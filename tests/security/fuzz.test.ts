@@ -171,6 +171,20 @@ describe('validators (property)', () => {
     }), RUNS);
   });
 
+  it('explain specs with hostile flows never throw; an accepted step box and flow id are visible text', () => {
+    fc.assert(fc.property(text, text, text, (id, box, label) => {
+      const r = validateSpec({
+        title: 't', kind: 'explain', nodes: [{ id: 'a', label: 'a', kind: 'other', status: 'outside', layer: 'l' }], edges: [],
+        flows: [{ id, title: label, start: 's', steps: [{ id: 's', label, status: 'existing', source: 'a.ts:1', box }], links: [] }],
+      });
+      expect(typeof r.ok).toBe('boolean');
+      if (r.ok && r.spec.diagram !== 'flow') {
+        expect(r.spec.flows![0]!.steps[0]!.box).toBe('a');
+        expect(r.spec.flows![0]!.id).not.toMatch(CONTROL);
+      }
+    }), RUNS);
+  });
+
   it('parseConfigFile never throws on arbitrary input', () => {
     fc.assert(fc.property(json, (v) => {
       expect(typeof parseConfigFile(v).ok).toBe('boolean');

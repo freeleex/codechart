@@ -53,5 +53,6 @@ A plan that changes existing behaviour gets a flow with two panes, Now and After
 ## Related
 
 - [Plans: Now and After](plans.md)
+- [Explain map](explain-map.md): an existing area's main behaviours as flows on a tab next to its map
 - [Why you can trust the diagram](trust.md)
 - [Flow design](flow-design.md): how flows are specified, anchored and drawn

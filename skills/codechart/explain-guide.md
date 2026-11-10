@@ -32,6 +32,21 @@ Read the area before writing: the entry points, the models or tables, the servic
     { "from": "billing", "to": "invoice", "label": "status", "kind": "writes" },
     { "from": "billing", "to": "email", "label": "receipt", "kind": "calls" },
     { "from": "billing", "to": "stripe", "label": "charge", "kind": "calls" }],
+  "flows": [
+    { "id": "create", "title": "Create an invoice", "start": "receive",
+      "steps": [
+        { "id": "receive", "label": "receive the request", "status": "existing", "box": "invoices-api",
+          "source": "app/api/invoices.py", "match": "def create_invoice(" },
+        { "id": "free", "label": "total is zero?", "status": "existing", "box": "billing",
+          "source": "app/billing/service.py", "match": "if total == 0" },
+        { "id": "skip", "label": "skip the charge", "status": "existing", "box": "billing",
+          "source": "app/billing/service.py", "match": "return skip_charge" },
+        { "id": "charge", "label": "charge the card", "status": "existing", "box": "billing",
+          "source": "app/billing/service.py", "match": "provider.charge" }],
+      "links": [
+        { "from": "receive", "to": "free" },
+        { "from": "free", "to": "skip", "label": "yes", "source": "app/billing/service.py", "match": "if total == 0" },
+        { "from": "free", "to": "charge", "label": "no", "source": "app/billing/service.py", "match": "provider.charge" }] }],
   "gaps": ["refund job: not read"] }
 ```
 
@@ -43,7 +58,9 @@ Read the area before writing: the entry points, the models or tables, the servic
 - Edges: dependent → dependency, in plain words (the column, method or key), never pasted code; only ones you saw. No `change`.
 - Not allowed: `new`, `changed`, `removed`, `config` and `context` boxes, edge or field `change`, `was`, `drift`, `omitted`. No `rules`: nothing triggers an explain map but the user's ask.
 - `gaps`: what you did not read or run.
+- `flows`: the 2-5 main behaviours of the area, each one a step-by-step flow on the page's Flows tab; leave it out when the area has no behaviour worth following. Each is `{ id, title, start, steps, links, gaps? }`: `id` unique, `title` a plain-words name of the behaviour ("Create an invoice"), the rest as in [flow-guide.md](flow-guide.md): steps, decisions with labelled `yes`/`no` branches, every step and every branch out of a decision anchored (`source` as `path:line` or the path plus `match`). At most about 15 steps each; more means two flows. Nothing changed, so every step is `existing` (no other status, no `planned` or `removed` link). Set `box` on a step to the id of the box it happens in, the box whose file holds the step's anchor, so the page links each step to its box and each box to its flows; leave it out for a step that is in no box. A flow's `gaps` are what you did not check in it.
+- A step or branch whose anchor doesn't resolve is marked `✗` like a box (not a failed render): reread the file and fix it.
 
 ## Render
 
-`codechart render --md - <<'EOF'` as in step 2 of [SKILL.md](SKILL.md), with no diff flags (they and `--pr` are refused). `--at '<rev>'` only when the user asks about another revision. Reply as in step 3: one line on the area, the render output verbatim, then the prose: what surprised you, what you did not read. Never commit the map; draw a fresh one for each request.
+`codechart render --md - <<'EOF'` as in step 2 of [SKILL.md](SKILL.md), with no diff flags (they and `--pr` are refused). `--at '<rev>'` only when the user asks about another revision. Reply as in step 3: one line on the area, the render output verbatim (with flows it ends with `Flows on the page: …`), then the prose: what surprised you, what you did not read. Never commit the map; draw a fresh one for each request.

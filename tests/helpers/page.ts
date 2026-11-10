@@ -58,16 +58,17 @@ export const panesNotes = renderHtml(plan, await layoutSpec(plan, PANE_CANVASES)
 export const q = <T extends Element>(sel: string) => document.querySelector(sel) as T;
 export const qa = <T extends Element>(sel: string) => [...document.querySelectorAll<T>(sel)];
 export const click = (el: Element) => el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-export const node = (id: string, pane = 0) => qa<SVGGElement>('.canvas')[pane]!.querySelector(`.node[data-id="${id}"]`) as SVGGElement;
+/** In pane `pane`; a page with views has one canvas per view, so a node not in the pane is looked for in them all. */
+export const node = (id: string, pane = 0) => (qa<SVGGElement>('.canvas')[pane]!.querySelector(`.node[data-id="${id}"]`) ?? document.querySelector(`.node[data-id="${id}"]`)) as SVGGElement;
 export const key = (k: string) => window.dispatchEvent(new KeyboardEvent('keydown', { key: k }));
 
 const added: [string, EventListenerOrEventListenerObject][] = [];
 const addListener = window.addEventListener.bind(window);
 
-/** Runs the page's script in happy-dom; `fresh` false keeps the saved settings, as a reload does. */
-export function mount(html: string, fresh = true): void {
+/** Runs the page's script in happy-dom; `fresh` false keeps the saved settings, as a reload does; `hash` is the URL's. */
+export function mount(html: string, fresh = true, hash = ''): void {
   for (const [type, fn] of added.splice(0)) window.removeEventListener(type, fn);
-  history.replaceState(null, '', '/');
+  history.replaceState(null, '', `/${hash}`);
   if (fresh) localStorage.clear();
   document.documentElement.innerHTML = html.replace(/^[\s\S]*?<html[^>]*>/i, '').replace(/<\/html>\s*$/i, '');
   for (const s of document.querySelectorAll('script')) if (s.type !== 'application/json') new Function(s.textContent ?? '')();

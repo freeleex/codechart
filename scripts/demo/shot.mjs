@@ -1,7 +1,8 @@
-// node shot.mjs <page.html> <out.png> <width> <height> <light|dark> [click-node-id]
+// node shot.mjs <page.html> <out.png> <width> <height> <light|dark> [click-node-id [tab]]
+// tab: a tab of the page's view row (e.g. flows), opened before the click
 import { chromium } from 'playwright';
 
-const [html, out, w, h, scheme, clickId] = process.argv.slice(2);
+const [html, out, w, h, scheme, clickId, tab] = process.argv.slice(2);
 const browser = await chromium.launch();
 const page = await browser.newPage({
   viewport: { width: Number(w), height: Number(h) },
@@ -11,6 +12,10 @@ const page = await browser.newPage({
 await page.goto(`file://${html}`);
 await page.waitForSelector('.node');
 await page.waitForTimeout(700);
+if (tab) {
+  await page.click(`#view-tabs [data-tab="${tab}"]`);
+  await page.waitForTimeout(400);
+}
 if (clickId) {
   const box = await page.locator(`.node[data-id="${clickId}"]`).first().boundingBox();
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
