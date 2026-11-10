@@ -13,10 +13,12 @@ const TIER: Record<Status, number> = {
   removed: 0,
   config: 1,
   context: 2,
+  existing: 0,
+  outside: 2,
 };
 
 function candidates(spec: Spec): SpecNode[] {
-  if (!spec.nodes.some((n) => TIER[n.status] === 0))
+  if (spec.kind === "explain" || !spec.nodes.some((n) => TIER[n.status] === 0))
     return spec.nodes;
   const primary = new Set(
     spec.nodes.filter((n) => PRIMARY.has(n.status)).map((n) => n.id),

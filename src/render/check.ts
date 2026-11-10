@@ -2,6 +2,7 @@ import { relative, resolve, sep } from 'node:path';
 import type { FlowSpec } from '../spec/flow.js';
 import type { Spec, SpecNode } from '../spec/schema.js';
 import { anchorContext, findMatch, likelyPath, load, locate, type AnchorCtx, type FlowSnippets, type Snippet } from './flow/anchors.js';
+import { blockOf, type Block } from './block.js';
 import { stepLabel } from './flow/tree.js';
 import { explains } from './omitted.js';
 import type { CheckSummary, Mismatch } from './terminal/check-lines.js';
@@ -27,6 +28,8 @@ export function diffOf(files: string[]): Diff {
 export interface MapCheck extends CheckSummary {
   /** The line each node's `match` found. */
   matches: Map<string, Snippet>;
+  /** The code each explain box shows. */
+  blocks: Map<string, Block>;
   /** Where each node's file was found, repo-relative with `/`. */
   found: Map<string, string>;
 }
@@ -42,8 +45,8 @@ interface CheckOptions {
 
 export const repoPath = (root: string, path: string) => relative(root, resolve(root, path)).split(sep).join('/');
 
-// A removed node may be a class deleted from a file that stays; a planned new file doesn't exist yet.
-const mustExist = (spec: Spec, node: SpecNode) => (spec.kind === 'plan' ? node.status !== 'new' : node.status !== 'removed');
+// A removed node may be a class deleted from a file that stays; a planned new file doesn't exist yet. An explain map's boxes with a path all exist.
+const mustExist = (spec: Spec, node: SpecNode) => spec.kind === 'explain' || (spec.kind === 'plan' ? node.status !== 'new' : node.status !== 'removed');
 export const IN_DIFF: ReadonlySet<string> = new Set(['new', 'changed', 'removed']);
 
 type Problem = Pick<Mismatch, 'short' | 'detail'>;
@@ -57,6 +60,7 @@ interface NodeCheck {
   /** Where the node's file was found, repo-relative with `/`. */
   found?: string;
   match?: Snippet;
+  block?: Block;
 }
 
 function checkNode(c: AnchorCtx, spec: Spec, node: SpecNode & { path: string }, diff: Diff | undefined): NodeCheck {
@@ -71,28 +75,39 @@ function checkNode(c: AnchorCtx, spec: Spec, node: SpecNode & { path: string }, 
   if (diff && spec.kind === 'summary' && IN_DIFF.has(node.status) && !inDiff(c, where.path, diff)) {
     return { found, problem: { short: 'not in diff', detail: `marked ${node.status}, but ${where.path} isn't in the diff` } };
   }
-  if (node.match === undefined || !needed || !where.found) return { found };
+  const explaining = spec.kind === 'explain';
+  if (!needed || !where.found || (node.match === undefined && !explaining)) return { found };
   const loaded = load(c, where.path);
   if (loaded.lines === null || !Array.isArray(loaded.lines)) {
+    // an explain box may name a folder or a file too big to read: there is no code to show
+    if (node.match === undefined) return { found };
     return { found, problem: { short: 'file unreadable', detail: loaded.lines?.error ?? `${where.path} does not exist` } };
   }
-  const r = findMatch(loaded.path, node.match, loaded.lines);
-  if ('error' in r) {
-    return { found, problem: { short: r.error.endsWith(` not found in ${loaded.path}`) ? 'match not found' : 'match on several lines', detail: r.error } };
+  return { found, ...matchAndBlock(loaded.path, loaded.lines, node.match, explaining) };
+}
+
+/** The quoted line, if there is one, and for an explain box the block around it. */
+function matchAndBlock(path: string, lines: string[], needle: string | undefined, explaining: boolean): Omit<NodeCheck, 'found'> {
+  let match: Snippet | undefined;
+  if (needle !== undefined) {
+    const r = findMatch(path, needle, lines);
+    if ('error' in r) return { problem: { short: r.error.endsWith(` not found in ${path}`) ? 'match not found' : 'match on several lines', detail: r.error } };
+    match = r.snippet;
   }
-  return { found, match: r.snippet };
+  return { match, block: explaining ? blockOf(path, lines, match?.startLine) : undefined };
 }
 
 /** Checks each node with a `path` against the files (at `at`, or the working tree) and, given a diff, a summary's changes against it. */
 export function checkMapNodes(spec: Spec, root: string, opts: CheckOptions = {}): MapCheck {
   const c = anchorContext(root, opts.at, opts.cwd);
-  const result: MapCheck = { checked: 0, mismatches: [], matches: new Map(), found: new Map(), unit: 'node' };
+  const result: MapCheck = { checked: 0, mismatches: [], matches: new Map(), blocks: new Map(), found: new Map(), unit: spec.kind === 'explain' ? 'box' : 'node' };
   for (const node of spec.nodes) {
     if (node.path === undefined) continue;
     result.checked++;
-    const { problem, found, match } = checkNode(c, spec, { ...node, path: node.path }, opts.diff);
+    const { problem, found, match, block } = checkNode(c, spec, { ...node, path: node.path }, opts.diff);
     if (found) result.found.set(node.id, found);
     if (match) result.matches.set(node.id, match);
+    if (block) result.blocks.set(node.id, block);
     if (problem) result.mismatches.push({ id: node.id, label: plainLabel(node), ...problem });
   }
   if (opts.diff && spec.kind === 'summary') {

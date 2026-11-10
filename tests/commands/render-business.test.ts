@@ -91,6 +91,16 @@ describe('render: business map', () => {
     expect(other.code).toBe(1);
   });
 
+  it('never takes a saved explain map for the tech map, even when it is the newest', async () => {
+    const outside = { title: 'How refunds work', kind: 'explain', nodes: [{ id: 'stripe', label: 'Stripe API', kind: 'other', status: 'outside', layer: 'l' }], edges: [] };
+    await run(['render', fileOf('explain.json', outside), '--output', 'cli']);
+    expect((await renderBusiness(business())).err).toContain('no tech map found for this change');
+    await renderTech();
+    await run(['render', fileOf('explain.json', outside), '--output', 'cli']);
+    expect((await renderBusiness(business())).err).toBe('');
+    expect((await renderBusiness({ ...business(), map: 'how-refunds-work.explain' })).err).toContain('no tech map found for this change');
+  });
+
   it('fails without a tech map', async () => {
     const r = await renderBusiness(business());
     expect(r.err).toBe("codechart: no tech map found for this change: render the tech map first, or pass --tech '<spec.json>'\n");

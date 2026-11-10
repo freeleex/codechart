@@ -26,9 +26,10 @@ export const driftBase = {
     .describe('The detailed reason, 1-3 plain sentences: what you found, what you did instead, what it means for the user'),
 };
 
-/** `drift` explains a summary's differences from its plan: not allowed in a plan, one entry per id. */
-export function driftIssues(kind: 'plan' | 'summary', ids: readonly string[] | undefined, issue: (path: (string | number)[], message: string) => void): void {
+/** `drift` explains a summary's differences from its plan: not allowed in a plan or an explain map, one entry per id. */
+export function driftIssues(kind: 'plan' | 'summary' | 'explain', ids: readonly string[] | undefined, issue: (path: (string | number)[], message: string) => void): void {
   if (ids === undefined) return;
+  if (kind === 'explain') return issue(['drift'], 'not in an explain map: there is no plan to differ from');
   if (kind === 'plan') return issue(['drift'], 'only in a summary: it says how the build differs from the plan');
   const seen = new Set<string>();
   ids.forEach((id, i) => {

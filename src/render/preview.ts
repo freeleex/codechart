@@ -6,6 +6,7 @@ import type { Spec } from '../spec/schema.js';
 import { IN_DIFF, repoPath, type Diff } from './check.js';
 import { clip } from './clip.js';
 import { generatedFiles } from './generated.js';
+import { looksSecret, PRIVATE_KEY } from './secret.js';
 
 /** Rows kept per file. */
 const MAX_ROWS = 1000;
@@ -93,14 +94,6 @@ function untrackedPreview(root: string, rel: string, budget: Budget, max: number
 }
 
 const SECRET = { note: 'not shown: looks like a secret' };
-const SECRET_NAME = /^(\.env(\..*)?|.*\.(pem|key|p12|pfx)|id_(rsa|dsa|ecdsa|ed25519).*|\.npmrc|\.netrc|\.pypirc|.*credentials.*)$/i;
-const ENV_TEMPLATE = /^\.env\.(example|sample|template)$/i;
-const PRIVATE_KEY = /-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----/;
-
-const looksSecret = (rel: string) => {
-  const name = rel.slice(rel.lastIndexOf('/') + 1);
-  return SECRET_NAME.test(name) && !ENV_TEMPLATE.test(name);
-};
 
 const insideRoot = (root: string, path: string) => {
   try {

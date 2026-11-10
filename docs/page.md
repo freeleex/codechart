@@ -19,7 +19,7 @@ Small diagrams stay in the agent's reply; big ones also get an interactive HTML 
 A row under the header counts the nodes per status (`+4 new  ~5 changed  −1 removed  ◆2 config  ·3 context`). It doubles as the colour key.
 
 - Click a chip to fade that status.
-- *Δ changes only* fades the unchanged nodes, so only what changed stands out.
+- *Δ changes only* fades the unchanged nodes, so only what changed stands out. An [explain map](explain-map.md) has only an *Outside* chip: nothing in it changed.
 - Your choice is remembered.
 
 ## The node panel

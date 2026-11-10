@@ -177,6 +177,18 @@ More: [Maps in pull requests](docs/pr-maps.md)
 <tr>
 <td width="46%" valign="middle">
 
+### Explain map
+
+On request, a map of how an existing area works, for someone new to the project: one box per table, service or endpoint, what each is for, and the neighbours it talks to. Nothing changed, so no diff.
+
+More: [Explain map](docs/explain-map.md)
+
+</td>
+<td width="54%" valign="middle"><img src="docs/images/explain-map.png" alt="Explain map of refunds and invoices: boxes for the refund endpoint, flags, orders, invoices and payment methods in the area, and dashed faded boxes for the customer model and PayPal it talks to"></td>
+</tr>
+<tr>
+<td width="46%" valign="middle">
+
 ### Business map
 
 On request, a plain-words page for a product owner with no repo access: journeys, rules, saved data and questions. They answer, confirm and send it back.

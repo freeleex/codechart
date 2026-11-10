@@ -1,3 +1,4 @@
+import { isExplainSlug } from '../render/output-path.js';
 import { sanitizeText } from '../render/strip.js';
 import type { DiffLine, Note, NoteKind, Review, ReviewNode } from './schema.js';
 
@@ -80,7 +81,8 @@ export function buildDoc(review: Review): string {
   for (const node of nodes.filter(hasDiff)) out.push(...nodeBlock(node, of(node), digits, seen));
   const rest = nodes.filter((n) => !hasDiff(n));
   if (rest.length) {
-    out.push('', '# Unchanged on the map (you can still note on them):');
+    // An explain map has no diff, so none of its boxes is "unchanged".
+    out.push('', isExplainSlug(change.slug) ? '# On the map (you can note on any box):' : '# Unchanged on the map (you can still note on them):');
     for (const node of rest) out.push(nodeHeader(node), ...of(node).map(noteText));
   }
   const ids = new Set(nodes.map((n) => n.id));

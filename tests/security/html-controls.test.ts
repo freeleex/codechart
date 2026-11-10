@@ -31,6 +31,16 @@ describe('S-38 control characters in HTML', () => {
     expect(esc('a\u001b[2J\u0000\u007f\u009bb\n\tc')).toBe('a[2Jb\n\tc');
   });
 
+  it('an explain box with ESC/NUL in its label and summary reaches the page without them', async () => {
+    const dirty = 'x\u001b]0;pwn\u0007\u0000y';
+    const nodes = [{ id: 'a', label: dirty, kind: 'other', status: 'outside', layer: 'l', summary: dirty }];
+    await run(['render', '-', '--output', 'web'], JSON.stringify({ title: 't', kind: 'explain', nodes, edges: [] }));
+    const dir = join(outDir, readdirSync(outDir)[0]!);
+    const html = readFileSync(join(dir, readdirSync(dir).find((n) => n.endsWith('.html'))!), 'utf8');
+    expect(html).toContain('x]0;pwny');
+    expect(html).not.toMatch(CTRL);
+  });
+
   it('a node path with ESC/NUL reaches the page without them', async () => {
     await run(['render', '-', '--output', 'web'], JSON.stringify(spec('x', 'src/\u001b]0;pwn\u0007\u0000a.ts')));
     const dir = join(outDir, readdirSync(outDir)[0]!);

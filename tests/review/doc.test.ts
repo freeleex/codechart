@@ -34,6 +34,14 @@ describe('buildDoc', () => {
     expect(doc).not.toContain('## queue  [q]\n\n');
   });
 
+  it('an explain map has no unchanged boxes: its boxes sit under "On the map"', () => {
+    const r = review([], [{ id: 'q', label: 'queue' }, { id: 'c', label: 'cache', path: 'src/cache.ts' }]);
+    const doc = buildDoc({ ...r, change: { ...r.change, slug: 'invites.explain' } });
+    expect(doc).toContain('\n# On the map (you can note on any box):\n## queue  [q]\n## cache — src/cache.ts  [c]\n');
+    expect(doc).not.toContain('Unchanged');
+    expect(parseDoc(doc, r, new Date()).warnings).toEqual([]);
+  });
+
   it('a second node on the same file and diff points back instead of repeating the hunks', () => {
     const twin = { ...api, id: 'api2', label: 'invites model' };
     const doc = buildDoc(review([note('n1', { node: 'api2', body: 'same here', anchor: undefined })], [api, twin]));

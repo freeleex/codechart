@@ -12,6 +12,7 @@ import { validateBusinessSpec } from '../../src/spec/business.js';
 import { validateReleaseSpec } from '../../src/spec/release.js';
 import { validateSpec } from '../../src/spec/schema.js';
 import { business } from '../fixtures/business.js';
+import { explain } from '../fixtures/explain.js';
 import { release } from '../fixtures/release.js';
 import { sampleFlow, sampleSnippets } from '../render/flow-fixture.js';
 
@@ -23,9 +24,11 @@ async function pages(): Promise<[string, string][]> {
   const flow = sampleFlow();
   const b = validateBusinessSpec(business());
   const r = validateReleaseSpec(release());
-  if (!b.ok || !r.ok) throw new Error('fixture');
+  const e = validateSpec(explain());
+  if (!b.ok || !r.ok || !e.ok || e.spec.diagram === 'flow') throw new Error('fixture');
   return [
     ['map', await renderHtml(v.spec, await layoutSpec(v.spec), meta)],
+    ['explain', await renderHtml(e.spec, await layoutSpec(e.spec), meta)],
     ['flow', await renderFlowHtml(flow, await layoutFlow(flow), sampleSnippets(), meta)],
     ['business', businessPage(b.spec, meta)],
     ['release', releasePage(r.spec, meta, { product: 'Acme', logo: 'data:image/png;base64,AAAA' })],
@@ -33,7 +36,7 @@ async function pages(): Promise<[string, string][]> {
 }
 
 describe('S-17 CSP', () => {
-  it.each(['map', 'flow', 'business'])('%s page carries a CSP whose script hash matches the inline script', async (kind) => {
+  it.each(['map', 'explain', 'flow', 'business'])('%s page carries a CSP whose script hash matches the inline script', async (kind) => {
     const html = (await pages()).find(([k]) => k === kind)![1];
     const csp = html.match(/<meta http-equiv="Content-Security-Policy" content="([^"]*)">/)?.[1];
     expect(csp).toBeDefined();

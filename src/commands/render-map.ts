@@ -1,6 +1,6 @@
 import { checkMapNodes } from '../render/check.js';
 import { compareMaps } from '../render/map-drift.js';
-import { fullMapLine, KEY, renderTerminalDetailed } from '../render/terminal/render.js';
+import { EXPLAIN_KEY, fullMapLine, KEY, renderTerminalDetailed } from '../render/terminal/render.js';
 import { alertLine, webAlert } from '../render/terminal/check-lines.js';
 import { driftBlock } from '../render/terminal/drift-lines.js';
 import { selectTerminalNodes } from '../render/terminal/select.js';
@@ -17,9 +17,9 @@ import { diffRange } from '../rules/selection.js';
 import type { Spec } from '../spec/schema.js';
 import { chooseOutput, type RenderContext, type Rendered } from './choose-output.js';
 
-function markdown(map: string | undefined, htmlPath: string | undefined, alert: string): string {
+function markdown(spec: Spec, map: string | undefined, htmlPath: string | undefined, alert: string): string {
   const body = map !== undefined && htmlPath ? map.split('\n').filter((l) => l !== fullMapLine(htmlPath)).join('\n') : map;
-  return markdownBlock(`**Map** _(${KEY})_`, body ?? (alert || undefined), htmlPath, 'diff');
+  return markdownBlock(`**Map** _(${spec.kind === 'explain' ? EXPLAIN_KEY : KEY})_`, body ?? (alert || undefined), htmlPath, spec.kind === 'explain' ? 'text' : 'diff');
 }
 
 // Now and After side by side exist only in the HTML.
@@ -50,8 +50,8 @@ export async function renderMap(spec: Spec, ctx: RenderContext): Promise<Rendere
   if (!chosen.html) ctx.saveReview(snapshot);
   if (chosen.kind === 'web') {
     const alert = [webAlert(check, ctx.width), driftBlock(view, { ...ctx, htmlPath: chosen.html.file })].filter(Boolean).join('\n\n');
-    const text = ctx.md ? markdown(undefined, chosen.html.file, alert) : `${alert ? `${alert}\n` : ''}${fullMapLine(chosen.html.file)}\n`;
+    const text = ctx.md ? markdown(spec, undefined, chosen.html.file, alert) : `${alert ? `${alert}\n` : ''}${fullMapLine(chosen.html.file)}\n`;
     return { text, check, html: chosen.html, drift };
   }
-  return { text: ctx.md ? markdown(chosen.text, chosen.html?.file, alertLine(check, ctx.width)) : chosen.text, check, html: chosen.html, drift };
+  return { text: ctx.md ? markdown(spec, chosen.text, chosen.html?.file, alertLine(check, ctx.width)) : chosen.text, check, html: chosen.html, drift };
 }
