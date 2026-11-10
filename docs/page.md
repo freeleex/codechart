@@ -13,6 +13,7 @@ Small diagrams stay in the agent's reply; big ones also get an interactive HTML 
 - Light, dark and auto themes, with a toggle in the header.
 - Click a node to select it: it gets a blue glow, and everything except it and its neighbours dims. Esc or a click on the empty canvas clears it.
 - Plans that touch existing code open as two panes, Now and After plan: see [Plans](plans.md).
+- Each kind of box has its own outline and a small icon before its label: endpoint (pill, ⇄), service (round corners, ⚙), component (side rails, ▣), table (column ticks under the title, ▤), model (double line, ◉), enum (cut corners, ◇), config (tag, ⚑), file (folded corner, ≡). Anything else is a plain box. The outline's colour is only the status.
 
 ## Status chips
 

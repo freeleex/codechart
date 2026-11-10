@@ -1,4 +1,4 @@
-import type { Field, NodeKind, Spec, SpecEdge, SpecNode } from '../../spec/schema.js';
+import type { Field, Spec, SpecEdge, SpecNode } from '../../spec/schema.js';
 import type { DriftItem } from '../drift.js';
 import { headerHeight, KIND_ROW, LABEL_LINE_HEIGHT, labelLines, wrapSummary, type Layout, type LayoutEdge } from './layout.js';
 import type { MapCheck } from '../check.js';
@@ -13,6 +13,7 @@ import { DRIFT_CSS, driftInfo, driftMark, driftSection, itemsById, type Ghosts }
 import { edgeEnds, gapsHtml, infoButton, pageInfoSection, renderDiagramPage, renderEdgeSvg, type EdgeEnds } from './diagram.js';
 import { CHANGE_ARROWS, esc, list, num, type HtmlMeta } from './page.js';
 import { edgeChange, edgeOn, fieldsOn, hasNowAfter, nodeOn, SIDE_KEY, type Side } from './states.js';
+import { cardShape, ICON, INSET, type Box } from './shapes.js';
 import { COMPONENTS_VIEW, diffRev, panelShell, relationsHtml, relationsOf, panelTitle, tickSvg } from './tools.js';
 
 export { esc, type Theme } from './page.js';
@@ -49,40 +50,17 @@ function renderEdge(e: LayoutEdge, change: SpecEdge['change'], ends: EdgeEnds, g
   });
 }
 
-type Shape = 'file' | 'data' | 'symbol' | 'other';
-
-const SHAPE: Record<NodeKind, Shape> = {
-  file: 'file',
-  config: 'file',
-  table: 'data',
-  enum: 'data',
-  model: 'data',
-  service: 'symbol',
-  endpoint: 'symbol',
-  component: 'symbol',
-  other: 'other',
-};
-
-const FOLD = 12;
-
-interface Box {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
-
-/** The card outline: a file folds its corner, a data type doubles its header line, a code symbol has square corners. */
-function cardShape(shape: Shape, { x, y, w, h }: Box, head: number): string {
-  const r = x + w;
-  if (shape === 'file') {
-    return (
-      `<path class="card" d="M${x},${y} H${r - FOLD} L${r},${y + FOLD} V${y + h} H${x} Z"/>` +
-      `<path class="fold" d="M${r - FOLD},${y} V${y + FOLD} H${r}"/>`
-    );
-  }
-  const card = `<rect class="card" x="${x}" y="${y}" width="${w}" height="${h}"${shape === 'symbol' ? '' : ' rx="6"'}/>`;
-  return shape === 'data' ? card + `<line class="head" x1="${x}" y1="${y + head - 3}" x2="${r}" y2="${y + head - 3}"/>` : card;
+/** The kind icon and name, the label and the status badge in a box's header. */
+function headTexts(n: SpecNode, x: number, y: number, w: number, ghost: boolean): string {
+  const [left, right] = INSET[n.kind] ?? [8, 8];
+  const top = y + 18 + KIND_ROW;
+  const icon = ICON[n.kind];
+  return (
+    (icon ? `<text class="kind-icon" x="${x + left}" y="${y + 12}" aria-hidden="true">${icon}</text>` : '') +
+    (n.kind === 'other' ? '' : `<text class="kind" x="${x + left + (icon ? 11 : 0)}" y="${y + 12}">${n.kind}</text>`) +
+    labelLines(n.label).map((l, i) => `<text class="label" x="${x + left}" y="${top + i * LABEL_LINE_HEIGHT}">${esc(l)}</text>`).join('') +
+    (n.status === 'existing' ? '' : `<text class="badge" x="${x + w - right}" y="${top}">${esc(ghost ? 'not built' : n.status)}</text>`)
+  );
 }
 
 /** `flag`: the hover title of a box that doesn't match the code, else empty. `drift`: how it differs from the plan; `ghost`: the plan had it, the build lacks it. */
@@ -95,8 +73,9 @@ function renderNode(n: SpecNode, box: Box, flag: string, fields: Field[], rev: s
   const lines: string[] = [];
   const head = headerHeight(n.label);
   let row = head;
+  const [left] = INSET[n.kind] ?? [8, 8];
   const text = (cls: string, s: string): void => {
-    lines.push(`<text class="${cls}" x="${x + 8}" y="${y + row + 12}">${esc(s)}</text>`);
+    lines.push(`<text class="${cls}" x="${x + left}" y="${y + row + 12}">${esc(s)}</text>`);
     row += 16;
   };
   if (n.summary) for (const l of wrapSummary(n.summary)) text('summary', l);
@@ -105,19 +84,16 @@ function renderNode(n: SpecNode, box: Box, flag: string, fields: Field[], rev: s
   }
   // The layout sized the card for every field on both sides; keep that so edges still meet it.
   const height = Math.max(row, Math.round(box.h * 10) / 10);
-  const shape = SHAPE[n.kind];
-  const top = y + 18 + KIND_ROW;
+  const { svg, anchors } = cardShape(n.kind, { x, y, w, h: height }, head);
   return (
-    `<g class="node status-${n.status} shape-${shape}${ghost ? ' ghost' : ''}" data-id="${esc(n.id)}" data-label="${esc(n.label)}" data-status="${n.status}"${rev ? ` data-rev="${rev}"` : ''} tabindex="0" role="button" aria-label="${esc(`${n.label} (${nodeWhat(n)}${flagged ? ", doesn't match the code" : ''}${drift ? `, ${drift.kind === 'missing' ? 'in the plan, not built' : 'differs from the plan'}` : ''})`)}">` +
+    `<g class="node status-${n.status} shape-${n.kind}${ghost ? ' ghost' : ''}" data-id="${esc(n.id)}" data-label="${esc(n.label)}" data-status="${n.status}"${rev ? ` data-rev="${rev}"` : ''} tabindex="0" role="button" aria-label="${esc(`${n.label} (${nodeWhat(n)}${flagged ? ", doesn't match the code" : ''}${drift ? `, ${drift.kind === 'missing' ? 'in the plan, not built' : 'differs from the plan'}` : ''})`)}">` +
     flag +
-    cardShape(shape, { x, y, w, h: height }, head) +
+    svg +
     `<line class="head" x1="${x}" y1="${y + head}" x2="${x + w}" y2="${y + head}"/>` +
-    (n.kind === 'other' ? '' : `<text class="kind" x="${x + 8}" y="${y + 12}">${n.kind}</text>`) +
-    labelLines(n.label).map((l, i) => `<text class="label" x="${x + 8}" y="${top + i * LABEL_LINE_HEIGHT}">${esc(l)}</text>`).join('') +
-    (n.status === 'existing' ? '' : `<text class="badge" x="${x + w - 8}" y="${top}">${esc(ghost ? 'not built' : n.status)}</text>`) +
+    headTexts(n, x, y, w, ghost) +
     lines.join('') +
-    (ghost ? '' : tickSvg(x, y)) +
-    (flagged ? flagMark(shape === 'file' ? x + w - FOLD - 6 : x + w, y) : '') +
+    (ghost ? '' : tickSvg(...anchors.tick)) +
+    (flagged ? flagMark(...anchors.flag) : '') +
     (drift ? driftMark(drift, x + w, y + height + 8) : '') +
     `</g>`
   );
