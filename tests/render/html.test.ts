@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { layoutSpec } from '../../src/render/web/layout.js';
+import { CSS } from '../../src/render/web/styles.js';
 import { renderHtml, type Theme } from '../../src/render/web/html.js';
 import { prettyDate } from '../../src/render/web/page.js';
 import { validateSpec, type Spec } from '../../src/spec/schema.js';
@@ -57,7 +58,7 @@ describe('renderHtml', () => {
     spec.nodes[0]!.status = 'removed';
     const out = await html(spec);
     expect(out).toMatch(new RegExp(`<g class="node status-removed shape-[a-z]+" data-id="${spec.nodes[0]!.id}"[^>]*>.*?<text class="badge"[^>]*>removed</text>`));
-    expect(out).toContain('.status-removed :is(.card,.fold){stroke:var(--rem)}');
+    expect(out).toContain('.status-removed :is(.card,.fold,.deco){stroke:var(--rem)}');
     expect(out).toContain('.status-removed .badge{fill:var(--rem)}');
     expect(out).toContain('.status-removed .label{text-decoration:line-through}');
   });
@@ -176,20 +177,87 @@ describe('renderHtml', () => {
     expect(height(out)).toBe(height(before) + 14);
   });
 
-  it.each([
-    ['file', 'file', /<path class="fold"/],
-    ['config', 'file', /<path class="fold"/],
-    ['model', 'data', /<line class="head"[^>]*\/><line class="head"/],
-    ['endpoint', 'symbol', /<rect class="card"(?![^>]*rx=)/],
-    ['other', 'other', /<rect class="card"[^>]*rx="6"/],
-  ] as const)('a %s node draws as the %s shape', async (kind, shape, outline) => {
+  const KINDS = ['endpoint', 'service', 'component', 'table', 'model', 'enum', 'config', 'file', 'other'] as const;
+  async function nodeG(kind: string, status = 'changed', flagged = false): Promise<string> {
     const spec = loadFixture();
-    spec.nodes[0] = { ...spec.nodes[0]!, kind, status: 'changed' };
-    const out = await html(spec);
-    const g = out.match(new RegExp(`<g class="node status-changed shape-${shape}" data-id="${spec.nodes[0].id}".*?</g>`))![0];
+    spec.nodes[0] = { ...spec.nodes[0]!, kind, status } as Spec['nodes'][number];
+    const id = spec.nodes[0].id;
+    const check = flagged ? { checked: 1, unit: 'node', mismatches: [{ id, label: 'x', short: 'file missing', detail: 'x does not exist' }], matches: new Map(), blocks: new Map(), found: new Map() } : undefined;
+    const out = renderHtml(spec, await layoutSpec(spec), meta, check as never);
+    const start = `<g class="node status-${status} shape-${kind}" data-id="${id}"`;
+    return start + out.split(start)[1]!.split(/<g class="(?!tick)/)[0];
+  }
+  const num = (g: string, re: RegExp) => Number(g.match(re)![1]);
+  const left = (g: string) => num(g, /<line class="head" x1="([\d.]+)"/);
+
+  it.each([
+    ['endpoint', /<rect class="card" [^>]*rx="[\d.]+"\/><line class="head"/, '⇄'],
+    ['service', /<rect class="card" [^>]*rx="12"\/><line class="head"/, '⚙'],
+    ['component', /<rect class="card" [^>]*rx="2"\/><path class="deco" d="M[\d.]+,[\d.]+ V[\d.]+ M[\d.]+,[\d.]+ V[\d.]+"\/>/, '▣'],
+    ['table', /<rect class="card" [^>]*rx="6"\/><path class="deco" d="(M[\d.]+,[\d.]+ V[\d.]+ ?){3}"\/>/, '▤'],
+    ['model', /<rect class="card" [^>]*rx="6"\/><line class="head"[^>]*\/><line class="head"/, '◉'],
+    ['enum', /<path class="card" d="M[\d.]+,[\d.]+ H[\d.]+ L[\d.]+,[\d.]+ V[\d.]+ L[\d.]+,[\d.]+ H[\d.]+ L[\d.]+,[\d.]+ V[\d.]+ Z"\/>/, '◇'],
+    ['config', /<path class="card" d="M[\d.]+,[\d.]+ H[\d.]+ V[\d.]+ H[\d.]+ L[\d.]+,[\d.]+ Z"\/>/, '⚑'],
+    ['file', /<path class="card"[^>]*\/><path class="fold"/, '≡'],
+    ['other', /<rect class="card" [^>]*rx="6"\/><line class="head"/, undefined],
+  ] as const)('a %s node has its own outline and icon', async (kind, outline, icon) => {
+    const g = await nodeG(kind);
     expect(g).toMatch(outline);
-    if (kind === 'other') expect(g).not.toContain('class="kind"');
-    else expect(g).toMatch(new RegExp(`class="kind"[^>]*>${kind}<`));
+    if (icon) expect(g).toMatch(new RegExp(`<text class="kind-icon"[^>]*>${icon}</text><text class="kind"[^>]*>${kind}<`));
+    else expect(g).not.toMatch(/class="kind(-icon)?"/);
+  });
+
+  it('no two kinds share an outline', async () => {
+    const outlines = await Promise.all(
+      KINDS.map(async (k) => {
+        const g = await nodeG(k);
+        return g.slice(g.search(/<(rect|path) class="card"/), g.indexOf('<text')).replace(/ (x|y|width|height)="[\d.-]+"/g, '').replace(/d="[^"]*"/g, (d) => d.replace(/[\d.-]+/g, '#'));
+      }),
+    );
+    expect(new Set(outlines).size).toBe(KINDS.length);
+  });
+
+  it('a pill, a tag and a component move their text clear of the curve, the point and the rails', async () => {
+    for (const [kind, inset] of [['endpoint', 18], ['config', 17], ['component', 14], ['service', 8]] as const) {
+      const g = await nodeG(kind);
+      expect(num(g, /class="label" x="([\d.]+)"/) - left(g)).toBeCloseTo(inset, 5);
+      expect(num(g, /class="kind-icon" x="([\d.]+)"/) - left(g)).toBeCloseTo(inset, 5);
+    }
+    const pill = await nodeG('endpoint');
+    expect(num(pill, /<line class="head"[^>]* x2="([\d.]+)"/) - num(pill, /class="badge" x="([\d.]+)"/)).toBeCloseTo(18, 5);
+  });
+
+  it('status still drives the stroke of every shape', async () => {
+    for (const status of ['new', 'changed', 'removed', 'config', 'context']) {
+      for (const kind of KINDS) expect(await nodeG(kind, status)).toMatch(/<(rect|path) class="card"/);
+    }
+    for (const status of ['new', 'changed', 'removed', 'config']) expect(CSS).toContain(`.status-${status} :is(.card,.fold,.deco){stroke:var(--`);
+    expect(CSS).not.toMatch(/\.shape-[a-z]+ :is\(\.card/);
+    expect(CSS).not.toMatch(/\.shape-[a-z]+[^{]*\{[^}]*stroke/);
+  });
+
+  it('icons are tinted by variables defined for light and dark (the dark set is in two blocks)', () => {
+    for (const k of KINDS.filter((k) => k !== 'other')) {
+      expect(CSS).toContain(`.shape-${k} .kind-icon{fill:var(--k-${k})}`);
+      expect(CSS.match(new RegExp(`--k-${k}:`, 'g'))).toHaveLength(3);
+    }
+  });
+
+  it('the tickbox and the flag sit on the corner of a pill, a cut shape, a tag and a fold', async () => {
+    const tick = (g: string) => num(g, /class="tick-box" x="([\d.-]+)"/) + 6 - left(g);
+    expect(tick(await nodeG('service'))).toBeCloseTo(0, 5);
+    expect(tick(await nodeG('endpoint'))).toBeGreaterThan(3);
+    expect(tick(await nodeG('enum'))).toBeCloseTo(4.5, 5);
+    expect(tick(await nodeG('config'))).toBeCloseTo(11, 5);
+    const right = async (kind: string) => {
+      const g = await nodeG(kind, 'changed', true);
+      return num(g, /<line class="head"[^>]* x2="([\d.]+)"/) - num(g, /class="flag" x="([\d.-]+)"/);
+    };
+    expect(await right('service')).toBeCloseTo(0, 5);
+    expect(await right('file')).toBeCloseTo(18, 5);
+    expect(await right('endpoint')).toBeGreaterThan(3);
+    expect(await right('enum')).toBeCloseTo(4.5, 5);
+    expect(await right('config')).toBeCloseTo(0, 5);
   });
 
   it('the panel title names the kind, except other', async () => {

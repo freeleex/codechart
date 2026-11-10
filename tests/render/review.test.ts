@@ -67,7 +67,7 @@ describe('reviewed ticks on the canvas', () => {
     const rules = [...shopPage.matchAll(/[^{}\n]*\.reviewed[^{}]*\{[^}]*\}/g)].map((m) => m[0]);
     expect(rules.length).toBeGreaterThan(0);
     expect(rules.join('')).not.toMatch(/opacity/);
-    expect(shopPage).toMatch(/\.node\.reviewed :is\(\.card,\.fold,\.shape\)\{stroke:var\(--muted\)\}/);
+    expect(shopPage).toMatch(/\.node\.reviewed :is\(\.card,\.fold,\.deco,\.shape\)\{stroke:var\(--muted\)\}/);
   });
 
   it('the panel tickbox and the canvas tick are one state', () => {

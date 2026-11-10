@@ -1,10 +1,10 @@
 const DARK_VARS =
-  '--bg:#0f1115;--panel:#161b22;--card:#161b22;--line:#30363d;--text:#c9d1d9;--muted:#8b949e;--edge:#79c0ff;--new:#3fb950;--new-t:#7ee787;--chg:#d29922;--chg-t:#f2cc60;--cfg:#a371f7;--cfg-t:#d2a8ff;--add:#7ee787;--rem:#ff7b72;--add-bg:rgba(46,160,67,.22);--rem-bg:rgba(248,81,73,.22);--gap-bg:rgba(110,118,129,.12);--hh-bg:rgba(56,139,253,.10);--hh-line:rgba(56,139,253,.28);--ln:#484f58;--ln-add:rgba(126,231,135,.55);--ln-rem:rgba(255,123,114,.55)';
+  '--bg:#0f1115;--panel:#161b22;--card:#161b22;--line:#30363d;--text:#c9d1d9;--muted:#8b949e;--edge:#79c0ff;--new:#3fb950;--new-t:#7ee787;--chg:#d29922;--chg-t:#f2cc60;--cfg:#a371f7;--cfg-t:#d2a8ff;--add:#7ee787;--rem:#ff7b72;--add-bg:rgba(46,160,67,.22);--rem-bg:rgba(248,81,73,.22);--gap-bg:rgba(110,118,129,.12);--hh-bg:rgba(56,139,253,.10);--hh-line:rgba(56,139,253,.28);--ln:#484f58;--ln-add:rgba(126,231,135,.55);--ln-rem:rgba(255,123,114,.55);--k-endpoint:#56c2d0;--k-service:#8d9aea;--k-component:#b79ae0;--k-table:#90a9c4;--k-model:#d49a64;--k-enum:#a2c45a;--k-config:#e387a0;--k-file:#8b949e';
 const DARK_AUTO = `@media (prefers-color-scheme: dark){:root[data-theme="auto"]{${DARK_VARS}}}`;
 const DARK_FORCED = `:root[data-theme="dark"]{${DARK_VARS}}`;
 
 export const CSS = `
-:root{color-scheme:light dark;--bg:#f6f8fa;--panel:#fff;--card:#fff;--line:#d0d7de;--text:#1f2328;--muted:#656d76;--edge:#0969da;--new:#2ea043;--new-t:#1a7f37;--chg:#d29922;--chg-t:#9a6700;--cfg:#8957e5;--cfg-t:#8250df;--add:#1a7f37;--rem:#cf222e;--add-bg:rgba(46,160,67,.18);--rem-bg:rgba(255,129,130,.25);--gap-bg:rgba(110,118,129,.12);--hh-bg:rgba(9,105,218,.07);--hh-line:rgba(9,105,218,.22);--ln:var(--muted);--ln-add:rgba(26,127,55,.6);--ln-rem:rgba(207,34,46,.6)}
+:root{color-scheme:light dark;--bg:#f6f8fa;--panel:#fff;--card:#fff;--line:#d0d7de;--text:#1f2328;--muted:#656d76;--edge:#0969da;--new:#2ea043;--new-t:#1a7f37;--chg:#d29922;--chg-t:#9a6700;--cfg:#8957e5;--cfg-t:#8250df;--add:#1a7f37;--rem:#cf222e;--add-bg:rgba(46,160,67,.18);--rem-bg:rgba(255,129,130,.25);--gap-bg:rgba(110,118,129,.12);--hh-bg:rgba(9,105,218,.07);--hh-line:rgba(9,105,218,.22);--ln:var(--muted);--ln-add:rgba(26,127,55,.6);--ln-rem:rgba(207,34,46,.6);--k-endpoint:#1b7f8c;--k-service:#5a67b8;--k-component:#7a5ea8;--k-table:#5f7a96;--k-model:#a0693a;--k-enum:#6d8a2b;--k-config:#b0546a;--k-file:#6e7781}
 :root[data-theme="light"]{color-scheme:light}
 :root[data-theme="dark"]{color-scheme:dark}
 ${DARK_AUTO}
@@ -94,8 +94,10 @@ header .check{font-size:11px;color:var(--new-t)}header .check.bad{color:var(--re
 .node.faded,.edge.faded{--fade:.15}
 body.focus .node:not(.lit),body.focus .edge:not(.lit){--dim:.25}
 .node .card{fill:var(--card);stroke:var(--line);stroke-width:1}
-.node .fold{fill:none;stroke:var(--line);stroke-width:1}
+.node :is(.fold,.deco){fill:none;stroke:var(--line);stroke-width:1}
 .node .head{stroke:var(--line);stroke-width:1}
+.node .kind-icon{font-size:9px}
+.shape-endpoint .kind-icon{fill:var(--k-endpoint)}.shape-service .kind-icon{fill:var(--k-service)}.shape-component .kind-icon{fill:var(--k-component)}.shape-table .kind-icon{fill:var(--k-table)}.shape-model .kind-icon{fill:var(--k-model)}.shape-enum .kind-icon{fill:var(--k-enum)}.shape-config .kind-icon{fill:var(--k-config)}.shape-file .kind-icon{fill:var(--k-file)}
 .node .kind{fill:var(--muted);font-size:8px;letter-spacing:.06em;text-transform:uppercase}
 .node .label{fill:var(--text);font-size:11px;font-weight:600}
 .node .badge{font-size:8.5px;text-transform:uppercase;text-anchor:end}
@@ -107,17 +109,17 @@ body.focus .node:not(.lit),body.focus .edge:not(.lit){--dim:.25}
 .tick{cursor:pointer}.tick-hit{fill:transparent}
 .tick-box{fill:var(--card);stroke:var(--muted);stroke-width:1}
 .tick-mark{display:none;fill:none;stroke:var(--card);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-.node.reviewed :is(.card,.fold,.shape){stroke:var(--muted)}
+.node.reviewed :is(.card,.fold,.deco,.shape){stroke:var(--muted)}
 .node.reviewed .tick-box{fill:var(--muted)}.node.reviewed .tick-mark{display:inline}
 .node.selected .card{stroke-width:2.5}
 .node.selected{filter:drop-shadow(0 0 6px color-mix(in srgb,var(--edge) 45%,transparent))}
 .node.selected :is(.card,.shape){stroke-width:3}
 .node:focus{outline:none}
 .node:focus-visible .card{stroke:var(--edge);stroke-width:3.5}
-.status-new :is(.card,.fold){stroke:var(--new)}.status-new .badge{fill:var(--new-t)}
-.status-changed :is(.card,.fold){stroke:var(--chg)}.status-changed .badge{fill:var(--chg-t)}
-.status-removed :is(.card,.fold){stroke:var(--rem)}.status-removed .badge{fill:var(--rem)}.status-removed .label{text-decoration:line-through}
-.status-config :is(.card,.fold){stroke:var(--cfg)}.status-config .badge{fill:var(--cfg-t)}
+.status-new :is(.card,.fold,.deco){stroke:var(--new)}.status-new .badge{fill:var(--new-t)}
+.status-changed :is(.card,.fold,.deco){stroke:var(--chg)}.status-changed .badge{fill:var(--chg-t)}
+.status-removed :is(.card,.fold,.deco){stroke:var(--rem)}.status-removed .badge{fill:var(--rem)}.status-removed .label{text-decoration:line-through}
+.status-config :is(.card,.fold,.deco){stroke:var(--cfg)}.status-config .badge{fill:var(--cfg-t)}
 :is(.status-context,.status-outside) .card{stroke-dasharray:4 3}:is(.status-context,.status-outside){--base:.75}:is(.status-context,.status-outside) .badge{fill:var(--muted)}
 .field-added-t{color:var(--add)}.field-removed-t{color:var(--muted);text-decoration:line-through}.field-modified-t{color:var(--chg-t)}
 
