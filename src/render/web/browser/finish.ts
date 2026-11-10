@@ -31,9 +31,9 @@ export function finishMessage(title: string, change: Change, notes: Note[], plac
 /** A message over this is split into batches; tests keep it under the importer's cap. */
 export const FINISH_LIMIT = 448 * 1024;
 
-/** The most unsent notes, from the first, whose message stays under FINISH_LIMIT; always at least one. */
-function fitBatch(title: string, change: Change, notes: Note[]): { text: string; count: number } {
-  const size = (n: number) => new TextEncoder().encode(finishMessage(title, change, notes.slice(0, n))).length;
+/** The most notes, from the first, whose message stays under FINISH_LIMIT; always at least one. */
+function fitBatch(notes: Note[], render: (list: Note[]) => string): { text: string; count: number } {
+  const size = (n: number) => new TextEncoder().encode(render(notes.slice(0, n))).length;
   let lo = 1;
   let hi = notes.length;
   while (lo < hi) {
@@ -41,7 +41,18 @@ function fitBatch(title: string, change: Change, notes: Note[]): { text: string;
     if (size(mid) <= FINISH_LIMIT) lo = mid;
     else hi = mid - 1;
   }
-  return { text: finishMessage(title, change, notes.slice(0, lo)), count: lo };
+  return { text: render(notes.slice(0, lo)), count: lo };
+}
+
+/** Every note in order, as messages that each stay under FINISH_LIMIT and import on their own. */
+export function splitNotes(notes: Note[], render: (list: Note[]) => string): string[] {
+  const parts: string[] = [];
+  for (let rest = notes; rest.length; ) {
+    const { text, count } = fitBatch(rest, render);
+    parts.push(text);
+    rest = rest.slice(count);
+  }
+  return parts;
 }
 
 /** `select` shows the text selected for a manual copy when the clipboard is blocked. */
@@ -126,7 +137,8 @@ function toast(text: string): void {
 function openFinish(comments: Comments, change: Change, opener: HTMLElement): void {
   const list = comments.unsent();
   if (!list.length) return;
-  const { text, count } = fitBatch(document.querySelector('header h1')!.textContent!, change, list);
+  const title = document.querySelector('header h1')!.textContent!;
+  const { text, count } = fitBatch(list, (l) => finishMessage(title, change, l));
   const batch = list.slice(0, count);
   const d = finishDialog(text, count < list.length ? `This message has ${count} of ${countOf(list.length)}. Paste it, then click Finish review again for the rest.` : undefined);
   const close = () => {

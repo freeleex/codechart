@@ -35,6 +35,8 @@ describe('release spec', () => {
     expect(errors({ ...release(), version: 'two point oh' })).toEqual([expect.stringMatching(/^version:/)]);
     expect(errors({ ...release(), since: '' })).toEqual([expect.stringMatching(/^since:/)]);
     expect(errors({ ...release(), date: '2026-02-30' })).toEqual([expect.stringMatching(/^date:/)]);
+    expect(errors({ ...release(), date: '2026-13-01' })).toEqual([expect.stringMatching(/^date:/)]);
+    expect(errors({ ...release(), date: '2026-01-32' })).toEqual([expect.stringMatching(/^date:/)]);
     expect(errors({ ...release(), date: '9 Nov 2026' })).toEqual([expect.stringMatching(/^date:/)]);
   });
 

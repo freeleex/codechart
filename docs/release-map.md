@@ -6,7 +6,7 @@ One page for a whole release: a section per feature in plain words, for a produc
 
 ## When to use it
 
-When a release is coming and someone who doesn't read code has to sign off on what it says, or you need release notes a salesperson can hand out. Your agent never makes one on its own, and it never goes into a PR description. For a single change, use a [business map](business-map.md).
+When a release is coming and someone who doesn't read code has to sign off on what it says, or you need release notes a salesperson can hand out. Your agent never makes one on its own, and it never goes into a PR description. When you prepare a release with it (version bump, changelog, release notes, tag), it offers one in a single line at the end of its reply, once per conversation. For a single change, use a [business map](business-map.md).
 
 ## How to ask
 

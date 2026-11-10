@@ -1,6 +1,7 @@
 // Runs in the generated business page; scripts/client-build.ts puts it ahead of client.ts in the one inline script.
 import { initExport } from './export.js';
-import { copyNoteText, finishMessage } from './finish.js';
+import { openSend, stepSend } from './business-send.js';
+import { copyNoteText, finishMessage, splitNotes } from './finish.js';
 import type { Change, Note } from './note-store.js';
 import { load, save } from './store.js';
 import { isObj, type NoteTarget } from './targets.js';
@@ -83,26 +84,8 @@ function bizSelect(pre: HTMLElement): void {
 function bizSend(s: BizState, change: Change): void {
   const list = bizNotes(s);
   if (!list.length) return;
-  const text = finishMessage(document.querySelector('h1')!.textContent!, change, list, bizPlace, bizCount, true);
-  const modal = bizEl('send-modal');
-  const pre = bizEl('send-text');
-  const title = bizEl('send-title');
-  const hint = bizEl('send-hint');
-  const cut = text.lastIndexOf('\n\ncodechart review ·') + 2;
-  const tip = "Code that tells the developer's tool which page this is";
-  const last = document.createElement('span');
-  last.id = 'send-token';
-  last.title = tip;
-  last.setAttribute('aria-label', tip);
-  last.textContent = text.slice(cut);
-  pre.replaceChildren(text.slice(0, cut), last);
-  title.textContent = 'Your message for the developer';
-  modal.hidden = false;
-  bizEl('send-done').focus();
-  void copyNoteText(text, () => bizSelect(pre)).then((ok) => {
-    title.textContent = ok ? 'Copied — paste it to the developer' : 'Copy this text, then paste it to the developer';
-    hint.textContent = ok ? 'This text is on your clipboard. Paste it into the chat or ticket where the developer works.' : 'Press Cmd+C (Ctrl+C) to copy it.';
-  });
+  const title = document.querySelector('h1')!.textContent!;
+  openSend(splitNotes(list, (l) => finishMessage(title, change, l, bizPlace, bizCount, true)), bizSelect);
 }
 
 interface BizPage {
@@ -215,6 +198,7 @@ function bizDialog(p: BizPage, change: Change): void {
   };
   p.send.addEventListener('click', () => bizSend(p.s, change));
   bizEl('send-copy').addEventListener('click', () => void copyNoteText(bizEl('send-text').textContent!, () => bizSelect(bizEl('send-text'))));
+  bizEl('send-next').addEventListener('click', () => stepSend(bizSelect));
   bizEl('send-done').addEventListener('click', close);
   modal.addEventListener('click', (e) => {
     if (e.target === modal) close();

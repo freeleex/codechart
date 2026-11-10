@@ -34,7 +34,7 @@ The owner can type an answer under a question and add a note to any item.
 
 ## Sending it back
 
-1. The owner presses **Send back to developer**. Their answers, yes/no verdicts and notes are copied as text.
+1. The owner presses **Send back to developer**. Their answers, yes/no verdicts and notes are copied as text; a very long reply is split into several messages, sent one after another with *Next part*.
 2. They paste it into the chat or ticket where you work.
 3. You paste it to your agent, which runs `codechart feedback --import --take` and reads each note with the journey, rule or saved item it belongs to, and the technical boxes behind it.
 

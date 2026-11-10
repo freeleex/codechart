@@ -3,6 +3,8 @@ import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { repoFolder } from '../../src/render/output-path.js';
+import { FINISH_LIMIT } from '../../src/render/web/browser/finish.js';
+import { MAX_IMPORT_BYTES } from '../../src/review/import.js';
 import { readReview } from '../../src/review/store.js';
 import { release } from '../fixtures/release.js';
 import { click, mount, q, usePages } from '../helpers/page.js';
@@ -120,5 +122,73 @@ describe('release page → Send back → feedback --import', () => {
     const spec = fileOf('release.json', release());
     expect((await run(['render', spec, '--pr'])).err).toContain('release maps are not for PR descriptions');
     expect((await run(['render', spec, '--tech', spec])).err).toContain('--tech only applies to business maps');
+  });
+});
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- tests edit fields freely
+const biggest = (): Record<string, any> => {
+  const spec = release();
+  let n = 0;
+  const id = (p: string) => `${p}${++n}`;
+  spec.sections = Array.from({ length: 12 }, (_, i) => ({
+    id: `s${i}`,
+    title: `Feature ${i}`,
+    change: 'new',
+    summary: 'It works.',
+    journeys: Array.from({ length: 4 }, () => ({ id: id('J'), name: `Journey ${n}`, now: [{ text: 'Before' }], after: [{ text: 'After', change: 'new' }], evidence: 'checked' })),
+    rules: Array.from({ length: 6 }, () => ({ id: id('R'), name: `Rule ${n}`, after: 'New words.', evidence: 'checked' })),
+    data: Array.from({ length: 4 }, () => ({ id: id('D'), name: `Data ${n}`, what: 'Things kept', why: 'To know', evidence: 'checked' })),
+  }));
+  return spec;
+};
+
+describe('a long reply from a big release page', () => {
+  const prepare = async (): Promise<void> => {
+    await run(['render', fileOf('big.json', biggest())]);
+    mount(readFileSync(join(dir(), named('.business.html').at(-1)!), 'utf8'));
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+  };
+
+  it('splits into messages that each import on their own', async () => {
+    await prepare();
+    const cards = [...document.querySelectorAll<HTMLElement>('[data-item]')].filter((c) => c.dataset.kind !== 'question');
+    expect(cards).toHaveLength(168);
+    for (const c of cards) {
+      const ta = c.querySelector<HTMLTextAreaElement>('[data-note]')!;
+      ta.value = 'é'.repeat(2000);
+      ta.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    const writeText = vi.mocked(navigator.clipboard.writeText);
+    click(q('#send'));
+    await new Promise((r) => setTimeout(r, 0));
+    const parts = [writeText.mock.calls[0]![0] as string];
+    while (!q<HTMLElement>('#send-next').hidden) {
+      expect(q('#send-part').textContent).toContain(`Message ${parts.length} of`);
+      click(q('#send-next'));
+      await new Promise((r) => setTimeout(r, 0));
+      parts.push(writeText.mock.calls.at(-1)![0] as string);
+    }
+    expect(parts.length).toBeGreaterThan(1);
+    expect(q('#send-part').textContent).toContain(`Message ${parts.length} of ${parts.length}. This is the last one.`);
+    let imported = 0;
+    for (const text of parts) {
+      expect(Buffer.byteLength(text)).toBeLessThan(FINISH_LIMIT);
+      expect(FINISH_LIMIT).toBeLessThan(MAX_IMPORT_BYTES);
+      expect(text.split('\n').at(-1)).toMatch(/^codechart review · \d+ notes? · \S+$/);
+      const r = await run(['feedback', '--import'], stdin(text));
+      expect(r.err).toMatch(/^✔ Imported \d+ notes into/);
+      imported += Number(/Imported (\d+)/.exec(r.err)![1]);
+    }
+    expect(imported).toBe(168);
+    expect(releaseReview().notes).toHaveLength(168);
+  });
+
+  it('a normal-size reply stays one message with no part line', async () => {
+    const text = await takeNotes();
+    expect(q<HTMLElement>('#send-part').hidden).toBe(true);
+    expect(q<HTMLElement>('#send-next').hidden).toBe(true);
+    expect(q('#send-text').textContent).toBe(text);
+    expect(text).toMatch(/^Review done: 3 answers and notes on "What is new in Shop 2\.0"\.\n1\. On rule "Manager approval": /);
   });
 });

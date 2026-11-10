@@ -13,7 +13,10 @@ const VERSION = /^[0-9A-Za-z][0-9A-Za-z.+-]{0,31}$/;
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 const version = () => z.string().regex(VERSION, 'a version such as 0.8.0 or v1.2.0-beta.1');
-const isDay = (d: string): boolean => DAY.test(d) && new Date(`${d}T00:00:00Z`).toISOString().slice(0, 10) === d;
+const isDay = (d: string): boolean => {
+  const at = new Date(`${d}T00:00:00Z`);
+  return DAY.test(d) && !Number.isNaN(at.getTime()) && at.toISOString().slice(0, 10) === d;
+};
 
 // Release items carry no tech map links: the page has no tech map to check them against.
 const sectionSchema = z.strictObject({
