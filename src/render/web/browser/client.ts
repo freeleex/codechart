@@ -95,11 +95,7 @@ function fit(all = true): void {
 }
 
 /** A view's canvas has no size while hidden, so it is fitted when first shown; a resize refits those showing. */
-function refit(): void {
-  stopGlide();
-  fitted.clear();
-  fit();
-}
+const refit = (): void => (stopGlide(), fitted.clear(), fit());
 
 function endDrag(): void {
   if (drag) drag.canvas.classList.remove('drag');
