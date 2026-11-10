@@ -11,6 +11,7 @@ import { setupPrMapsCommand } from './commands/setup-pr-maps.js';
 import { updateCommand } from './commands/update.js';
 import { installSkillCommand } from './commands/install-skill.js';
 import { renderCommand } from './commands/render.js';
+import { releaseContextCommand } from './commands/release-context.js';
 import { reviewCommand } from './commands/review.js';
 import { schemaCommand } from './commands/schema.js';
 import { uninstallCommand } from './commands/uninstall.js';
@@ -88,6 +89,7 @@ export function buildProgram(opts: ProgramOptions = {}): Command {
   program.addCommand(setupPrMapsCommand(cmdOpts));
   program.addCommand(updateCommand(cmdOpts));
   program.addCommand(doctorCommand(cmdOpts));
+  program.addCommand(releaseContextCommand(cmdOpts));
   program.addCommand(reviewCommand(cmdOpts));
   program.addCommand(commentCommand(cmdOpts));
   program.addCommand(feedbackCommand(cmdOpts));

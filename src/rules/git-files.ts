@@ -387,3 +387,34 @@ export function gitDirtyHashes(cwd: string, max = Infinity): Record<string, stri
 export function gitDiffFiles(cwd: string, from: string, to: string): string[] {
   return nulList(git(cwd, ['diff', '--no-renames', '--name-only', '-z', from, to, '--']));
 }
+
+/** The newest tag matching `pattern` reachable from commit `sha`; undefined when there is none. */
+export function gitLatestTag(cwd: string, sha: string, pattern: string): string | undefined {
+  try {
+    return git(cwd, ['describe', '--tags', '--abbrev=0', '--match', pattern, sha]).trim() || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** One commit of `gitFirstParentLog`. */
+export interface LogEntry {
+  sha: string;
+  short: string;
+  date: string;
+  subject: string;
+  body: string;
+}
+
+/** The first-parent commits in `since..head` (full shas), oldest first. */
+export function gitFirstParentLog(cwd: string, since: string, head: string): LogEntry[] {
+  const out = git(cwd, ['log', '--first-parent', '--reverse', '--no-color', '--format=%H%x1f%h%x1f%cI%x1f%s%x1f%b%x1e', `${since}..${head}`, '--']);
+  return out
+    .split('\x1e')
+    .map((r) => r.trim())
+    .filter(Boolean)
+    .map((r) => {
+      const [sha = '', short = '', date = '', subject = '', body = ''] = r.split('\x1f');
+      return { sha, short, date, subject, body: body.trim() };
+    });
+}
