@@ -1,3 +1,4 @@
+import { isAbsolute, win32 } from 'node:path';
 import { z } from 'zod';
 import { formatIssues } from '../spec/shared.js';
 
@@ -24,12 +25,26 @@ export interface Rule {
   context?: ContextMode;
 }
 
+const RELEASE_AUTO = ['suggest', 'draw', 'off'] as const;
+type ReleaseAuto = (typeof RELEASE_AUTO)[number];
+export const DEFAULT_RELEASE_BRANCHES = ['v[0-9]*', 'release-*', 'release/*'];
+
+/** The cover of a release map, the browser that prints its PDF, and which branches are release branches. */
+interface ReleaseConfig {
+  product?: string;
+  logo?: string;
+  browser?: string;
+  branches: string[];
+  auto: ReleaseAuto;
+}
+
 export interface Config {
   defaults: { output: Output; context: ContextMode; flows: Flows; terminalMaxNodes: number };
   web: { outDir: string; theme: Theme; minNodes: number; keep: number; maxAgeDays: number; open: OpenMode };
   useBuiltinRules: boolean;
   /** Look up the newest codechart once a day and say when there is one. */
   updateCheck: boolean;
+  release: ReleaseConfig;
   rules: Rule[];
 }
 
@@ -82,6 +97,15 @@ const configFileSchema = z.strictObject({
       keep: z.number().int().positive().optional(),
       maxAgeDays: z.number().nonnegative().optional(),
       open: z.enum(OPEN_MODES).optional(),
+    })
+    .optional(),
+  release: z
+    .strictObject({
+      product: z.string().min(1).max(80).regex(ONE_LINE_VISIBLE, CHARS_MESSAGE).optional().describe('Product name on the cover of a release map (default: the repo name)'),
+      logo: z.string().min(1).max(300).regex(ONE_LINE_VISIBLE, CHARS_MESSAGE).optional().describe('Repo-relative path to an .svg or .png of at most 200 KB, shown on the cover of a release map'),
+      browser: z.string().min(1).max(300).regex(ONE_LINE_VISIBLE, CHARS_MESSAGE).refine((p) => isAbsolute(p) || win32.isAbsolute(p), 'must be an absolute path').optional().describe('Global only: absolute path of the Chromium-based browser that prints a release map to PDF (default: Chrome, Chromium, Edge or Brave where they are usually installed)'),
+      branches: z.array(glob).min(1).optional().describe('Branches that are release branches, as globs (default: v[0-9]*, release-*, release/*)'),
+      auto: z.enum(RELEASE_AUTO).optional().describe('On a release branch: suggest a release map, draw one, or do nothing (default: suggest)'),
     })
     .optional(),
   useBuiltinRules: z.boolean().optional(),

@@ -1,0 +1,144 @@
+{
+  "diagram": "release",
+  "title": "What is new in codechart 0.8.0",
+  "version": "0.8.0",
+  "date": "2026-11-09",
+  "since": "0.7.0",
+  "summary": "codechart now explains a change to people who don't read code, lets reviewers leave notes right on the page, and compares what was built with what was planned.",
+  "sections": [
+    {
+      "id": "business-map",
+      "title": "A page for product owners",
+      "change": "new",
+      "pr": 57,
+      "summary": "On request, the agent writes a plain-words page of a change: what people will experience, which rules change, and what the business now keeps. The owner answers its questions without opening the repo.",
+      "journeys": [
+        {
+          "id": "owner-review",
+          "name": "Product owner reviews a change",
+          "who": "Product owner",
+          "now": [
+            {
+              "text": "Developer explains the change in a call"
+            },
+            {
+              "text": "Owner asks for the rules in writing",
+              "change": "changed"
+            }
+          ],
+          "after": [
+            {
+              "text": "Developer sends one page"
+            },
+            {
+              "text": "Owner reads the stories, rules and questions",
+              "change": "new"
+            },
+            {
+              "text": "Owner presses Yes or No on what the agent only guessed",
+              "change": "new"
+            },
+            {
+              "text": "Owner sends the answers back in one paste",
+              "change": "new"
+            }
+          ]
+        }
+      ],
+      "rules": [
+        {
+          "id": "owner-plain-words",
+          "name": "Plain words only",
+          "after": "The page shows no code, file names or technical names. A sentence that looks like code is refused before the page is made."
+        },
+        {
+          "id": "owner-confirm",
+          "name": "Guesses are marked",
+          "after": "Anything the agent worked out from names and structure, instead of reading the code, is marked and waits for the owner's yes or no."
+        }
+      ]
+    },
+    {
+      "id": "page-notes",
+      "title": "Notes on the page",
+      "change": "new",
+      "pr": 54,
+      "summary": "Reviewers can write a note on any box, line or arrow of the page, then copy all of them to the agent in one go.",
+      "journeys": [
+        {
+          "id": "notes-flow",
+          "name": "Reviewer leaves notes for the agent",
+          "who": "Reviewer",
+          "now": [
+            {
+              "text": "Reviewer writes comments in a separate chat",
+              "change": "removed"
+            },
+            {
+              "text": "Agent guesses which box each comment is about",
+              "change": "removed"
+            }
+          ],
+          "after": [
+            {
+              "text": "Reviewer writes a note on the exact box, line or arrow",
+              "change": "new"
+            },
+            {
+              "text": "Reviewer copies every note with one click",
+              "change": "new"
+            },
+            {
+              "text": "Agent reads each note with its place",
+              "change": "new"
+            }
+          ]
+        }
+      ],
+      "rules": [
+        {
+          "id": "notes-late",
+          "name": "Late replies still count",
+          "after": "A reply pasted days later is still understood, as long as the page was made in the last 30 days."
+        }
+      ]
+    },
+    {
+      "id": "console-review",
+      "title": "Review from the terminal",
+      "change": "changed",
+      "summary": "Reviewing in the terminal now works the same way as on the page, so notes written in either place reach the agent together.",
+      "rules": [
+        {
+          "id": "console-same",
+          "name": "Same notes everywhere",
+          "before": "Notes from the terminal and from the page were kept apart.",
+          "after": "Both kinds of note are listed together, each with the box it belongs to."
+        }
+      ],
+      "data": [
+        {
+          "id": "console-kept",
+          "name": "Review notes",
+          "what": "Each note, the box it is about, and whether the agent has read it",
+          "why": "So nothing is lost when the page is redrawn"
+        }
+      ]
+    },
+    {
+      "id": "plan-vs-built",
+      "title": "Plan versus what was built",
+      "change": "fixed",
+      "pr": 56,
+      "summary": "A finished summary was sometimes compared with a plan that came after the work started. It is now compared only with a plan that existed before the work began.",
+      "rules": [
+        {
+          "id": "plan-older",
+          "name": "Only an earlier plan counts",
+          "before": "Any saved plan on the branch could be used for the comparison.",
+          "after": "A plan is used only if it was made before the first change it is compared with."
+        }
+      ]
+    }
+  ]
+}

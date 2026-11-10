@@ -1,6 +1,6 @@
 ---
 name: codechart
-description: 'Use this skill before you write any summary, wrap-up, PR description or plan of a code change, including your own final report after implementing something. Rule: finished a task that touched 3+ files or added branches, or about to plan one, or asked "what changed", "summarize the changes", "recap", "explain this diff/commit/branch", "write the PR description", "make a plan", "how would you implement", "show me the flow", "how does this work", "what are the edge cases"? Then run this skill FIRST and put its verified map or flow in your reply instead of a list of changed files. Skip only for a single-file text, comment, formatting, typo or version-bump change (look at the diff first). Also when the user asks for a map for a product owner or non-technical reader (step 6).'
+description: 'Use this skill before you write any summary, wrap-up, PR description or plan of a code change, including your own final report after implementing something. Rule: finished a task that touched 3+ files or added branches, or about to plan one, or asked "what changed", "summarize the changes", "recap", "explain this diff/commit/branch", "write the PR description", "make a plan", "how would you implement", "show me the flow", "how does this work", "what are the edge cases"? Then run this skill FIRST and put its verified map or flow in your reply instead of a list of changed files. Skip only for a single-file text, comment, formatting, typo or version-bump change (look at the diff first). Also when the user asks for a map for a product owner or non-technical reader (step 6), or is preparing a release: version bump, changelog, release notes, tag (step 7).'
 ---
 
 # codechart
@@ -24,7 +24,7 @@ From the repo root, in the same Bash call as your first read of the change (`git
 
 Single-quote every value. Only paste values made of letters, digits, spaces and `. _ / @ : + = , - [ ] ( ) ~ ^` that don't start with `-`; otherwise don't run it and tell the user why. Range unclear: ask once. Exit 2: fix the command.
 
-Output is JSON: `pathMatches` lists matched path rules with `diagram`, `output`, `context`; `judgeBuiltins` names the built-ins below. No path match is normal. Unless the output has `toJudge` or `final` (below), always judge the built-ins (output `auto`) on the change or plan:
+Output is JSON: `pathMatches` lists matched path rules with `diagram`, `output`, `context`; `judgeBuiltins` names the built-ins below. No path match is normal. A `release` object (`action`, `branch`, `version`, `path`) means a release branch: see step 7. Unless the output has `toJudge` or `final` (below), always judge the built-ins (output `auto`) on the change or plan:
 - `related-files` (map, context `short`): more than 2 changed files depend on each other
 - `behaviour-flow` (flow): the change adds or alters behaviour with at least 2 decisions or edge cases a reader would want to see
 
@@ -123,3 +123,11 @@ Only when the user asks for a map for a product owner, a non-technical reader or
 4. Reply with the printed summary line and link verbatim, and tell the user to send the HTML file to the product owner: it shows no code and needs no repo.
 
 The owner's reply, pasted ending in `codechart review ·`, goes through step 5; see the guide for what to do with it.
+
+## 7. Release map
+
+A PDF of what is already in main, for sales and stakeholders. It holds only facts you checked in the code, the PR text or the diff; never in a PR description.
+
+Make one when the user asks (a release map, "what's in the next release", release notes for sales) or when `check` printed `release` (step 1): `action` `suggest`: end your reply with one line, once per conversation: "codechart can make a release map (a PDF of what's new, for sales): ask me."; `draw`: make it now, once; `done`: mention its `path` once and draw nothing. With no `release` in the output, when the user is preparing a release (version bump, changelog, release notes, tag) and didn't ask, end with that same line, once per conversation.
+
+Run `codechart release-context`, write the spec as [release-guide.md](release-guide.md) says, then `codechart render --md - <<'EOF'` as in step 2, no diff flags and no `--tech`. Anything you can't confirm: ask the developer in chat before rendering, or leave it out; never guess. Reply with the printed PDF path and page link. Printed no PDF (no Chromium-based browser): say so and give the page link; Save as PDF from the browser.

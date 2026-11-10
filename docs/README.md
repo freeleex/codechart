@@ -9,6 +9,7 @@
 - [The full page](page.md): node panel, diffs, reviewed ticks, keys
 - [Review](review.md): notes on the page or in the terminal, sent to your agent
 - [Business map](business-map.md): a plain-words page for a product owner, with questions they answer
+- [Release map](release-map.md): a PDF of what's new in a release, in plain words, for sales
 - [Why you can trust the diagram](trust.md): what codechart checks against your code
 - [Configuration](configuration.md): when a diagram is drawn, rules, every config key, HTML pages
 - [Maps in pull requests and merge requests](pr-maps.md): turning PR maps on, GitHub and GitLab setup, what CI does

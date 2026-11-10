@@ -5,7 +5,7 @@ import { CLIENT_JS } from './client.js';
 import type { Point } from './layout.js';
 import { stripInvisible } from '../strip.js';
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+export const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 /** "6 Nov 2026, 19:34" in the local time of the machine that built the page. */
 export function prettyDate(d: Date): string {

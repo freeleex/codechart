@@ -17,6 +17,7 @@ import { unionOutputs, unmappedFiles } from '../rules/resolve.js';
 import { gitFiles, hasGitSelection, selectionError, type GitSelection } from '../rules/selection.js';
 import type { FlowSpec } from '../spec/flow.js';
 import type { BusinessSpec } from '../spec/business.js';
+import type { ReleaseSpec } from '../spec/release.js';
 import { validateAnySpec, type Spec } from '../spec/schema.js';
 import { MAX_SPEC_BYTES } from '../spec/shared.js';
 import type { RenderContext } from './choose-output.js';
@@ -24,6 +25,7 @@ import { htmlWriter } from './html-writer.js';
 import { renderFlow } from './render-flow.js';
 import { renderMap } from './render-map.js';
 import { renderBusinessSpec } from './render-business.js';
+import { renderReleaseSpec } from './render-release.js';
 import { InvalidSpec, readSpecJson, TOO_BIG } from './spec-input.js';
 import { readStdin } from './stdin.js';
 
@@ -37,7 +39,7 @@ function specOutput(config: Config, ruleNames: string[], diagram: Diagram): Outp
   return unionOutputs(outputs);
 }
 
-async function readSpec(arg: string, cwd: string, stdin: () => Promise<string>): Promise<Spec | FlowSpec | BusinessSpec> {
+async function readSpec(arg: string, cwd: string, stdin: () => Promise<string>): Promise<Spec | FlowSpec | BusinessSpec | ReleaseSpec> {
   const result = validateAnySpec(await readSpecJson(arg, cwd, stdin));
   if (!result.ok) throw new InvalidSpec(result.errors);
   return result.spec;
@@ -65,6 +67,7 @@ interface RenderFlags extends GitSelection {
   at?: string;
   strict?: boolean;
   tech?: string;
+  pdf?: string;
 }
 
 function renderSelectionError(o: RenderFlags): string | undefined {
@@ -121,9 +124,20 @@ function planFor(spec: Spec | FlowSpec, diagram: Diagram, store: PlanStoreOption
 const failed = (check: CheckSummary, drift: Drift<unknown> | undefined): boolean => flagged(check) || (drift?.unexplained ?? 0) > 0;
 const clock = (opts: CommandOptions): Date => opts.now?.() ?? new Date();
 
+/** Business and release maps are HTML-only pages: the output mode and the diff flags don't apply. */
+const isPageSpec = (spec: Spec | FlowSpec | BusinessSpec | ReleaseSpec): spec is BusinessSpec | ReleaseSpec => spec.diagram === 'business' || spec.diagram === 'release';
+
+const renderPageSpec = (spec: BusinessSpec | ReleaseSpec, o: RenderFlags, opts: CommandOptions, cwd: string): Promise<void> =>
+  spec.diagram === 'business' ? renderBusinessSpec(spec, o, opts, cwd) : renderReleaseSpec(spec, o, opts, cwd);
+
+function pdfOnlyForRelease(spec: { diagram?: string }, o: RenderFlags): void {
+  if (o.pdf !== undefined && spec.diagram !== 'release') throw new Error('--pdf only applies to release maps');
+}
+
 async function renderSpec(arg: string, o: RenderFlags, opts: CommandOptions, cwd: string): Promise<void> {
   const spec = await readSpec(arg, cwd, opts.stdin ?? (() => readStdin(MAX_SPEC_BYTES, new Error(TOO_BIG))));
-  if (spec.diagram === 'business') return renderBusinessSpec(spec, o, opts, cwd);
+  pdfOnlyForRelease(spec, o);
+  if (isPageSpec(spec)) return renderPageSpec(spec, o, opts, cwd);
   const repoRoot = findRepoRoot(cwd);
   const root = repoRoot ?? resolve(cwd);
   const at = resolveAt(o, repoRoot, root);
@@ -173,7 +187,7 @@ async function renderSpec(arg: string, o: RenderFlags, opts: CommandOptions, cwd
 export function renderCommand(opts: CommandOptions): Command {
   const cwd = opts.cwd ?? process.cwd();
   return new Command('render')
-    .description('render a spec as a terminal map and/or a self-contained HTML map (business maps: HTML only)')
+    .description('render a spec as a terminal map and/or a self-contained HTML map (business and release maps: HTML only)')
     .argument('<spec>', "spec JSON file, or '-' for stdin")
     .addOption(new Option('--output <mode>', 'override the output mode').choices(['auto', 'cli', 'web', 'both']))
     .addOption(new Option('--theme <theme>', 'HTML theme').choices(THEMES))
@@ -188,6 +202,7 @@ export function renderCommand(opts: CommandOptions): Command {
     .option('--since <base>', 'check claims against the files committed since <base>; add --git for uncommitted ones too')
     .option('--head <ref>', 'with --since: compare <base>...<ref> instead of HEAD')
     .option('--tech <file>', "business maps: the tech map's spec file, whose boxes the business map links to (default: the newest saved map on this branch)")
+    .option('--pdf <file>', 'release maps: where to write the PDF (default: next to the HTML page)')
     .option('--strict', "exit 1 when a claim doesn't match the code or the build drifted from the plan without a reason")
     .action(async (arg: string, o: RenderFlags, cmd: Command) => {
       const usage = renderSelectionError(o) ?? (!o.pr && (o.svg !== undefined || o.imageUrl !== undefined) ? '--svg and --image-url need --pr' : undefined);

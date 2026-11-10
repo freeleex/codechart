@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Records one feature GIF in docs/images: flow, plan-vs-built, page-review (short cut) or console-review-short.
+# Records one feature GIF in docs/images: flow, plan-vs-built, page-review (short cut), release-map or console-review-short.
 # Needs ffmpeg, vhs and vim (brew install vhs), and a built dist/.
 set -euo pipefail
-mode="${1:?usage: record-feature.sh flow|plan-vs-built|page-review|console-review-short}"
+mode="${1:?usage: record-feature.sh flow|plan-vs-built|page-review|release-map|console-review-short}"
 demo="$(cd "$(dirname "$0")" && pwd)"
 root="$(cd "$demo/../.." && pwd)"
 work="$(mktemp -d /tmp/codechart-feature.XXXXXX)"
@@ -28,7 +28,7 @@ gif() {
 }
 page() { # <script> <html> [args]: records the page with Playwright
   (cd "$work/pw" && npm init -y >/dev/null && npm i --silent playwright@1.64.1 >/dev/null && npx playwright install chromium)
-  cp "$demo"/{feature-lib,flow,plan-vs-built,page-review}.mjs "$work/pw/"
+  cp "$demo"/{feature-lib,flow,plan-vs-built,page-review,release-map}.mjs "$work/pw/"
   node "$work/pw/$1" "${@:2}"
 }
 latest() { ls -t "$work"/.cache/codechart/shop-*/*"$1" | head -1; }
@@ -47,6 +47,20 @@ case "$mode" in
     "$cc" render "$root/tests/fixtures/shop.spec.json" --git --output web --theme dark >/dev/null
     page page-review.mjs "$(latest invoices-for-paid-orders.html)" "$work/vid" "$work/message.txt" short
     gif "$(ls "$work"/vid/*.webm)" "$root/docs/images/page-review.gif" 1.4 ;;
+  release-map)
+    cp "$root/docs/images/logo.svg" logo.svg
+    printf 'release:\n  product: Acme Shop\n  logo: logo.svg\n' > .codechart.yaml
+    "$cc" render "$demo/specs/release.spec.json" --output web >/dev/null
+    mkdir "$work/vid"
+    page release-map.mjs "$(latest .release.html)" "$work/vid"
+    # Each still is held for the seconds in the second column (about 8 s in all).
+    for n in 0:2 1:1.8 2:1.4 3:1.8 4:1.4; do printf "file '%s/vid/%s.png'\nduration %s\n" "$work" "${n%:*}" "${n#*:}"; done > "$work/stills.txt"
+    printf "file '%s/vid/4.png'\n" "$work" >> "$work/stills.txt"
+    ffmpeg -loglevel error -y -f concat -safe 0 -i "$work/stills.txt" -filter_complex "
+      fps=5,scale=720:-2:flags=lanczos,split[a][b];
+      [a]palettegen=max_colors=64[pal];
+      [b][pal]paletteuse=dither=none" "$root/docs/images/release-map.gif"
+    ls -la "$root/docs/images/release-map.gif" ;;
   console-review-short)
     git checkout -qb feat/invoices
     DEMO_BIN="$work/bin" DEMO_SPEC="$root/tests/fixtures/shop.spec.json" vhs "$demo/console-review-short.tape" &>/dev/null

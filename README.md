@@ -186,6 +186,18 @@ More: [Business map](docs/business-map.md)
 </td>
 <td width="54%" valign="middle"><img src="docs/images/business-map.png" alt="Business page: a journey with Now and After columns, rule cards, one dashed card asking for a yes or no, and a question with an answer box"></td>
 </tr>
+<tr>
+<td width="46%" valign="middle">
+
+### Release map
+
+On request, a PDF of what's new in a release, in plain words, for sales: a cover, then a section per feature. It only holds what the agent checked in the code, so nobody has to review it.
+
+More: [Release map](docs/release-map.md)
+
+</td>
+<td width="54%" valign="middle"><img src="docs/images/release-map.gif" alt="The PDF of a release map: a cover with the logo, product name, version and summary, then the features one after another"></td>
+</tr>
 </table>
 
 ## The full page

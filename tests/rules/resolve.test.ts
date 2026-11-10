@@ -8,6 +8,7 @@ const config: Config = {
   web: { outDir: '/tmp/codechart', theme: 'auto', minNodes: 8, keep: 20, maxAgeDays: 7, open: 'auto' },
   useBuiltinRules: false,
   updateCheck: false,
+  release: { branches: ['v[0-9]*', 'release-*', 'release/*'], auto: 'suggest' },
   rules: [
     { name: 'typeorm', paths: ['src/entities/**'], output: 'none' },
     { name: 'db', paths: ['**/entities/**', 'migrations/**'], output: 'both', context: 'full' },
