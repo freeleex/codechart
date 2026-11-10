@@ -181,12 +181,22 @@ More: [Maps in pull requests](docs/pr-maps.md)
 
 On request, a plain-words page for a product owner with no repo access: journeys, rules, saved data and questions. They answer, confirm and send it back.
 
-For a whole release, a [release map](docs/release-map.md) has a section per feature and exports to a PDF for sales once the owner has confirmed every item.
-
 More: [Business map](docs/business-map.md)
 
 </td>
 <td width="54%" valign="middle"><img src="docs/images/business-map.png" alt="Business page: a journey with Now and After columns, rule cards, one dashed card asking for a yes or no, and a question with an answer box"></td>
+</tr>
+<tr>
+<td width="46%" valign="middle">
+
+### Release map
+
+On request, a plain-words page for a whole release, with a section per feature. Once the owner has confirmed every item, Export release opens the print window to save a PDF for sales.
+
+More: [Release map](docs/release-map.md)
+
+</td>
+<td width="54%" valign="middle"><img src="docs/images/release-map.gif" alt="Release page: the Export button says Confirm 2 items to export; the owner clicks Yes, that's right on one reading and No on the other, the button becomes Export release, and the printed view shows the cover with logo and the first feature"></td>
 </tr>
 </table>
 

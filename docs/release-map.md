@@ -2,6 +2,8 @@
 
 One page for a whole release: a section per feature in plain words, for a product owner to review and then export as a PDF for sales and stakeholders. No code, file names or ids on the page, and the owner needs no access to the repo.
 
+<img src="images/release-map.gif" alt="The Export button says Confirm 2 items to export; the owner clicks Yes, that's right on one reading and No on the other, the button becomes Export release, and the printed view shows the cover with logo and the first feature" width="960">
+
 ## When to use it
 
 When a release is coming and someone who doesn't read code has to sign off on what it says, or you need release notes a salesperson can hand out. Your agent never makes one on its own, and it never goes into a PR description. For a single change, use a [business map](business-map.md).
