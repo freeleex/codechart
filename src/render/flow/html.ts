@@ -33,6 +33,9 @@ aside .branches{padding-left:0;list-style:none}
 aside .branches li{margin:0 0 10px}
 `;
 
+/** How far left of a diamond's left point its tickbox is centred. */
+const DECISION_TICK_GAP = 10;
+
 function shape(step: FlowStep, b: FlowLayoutNode): string {
   if (step.type === 'decision') {
     const cx = b.x + b.w / 2;
@@ -72,7 +75,7 @@ function renderStep(step: FlowStep, b: FlowLayoutNode, flag: string, side: Side 
     flag +
     shape(step, b) +
     text +
-    (ghost ? '' : tickSvg(b.x, b.y)) +
+    (ghost ? '' : step.type === 'decision' ? tickSvg(b.x - DECISION_TICK_GAP, b.y + b.h / 2) : tickSvg(b.x, b.y)) +
     (flagged ? flagMark(b.x + b.w, b.y) : '') +
     (drift ? driftMark(drift, b.x + b.w, b.y + b.h + 8) : '') +
     `</g>`

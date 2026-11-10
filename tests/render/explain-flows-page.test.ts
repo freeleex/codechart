@@ -328,3 +328,22 @@ describe('explain page with flows: look and notes', () => {
     expect(qa('.cm-note').length).toBe(1);
   });
 });
+
+describe('explain page with flows: tab styling', () => {
+  const css = () => q('style').textContent ?? '';
+
+  it('main tabs are underlined text, flow sub-tabs are small pills on their own row', async () => {
+    mount(await draw());
+    const c = css();
+    expect(c).toMatch(/#view-tabs button\[aria-selected="true"\]\{[^}]*border-bottom-color:var\(--edge\)/);
+    expect(c).not.toMatch(/#view-tabs button[^{]*\{[^}]*border-radius:1\d/);
+    expect(c).toMatch(/#flow-tabs\{[^}]*background:var\(--bg\)/);
+    expect(c).toMatch(/#flow-tabs::before\{content:"Flow:"/);
+    expect(c).toMatch(/#flow-tabs button\[aria-selected="true"\]\{[^}]*background:var\(--panel\)[^}]*border-color:var\(--line\)/);
+  });
+
+  it('keeps a visible keyboard focus on both tab rows', async () => {
+    mount(await draw());
+    expect(css()).toMatch(/#view-bar button:focus-visible\{outline:2px solid var\(--edge\)/);
+  });
+});

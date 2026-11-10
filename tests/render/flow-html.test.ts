@@ -201,3 +201,38 @@ describe('renderFlowHtml', () => {
     expect(out).toContain('&lt;/template&gt;&lt;/script&gt;&lt;script&gt;alert(1)');
   });
 });
+
+describe('step tickbox position', () => {
+  const hit = (body: string) => {
+    const m = body.match(/class="tick-hit" x="([-\d.]+)" y="([-\d.]+)" width="18" height="18"/)!;
+    return { cx: Number(m[1]) + 9, cy: Number(m[2]) + 9 };
+  };
+
+  it('sits at the left point of a decision, outside the diamond', async () => {
+    const spec = sampleFlow();
+    const b = (await layoutFlow(spec)).nodes.find((n) => n.id === 'mode')!;
+    const { cx, cy } = hit(nodeOf(await html(spec), 'mode').body);
+    expect(cy).toBeCloseTo(b.y + b.h / 2, 1);
+    expect(cx).toBeLessThan(b.x);
+    expect(b.x - cx).toBeLessThanOrEqual(12);
+  });
+
+  it('stays on the top-left corner of other steps', async () => {
+    const spec = sampleFlow();
+    const b = (await layoutFlow(spec)).nodes.find((n) => n.id === 'read')!;
+    const { cx, cy } = hit(nodeOf(await html(spec), 'read').body);
+    expect([cx, cy]).toEqual([b.x, b.y]);
+  });
+
+  it('keeps clear of the edge labels of the decision', async () => {
+    const spec = sampleFlow();
+    const layout = await layoutFlow(spec);
+    const { cx, cy } = hit(nodeOf(await html(spec), 'mode').body);
+    for (const [i, e] of layout.edges.entries()) {
+      const link = spec.links[i]!;
+      if (!e.labelAt || (link.from !== 'mode' && link.to !== 'mode')) continue;
+      const l = e.labelAt;
+      expect(Math.hypot(l.x - cx, l.y - cy)).toBeGreaterThan(18);
+    }
+  });
+});

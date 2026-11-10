@@ -27,11 +27,16 @@ export const VIEW_CSS = `
 .defs{position:absolute;width:0;height:0}
 .view{flex:1;min-width:0;min-height:0;display:flex}.view[hidden]{display:none}
 #view-bar{background:var(--panel);border-bottom:1px solid var(--line)}
-#view-tabs,#flow-tabs{display:flex;flex-wrap:wrap;gap:4px;padding:6px 14px}#flow-tabs{padding-top:0}#flow-tabs[hidden]{display:none}
-#view-bar button{padding:3px 12px;font:12px system-ui,sans-serif;color:var(--muted);background:none;border:1px solid transparent;border-radius:12px;cursor:pointer}
-#view-bar button:hover{color:var(--text)}
-#view-bar button[aria-selected="true"]{color:var(--text);font-weight:600;border-color:var(--edge)}
-#flow-tabs button{font-size:11px}
+#view-tabs{display:flex;flex-wrap:wrap;gap:20px;padding:0 14px}
+#view-tabs button{padding:8px 2px 6px;font:600 13px system-ui,sans-serif;color:var(--muted);background:none;border:0;border-bottom:2px solid transparent;border-radius:0;cursor:pointer}
+#view-tabs button:hover{color:var(--text)}
+#view-tabs button[aria-selected="true"]{color:var(--text);border-bottom-color:var(--edge)}
+#flow-tabs{display:flex;flex-wrap:wrap;align-items:center;gap:4px;padding:6px 14px;background:var(--bg);border-top:1px solid var(--line)}#flow-tabs[hidden]{display:none}
+#flow-tabs::before{content:"Flow:";margin-right:4px;font:11px system-ui,sans-serif;color:var(--muted)}
+#flow-tabs button{padding:2px 10px;font:11px system-ui,sans-serif;color:var(--muted);background:none;border:1px solid transparent;border-radius:11px;cursor:pointer}
+#flow-tabs button:hover{color:var(--text)}
+#flow-tabs button[aria-selected="true"]{color:var(--text);background:var(--panel);border-color:var(--line)}
+#view-bar button:focus-visible{outline:2px solid var(--edge);outline-offset:2px}
 [data-only-view][hidden]{display:none!important}
 #review{margin-left:auto}
 aside .partof{margin:6px 0}
