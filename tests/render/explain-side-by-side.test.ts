@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { renderHtml } from '../../src/render/web/html.js';
 import { layoutSpec } from '../../src/render/web/layout.js';
 import { validateSpec } from '../../src/spec/schema.js';
@@ -341,6 +341,31 @@ describe('side by side: panes, keys and history', () => {
     alt('ArrowRight');
     expect(selected()).toEqual([STEP]);
     expect(location.hash).toBe('#view=flow%3Acreate&node=flow%3Acreate%2Fzero&sbs=1');
+  });
+
+  describe('a zoom glide running when the switch changes', () => {
+    afterEach(() => vi.unstubAllGlobals());
+
+    it('is stopped, so the panes keep the fresh fit', async () => {
+      const frames: FrameRequestCallback[] = [];
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => frames.push(cb));
+      Object.defineProperty(window, 'requestAnimationFrame', { value: globalThis.requestAnimationFrame, configurable: true });
+      const rect = { left: 0, top: 0, right: 800, bottom: 600, x: 0, y: 0, width: 800, height: 600 } as DOMRect;
+      vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue(rect);
+      (SVGElement.prototype as unknown as { getBBox: () => unknown }).getBBox = () => ({ x: 0, y: 0, width: 100, height: 50 });
+      mount(await draw());
+      const fitted = transform('components');
+      click(el('billing'));
+      key('f');
+      expect(frames).toHaveLength(1);
+      side();
+      const fresh = transform('components');
+      const t = performance.now() + 1000;
+      while (frames.length) frames.shift()!(t);
+      expect(transform('components')).toBe(fresh);
+      expect(fresh).toBe(fitted);
+      vi.restoreAllMocks();
+    });
   });
 
   it('Gaps shows the page info with both panes still up', async () => {

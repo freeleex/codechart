@@ -1647,6 +1647,7 @@ export const CLIENT_JS = [
   "    apply();",
   "}",
   "function refit() {",
+  "    stopGlide();",
   "    fitted.clear();",
   "    fit();",
   "}",
