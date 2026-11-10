@@ -1,4 +1,5 @@
 // Runs in the generated business page; scripts/client-build.ts puts it ahead of client.ts in the one inline script.
+import { initExport } from './export.js';
 import { copyNoteText, finishMessage } from './finish.js';
 import type { Change, Note } from './note-store.js';
 import { load, save } from './store.js';
@@ -244,4 +245,5 @@ export function initBusiness(repo: string, change: Change = { slug: 'business', 
   });
   bizDialog(p, change);
   bizRefresh(p);
+  initExport();
 }

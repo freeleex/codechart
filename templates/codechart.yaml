@@ -15,6 +15,10 @@
 #   open: auto (auto | always | never; auto opens new HTML in your browser inside VS Code-based editors, whose links show the source)
 # Also global only: updateCheck: true (look up the newest codechart on npm at most once a day; false turns it off)
 
+# release:                    # the cover of a release map
+#   product: My Product       # product name on the cover (default: the repo name)
+#   logo: docs/logo.svg       # repo-relative .svg or .png, at most 200 KB
+
 # useBuiltinRules: true   # common migration and model paths, "more than 2 changed files depend on each other", and behaviour-flow
 
 # Rules run top-down, before the built-in ones; per diagram type, for each file the first matching path rule wins.

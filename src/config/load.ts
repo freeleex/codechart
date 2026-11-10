@@ -79,6 +79,22 @@ function resolveOutDir(dir: string, home: string): string {
   return resolve(home, expanded);
 }
 
+const RELEASE_KEYS = ['product', 'logo'] as const;
+
+/** `release.*`: a later file wins, key by key. */
+function releaseOf(files: { file?: ConfigFile; source: string }[], sources: Record<string, string>): Config['release'] {
+  const release: NonNullable<Config['release']> = {};
+  for (const { file, source } of files) {
+    for (const key of RELEASE_KEYS) {
+      const value = file?.release?.[key];
+      if (value === undefined) continue;
+      release[key] = value;
+      sources[`release.${key}`] = source;
+    }
+  }
+  return Object.keys(release).length ? release : undefined;
+}
+
 export interface ConfigWithSources {
   config: Config;
   sources: Record<string, string>;
@@ -138,8 +154,9 @@ export function loadConfigWithSources(opts: LoadOptions): ConfigWithSources {
     ...(useBuiltinRules ? builtinRules(defaults.flows) : []).map((rule) => ({ rule, source: BUILTIN })),
   ]);
 
+  const release = releaseOf(files, sources);
   return {
-    config: { defaults, web, useBuiltinRules, updateCheck: global?.updateCheck !== false, rules: tagged.map((t) => t.rule) },
+    config: { defaults, web, useBuiltinRules, updateCheck: global?.updateCheck !== false, ...(release && { release }), rules: tagged.map((t) => t.rule) },
     sources,
     ruleSources: tagged.map((t) => t.source),
   };

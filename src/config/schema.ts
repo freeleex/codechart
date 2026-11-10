@@ -30,6 +30,8 @@ export interface Config {
   useBuiltinRules: boolean;
   /** Look up the newest codechart once a day and say when there is one. */
   updateCheck: boolean;
+  /** Named on the cover of a release map; set only when a config file sets it. */
+  release?: { product?: string; logo?: string };
   rules: Rule[];
 }
 
@@ -82,6 +84,12 @@ const configFileSchema = z.strictObject({
       keep: z.number().int().positive().optional(),
       maxAgeDays: z.number().nonnegative().optional(),
       open: z.enum(OPEN_MODES).optional(),
+    })
+    .optional(),
+  release: z
+    .strictObject({
+      product: z.string().min(1).max(80).regex(ONE_LINE_VISIBLE, CHARS_MESSAGE).optional().describe('Product name on the cover of a release map (default: the repo name)'),
+      logo: z.string().min(1).max(300).regex(ONE_LINE_VISIBLE, CHARS_MESSAGE).optional().describe('Repo-relative path to an .svg or .png of at most 200 KB, shown on the cover of a release map'),
     })
     .optional(),
   useBuiltinRules: z.boolean().optional(),

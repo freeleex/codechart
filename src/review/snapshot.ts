@@ -8,6 +8,7 @@ import { gitDirtyHashes, gitHead } from '../rules/git-files.js';
 import { hasGitSelection, type GitSelection } from '../rules/selection.js';
 import type { BusinessSpec } from '../spec/business.js';
 import type { FlowSpec, FlowStep } from '../spec/flow.js';
+import type { ReleaseSpec } from '../spec/release.js';
 import type { Spec } from '../spec/schema.js';
 import type { Range, ReviewNode } from './schema.js';
 import type { ReviewSnapshot } from './store.js';
@@ -76,17 +77,41 @@ export function businessRev(kind: keyof typeof REV_FIELDS, item: object): string
   return hash(REV_FIELDS[kind].map((f) => fields[f])).slice(0, 6);
 }
 
-/** A business page takes notes on its items: journeys, rules, saved data and questions, by id. */
-export function businessSnapshot(spec: BusinessSpec): ReviewSnapshot {
+interface Named {
+  id: string;
+  name: string;
+  links?: string[];
+}
+
+interface PageItems {
+  journeys: Named[];
+  rules: Named[];
+  data: Named[];
+  questions: { id: string; text: string; about: string }[];
+}
+
+function itemsSnapshot(title: string, spec: PageItems): ReviewSnapshot {
   const items = [
     ...spec.journeys.map((x) => ({ ...x, item: 'journey' as const })),
     ...spec.rules.map((x) => ({ ...x, item: 'rule' as const })),
     ...spec.data.map((x) => ({ ...x, item: 'data' as const })),
   ];
-  const linksOf = new Map(items.map((x) => [x.id, x.links]));
-  const nodes = items.map((x) => ({ id: clean(x.id), label: clean(x.name), item: x.item, rev: businessRev(x.item, x), links: x.links.map(clean) }));
-  const questions = spec.questions.map((q) => ({ id: clean(q.id), label: clean(q.text), item: 'question' as const, rev: businessRev('question', q), about: clean(q.about), links: (linksOf.get(q.about) ?? []).map(clean) }));
-  return { kind: 'business', title: clean(spec.title), nodes: [...nodes, ...questions] };
+  const linksOf = new Map(items.map((x) => [x.id, x.links ?? []]));
+  const linked = (links: string[]) => (links.length ? { links: links.map(clean) } : {});
+  const nodes = items.map((x) => ({ id: clean(x.id), label: clean(x.name), item: x.item, rev: businessRev(x.item, x), ...linked(x.links ?? []) }));
+  const questions = spec.questions.map((q) => ({ id: clean(q.id), label: clean(q.text), item: 'question' as const, rev: businessRev('question', q), about: clean(q.about), ...linked(linksOf.get(q.about) ?? []) }));
+  return { kind: 'business', title: clean(title), nodes: [...nodes, ...questions] };
+}
+
+/** A business page takes notes on its items: journeys, rules, saved data and questions, by id. */
+export function businessSnapshot(spec: BusinessSpec): ReviewSnapshot {
+  return itemsSnapshot(spec.title, spec);
+}
+
+/** A release page is a business page to the review: the items of all its sections, by id (unique across the page). */
+export function releaseSnapshot(spec: ReleaseSpec): ReviewSnapshot {
+  const all = spec.sections;
+  return itemsSnapshot(spec.title, { journeys: all.flatMap((s) => s.journeys), rules: all.flatMap((s) => s.rules), data: all.flatMap((s) => s.data), questions: all.flatMap((s) => s.questions) });
 }
 
 /** Where the code stood at render time, for the review's stale check; none for a commit, which never changes, or `--head`, which is not HEAD. */

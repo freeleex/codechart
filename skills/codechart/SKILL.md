@@ -123,3 +123,7 @@ Only when the user asks for a map for a product owner, a non-technical reader or
 4. Reply with the printed summary line and link verbatim, and tell the user to send the HTML file to the product owner: it shows no code and needs no repo.
 
 The owner's reply, pasted ending in `codechart review ·`, goes through step 5; see the guide for what to do with it.
+
+## 7. Release map
+
+Only when the user asks for a release map, "what's in the next release" or release notes for sales or stakeholders; never on your own, never in a PR description. HTML only. Run `codechart release-context`, write the spec as [release-guide.md](release-guide.md) says (spot-check included), then `codechart render --md - <<'EOF'` as in step 2, no diff flags and no `--tech`. Reply with the printed line and link, and tell the owner to confirm the items and use *Export release*. Their reply goes through step 5.

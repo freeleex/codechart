@@ -1,14 +1,14 @@
-import { THEMES, type Theme } from '../../config/schema.js';
 import { businessRev } from '../../review/snapshot.js';
 import type { BusinessSpec } from '../../spec/business.js';
-import { CLIENT_JS } from '../web/client.js';
-import { esc, jsonForScript, PAGE_CSP, prettyDate, type HtmlMeta } from '../web/page.js';
+import { esc, prettyDate, type HtmlMeta } from '../web/page.js';
+import { LEGEND, pageShell, updateNote } from './shell.js';
 import { BUSINESS_CSS } from './styles.js';
 
 type Spec = BusinessSpec;
-type Journey = Spec['journeys'][number];
-type Rule = Spec['rules'][number];
-type Datum = Spec['data'][number];
+/** A card shows no tech map links, so a release map's items fit too. */
+type Journey = Omit<Spec['journeys'][number], 'links'>;
+type Rule = Omit<Spec['rules'][number], 'links'>;
+type Datum = Omit<Spec['data'][number], 'links'>;
 type Step = Journey['now'][number];
 type Evidence = Journey['evidence'];
 
@@ -46,7 +46,7 @@ const initials = (who: string): string =>
     .slice(0, 2)
     .toUpperCase();
 
-function journeyCard(j: Journey): string {
+export function journeyCard(j: Journey): string {
   const who = j.who ? `<span class="actor"><span class="av">${esc(initials(j.who))}</span>${esc(j.who)}</span>` : '';
   return `<article class="card journey${j.evidence === 'reading' ? ' guess' : ''}" ${attrs('journey', j, j.name)}>
 <div class="j-head"><h3>${esc(j.name)}</h3>${who}${tag(j.evidence)}</div>
@@ -56,7 +56,7 @@ ${noteBox(j.id, ' j-cbox')}
 </article>`;
 }
 
-function ruleCard(r: Rule): string {
+export function ruleCard(r: Rule): string {
   const rows = `${r.before === undefined ? '' : `<dt>Before</dt><dd class="was">${esc(r.before)}</dd>`}<dt>After</dt><dd>${esc(r.after)}</dd>`;
   const exceptions = r.exceptions?.length ? `<div class="exc"><b>Except:</b><ul>${r.exceptions.map((e) => `<li>${esc(e)}</li>`).join('')}</ul></div>` : '';
   return `<article class="card rule${r.evidence === 'reading' ? ' guess' : ''}" ${attrs('rule', r, r.name)}>
@@ -68,7 +68,7 @@ ${noteBox(r.id)}
 </article>`;
 }
 
-function dataCard(d: Datum): string {
+export function dataCard(d: Datum): string {
   return `<article class="card datum${d.evidence === 'reading' ? ' guess' : ''}" ${attrs('data', d, d.name)}>
 <div class="r-top"><span class="mk add">Kept</span>${tag(d.evidence)}</div>
 <h3>${esc(d.name)}</h3><p>${esc(d.what)}</p><p class="why">${esc(d.why)}</p>
@@ -77,8 +77,8 @@ ${noteBox(d.id)}
 </article>`;
 }
 
-function questionCard(spec: Spec, q: Spec['questions'][number], i: number): string {
-  const about = [...spec.journeys, ...spec.rules, ...spec.data].find((x) => x.id === q.about)!;
+export function questionCard(items: { id: string; name: string }[], q: Spec['questions'][number], i: number): string {
+  const about = items.find((x) => x.id === q.about)!;
   return `<article class="card qa" ${attrs('question', q, q.text)}><span class="qn">${i + 1}</span><div>
 <p>${esc(q.text)}</p>
 <div class="about">About: <a href="#i-${esc(q.about)}" data-jump>${esc(about.name)}</a></div>
@@ -94,7 +94,7 @@ function sections(spec: Spec): string[] {
   if (spec.journeys.length) out.push(['journeys', 'What people will experience', 'Each story shows how it works today and how it will work after this change.', spec.journeys.map(journeyCard).join('\n')]);
   if (spec.rules.length) out.push(['rules', 'Rules, before and after', "The business rules that apply after this change. Dashed amber cards are the agent's best reading and need your yes or no.", `<div class="rules">${spec.rules.map(ruleCard).join('\n')}</div>`]);
   if (spec.data.length) out.push(['data', 'What the business now keeps', 'Information saved because of this change, and why.', `<div class="data">${spec.data.map(dataCard).join('\n')}</div>`]);
-  if (spec.questions.length) out.push(['questions', 'Questions for you', 'The developer could not decide these alone. Short answers are fine.', `<div class="qs">${spec.questions.map((q, i) => questionCard(spec, q, i)).join('\n')}</div>`]);
+  if (spec.questions.length) out.push(['questions', 'Questions for you', 'The developer could not decide these alone. Short answers are fine.', `<div class="qs">${spec.questions.map((q, i) => questionCard([...spec.journeys, ...spec.rules, ...spec.data], q, i)).join('\n')}</div>`]);
   return out.map(([id, title, sub, body], i) => section(id, i + 1, title, sub, body));
 }
 
@@ -103,42 +103,17 @@ function stats(spec: Spec): string {
   return [pill('journeys', spec.journeys.length, 'journey'), pill('rules', spec.rules.length, 'rule'), pill('data', spec.data.length, 'saved item'), pill('questions', spec.questions.length, 'question for you ↓', 'questions for you ↓', 'q')].join('');
 }
 
-const LEGEND = `<div class="legend"><div class="grp"><span class="lab">How sure</span><span class="ev ok">Checked in code</span><span class="ev guess">Agent's reading — please confirm</span></div>
-<div class="grp"><span class="lab">Steps</span><span class="mk add">New</span><span class="mk chg">Changed</span><span class="mk rem">Removed</span><span>plain = same as now</span></div></div>`;
-
-const DIALOG = `<div class="modal" id="send-modal" role="dialog" aria-modal="true" aria-labelledby="send-title" hidden>
-<div class="sheet"><h3 id="send-title">Your message for the developer</h3>
-<p id="send-hint">Paste it into the chat or ticket where the developer works.</p>
-<p id="send-when">You can send it whenever you're ready, in an email or chat message.</p>
-<pre id="send-text"></pre>
-<div class="row"><button type="button" id="send-copy">Copy again</button><button type="button" class="send" id="send-done">Done</button></div></div></div>`;
-
 /** The business map as one self-contained page: plain words only, no code, files or ids on screen. */
 export function businessPage(spec: BusinessSpec, meta: HtmlMeta): string {
-  const theme: Theme = meta.theme && THEMES.includes(meta.theme) ? meta.theme : 'auto';
-  const data = { page: 'business', repoKey: meta.repoKey ?? meta.repo, ...(meta.change && { change: meta.change }) };
-  const update = meta.update ? `<span class="update">codechart ${esc(meta.update)} is out</span>` : '';
-  return `<!doctype html>
-<html lang="en" data-theme="${theme}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="${PAGE_CSP}">
-<title>${esc(spec.title)}</title>
-<style>${BUSINESS_CSS}</style></head>
-<body data-page="business">
-<header><div class="wrap">
-<div class="eyebrow"><span class="brand"><i></i>codechart · business view</span><time datetime="${meta.generatedAt.toISOString()}">${prettyDate(meta.generatedAt)}</time>${update}</div>
+  const header = `<div class="wrap">
+<div class="eyebrow"><span class="brand"><i></i>codechart · business view</span><time datetime="${meta.generatedAt.toISOString()}">${prettyDate(meta.generatedAt)}</time>${updateNote(meta)}</div>
 <h1>${esc(spec.title)}</h1>
 <p class="summary">${esc(spec.summary)}</p>
 <div class="stats">${stats(spec)}</div>
 ${LEGEND}
-</div></header>
-<main class="wrap">
-${sections(spec).join('\n')}
-<footer>Made by codechart from the developer's change. Items marked "Checked in code" were read in the code; the others are the agent's reading.</footer>
-</main>
-<div class="bar"><div class="wrap"><span class="count"><b id="note-count">0</b> <span id="note-label">answers and notes</span> so far</span><button type="button" class="send" id="send" disabled>Send back to developer</button></div></div>
-${DIALOG}
-<script type="application/json" id="spec-data">${jsonForScript(data)}</script>
-<script>${CLIENT_JS}</script>
-</body></html>
-`;
+</div>`;
+  const main = `${sections(spec).join('\n')}
+<footer>Made by codechart from the developer's change. Items marked "Checked in code" were read in the code; the others are the agent's reading.</footer>`;
+  const bar = '<div class="bar"><div class="wrap"><span class="count"><b id="note-count">0</b> <span id="note-label">answers and notes</span> so far</span><button type="button" class="send" id="send" disabled>Send back to developer</button></div></div>';
+  return pageShell({ page: 'business', title: spec.title, css: BUSINESS_CSS, meta, header, main, bar });
 }

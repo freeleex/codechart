@@ -46,6 +46,8 @@ Repo `.codechart.yaml` and global `~/.config/codechart/config.yaml`. Editor sche
 | `defaults.terminalMaxNodes` | number | `15` |
 | `web.theme` | `auto`, `light`, `dark` | `auto` |
 | `web.minNodes` | HTML from this many nodes on | `8` |
+| `release.product` | product name on the cover of a [release map](release-map.md): one line, up to 80 characters | the repo name |
+| `release.logo` | repo-relative `.svg` or `.png` of at most 200 KB, shown on that cover; a bad one is skipped with a warning | none |
 | `useBuiltinRules` | built-in migration/model/infrastructure path rules, `related-files`, `behaviour-flow` | `true` |
 | `rules` | your own, run before the built-ins | none |
 

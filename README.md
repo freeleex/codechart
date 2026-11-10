@@ -181,6 +181,8 @@ More: [Maps in pull requests](docs/pr-maps.md)
 
 On request, a plain-words page for a product owner with no repo access: journeys, rules, saved data and questions. They answer, confirm and send it back.
 
+For a whole release, a [release map](docs/release-map.md) has a section per feature and exports to a PDF for sales once the owner has confirmed every item.
+
 More: [Business map](docs/business-map.md)
 
 </td>

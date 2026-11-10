@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { validateBusinessSpec, type BusinessSpec } from './business.js';
 import { matchSchema, validateFlowSpec, type FlowSpec } from './flow.js';
+import { validateReleaseSpec, type ReleaseSpec } from './release.js';
 import { codeLabelIssue, driftBase, driftIssues, formatIssues, ident, labelIssues, long, pathStr, short, shortOpt, type ValidationResult as Result } from './shared.js';
 
 export const STATUSES = ['new', 'changed', 'removed', 'context', 'config'] as const;
@@ -154,10 +155,11 @@ export function validateSpec(input: unknown): ValidationResult {
   return { ok: true, spec: { ...result.data, nodes } };
 }
 
-/** Any kind of spec `render` takes: a business spec, a flow or a map. */
-export function validateAnySpec(input: unknown): Result<Spec | FlowSpec | BusinessSpec> {
-  const isBusiness = typeof input === 'object' && input !== null && (input as { diagram?: unknown }).diagram === 'business';
-  return isBusiness ? validateBusinessSpec(input) : validateSpec(input);
+/** Any kind of spec `render` takes: a release map, a business spec, a flow or a map. */
+export function validateAnySpec(input: unknown): Result<Spec | FlowSpec | BusinessSpec | ReleaseSpec> {
+  const diagram = typeof input === 'object' && input !== null ? (input as { diagram?: unknown }).diagram : undefined;
+  if (diagram === 'business') return validateBusinessSpec(input);
+  return diagram === 'release' ? validateReleaseSpec(input) : validateSpec(input);
 }
 
 export function specJsonSchema(): object {
