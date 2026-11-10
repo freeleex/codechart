@@ -5,7 +5,7 @@ interface Selection {
   hidden: number;
 }
 
-const PRIMARY: ReadonlySet<Status> = new Set(["new", "changed", "removed", "config", "existing"]);
+const PRIMARY: ReadonlySet<Status> = new Set(["new", "changed", "removed", "config"]);
 // The view shows the change; context only explains it, so it never outranks a changed node.
 const TIER: Record<Status, number> = {
   new: 0,
@@ -18,7 +18,7 @@ const TIER: Record<Status, number> = {
 };
 
 function candidates(spec: Spec): SpecNode[] {
-  if (!spec.nodes.some((n) => TIER[n.status] === 0))
+  if (spec.kind === "explain" || !spec.nodes.some((n) => TIER[n.status] === 0))
     return spec.nodes;
   const primary = new Set(
     spec.nodes.filter((n) => PRIMARY.has(n.status)).map((n) => n.id),

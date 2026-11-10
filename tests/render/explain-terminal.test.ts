@@ -21,6 +21,15 @@ describe('explain map in the terminal', () => {
     expect(text).not.toMatch(/\bnew\b|\bchanged\b|\bconfig\b|unchanged/);
   });
 
+  it('keeps an outside box reached only through another outside box', () => {
+    const raw = explain();
+    raw.nodes.push({ id: 'smtp', label: 'SMTP relay', kind: 'other', status: 'outside', layer: 'other areas' });
+    raw.edges.push({ from: 'email', to: 'smtp', label: 'sends', kind: 'calls' });
+    const text = draw(raw);
+    expect(text).toContain('○ SMTP relay');
+    expect(text).toContain('─sends─▶ SMTP relay');
+  });
+
   it('leaves the outside count out when nothing is outside', () => {
     const raw = explain();
     raw.nodes = raw.nodes.slice(0, 2);
