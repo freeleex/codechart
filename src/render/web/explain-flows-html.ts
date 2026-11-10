@@ -30,6 +30,9 @@ export const VIEW_CSS = `
 .view>.pane-title{display:none}body.sbs .view>.pane-title{display:block}
 body.sbs .view.flowview{border-left:1px solid var(--line)}
 @media (max-width:900px){body.sbs #viewpanes{flex-direction:column}body.sbs .view.flowview{border-left:0;border-top:1px solid var(--line)}}
+.pane-note{margin-left:10px;font-weight:400;text-transform:none}
+.pane-note button{padding:0;font:inherit;color:var(--edge);background:none;border:0;cursor:pointer}.pane-note button:hover{text-decoration:underline}
+.pane-note button:focus-visible{outline:2px solid var(--edge);outline-offset:2px}
 .pane-dim .node:not(.lit),.pane-dim .edge:not(.lit){--dim:.25}
 .node.linked .card{stroke-width:2.5}
 .node.linked{filter:drop-shadow(0 0 6px color-mix(in srgb,var(--edge) 45%,transparent))}

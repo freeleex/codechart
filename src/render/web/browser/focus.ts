@@ -11,6 +11,7 @@ export function select(id: string | null): void {
 export function focus(id: string | null): void {
   document.body.classList.toggle('focus', id !== null);
   document.querySelectorAll('.lit, .linked, .pane-dim').forEach((el) => el.classList.remove('lit', 'linked', 'pane-dim'));
+  document.querySelectorAll('.pane-note').forEach((n) => n.remove());
   if (id === null) return;
   const near = new Set([id]);
   document.querySelectorAll('.edge').forEach((e) => {

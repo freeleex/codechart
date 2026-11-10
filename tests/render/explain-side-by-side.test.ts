@@ -187,7 +187,7 @@ describe('side by side: a click lights what it is linked to in the other pane', 
     expect(ids('.node.linked')).toEqual(['flow:receipt/build']);
     click(el('stripe'));
     expect(qa('.node.linked')).toHaveLength(0);
-    expect(view('flow:receipt').classList.contains('pane-dim')).toBe(false);
+    expect(view('flow:receipt').classList.contains('pane-dim')).toBe(true);
   });
 
   it('a step in no box lights no box and leaves the boxes clear', async () => {
@@ -271,6 +271,82 @@ describe('side by side: a click lights what it is linked to in the other pane', 
     const css = q('style').textContent!;
     expect(css).toContain('.node.linked :is(.card,.shape){stroke-width:3}');
     expect(css).toMatch(/\.pane-dim \.node:not\(\.lit\),\.pane-dim \.edge:not\(\.lit\)\{--dim:\.25\}/);
+  });
+});
+
+describe('side by side: a box with no steps in the flow showing', () => {
+  const note = () => q('.view[data-view="flow:create"] .pane-title .pane-note');
+
+  it('dims the whole flow and says where the steps are, with a link to that flow', async () => {
+    mount(await draw());
+    side();
+    click(el('email'));
+    expect(note().textContent).toBe('No steps in EmailService · in: Send the receipt');
+    expect([...note().querySelectorAll('button')].map((b) => b.getAttribute('data-flow'))).toEqual(['flow:receipt']);
+    expect(view('flow:create').classList.contains('pane-dim')).toBe(true);
+    expect(qa('.view[data-view="flow:create"] .node.lit')).toHaveLength(0);
+    expect(qa('.node.linked')).toHaveLength(0);
+  });
+
+  it('the link takes the right pane to that flow and lights the box steps there', async () => {
+    mount(await draw());
+    side();
+    click(el('email'));
+    click(q('.pane-note button'));
+    expect(shownViews()).toEqual(['components', 'flow:receipt']);
+    expect(selected()).toEqual(['email']);
+    expect(ids('.node.linked')).toEqual(['flow:receipt/mail']);
+    expect(qa('.pane-note')).toHaveLength(0);
+  });
+
+  it('lists every flow that has steps in the box', async () => {
+    mount(await draw());
+    side();
+    click(sub('receipt'));
+    click(el('api'));
+    expect(q('.view[data-view="flow:receipt"] .pane-note').textContent).toBe('No steps in POST /invoices · in: Create an invoice');
+  });
+
+  it('says so when no flow has steps in it', async () => {
+    mount(await draw());
+    side();
+    click(el('stripe'));
+    expect(note().textContent).toBe('No steps in Stripe API in any flow');
+    expect(note().querySelector('button')).toBeNull();
+    expect(view('flow:create').classList.contains('pane-dim')).toBe(true);
+  });
+
+  it('clears on Escape, on another selection and when side by side goes off', async () => {
+    mount(await draw());
+    side();
+    click(el('email'));
+    key('Escape');
+    expect(qa('.pane-note, .pane-dim')).toHaveLength(0);
+    click(el('email'));
+    click(el('billing'));
+    expect(qa('.pane-note')).toHaveLength(0);
+    click(el('email'));
+    click(el(STEP));
+    expect(qa('.pane-note')).toHaveLength(0);
+    click(el('stripe'));
+    side(false);
+    expect(qa('.pane-note, .pane-dim')).toHaveLength(0);
+  });
+
+  it('a box with steps in the flow, and a step, show no note', async () => {
+    mount(await draw());
+    side();
+    click(el('billing'));
+    click(el('flow:create/charge'));
+    expect(qa('.pane-note')).toHaveLength(0);
+  });
+
+  it('the links are buttons and styled for the keyboard', async () => {
+    mount(await draw());
+    side();
+    click(el('email'));
+    expect(q('.pane-note button').tagName).toBe('BUTTON');
+    expect(q('style').textContent).toContain('.pane-note button:focus-visible{outline:2px solid var(--edge)');
   });
 });
 

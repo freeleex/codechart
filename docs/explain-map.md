@@ -51,6 +51,7 @@ The **Side by side** switch, at the right end of the tab row, shows Components o
 
 - Click a step: its box lights up on the left and the other boxes fade. A step in no box lights none.
 - Click a box: every step of the flow on the right that happens in it lights up and the others fade.
+  A box with no step in that flow fades the whole flow and says so in the pane's title, with a link to each flow that has steps in it.
 - *Esc* or a click on an empty canvas lights everything again.
 
 Each pane has its own pan and zoom. The keys act on what is selected, in either pane (`r`, `f`); *Reviewed* counts every box and the steps of the flow on the right, and `]` and `[` go through the boxes first, then the steps. The address bar carries `&sbs=1`, so a reload or a shared link opens it side by side; the flow on the right is the one the link's step is in, else the first. Under 900px wide the panes stack, one above the other.
