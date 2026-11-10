@@ -179,7 +179,7 @@ More: [Maps in pull requests](docs/pr-maps.md)
 
 ### Explain map
 
-On request, a map of how an existing area works, for someone new to the project: one box per table, service or endpoint, what each is for, and the neighbours it talks to. Nothing changed, so no diff.
+On request, a map of how an existing area works, for someone new to the project: one box per table, service or endpoint, what each is for, and the neighbours it talks to. A Flows tab walks through its main behaviours step by step, each step linked to its box and to the line of code. Nothing changed, so no diff.
 
 More: [Explain map](docs/explain-map.md)
 

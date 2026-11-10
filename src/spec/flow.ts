@@ -18,7 +18,7 @@ export const matchSchema = z
   .refine((v) => !hasHiddenChars(v.replaceAll('\t', ' ')), 'must be one line without control or invisible characters (tabs are fine); quote a single line')
   .describe('Text on the anchored line (plain substring, not a regex); source is then the path only');
 
-const stepSchema = z.strictObject({
+export const stepSchema = z.strictObject({
   id: ident(),
   label: short(),
   type: z.enum(STEP_TYPES).optional().describe('Inferred when left out: 0 outgoing links end, 1 step, 2 or more decision'),
@@ -27,7 +27,7 @@ const stepSchema = z.strictObject({
   match: matchSchema.optional(),
 });
 
-const linkSchema = z.strictObject({
+export const linkSchema = z.strictObject({
   from: ident(),
   to: ident(),
   label: short().optional(),
@@ -37,7 +37,7 @@ const linkSchema = z.strictObject({
   removed: z.boolean().optional().describe('Plan only: a link that exists now and the plan drops, between steps that stay'),
 });
 
-const MAX_ITEMS = 200;
+export const MAX_ITEMS = 200;
 
 const driftSchema = z.strictObject({ step: ident(), ...driftBase });
 
@@ -98,7 +98,7 @@ const flowObject = z.strictObject({
   drift: z.array(driftSchema).max(MAX_ITEMS).optional().describe('Summary only: how the build differs from the plan, one entry per step'),
 });
 
-type FlowInput = z.infer<typeof flowObject>;
+export type FlowInput = z.infer<typeof flowObject>;
 type LinkInput = z.infer<typeof linkSchema>;
 type Issue = (path: (string | number)[], message: string) => void;
 
@@ -231,15 +231,20 @@ function reachabilityIssues(spec: FlowInput, facts: Facts, issue: Issue): void {
   });
 }
 
-const flowSchema = flowObject.superRefine((spec, ctx) => {
-  const issue: Issue = (path, message) => ctx.addIssue({ code: 'custom', path, message });
+/** The flow's shape rules: steps, start, links, branches and reachability. */
+export function flowShapeIssues(spec: FlowInput, issue: Issue): void {
   const facts = flowFacts(spec);
-  driftIssues(spec.kind, spec.drift?.map((d) => d.step), issue);
   stepIssues(spec, issue);
   startIssues(spec, facts, issue);
   linkIssues(spec, facts, issue);
   shapeIssues(spec, facts, issue);
   reachabilityIssues(spec, facts, issue);
+}
+
+const flowSchema = flowObject.superRefine((spec, ctx) => {
+  const issue: Issue = (path, message) => ctx.addIssue({ code: 'custom', path, message });
+  driftIssues(spec.kind, spec.drift?.map((d) => d.step), issue);
+  flowShapeIssues(spec, issue);
 });
 
 type ParsedFlow = z.infer<typeof flowSchema>;
@@ -247,11 +252,16 @@ export type FlowStep = ParsedFlow['steps'][number] & { type: StepType };
 export type FlowLink = ParsedFlow['links'][number];
 export type FlowSpec = Omit<ParsedFlow, 'diagram' | 'steps'> & { diagram: 'flow'; steps: FlowStep[] };
 
+/** Steps with the type each one infers from its links when left out. */
+export function withStepTypes<S extends { id: string; status: string; type?: StepType }>(steps: S[], links: RemovedEnds[]): (S & { type: StepType })[] {
+  const counts = outgoingCounts({ steps }, links);
+  return steps.map((s) => ({ ...s, type: s.type ?? inferType(counts.get(s.id) ?? 0) }));
+}
+
 export function validateFlowSpec(input: unknown): ValidationResult<FlowSpec> {
   const result = flowSchema.safeParse(input);
   if (!result.success) return { ok: false, errors: formatIssues(result.error) };
-  const counts = outgoingCounts(result.data, result.data.links);
-  const steps = result.data.steps.map((s) => ({ ...s, type: s.type ?? inferType(counts.get(s.id) ?? 0) }));
+  const steps = withStepTypes(result.data.steps, result.data.links);
   return { ok: true, spec: { ...result.data, diagram: 'flow', steps } };
 }
 

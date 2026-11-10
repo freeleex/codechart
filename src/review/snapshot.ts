@@ -4,6 +4,8 @@ import type { FlowSnippets } from '../render/flow/anchors.js';
 import type { Preview } from '../render/preview.js';
 import { sanitizeText } from '../render/strip.js';
 import { diffRev } from '../render/web/tools.js';
+import { flowGaps, type FlowView } from '../render/explain-flows.js';
+import { stepLabel } from '../render/flow/tree.js';
 import { gitDirtyHashes, gitHead } from '../rules/git-files.js';
 import { hasGitSelection, type GitSelection } from '../rules/selection.js';
 import type { BusinessSpec } from '../spec/business.js';
@@ -36,14 +38,16 @@ function extrasOf(drift: readonly DriftItem<unknown>[] | undefined, x: Extras): 
 }
 
 /** What the map showed, per node: the diff lines at render time and their hash. Text from the repo is sanitized: it reaches the terminal. */
-export function mapSnapshot(spec: Spec, previews: Map<string, Preview> | undefined, range: Range | undefined, drift?: readonly DriftItem<unknown>[], ghostLinks: Extras['edges'] = []): ReviewSnapshot {
+export function mapSnapshot(spec: Spec, previews: Map<string, Preview> | undefined, range: Range | undefined, drift?: readonly DriftItem<unknown>[], ghostLinks: Extras['edges'] = [], flows: FlowView[] = []): ReviewSnapshot {
   const nodes = spec.nodes.map((n): ReviewNode => {
     const p = previews?.get(n.id);
     const path = p?.path ?? n.path;
     const lines = p?.lines.map((l) => ({ ...l, text: clean(l.text) }));
     return { id: n.id, label: clean(n.label), ...(path && { path: clean(path) }), ...(p && { rev: diffRev(p), lines, ...(p.note && { note: clean(p.note) }) }) };
   });
-  return { kind: 'map', title: clean(spec.title), nodes, ...(range && { range }), ...extrasOf(drift, { edges: [...spec.edges, ...ghostLinks], gaps: spec.gaps, omitted: spec.omitted }) };
+  const steps = flows.flatMap((f) => f.spec.steps.map((s): ReviewNode => ({ id: s.id, label: clean(`${f.title}: ${stepLabel(s)}`), ...(s.source && { path: clean(s.source.replace(/:\d+(?:-\d+)?$/, '')) }), rev: stepRev(f.spec, s, f.snippets) })));
+  const edges = [...spec.edges, ...ghostLinks, ...flows.flatMap((f) => f.spec.links)];
+  return { kind: 'map', title: clean(spec.title), nodes: [...nodes, ...steps], ...(range && { range }), ...extrasOf(drift, { edges, gaps: flowGaps(spec), omitted: spec.omitted }) };
 }
 
 const hash = (v: unknown): string => createHash('sha256').update(JSON.stringify(v)).digest('hex').slice(0, 12);

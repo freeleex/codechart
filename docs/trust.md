@@ -40,12 +40,13 @@ Every step that exists in code names its `file:line` or quotes the line. If the 
 
 ## Explain maps
 
-An [explain map](explain-map.md) describes code as it is, so only the boxes are checked:
+An [explain map](explain-map.md) describes code as it is, so only its boxes and the steps of its flows are checked:
 
 - An `existing` box must name a file that exists, and its quoted line must be on exactly one line of it. An `outside` box is checked the same way when it names a file; an external service has none.
+- Every step of a flow, and every branch out of a decision, must name a line that exists (as in a [flow](flows.md)). A mismatch is a `✗` on that step and in the header count, not a failed render. A step's `box` must be a box on the map, which the spec checks before drawing.
 - There is no diff, so no *not on map* check, and no *diff not checked* note. Change statuses, edge or field change marks, `drift` and `omitted` are refused.
 
-Limit: a box proves where to look, not that its summary is right.
+Limit: a box or step proves where to look, not that its summary is right or that the flow shows every path.
 
 ## Business maps
 

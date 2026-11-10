@@ -47,7 +47,9 @@ export const nodeOfTarget = (t: NoteTarget): string | undefined => ('node' in t 
 
 function nodeLabel(id: string): string {
   const g = [...document.querySelectorAll('.node')].find((n) => n.getAttribute('data-id') === id);
-  return g?.getAttribute('data-label') ?? id;
+  const label = g?.getAttribute('data-label') ?? id;
+  const flow = g?.closest('[data-title]')?.getAttribute('data-title');
+  return flow ? `${flow}: ${label}` : label;
 }
 
 /** The page's own text for a place, e.g. "line 13 of shop/models/order.py (new)". */

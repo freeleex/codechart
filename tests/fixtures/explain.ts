@@ -21,3 +21,38 @@ export const EXPLAIN_FILES: Record<string, string> = {
   'app/billing.ts': 'export class BillingService {}\n',
   'app/email.ts': 'export class EmailService {}\n',
 };
+
+/** The billing map with two flows: one branches on a zero total, one sends the receipt. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- tests edit fields freely
+export const withFlows = (): Record<string, any> => ({
+  ...explain(),
+  flows: [
+    {
+      id: 'create',
+      title: 'Create an invoice',
+      start: 'receive',
+      steps: [
+        { id: 'receive', label: 'Receive the request', status: 'existing', source: 'app/api.ts', match: 'createInvoice', box: 'api' },
+        { id: 'zero', label: 'Is the total zero?', status: 'existing', source: 'app/billing.ts', match: 'BillingService', box: 'billing' },
+        { id: 'skip', label: 'Skip the charge', status: 'existing', source: 'app/billing.ts', match: 'BillingService', box: 'billing' },
+        { id: 'charge', label: 'Charge the card', status: 'existing', source: 'app/billing.ts', match: 'BillingService' },
+      ],
+      links: [
+        { from: 'receive', to: 'zero' },
+        { from: 'zero', to: 'skip', label: 'yes', source: 'app/billing.ts', match: 'BillingService' },
+        { from: 'zero', to: 'charge', label: 'no', source: 'app/billing.ts', match: 'BillingService' },
+      ],
+      gaps: ['retries: not read'],
+    },
+    {
+      id: 'receipt',
+      title: 'Send the receipt',
+      start: 'build',
+      steps: [
+        { id: 'build', label: 'Build the receipt', status: 'existing', source: 'app/billing.ts', match: 'BillingService', box: 'billing' },
+        { id: 'mail', label: 'Email it', status: 'existing', source: 'app/email.ts', match: 'EmailService', box: 'email' },
+      ],
+      links: [{ from: 'build', to: 'mail' }],
+    },
+  ],
+});

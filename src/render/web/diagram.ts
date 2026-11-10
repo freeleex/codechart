@@ -5,7 +5,7 @@ import { driftNote } from './drift-html.js';
 import { esc, list, midpoint, num, renderPage, type HtmlMeta, type KeyPart } from './page.js';
 import { SIDE_TITLE, SIDES, type Side } from './states.js';
 import type { Point } from './layout.js';
-import { reviewControls, statusChips } from './tools.js';
+import { COMPONENTS_VIEW, reviewControls, statusChips } from './tools.js';
 
 /** The nodes an edge joins, for focus and the hover title. */
 export interface EdgeEnds {
@@ -85,6 +85,9 @@ interface DiagramPage {
   height: number;
   extraCss?: string;
   extraDefs?: string;
+  /** An explain map with flows: tab rows, and one canvas per view instead of `viewport`. */
+  tabs?: string;
+  views?: { id: string; title?: string; cls?: string; viewport: string; width: number; height: number }[];
 }
 
 export function renderDiagramPage(p: DiagramPage): string {
@@ -93,8 +96,10 @@ export function renderDiagramPage(p: DiagramPage): string {
     meta: p.meta,
     infoButton: p.infoButton,
     headerNote: checkNote(p.check) + driftNote(p.drift),
-    toolbar: statusChips(p.statuses, p.explain) + reviewControls(p.statuses.length),
-    viewport: p.sides ? '' : p.viewport(),
+    toolbar: statusChips(p.statuses, p.explain, p.views ? COMPONENTS_VIEW : undefined) + reviewControls(p.statuses.length),
+    tabs: p.tabs,
+    views: p.views,
+    viewport: p.sides ? '' : p.views ? '' : p.viewport(),
     ...(p.sides ? { panes: SIDES.map((side) => ({ title: SIDE_TITLE[side], key: p.paneKey[side], viewport: p.viewport(side) })) } : {}),
     aside: p.aside,
     width: p.width,

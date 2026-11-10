@@ -21,6 +21,19 @@ function savedTicks(key: string): Map<string, string> {
   }
 }
 
+/** On a page with views, progress and Next cover the view showing: of `ids`, those with a node outside a hidden view. */
+function shownIds(ids: string[]): string[] {
+  const shown = new Set([...document.querySelectorAll('.node:not(.ghost)')].filter((g) => !g.closest('.view[hidden]')).map((g) => g.getAttribute('data-id')!));
+  return ids.filter((id) => shown.has(id));
+}
+
+/** The id after `current` in `list` (before it, with `-1`), wrapping, that is not in `done`. */
+function nextUnticked(list: string[], current: string, dir: 1 | -1, done: Set<string>): string | undefined {
+  const at = list.indexOf(current);
+  const from = at < 0 && dir < 0 ? list.length : at;
+  return list.map((_, i) => list[(((from + dir * (1 + i)) % list.length) + list.length) % list.length]!).find((id) => !done.has(id));
+}
+
 /**
  * One tick per node id, shared by both panes, kept per repo and only while the node's diff hash is the one it was ticked at.
  * `goTo` selects a node and pans to it.
@@ -30,6 +43,7 @@ export function initReview(repo: string, goTo: (id: string) => void): Review {
   const revs = new Map<string, string>();
   document.querySelectorAll('.node:not(.ghost)').forEach((g) => revs.set(g.getAttribute('data-id')!, g.getAttribute('data-rev') ?? ''));
   const ids = [...revs.keys()];
+  const scope = () => shownIds(ids);
   const saved = savedTicks(key);
   const done = new Set(ids.filter((id) => saved.get(id) === revs.get(id)));
   const count = document.getElementById('review-count');
@@ -40,9 +54,11 @@ export function initReview(repo: string, goTo: (id: string) => void): Review {
     document.querySelectorAll<HTMLInputElement>('#panel input[data-tick-for]').forEach((i) => {
       i.checked = done.has(i.getAttribute('data-tick-for')!);
     });
-    if (count) count.textContent = `${done.size}/${ids.length} reviewed`;
-    if (bar) bar.style.width = `${(done.size / ids.length) * 100}%`;
-    if (next) next.disabled = done.size === ids.length;
+    const mine = scope();
+    const ticked = mine.filter((id) => done.has(id)).length;
+    if (count) count.textContent = `${ticked}/${mine.length} reviewed`;
+    if (bar) bar.style.width = `${(ticked / mine.length) * 100}%`;
+    if (next) next.disabled = ticked === mine.length;
   };
   const toggle = (id: string) => {
     if (!done.delete(id)) done.add(id);
@@ -67,9 +83,7 @@ export function initReview(repo: string, goTo: (id: string) => void): Review {
     if (id !== null) toggle(id);
   });
   const step = (dir: 1 | -1) => {
-    const at = ids.indexOf(document.querySelector('.node.selected')?.getAttribute('data-id') ?? '');
-    const from = at < 0 && dir < 0 ? ids.length : at;
-    const to = ids.map((_, i) => ids[(((from + dir * (1 + i)) % ids.length) + ids.length) % ids.length]!).find((id) => !done.has(id));
+    const to = nextUnticked(scope(), document.querySelector('.node.selected')?.getAttribute('data-id') ?? '', dir, done);
     if (to !== undefined) goTo(to);
   };
   if (next) next.addEventListener('click', () => step(1));

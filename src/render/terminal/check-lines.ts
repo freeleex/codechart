@@ -14,6 +14,8 @@ export interface CheckSummary {
   checked: number;
   mismatches: Mismatch[];
   unit: 'node' | 'box' | 'anchor';
+  /** An explain map with flows: how many of `checked` are steps, the rest boxes. */
+  steps?: number;
   /** Changed files no node covers and `omitted` doesn't name. */
   uncovered?: string[];
   /** A summary rendered in a repo without --git, --since or --commit. */
@@ -76,8 +78,10 @@ export function checkHeadline(c: CheckSummary | undefined): string {
   if (!c) return '';
   const parts: string[] = [];
   const n = c.mismatches.length;
-  const total = units(c.checked, c.unit);
-  if (c.checked > 0) parts.push(n ? `✗ ${n} of ${total} ${n === 1 ? "doesn't" : "don't"} match the code` : `✓ ${total} checked against the code`);
+  // With flows, the count says boxes and steps: "9 boxes and 6 steps", or "✗ 1 of 15 boxes and steps".
+  const total = c.steps ? `${units(c.checked - c.steps, 'box')} and ${units(c.steps, 'step')}` : units(c.checked, c.unit);
+  const of = c.steps ? `${c.checked} boxes and steps` : total;
+  if (c.checked > 0) parts.push(n ? `✗ ${n} of ${of} ${n === 1 ? "doesn't" : "don't"} match the code` : `✓ ${total} checked against the code`);
   if (c.uncovered?.length) parts.push(uncoveredHead(c.uncovered.length));
   if (c.diffUnchecked) parts.push(UNCHECKED);
   return parts.join(' · ');

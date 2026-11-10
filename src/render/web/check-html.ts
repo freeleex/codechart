@@ -7,6 +7,7 @@ export const MEANING: Record<string, string> = {
   'not in diff': 'The agent says this changed, but git shows no change to its file in the checked range. The box may describe the change wrongly.',
   'match not found': "The agent quoted a line from this file as proof, but the file doesn't contain it. The box may describe code that isn't there.",
   'match on several lines': 'The line the agent quoted appears more than once in this file, so it does not prove which code the box means.',
+  'line not found': "The agent pointed this step at a line that isn't in the file, so the step is unverified.",
   'file unreadable': "codechart couldn't read this file, so the box isn't verified.",
 };
 

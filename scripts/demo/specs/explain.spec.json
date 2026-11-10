@@ -114,5 +114,173 @@
     { "from": "order", "to": "customer", "label": "customer_id", "kind": "fk" },
     { "from": "method", "to": "paypal", "label": "paypal", "kind": "other" }
   ],
+  "flows": [
+    {
+      "id": "refund",
+      "title": "Refund an order",
+      "start": "receive",
+      "steps": [
+        {
+          "id": "receive",
+          "label": "receive the refund request",
+          "status": "existing",
+          "box": "refund",
+          "source": "shop/api/refunds.py",
+          "match": "def refund(order_id: str):"
+        },
+        {
+          "id": "enabled",
+          "label": "refunds switched on?",
+          "status": "existing",
+          "box": "refund",
+          "source": "shop/api/refunds.py",
+          "match": "if not flag(\"refundsEnabled\"):"
+        },
+        {
+          "id": "off",
+          "label": "answer 404",
+          "status": "existing",
+          "box": "refund",
+          "source": "shop/api/refunds.py",
+          "match": "raise HTTPException(404)"
+        },
+        {
+          "id": "load",
+          "label": "load the order",
+          "status": "existing",
+          "box": "refund",
+          "source": "shop/api/refunds.py",
+          "match": "order = get_order(order_id)"
+        },
+        {
+          "id": "paid",
+          "label": "order is paid?",
+          "status": "existing",
+          "box": "refund",
+          "source": "shop/api/refunds.py",
+          "match": "if order.status != OrderStatus.PAID:"
+        },
+        {
+          "id": "conflict",
+          "label": "answer 409",
+          "status": "existing",
+          "box": "refund",
+          "source": "shop/api/refunds.py",
+          "match": "raise HTTPException(409"
+        },
+        {
+          "id": "mark",
+          "label": "mark the order refunded",
+          "status": "existing",
+          "box": "refund",
+          "source": "shop/api/refunds.py",
+          "match": "order.status = OrderStatus.REFUNDED"
+        }
+      ],
+      "links": [
+        {
+          "from": "receive",
+          "to": "enabled"
+        },
+        {
+          "from": "enabled",
+          "to": "off",
+          "label": "no",
+          "source": "shop/api/refunds.py",
+          "match": "raise HTTPException(404)"
+        },
+        {
+          "from": "enabled",
+          "to": "load",
+          "label": "yes",
+          "source": "shop/api/refunds.py",
+          "match": "order = get_order(order_id)"
+        },
+        {
+          "from": "load",
+          "to": "paid"
+        },
+        {
+          "from": "paid",
+          "to": "conflict",
+          "label": "no",
+          "source": "shop/api/refunds.py",
+          "match": "raise HTTPException(409"
+        },
+        {
+          "from": "paid",
+          "to": "mark",
+          "label": "yes",
+          "source": "shop/api/refunds.py",
+          "match": "order.status = OrderStatus.REFUNDED"
+        }
+      ]
+    },
+    {
+      "id": "invoices",
+      "title": "Create invoices for paid orders",
+      "start": "run",
+      "steps": [
+        {
+          "id": "run",
+          "label": "run the migration",
+          "status": "existing",
+          "box": "migration",
+          "source": "db/migrations/0042_invoices.py",
+          "match": "def upgrade():"
+        },
+        {
+          "id": "status",
+          "label": "add the refunded status",
+          "status": "existing",
+          "box": "migration",
+          "source": "db/migrations/0042_invoices.py",
+          "match": "ADD VALUE 'refunded'"
+        },
+        {
+          "id": "table",
+          "label": "create the invoices table",
+          "status": "existing",
+          "box": "migration",
+          "source": "db/migrations/0042_invoices.py",
+          "match": "op.create_table(\"invoices\""
+        },
+        {
+          "id": "paid",
+          "label": "pick the paid orders",
+          "status": "existing",
+          "box": "migration",
+          "source": "db/migrations/0042_invoices.py",
+          "match": "FROM orders WHERE status = 'paid'"
+        },
+        {
+          "id": "number",
+          "label": "number each invoice with the prefix",
+          "status": "existing",
+          "box": "migration",
+          "source": "db/migrations/0042_invoices.py",
+          "match": "'{INVOICE_PREFIX}'"
+        }
+      ],
+      "links": [
+        {
+          "from": "run",
+          "to": "status"
+        },
+        {
+          "from": "status",
+          "to": "table"
+        },
+        {
+          "from": "table",
+          "to": "paid"
+        },
+        {
+          "from": "paid",
+          "to": "number"
+        }
+      ]
+    }
+  ],
   "gaps": ["get_order and flag(): not read"]
 }

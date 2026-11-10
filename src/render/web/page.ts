@@ -95,6 +95,10 @@ interface PageParts {
   /** The row under the header: status chips and review progress, already HTML. */
   toolbar?: string;
   viewport: string;
+  /** Tab rows under the header, already HTML. */
+  tabs?: string;
+  /** Instead of `viewport`: one canvas per view, one shown at a time; `cls` is added to its section. */
+  views?: { id: string; title?: string; cls?: string; viewport: string; width: number; height: number }[];
   /** Instead of `viewport`: canvases side by side that pan and zoom together while linked. */
   panes?: { title: string; key: KeyPart[]; viewport: string }[];
   aside: string;
@@ -111,12 +115,16 @@ export const PAGE_CSP = `default-src 'none'; style-src 'unsafe-inline'; script-s
 
 export function renderPage(p: PageParts): string {
   const theme: Theme = p.meta.theme && THEMES.includes(p.meta.theme) ? p.meta.theme : 'auto';
-  const data = { width: p.width, height: p.height, repoKey: p.meta.repoKey ?? p.meta.repo, ...(p.meta.change && { change: p.meta.change }) };
+  const data = { width: p.width, height: p.height, repoKey: p.meta.repoKey ?? p.meta.repo, ...(p.views && { views: p.views.map(({ id, width, height }) => ({ id, width, height })) }), ...(p.meta.change && { change: p.meta.change }) };
   const defs = `<defs>${arrowMarker('arrow')}${p.extraDefs ?? ''}</defs>`;
   // Ids are document-wide, so the second pane's url(#arrow) finds the first pane's defs.
   const canvas = (viewport: string, i: number) =>
     `<div class="canvas"${p.panes ? '' : ' id="canvas"'}><svg>${i === 0 ? defs : ''}\n<g class="viewport">${viewport}</g></svg></div>`;
-  const body = p.panes
+  const view = (v: NonNullable<PageParts['views']>[number], i: number) =>
+    `<section class="view${v.cls ?? ''}" data-view="${esc(v.id)}"${v.title === undefined ? '' : ` data-title="${esc(v.title)}"`}${i ? ' hidden' : ''}><div class="canvas"><svg>\n<g class="viewport">${v.viewport}</g></svg></div></section>`;
+  const body = p.views
+    ? p.views.map(view).join('\n')
+    : p.panes
     ? `<div id="panes">${p.panes.map((pane, i) => `<section class="pane" aria-label="${esc(pane.title)}"><div class="pane-title">${esc(pane.title)}<span class="pane-key"> · ${keyHtml(pane.key)}</span></div>${canvas(pane.viewport, i)}</section>`).join('')}</div>`
     : canvas(p.viewport, 0);
   return `<!doctype html>
@@ -125,8 +133,8 @@ export function renderPage(p: PageParts): string {
 <title>${esc(p.title)}</title>
 <style>${CSS}${p.extraCss ?? ''}</style></head>
 <body>
-<header><h1>${esc(p.title)}</h1>${p.headerNote ?? ''}<span class="meta">${esc(p.meta.repo)} · <time datetime="${p.meta.generatedAt.toISOString()}" title="${p.meta.generatedAt.toISOString()}">${prettyDate(p.meta.generatedAt)}</time></span>${p.meta.update ? `<span class="update" title="${esc(['A newer codechart is out', ...(p.meta.updateNotes ?? []).map((n) => `- ${n}`)].join('\n'))}">codechart ${esc(p.meta.update)} is out: run <code>codechart update</code></span>` : ''}${p.infoButton}${p.panes ? '<button id="link-toggle" type="button" title="Linked: panning or zooming one pane moves both"></button>' : ''}<button id="theme-toggle" type="button" title="Cycle theme: auto, light, dark"></button></header>
-${p.toolbar ? `<div id="toolbar">${p.toolbar}</div>\n` : ''}<main>
+${p.views ? `<svg class="defs" aria-hidden="true">${defs}</svg>\n` : ''}<header><h1>${esc(p.title)}</h1>${p.headerNote ?? ''}<span class="meta">${esc(p.meta.repo)} · <time datetime="${p.meta.generatedAt.toISOString()}" title="${p.meta.generatedAt.toISOString()}">${prettyDate(p.meta.generatedAt)}</time></span>${p.meta.update ? `<span class="update" title="${esc(['A newer codechart is out', ...(p.meta.updateNotes ?? []).map((n) => `- ${n}`)].join('\n'))}">codechart ${esc(p.meta.update)} is out: run <code>codechart update</code></span>` : ''}${p.infoButton}${p.panes ? '<button id="link-toggle" type="button" title="Linked: panning or zooming one pane moves both"></button>' : ''}<button id="theme-toggle" type="button" title="Cycle theme: auto, light, dark"></button></header>
+${p.tabs ?? ''}${p.toolbar ? `<div id="toolbar">${p.toolbar}</div>\n` : ''}<main>
 ${body}
 <div id="resize" role="separator" aria-orientation="vertical" aria-label="Resize panel" tabindex="0" title="Drag to resize the panel"></div>
 <aside><div id="aside-scroll"><nav id="panel-nav" aria-label="Panel history"><button id="nav-focus" type="button" disabled aria-label="Focus node (f)" title="Focus node (f)">◎</button><button id="nav-back" type="button" disabled aria-label="Back" title="Back (Alt+←)">←</button><button id="nav-forward" type="button" disabled aria-label="Forward" title="Forward (Alt+→)">→</button></nav>${p.aside}</div><div id="panel-rel" hidden></div></aside>

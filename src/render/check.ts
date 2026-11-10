@@ -37,6 +37,8 @@ export interface MapCheck extends CheckSummary {
 interface CheckOptions {
   at?: string;
   cwd?: string;
+  /** Reads files through this context, to share its read budget and cache with another check. */
+  ctx?: AnchorCtx;
   /** Left out: the diff is not checked. */
   diff?: Diff;
   /** Changed files a summary map need not show. */
@@ -99,7 +101,7 @@ function matchAndBlock(path: string, lines: string[], needle: string | undefined
 
 /** Checks each node with a `path` against the files (at `at`, or the working tree) and, given a diff, a summary's changes against it. */
 export function checkMapNodes(spec: Spec, root: string, opts: CheckOptions = {}): MapCheck {
-  const c = anchorContext(root, opts.at, opts.cwd);
+  const c = opts.ctx ?? anchorContext(root, opts.at, opts.cwd);
   const result: MapCheck = { checked: 0, mismatches: [], matches: new Map(), blocks: new Map(), found: new Map(), unit: spec.kind === 'explain' ? 'box' : 'node' };
   for (const node of spec.nodes) {
     if (node.path === undefined) continue;
