@@ -45,7 +45,7 @@ describe('checkExplain', () => {
     const reads = vi.mocked(readRegular.readRegularFile);
     reads.mockClear();
     check(withFlows());
-    const billing = reads.mock.calls.filter(([p]) => String(p).endsWith('app/billing.ts'));
+    const billing = reads.mock.calls.filter(([p]) => String(p).replaceAll('\\', '/').endsWith('app/billing.ts'));
     expect(billing).toHaveLength(1);
   });
 });
