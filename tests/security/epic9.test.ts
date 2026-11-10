@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { openArgv } from '../../src/commands/open.js';
 import { buildProgram, runProgram } from '../../src/program.js';
 import { checkFlowAnchors } from '../../src/render/flow/anchors.js';
-import { gitBinary, gitChangedFiles, gitFileAt, gitSinceFiles } from '../../src/rules/git-files.js';
+import { gitBinary, gitChangedFiles, gitFileAt, gitSinceFiles, trustedBinary } from '../../src/rules/git-files.js';
 import type { FlowSpec } from '../../src/spec/flow.js';
 import { gitInit, makeTempDir, removeTempDir } from '../helpers/sandbox.js';
 
@@ -107,6 +107,12 @@ describe('S-24 Windows executable lookup', () => {
     expect(gitBinary('win32', { Path: 'C:\\Git\\cmd' }, exists)).toBe('C:\\Git\\cmd\\git.exe');
     expect(() => gitBinary('win32', { PATH: '.;C:\\nope' }, exists)).toThrow('git not found on PATH');
     expect(gitBinary('linux', {}, exists)).toBe('git');
+  });
+
+  it('takes gh and glab from an absolute PATH entry too', () => {
+    const has = (p: string) => p === 'C:\\Tools\\gh.exe';
+    expect(trustedBinary('gh', 'win32', { PATH: '.;C:\\Tools' }, has)).toBe('C:\\Tools\\gh.exe');
+    expect(() => trustedBinary('glab', 'win32', { PATH: '.;C:\\Tools' }, has)).toThrow('glab not found on PATH');
   });
 
   it('accepts a quoted PATH entry', () => {

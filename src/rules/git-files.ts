@@ -6,17 +6,19 @@ import { hasHiddenChars } from '../render/strip.js';
 
 const MAX_REF = 200;
 
-/** On Windows a bare command name is looked up in the child's cwd (the repo) first, so take git from an absolute PATH entry. */
-export function gitBinary(platform: NodeJS.Platform = process.platform, env: NodeJS.ProcessEnv = process.env, exists: (p: string) => boolean = existsSync): string {
-  if (platform !== 'win32') return 'git';
+/** On Windows a bare command name is looked up in the child's cwd (the repo) first, so take `name` from an absolute PATH entry. */
+export function trustedBinary(name: string, platform: NodeJS.Platform = process.platform, env: NodeJS.ProcessEnv = process.env, exists: (p: string) => boolean = existsSync): string {
+  if (platform !== 'win32') return name;
   for (const raw of (env.PATH ?? env.Path ?? '').split(';')) {
     const dir = raw.replace(/^"(.*)"$/, '$1');
     if (!win32.isAbsolute(dir)) continue;
-    const file = win32.join(dir, 'git.exe');
+    const file = win32.join(dir, `${name}.exe`);
     if (exists(file)) return file;
   }
-  throw new Error('git not found on PATH');
+  throw new Error(`${name} not found on PATH`);
 }
+
+export const gitBinary = (platform?: NodeJS.Platform, env?: NodeJS.ProcessEnv, exists?: (p: string) => boolean): string => trustedBinary('git', platform, env, exists);
 
 let gitPath: string | undefined;
 
@@ -386,4 +388,35 @@ export function gitDirtyHashes(cwd: string, max = Infinity): Record<string, stri
 /** Files changed between two commits. */
 export function gitDiffFiles(cwd: string, from: string, to: string): string[] {
   return nulList(git(cwd, ['diff', '--no-renames', '--name-only', '-z', from, to, '--']));
+}
+
+/** The newest tag matching `pattern` reachable from commit `sha`; undefined when there is none. */
+export function gitLatestTag(cwd: string, sha: string, pattern: string): string | undefined {
+  try {
+    return git(cwd, ['describe', '--tags', '--abbrev=0', '--match', pattern, sha]).trim() || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** One commit of `gitFirstParentLog`. */
+export interface LogEntry {
+  sha: string;
+  short: string;
+  date: string;
+  subject: string;
+  body: string;
+}
+
+/** The first-parent commits in `since..head` (full shas), oldest first. */
+export function gitFirstParentLog(cwd: string, since: string, head: string): LogEntry[] {
+  const out = git(cwd, ['log', '--first-parent', '--reverse', '--no-color', '--no-show-signature', '--format=%H%x1f%h%x1f%cI%x1f%s%x1f%b%x1e', `${since}..${head}`, '--']);
+  return out
+    .split('\x1e')
+    .map((r) => r.trim())
+    .filter(Boolean)
+    .map((r) => {
+      const [sha = '', short = '', date = '', subject = '', body = ''] = r.split('\x1f');
+      return { sha, short, date, subject, body: body.trim() };
+    });
 }
