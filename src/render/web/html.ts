@@ -5,6 +5,7 @@ import type { MapCheck } from '../check.js';
 import { pathHtml, snippetHtml } from '../flow/html.js';
 import type { Preview } from '../preview.js';
 import { flagMark, flagTitle, mismatchNote } from './check-html.js';
+import { blockHtml } from './block-html.js';
 import { changesHtml } from './changes.js';
 import { DRIFT_CSS, driftInfo, driftMark, driftSection, itemsById, type Ghosts } from './drift-html.js';
 import { edgeEnds, gapsHtml, infoButton, pageInfoSection, renderDiagramPage, renderEdgeSvg, type EdgeEnds } from './diagram.js';
@@ -140,7 +141,9 @@ function cardPanel(spec: Spec, n: SpecNode, check: MapCheck | undefined, preview
   out += mismatchNote(check, n.id);
   const match = check?.matches.get(n.id);
   const preview = previews?.get(n.id);
-  if (match) out += snippetHtml(match);
+  const block = check?.blocks.get(n.id);
+  if (block) out += blockHtml(block);
+  else if (match) out += snippetHtml(match);
   else if (n.path && !preview) out += `<div class="path">${pathHtml(n.path)}</div>`;
   out += driftSection(mark?.drift, ghost);
   if (preview) out += changesHtml(preview);

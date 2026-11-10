@@ -26,7 +26,7 @@ The agent reads the area, draws the map and replies with it, followed by what su
 - **Notes:** what would surprise a newcomer: hidden rules, odd cases, things that look wrong but are on purpose.
 - **Gaps:** what the agent did not read.
 
-Click a box for its file, the line the agent quoted, its fields, notes and relations. The terminal block says `4 boxes · 2 outside · ✓ 3 checked` and a key, `○ outside · unmarked = in this area`.
+Click a box for its code (the function, class or block the quoted line opens, up to 40 lines, with that line highlighted; the lines around it and the rest of a longer block open with a click, and a box with no quoted line shows the top of its file), its fields, notes and relations. The terminal block says `4 boxes · 2 outside · ✓ 3 checked` and a key, `○ outside · unmarked = in this area`.
 
 ## What is checked
 

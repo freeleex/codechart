@@ -62,6 +62,11 @@ aside .n-add{color:var(--add)}aside .n-del{color:var(--rem)}
 aside .cgap{display:flex;flex-direction:column}aside .cgap .gap-rows{display:none;flex-direction:column}aside .cgap.open .gap-rows{display:flex}
 aside .gap{display:flex;width:100%;padding:2px 14px 2px calc(4px + 4.5ch);font:11px ui-monospace,monospace;color:var(--muted);background:var(--gap-bg);text-align:left;white-space:nowrap}
 aside button.gap{border:0;cursor:pointer}aside button.gap:hover{color:var(--text)}
+aside .snippet.block{padding:0;overflow:hidden}
+aside .snippet.block code,aside .snippet.block .cgap.open .gap-rows{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:10px;padding:0 8px}
+aside .snippet.block .gap{padding-left:calc(8px + 5ch)}aside .snippet.block .gap-out{grid-column:1/-1}
+aside .snippet.block .ln{min-width:5ch}
+aside .snippet.block .hit,aside .snippet.block .ln:has(+.hit){background:var(--hh-bg)}aside .snippet.block .ln:has(+.hit){color:var(--text)}
 aside .mismatch-note{color:var(--rem);margin:6px 0}
 aside .mismatch-why{color:var(--muted);font-size:11.5px;margin:0 0 6px}
 header .check{font-size:11px;color:var(--new-t)}header .check.bad{color:var(--rem);font-weight:600;font-family:inherit;background:none;border:0;padding:0;cursor:pointer;text-decoration:underline dotted}

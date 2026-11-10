@@ -18,6 +18,7 @@ const flagged = await renderHtml(spec, layout, meta, {
   unit: 'node',
   mismatches: [{ id: 'tbl.orders', label: 'orders', short: 'file missing', detail: 'db/orders.sql does not exist' }],
   matches: new Map(),
+  blocks: new Map(),
   found: new Map(),
 });
 
