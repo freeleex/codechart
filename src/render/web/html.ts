@@ -244,7 +244,7 @@ export function renderHtml(spec: Spec, layout: Layout, meta: HtmlMeta, check?: M
     ...(flows && {
       extraCss: VIEW_CSS,
       tabs: viewTabs(flows.views),
-      views: [{ id: COMPONENTS_VIEW, viewport: viewport(all, layout, check, undefined, previews, ghosts), width: layout.width, height: layout.height }, ...flowSections(flows, meta.change !== undefined)],
+      views: [{ id: COMPONENTS_VIEW, pane: 'Components', viewport: viewport(all, layout, check, undefined, previews, ghosts), width: layout.width, height: layout.height }, ...flowSections(flows, meta.change !== undefined)],
     }),
   });
 }

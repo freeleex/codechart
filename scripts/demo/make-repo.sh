@@ -110,6 +110,9 @@ class Order(Base):
     status = Column(Enum(OrderStatus, name="order_status"), nullable=False,
                     default=OrderStatus.PENDING)
     coupon_code = Column(Text, nullable=True)
+
+    def mark_refunded(self):
+        self.status = OrderStatus.REFUNDED
 EOF
 
 cat > shop/models/invoice.py <<'EOF'
@@ -143,7 +146,7 @@ def refund(order_id: str):
     order = get_order(order_id)
     if order.status != OrderStatus.PAID:
         raise HTTPException(409, "only paid orders can be refunded")
-    order.status = OrderStatus.REFUNDED
+    order.mark_refunded()
     return order
 EOF
 

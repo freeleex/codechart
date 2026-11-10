@@ -97,8 +97,8 @@ interface PageParts {
   viewport: string;
   /** Tab rows under the header, already HTML. */
   tabs?: string;
-  /** Instead of `viewport`: one canvas per view, one shown at a time; `cls` is added to its section. */
-  views?: { id: string; title?: string; cls?: string; viewport: string; width: number; height: number }[];
+  /** Instead of `viewport`: one canvas per view, one shown at a time (two with side by side); `cls` is added to its section, `pane` names a view that has no `title`. */
+  views?: { id: string; title?: string; pane?: string; cls?: string; viewport: string; width: number; height: number }[];
   /** Instead of `viewport`: canvases side by side that pan and zoom together while linked. */
   panes?: { title: string; key: KeyPart[]; viewport: string }[];
   aside: string;
@@ -113,6 +113,12 @@ const NOTE_KEY_HELP = 'c: add a note to the selected node';
 
 export const PAGE_CSP = `default-src 'none'; style-src 'unsafe-inline'; script-src 'sha256-${createHash('sha256').update(CLIENT_JS).digest('base64')}'; img-src data:; base-uri 'none'; form-action 'none'`;
 
+/** A view's section: its canvas, under a title that shows only with side by side. */
+function viewSection(v: NonNullable<PageParts['views']>[number], i: number): string {
+  const title = v.title ?? v.pane;
+  return `<section class="view${v.cls ?? ''}" data-view="${esc(v.id)}"${v.title === undefined ? '' : ` data-title="${esc(v.title)}"`}${i ? ' hidden' : ''}>${title === undefined ? '' : `<div class="pane-title">${esc(title)}</div>`}<div class="canvas"><svg>\n<g class="viewport">${v.viewport}</g></svg></div></section>`;
+}
+
 export function renderPage(p: PageParts): string {
   const theme: Theme = p.meta.theme && THEMES.includes(p.meta.theme) ? p.meta.theme : 'auto';
   const data = { width: p.width, height: p.height, repoKey: p.meta.repoKey ?? p.meta.repo, ...(p.views && { views: p.views.map(({ id, width, height }) => ({ id, width, height })) }), ...(p.meta.change && { change: p.meta.change }) };
@@ -120,10 +126,8 @@ export function renderPage(p: PageParts): string {
   // Ids are document-wide, so the second pane's url(#arrow) finds the first pane's defs.
   const canvas = (viewport: string, i: number) =>
     `<div class="canvas"${p.panes ? '' : ' id="canvas"'}><svg>${i === 0 ? defs : ''}\n<g class="viewport">${viewport}</g></svg></div>`;
-  const view = (v: NonNullable<PageParts['views']>[number], i: number) =>
-    `<section class="view${v.cls ?? ''}" data-view="${esc(v.id)}"${v.title === undefined ? '' : ` data-title="${esc(v.title)}"`}${i ? ' hidden' : ''}><div class="canvas"><svg>\n<g class="viewport">${v.viewport}</g></svg></div></section>`;
   const body = p.views
-    ? p.views.map(view).join('\n')
+    ? `<div id="viewpanes">${p.views.map(viewSection).join('\n')}</div>`
     : p.panes
     ? `<div id="panes">${p.panes.map((pane, i) => `<section class="pane" aria-label="${esc(pane.title)}"><div class="pane-title">${esc(pane.title)}<span class="pane-key"> · ${keyHtml(pane.key)}</span></div>${canvas(pane.viewport, i)}</section>`).join('')}</div>`
     : canvas(p.viewport, 0);

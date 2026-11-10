@@ -65,6 +65,21 @@ export function shownVisit(hash: string, has: { view: (id: string) => boolean; n
   return view !== undefined && has.view(view) ? viewVisit(view) : undefined;
 }
 
+/** Side by side is a mode of the page, not a visit: the URL carries it as `&sbs=1`. */
+export const sideFromHash = (hash: string): boolean => param(hash, 'sbs') === '1';
+
+/** Puts the mode in the URL of the entry showing, or takes it out. */
+export function writeSide(on: boolean): void {
+  const parts = location.hash.slice(1).split('&').filter((p) => p && p !== 'sbs=1');
+  const hash = parts.length || on ? `#${[...parts, ...(on ? ['sbs=1'] : [])].join('&')}` : '';
+  if (hash === location.hash) return;
+  try {
+    history.replaceState(history.state, '', location.pathname + location.search + hash);
+  } catch {
+    // sandboxed frames may refuse; the mode then lives only in this page
+  }
+}
+
 /** A page with views: the URL of a visit, with the view the node is in. */
 function viewUrl(v: Visit, viewOf: (node: string) => string | undefined): string {
   const named = viewOfVisit(v);
