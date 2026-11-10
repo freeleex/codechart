@@ -1,6 +1,6 @@
 {
   "name": "codechart",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Agent skill + CLI: maps and flowcharts of code changes for AI coding agents, in terminal, chat and HTML",
   "keywords": [
     "agent-skills",

@@ -219,7 +219,7 @@ More: [Why you can trust the diagram](docs/trust.md).
 
 ## Cost
 
-A diagram is about **2–3 extra API calls**, roughly 2–3% of a long session's usage, and nothing for trivial changes. The CLI is a 158.4 kB package. Measured runs: [Efficiency](docs/efficiency.md).
+A diagram is about **2–3 extra API calls**, roughly 2–3% of a long session's usage, and nothing for trivial changes. The CLI is a 170.0 kB package. Measured runs: [Efficiency](docs/efficiency.md).
 
 ## Safe to run
 

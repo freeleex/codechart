@@ -2,6 +2,16 @@
 
 What's new in each codechart release. Update with `codechart update`; the [releases page](https://github.com/freeleex/codechart/releases) has the same notes.
 
+## 0.9.0 (2026-11-10)
+
+### New
+
+- Release map: ask your agent for a PDF of what's new in a release, a plain-words section per feature for sales and stakeholders, with only facts checked in the code.
+- The PDF is printed with the Chrome, Chromium, Edge or Brave you already have; without one you get the page to Save as PDF yourself.
+- On a release branch (`v1.2.0`, `release-1.2.0`, `release/1.2`) the agent offers a release map. Set `release.auto: draw` to have it made once per version.
+- Your product name and logo on the cover: `release.product` and `release.logo` in the config.
+- `codechart release-context` lists what was merged since the last `v*` tag, with each PR's text and map, for the agent writing the release map.
+
 ## 0.8.0 (2026-11-08)
 
 ### New
