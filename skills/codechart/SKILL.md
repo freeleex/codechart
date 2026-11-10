@@ -24,7 +24,7 @@ From the repo root, in the same Bash call as your first read of the change (`git
 
 Single-quote every value. Only paste values made of letters, digits, spaces and `. _ / @ : + = , - [ ] ( ) ~ ^` that don't start with `-`; otherwise don't run it and tell the user why. Range unclear: ask once. Exit 2: fix the command.
 
-Output is JSON: `pathMatches` lists matched path rules with `diagram`, `output`, `context`; `judgeBuiltins` names the built-ins below. No path match is normal. Unless the output has `toJudge` or `final` (below), always judge the built-ins (output `auto`) on the change or plan:
+Output is JSON: `pathMatches` lists matched path rules with `diagram`, `output`, `context`; `judgeBuiltins` names the built-ins below. No path match is normal. A `release` object (`action`, `branch`, `version`, `path`) means a release branch: see step 7. Unless the output has `toJudge` or `final` (below), always judge the built-ins (output `auto`) on the change or plan:
 - `related-files` (map, context `short`): more than 2 changed files depend on each other
 - `behaviour-flow` (flow): the change adds or alters behaviour with at least 2 decisions or edge cases a reader would want to see
 
@@ -126,4 +126,8 @@ The owner's reply, pasted ending in `codechart review ·`, goes through step 5; 
 
 ## 7. Release map
 
-Only when the user asks for a release map, "what's in the next release" or release notes for sales or stakeholders; never on your own, never in a PR description. The user is preparing a release (bumping the version, writing the changelog or release notes, tagging) and didn't ask: don't make one; end your reply with one line, once per conversation: "codechart can make a release map of what's new, for the product owner to check and export as a PDF for sales: ask me." HTML only. Run `codechart release-context`, write the spec as [release-guide.md](release-guide.md) says (spot-check included), then `codechart render --md - <<'EOF'` as in step 2, no diff flags and no `--tech`. Reply with the printed line and link, and tell the owner to confirm the items and use *Export release*. Their reply goes through step 5.
+A PDF of what is already in main, for sales and stakeholders. It holds only facts you checked in the code, the PR text or the diff; never in a PR description.
+
+Make one when the user asks (a release map, "what's in the next release", release notes for sales) or when `check` printed `release` (step 1): `action` `suggest`: end your reply with one line, once per conversation: "codechart can make a release map (a PDF of what's new, for sales): ask me."; `draw`: make it now, once; `done`: mention its `path` once and draw nothing. With no `release` in the output, when the user is preparing a release (version bump, changelog, release notes, tag) and didn't ask, end with that same line, once per conversation.
+
+Run `codechart release-context`, write the spec as [release-guide.md](release-guide.md) says, then `codechart render --md - <<'EOF'` as in step 2, no diff flags and no `--tech`. Anything you can't confirm: ask the developer in chat before rendering, or leave it out; never guess. Reply with the printed PDF path and page link. Printed no PDF (no Chromium-based browser): say so and give the page link; Save as PDF from the browser.

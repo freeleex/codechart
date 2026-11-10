@@ -50,7 +50,7 @@ export const dataSchema = z.strictObject({
 
 const QUESTION_KINDS = ['unhandled', 'number', 'conflict', 'assumption', 'other'] as const;
 
-export const questionSchema = z.strictObject({
+const questionSchema = z.strictObject({
   id: ident(),
   about: ident().describe('Id of the journey, rule or saved data it is about'),
   text: text(),
@@ -82,21 +82,22 @@ const businessSchema = z
 
 export type BusinessSpec = z.infer<typeof businessSchema>;
 
-type JourneyItem = Omit<z.infer<typeof journeySchema>, 'links'>;
-type RuleItem = Omit<z.infer<typeof ruleSchema>, 'links'>;
-type DataItem = Omit<z.infer<typeof dataSchema>, 'links'>;
+type JourneyItem = Omit<z.infer<typeof journeySchema>, 'links' | 'evidence'>;
+type RuleItem = Omit<z.infer<typeof ruleSchema>, 'links' | 'evidence'>;
+type DataItem = Omit<z.infer<typeof dataSchema>, 'links' | 'evidence'>;
 
 /** The journeys, rules, saved data and questions of a business map, or of one section of a release map. */
 export interface Items {
   journeys: JourneyItem[];
   rules: RuleItem[];
   data: DataItem[];
-  questions: z.infer<typeof questionSchema>[];
+  questions?: z.infer<typeof questionSchema>[];
 }
 
 /** Duplicate ids (against `seen`, which the caller may share with more groups), questions about unknown items and steps on the wrong side. */
 export function itemIssues(items: Items, issue: Issue, seen: Set<string>, at: Path = []): void {
-  const groups = [['journeys', items.journeys], ['rules', items.rules], ['data', items.data], ['questions', items.questions]] as const;
+  const questions = items.questions ?? [];
+  const groups = [['journeys', items.journeys], ['rules', items.rules], ['data', items.data], ['questions', questions]] as const;
   for (const [group, list] of groups) {
     list.forEach((item, i) => {
       if (seen.has(item.id)) issue([...at, group, i, 'id'], `duplicate "${item.id}"`);
@@ -104,7 +105,7 @@ export function itemIssues(items: Items, issue: Issue, seen: Set<string>, at: Pa
     });
   }
   const about = new Set([...items.journeys, ...items.rules, ...items.data].map((x) => x.id));
-  items.questions.forEach((q, i) => {
+  questions.forEach((q, i) => {
     if (!about.has(q.about)) issue([...at, 'questions', i, 'about'], `unknown journey, rule or saved data item "${q.about}"`);
   });
   items.journeys.forEach((j, i) => stepIssues(j, [...at, 'journeys', i], issue));
@@ -145,7 +146,7 @@ export function itemTexts(items: Items, at: Path = []): { path: Path; text: stri
     add(['data', i, 'what'], d.what);
     add(['data', i, 'why'], d.why);
   });
-  items.questions.forEach((q, i) => add(['questions', i, 'text'], q.text));
+  items.questions?.forEach((q, i) => add(['questions', i, 'text'], q.text));
   return out;
 }
 

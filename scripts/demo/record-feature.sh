@@ -51,8 +51,16 @@ case "$mode" in
     cp "$root/docs/images/logo.svg" logo.svg
     printf 'release:\n  product: Acme Shop\n  logo: logo.svg\n' > .codechart.yaml
     "$cc" render "$demo/specs/release.spec.json" --output web >/dev/null
-    page release-map.mjs "$(latest .business.html)" "$work/vid"
-    gif "$(ls "$work"/vid/*.webm)" "$root/docs/images/release-map.gif" 1.2 ;;
+    mkdir "$work/vid"
+    page release-map.mjs "$(latest .release.html)" "$work/vid"
+    # Each still is held for the seconds in the second column (about 8 s in all).
+    for n in 0:2 1:1.8 2:1.4 3:1.8 4:1.4; do printf "file '%s/vid/%s.png'\nduration %s\n" "$work" "${n%:*}" "${n#*:}"; done > "$work/stills.txt"
+    printf "file '%s/vid/4.png'\n" "$work" >> "$work/stills.txt"
+    ffmpeg -loglevel error -y -f concat -safe 0 -i "$work/stills.txt" -filter_complex "
+      fps=5,scale=720:-2:flags=lanczos,split[a][b];
+      [a]palettegen=max_colors=64[pal];
+      [b][pal]paletteuse=dither=none" "$root/docs/images/release-map.gif"
+    ls -la "$root/docs/images/release-map.gif" ;;
   console-review-short)
     git checkout -qb feat/invoices
     DEMO_BIN="$work/bin" DEMO_SPEC="$root/tests/fixtures/shop.spec.json" vhs "$demo/console-review-short.tape" &>/dev/null

@@ -67,6 +67,7 @@ interface RenderFlags extends GitSelection {
   at?: string;
   strict?: boolean;
   tech?: string;
+  pdf?: string;
 }
 
 function renderSelectionError(o: RenderFlags): string | undefined {
@@ -129,8 +130,13 @@ const isPageSpec = (spec: Spec | FlowSpec | BusinessSpec | ReleaseSpec): spec is
 const renderPageSpec = (spec: BusinessSpec | ReleaseSpec, o: RenderFlags, opts: CommandOptions, cwd: string): Promise<void> =>
   spec.diagram === 'business' ? renderBusinessSpec(spec, o, opts, cwd) : renderReleaseSpec(spec, o, opts, cwd);
 
+function pdfOnlyForRelease(spec: { diagram?: string }, o: RenderFlags): void {
+  if (o.pdf !== undefined && spec.diagram !== 'release') throw new Error('--pdf only applies to release maps');
+}
+
 async function renderSpec(arg: string, o: RenderFlags, opts: CommandOptions, cwd: string): Promise<void> {
   const spec = await readSpec(arg, cwd, opts.stdin ?? (() => readStdin(MAX_SPEC_BYTES, new Error(TOO_BIG))));
+  pdfOnlyForRelease(spec, o);
   if (isPageSpec(spec)) return renderPageSpec(spec, o, opts, cwd);
   const repoRoot = findRepoRoot(cwd);
   const root = repoRoot ?? resolve(cwd);
@@ -196,6 +202,7 @@ export function renderCommand(opts: CommandOptions): Command {
     .option('--since <base>', 'check claims against the files committed since <base>; add --git for uncommitted ones too')
     .option('--head <ref>', 'with --since: compare <base>...<ref> instead of HEAD')
     .option('--tech <file>', "business maps: the tech map's spec file, whose boxes the business map links to (default: the newest saved map on this branch)")
+    .option('--pdf <file>', 'release maps: where to write the PDF (default: next to the HTML page)')
     .option('--strict', "exit 1 when a claim doesn't match the code or the build drifted from the plan without a reason")
     .action(async (arg: string, o: RenderFlags, cmd: Command) => {
       const usage = renderSelectionError(o) ?? (!o.pr && (o.svg !== undefined || o.imageUrl !== undefined) ? '--svg and --image-url need --pr' : undefined);

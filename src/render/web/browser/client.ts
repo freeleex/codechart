@@ -275,4 +275,4 @@ function initMap(): void {
   hunks = initHunks(panel, review, zoomToSelected);
   initPanel();
 }
-if (data.page === 'business' || data.page === 'release') initBusiness(data.repoKey, data.change); else initMap();
+if (data.page === 'business') initBusiness(data.repoKey, data.change); else initMap();

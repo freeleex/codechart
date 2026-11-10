@@ -1,148 +1,108 @@
 // @vitest-environment happy-dom
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { releasePage } from '../../src/render/release/html.js';
 import { validateReleaseSpec } from '../../src/spec/release.js';
 import { release } from '../fixtures/release.js';
-import { click, mount, q, qa, usePages } from '../helpers/page.js';
+import { mount, q, qa, usePages } from '../helpers/page.js';
 
 usePages();
 
-const change = { slug: 'what-is-new-in-shop-2-0.business', branch: 'main', at: '2026-11-09T12:00:00.000Z' };
-const meta = { generatedAt: new Date('2026-11-09T12:00:00Z'), repo: 'shop', change };
+const meta = { generatedAt: new Date('2026-11-09T12:00:00Z'), repo: 'shop' };
 const build = (brand = {}, spec = release()) => {
   const parsed = validateReleaseSpec(spec);
   if (!parsed.ok) throw new Error(parsed.errors.join('\n'));
   return releasePage(parsed.spec, meta, brand);
 };
 const html = build();
-
-const verdict = (id: string, v: 'yes' | 'no') => click(q(`[data-item="${id}"] [data-verdict="${v}"]`));
-const exportBtn = () => q<HTMLButtonElement>('#export');
-const print = vi.fn();
-
-afterEach(() => print.mockReset());
-
-function open(page = html): void {
-  mount(page);
-  window.print = print;
-}
+const within = (el: Element, sel: string): Element[] => [...el.querySelectorAll(sel)];
 
 describe('release page', () => {
-  it('shows the product, version, date, summary and the counts', () => {
+  it('has a cover with the product, title, version, date, summary and the counts', () => {
     mount(html);
-    expect(q('h1').textContent).toBe('What is new in Shop 2.0');
-    expect(q('.eyebrow').textContent).toContain('shop');
-    expect(q('.eyebrow').textContent).toContain('Version 2.0.0 (since 1.4.0)');
-    expect(q('.eyebrow time').textContent).toBe('9 Nov 2026');
-    expect(q('header .summary').textContent).toContain('money back faster');
-    expect(qa('.stats .pill').map((p) => p.textContent)).toEqual(['1 new', '1 changed', '1 fixed']);
+    expect(q('.cover .co-product').textContent).toBe('shop');
+    expect(q('.cover h1').textContent).toBe('What is new in Shop 2.0');
+    expect(q('.cover .co-meta').textContent).toBe('Version 2.0.0 (since 1.4.0) · 9 Nov 2026');
+    expect(q('.cover .summary').textContent).toContain('money back faster');
+    expect(q('.cover .co-counts').textContent).toBe('1 new · 1 changed · 1 fixed');
   });
 
-  it('uses the configured product name and the logo, on the cover too', () => {
+  it('puts the configured product name and logo on the cover', () => {
     mount(build({ product: 'Acme Shop', logo: 'data:image/png;base64,AAAA' }));
-    expect(q('.rel-id').textContent).toBe('Acme Shop');
-    expect(q('.cover .co-product').textContent).toBe('Acme Shop');
-    expect(qa('img').map((i) => i.getAttribute('src'))).toEqual(['data:image/png;base64,AAAA', 'data:image/png;base64,AAAA']);
+    expect(q('.co-product').textContent).toBe('Acme Shop');
+    expect(qa('img').map((i) => i.getAttribute('src'))).toEqual(['data:image/png;base64,AAAA']);
   });
 
-  it('has one section per feature with its badge, PR and items', () => {
+  it('leaves a zero count out of the cover', () => {
+    const spec = release();
+    spec.sections = spec.sections.slice(0, 1);
+    mount(build({}, spec));
+    expect(q('.co-counts').textContent).toBe('1 new');
+  });
+
+  it('has one section per feature with its badge, summary and items, and no PR number', () => {
     mount(html);
     const sections = qa('section.feature');
     expect(sections.map((s) => s.querySelector('h2')!.textContent)).toEqual(['Faster refunds', 'Shorter refund window', 'Receipts open again']);
     expect(sections.map((s) => s.querySelector('.chg-badge')!.textContent)).toEqual(['New', 'Changed', 'Fixed']);
-    expect(sections[0]!.querySelector('.pr')!.textContent).toBe('PR #41');
-    expect(sections[1]!.querySelector('.pr')).toBeNull();
-    expect(qa('[data-item]').map((c) => c.getAttribute('data-item'))).toEqual(['J1', 'J2', 'R1', 'Q1', 'R2', 'D1']);
-    expect(sections[0]!.querySelectorAll('[data-item]')).toHaveLength(4);
-    expect(sections[2]!.querySelector('[data-item]')).toBeNull();
-    expect(q('[data-item="Q1"] a[data-jump]').textContent).toBe('Manager approval');
+    expect(sections.map((s) => within(s, '.card').length)).toEqual([3, 2, 0]);
+    expect(q('main').textContent).not.toContain('PR #');
+    expect(q('main').textContent).not.toMatch(/\b(J1|J2|R1|R2|D1)\b/);
   });
 
-  it('shows no tech map links, ids or section ids as text', () => {
+  it('shows journeys as now and after, a rule with its before and exception, and what is kept', () => {
     mount(html);
-    expect(q('main').textContent).not.toMatch(/\b(J1|J2|R1|R2|D1|Q1)\b/);
+    const journey = q('.journey');
+    expect(within(journey, 'h4').map((h) => h.textContent)).toEqual(['Now', 'After this change']);
+    expect(within(journey, '.step.rem .t').map((t) => t.textContent)).toEqual(['Agent passes it to a manager']);
+    expect(within(journey, '.step.add .t').map((t) => t.textContent)).toEqual(['Agent enters the amount and a reason']);
+    const rules = qa('.rule');
+    expect(rules[1]!.textContent).toContain('Up to 30 days after paying.');
+    expect(rules[1]!.textContent).toContain('Annual plans keep 30 days.');
+    expect(q('.datum').textContent).toContain('So finance can review refunds later');
   });
 
-  it('keeps the trust tags, Yes/No and notes of the business page', () => {
+  it('is a static document: no script, no button, no trust tag, legend or dialog', () => {
+    expect(html).not.toContain('<script');
     mount(html);
-    expect(qa('[data-item] .ev.ok')).toHaveLength(2);
-    expect(qa('.card.guess')).toHaveLength(3);
-    expect(qa('.confirm')).toHaveLength(3);
-    expect(qa('[data-cbtn]')).toHaveLength(5);
-    expect(q<HTMLButtonElement>('#send').disabled).toBe(true);
+    expect(qa('script, button, textarea, input, dialog, .modal, .legend, .bar, .ev, .confirm, [data-item]')).toHaveLength(0);
+    expect(html).not.toMatch(/\son[a-z]+\s*=/i);
   });
 
-  it('keeps Export disabled until every reading has a Yes or No, and says how many are left', () => {
-    open();
-    expect(exportBtn().disabled).toBe(true);
-    expect(exportBtn().textContent).toBe('Confirm 3 items to export');
-    expect(exportBtn().title).toContain('3 items');
-    verdict('J2', 'yes');
-    expect(exportBtn().textContent).toBe('Confirm 2 items to export');
-    verdict('R1', 'no');
-    expect(exportBtn().textContent).toBe('Confirm 1 item to export');
-    click(exportBtn());
-    expect(print).not.toHaveBeenCalled();
-    expect(document.body.classList.contains('exporting')).toBe(false);
-    verdict('D1', 'yes');
-    expect(exportBtn().disabled).toBe(false);
-    expect(exportBtn().textContent).toBe('Export release');
-  });
-
-  it('takes a Yes or No back: Export locks again', () => {
-    open();
-    for (const id of ['J2', 'R1', 'D1']) verdict(id, 'yes');
-    expect(exportBtn().disabled).toBe(false);
-    verdict('D1', 'yes');
-    expect(exportBtn().textContent).toBe('Confirm 1 item to export');
-  });
-
-  it('exports: the body gets the class, rejected items and emptied groups are marked, print is called, afterprint undoes it', () => {
-    open();
-    verdict('J2', 'yes');
-    verdict('R1', 'no');
-    verdict('D1', 'no');
-    click(exportBtn());
-    expect(print).toHaveBeenCalledTimes(1);
-    expect(document.body.classList.contains('exporting')).toBe(true);
-    expect(qa('.rejected').map((e) => e.getAttribute('data-item') ?? `group:${e.getAttribute('data-group')}`)).toEqual(['group:rules', 'R1', 'group:data', 'D1']);
-    expect(q('[data-item="J2"]').classList.contains('rejected')).toBe(false);
-    expect(q('[data-group="journeys"]').classList.contains('rejected')).toBe(false);
-    window.dispatchEvent(new Event('afterprint'));
-    expect(document.body.classList.contains('exporting')).toBe(false);
-    expect(qa('.rejected')).toHaveLength(0);
-  });
-
-  it('a page without the export button (the business page) starts fine', async () => {
-    const { businessPage } = await import('../../src/render/business/html.js');
-    const { validateBusinessSpec } = await import('../../src/spec/business.js');
-    const { business } = await import('../fixtures/business.js');
-    const b = validateBusinessSpec(business());
-    if (!b.ok) throw new Error('fixture');
-    mount(businessPage(b.spec, meta));
-    expect(document.getElementById('export')).toBeNull();
-    expect(q('#note-count').textContent).toBe('0');
+  it('escapes what the spec says', () => {
+    const spec = release();
+    spec.title = 'Shop <b>2.0</b>';
+    expect(build({}, spec)).toContain('Shop &lt;b&gt;2.0&lt;/b&gt;');
   });
 });
 
 describe('release page styles', () => {
   const css = (): string => q<HTMLStyleElement>('style').textContent!;
 
-  it('hides the review parts and the rejected items in the printed view, light colours whatever the theme', () => {
+  it('is light whatever the system theme', () => {
     mount(html);
-    const text = css();
-    const printed = text.slice(text.indexOf('@media print'));
-    for (const hidden of ['.cbox', '.cview', '.cacts', '.confirm', '.ev', '.legend', '.bar', '.modal', '[data-group="questions"]', '.rejected']) expect(printed).toContain(`body.exporting ${hidden}`.replace('body.exporting ', ''));
-    expect(printed).toMatch(/body\.exporting [^{]*\.rejected[^{]*\{display:none!important\}/);
-    expect(printed).toContain(':root:root:root{color-scheme:light;--bg:#f6f8fa');
-    expect(printed).toContain('.cover{display:block;break-after:page');
-    expect(printed).not.toContain('section.feature{break-before:page');
-    expect(text).toContain('@bottom-right{content:counter(page)');
+    expect(css()).toContain('color-scheme:light');
+    expect(css()).not.toMatch(/prefers-color-scheme|color-scheme:light dark|data-theme/);
   });
 
-  it('shows the cover only when exporting', () => {
+  it('prints A4 with page numbers on every page but the cover, and breaks pages only after the cover', () => {
     mount(html);
-    expect(css()).toMatch(/\.cover\{display:none\}/);
-    expect(css()).toMatch(/body\.exporting \.cover\{display:block/);
+    expect(css()).toContain('@page{size:A4;');
+    expect(css()).toContain('@bottom-right{content:counter(page)');
+    expect(css()).toContain('@page:first{@bottom-right{content:none}}');
+    expect(css()).toContain('.cover{padding-top:60mm;break-after:page}');
+    expect(css()).not.toMatch(/\.feature\{[^}]*break-before/);
+  });
+
+  it('keeps a heading with its first content and a card in one piece', () => {
+    mount(html);
+    expect(css()).toContain('.f-head,.f-sum,.f-sub{break-after:avoid}');
+    expect(css()).toContain('.f-head,.f-sum{break-inside:avoid}');
+    expect(css()).toMatch(/\.card\{[^}]*break-inside:avoid/);
+  });
+
+  it('shows the same sheet on screen as on paper: only the screen adds a grey backdrop', () => {
+    mount(html);
+    expect(css()).toMatch(/@media screen\{[^]*\.sheet\{[^}]*max-width:210mm/);
+    expect(css()).toContain('@media print{html,body{background:#fff}}');
   });
 });

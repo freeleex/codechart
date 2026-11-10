@@ -46,9 +46,17 @@ A [business map](business-map.md) is for readers who can't check the code, so mo
 - No sentence may look like code, a file name or path, a web address, a setting name, a technical id or a secret. A match fails the render with the offending word, and a secret is shown only as its first characters.
 - Each item says how sure it is: **Checked in code**, or **Agent's reading, please confirm**, which the owner answers Yes or No.
 
-A [release map](release-map.md) gets the plain-words check on every text, in every section, and its ids must be unique across the page; it has no links, so there is no tech map to check them against, and its export waits for the owner's Yes or No on every reading.
-
 Limits: a link proves where to look, not that the words are right. The check cannot tell whether a sentence about the code is true, and plain words can still be wrong. Your agent is told to re-read the code behind each *Checked in code* item before drawing the page, but that is the agent's own spot-check, not something codechart verifies.
+
+## Release maps
+
+A [release map](release-map.md) is a PDF nobody reviews, so it holds only what the agent confirmed in the code, the PR text or the diff. codechart checks the page's shape and words, not the facts:
+
+- Every text, in every section, passes the same plain-words check as a business map, and ids must be unique across the page.
+- A spec with `questions` or `evidence` is refused: there is no owner to answer or confirm, and no *Agent's reading* tag to show.
+- It has no tech links, so there is no tech map to check them against.
+
+Limit: the check cannot tell whether a sentence is true. The skill tells the agent to ask you in the chat about anything it can't confirm, or leave it out, but that is the agent's rule, not something codechart verifies.
 
 ## Gaps are explicit
 

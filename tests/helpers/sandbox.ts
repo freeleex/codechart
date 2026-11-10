@@ -81,7 +81,7 @@ const fakeOpencode = (command: string): string => {
 export async function runCli(opts: ProgramOptions, args: string[]): Promise<{ out: string; err: string; code: typeof process.exitCode }> {
   let out = '';
   let err = '';
-  const program = buildProgram({ env: {}, tool: fakeOpencode, ...opts, stdout: (s) => (out += s), stderr: (s) => (err += s) });
+  const program = buildProgram({ env: {}, tool: fakeOpencode, pdf: { find: () => undefined }, ...opts, stdout: (s) => (out += s), stderr: (s) => (err += s) });
   await runProgram(program, args, 'user');
   return { out, err, code: process.exitCode };
 }

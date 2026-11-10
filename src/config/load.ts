@@ -5,14 +5,14 @@ import { parse } from 'yaml';
 import { readRegularFile } from '../read-regular.js';
 import { findRepoRoot } from './repo-root.js';
 import { builtinRules } from './builtin-rules.js';
-import { parseConfigFile, type Config, type ConfigFile, type Rule } from './schema.js';
+import { DEFAULT_RELEASE_BRANCHES, parseConfigFile, type Config, type ConfigFile, type Rule } from './schema.js';
 
 const BUILTIN = 'built-in';
 const MAX_BYTES = 1024 * 1024;
 export const BUILTIN_DEFAULTS: Readonly<Config['defaults']> = { output: 'auto', context: 'short', flows: 'auto', terminalMaxNodes: 15 };
 
 // A cloned repo must not choose where HTML lands or what gets pruned.
-export const GLOBAL_ONLY = ['web.outDir', 'web.keep', 'web.maxAgeDays', 'web.open', 'updateCheck'] as const;
+export const GLOBAL_ONLY = ['web.outDir', 'web.keep', 'web.maxAgeDays', 'web.open', 'updateCheck', 'release.browser'] as const;
 
 export { findRepoRoot };
 
@@ -59,14 +59,19 @@ function readConfigFile(file: string, root?: string): ConfigFile | undefined {
   return result.config;
 }
 
-// A cloned repo must not change where pages go or whether codechart goes online.
+// A cloned repo must not change where pages go, whether codechart goes online or which program it launches.
 function dropGlobalOnly(file: ConfigFile | undefined, path: string, warn?: (line: string) => void): ConfigFile | undefined {
   if (!file) return file;
   const { updateCheck, ...rest } = file;
   const { outDir, keep, maxAgeDays, open, ...web } = file.web ?? {};
-  const ignored = [...Object.entries({ outDir, keep, maxAgeDays, open }).filter(([, v]) => v !== undefined).map(([k]) => `web.${k}`), ...(updateCheck === undefined ? [] : ['updateCheck'])];
+  const { browser, ...release } = file.release ?? {};
+  const ignored = [
+    ...Object.entries({ outDir, keep, maxAgeDays, open }).filter(([, v]) => v !== undefined).map(([k]) => `web.${k}`),
+    ...(updateCheck === undefined ? [] : ['updateCheck']),
+    ...(browser === undefined ? [] : ['release.browser']),
+  ];
   if (ignored.length) warn?.(`${path}: ${ignored.join(', ')} ${ignored.length === 1 ? 'is' : 'are'} global-only; ignored`);
-  return file.web ? { ...rest, web } : rest;
+  return { ...rest, ...(file.web && { web }), ...(file.release && { release }) };
 }
 
 function firstByName<T extends { rule: Rule }>(items: T[]): T[] {
@@ -79,20 +84,22 @@ function resolveOutDir(dir: string, home: string): string {
   return resolve(home, expanded);
 }
 
-const RELEASE_KEYS = ['product', 'logo'] as const;
+const RELEASE_KEYS = ['product', 'logo', 'browser', 'branches', 'auto'] as const;
 
 /** `release.*`: a later file wins, key by key. */
 function releaseOf(files: { file?: ConfigFile; source: string }[], sources: Record<string, string>): Config['release'] {
-  const release: NonNullable<Config['release']> = {};
+  const release: Config['release'] = { branches: DEFAULT_RELEASE_BRANCHES, auto: 'suggest' };
+  sources['release.branches'] = BUILTIN;
+  sources['release.auto'] = BUILTIN;
   for (const { file, source } of files) {
     for (const key of RELEASE_KEYS) {
       const value = file?.release?.[key];
       if (value === undefined) continue;
-      release[key] = value;
+      Object.assign(release, { [key]: value });
       sources[`release.${key}`] = source;
     }
   }
-  return Object.keys(release).length ? release : undefined;
+  return release;
 }
 
 export interface ConfigWithSources {
@@ -156,7 +163,7 @@ export function loadConfigWithSources(opts: LoadOptions): ConfigWithSources {
 
   const release = releaseOf(files, sources);
   return {
-    config: { defaults, web, useBuiltinRules, updateCheck: global?.updateCheck !== false, ...(release && { release }), rules: tagged.map((t) => t.rule) },
+    config: { defaults, web, useBuiltinRules, updateCheck: global?.updateCheck !== false, release, rules: tagged.map((t) => t.rule) },
     sources,
     ruleSources: tagged.map((t) => t.source),
   };

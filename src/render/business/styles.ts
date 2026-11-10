@@ -1,12 +1,8 @@
 const DARK_VARS =
   '--bg:#0f1115;--paper:#161b22;--sunk:#12161c;--line:#30363d;--line-soft:#262c34;--text:#e6edf3;--muted:#8b949e;--soft:#c9d1d9;--edge:#79c0ff;--edge-bg:rgba(121,192,255,.12);--new:#3fb950;--new-t:#7ee787;--new-bg:rgba(46,160,67,.18);--new-line:rgba(63,185,80,.4);--chg:#d29922;--chg-t:#f2cc60;--chg-bg:rgba(210,153,34,.16);--chg-line:rgba(210,153,34,.45);--rem:#ff7b72;--rem-bg:rgba(248,81,73,.18);--rem-t:#ffa198;--amber:#d29922;--amber-bg:rgba(210,153,34,.07);--amber-t:#f2cc60;--btn:#2f81f7;--veil:rgba(1,4,9,.7);--bar:rgba(22,27,34,.94)';
 
-/** The light palette; a printed release map forces it whatever the theme. */
-export const LIGHT_VARS =
-  '--bg:#f6f8fa;--paper:#fff;--sunk:#fafbfc;--line:#d0d7de;--line-soft:#e6eaef;--text:#1f2328;--muted:#656d76;--soft:#2d333b;--edge:#0969da;--edge-bg:rgba(9,105,218,.07);--new:#2ea043;--new-t:#1a7f37;--new-bg:rgba(46,160,67,.10);--new-line:rgba(46,160,67,.35);--chg:#d29922;--chg-t:#9a6700;--chg-bg:rgba(212,167,44,.13);--chg-line:rgba(212,167,44,.45);--rem:#cf222e;--rem-bg:rgba(255,129,130,.16);--rem-t:#6e2a2e;--amber:#bf8700;--amber-bg:#fff8e5;--amber-t:#7d4e00;--btn:#0969da;--veil:rgba(31,35,40,.45);--bar:rgba(255,255,255,.94)';
-
 export const BUSINESS_CSS = `
-:root{color-scheme:light dark;${LIGHT_VARS};--serif:"Iowan Old Style",Charter,"Palatino Linotype",Palatino,Georgia,serif;--sans:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",sans-serif;--r:10px}
+:root{color-scheme:light dark;--bg:#f6f8fa;--paper:#fff;--sunk:#fafbfc;--line:#d0d7de;--line-soft:#e6eaef;--text:#1f2328;--muted:#656d76;--soft:#2d333b;--edge:#0969da;--edge-bg:rgba(9,105,218,.07);--new:#2ea043;--new-t:#1a7f37;--new-bg:rgba(46,160,67,.10);--new-line:rgba(46,160,67,.35);--chg:#d29922;--chg-t:#9a6700;--chg-bg:rgba(212,167,44,.13);--chg-line:rgba(212,167,44,.45);--rem:#cf222e;--rem-bg:rgba(255,129,130,.16);--rem-t:#6e2a2e;--amber:#bf8700;--amber-bg:#fff8e5;--amber-t:#7d4e00;--btn:#0969da;--veil:rgba(31,35,40,.45);--bar:rgba(255,255,255,.94);--serif:"Iowan Old Style",Charter,"Palatino Linotype",Palatino,Georgia,serif;--sans:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",sans-serif;--r:10px}
 :root[data-theme="light"]{color-scheme:light}
 :root[data-theme="dark"]{color-scheme:dark}
 @media (prefers-color-scheme:dark){:root[data-theme="auto"]{${DARK_VARS}}}

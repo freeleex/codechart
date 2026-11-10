@@ -42,30 +42,19 @@
               "text": "Owner sends the answers back in one paste",
               "change": "new"
             }
-          ],
-          "evidence": "checked"
+          ]
         }
       ],
       "rules": [
         {
           "id": "owner-plain-words",
           "name": "Plain words only",
-          "after": "The page shows no code, file names or technical names. A sentence that looks like code is refused before the page is made.",
-          "evidence": "checked"
+          "after": "The page shows no code, file names or technical names. A sentence that looks like code is refused before the page is made."
         },
         {
           "id": "owner-confirm",
           "name": "Guesses are marked",
-          "after": "Anything the agent worked out from names and structure, instead of reading the code, is marked and waits for the owner's yes or no.",
-          "evidence": "checked"
-        }
-      ],
-      "questions": [
-        {
-          "id": "owner-q",
-          "about": "owner-review",
-          "text": "Should the owner also see who changed each rule?",
-          "kind": "other"
+          "after": "Anything the agent worked out from names and structure, instead of reading the code, is marked and waits for the owner's yes or no."
         }
       ]
     },
@@ -103,16 +92,14 @@
               "text": "Agent reads each note with its place",
               "change": "new"
             }
-          ],
-          "evidence": "checked"
+          ]
         }
       ],
       "rules": [
         {
           "id": "notes-late",
           "name": "Late replies still count",
-          "after": "A reply pasted days later is still understood, as long as the page was made in the last 30 days.",
-          "evidence": "reading"
+          "after": "A reply pasted days later is still understood, as long as the page was made in the last 30 days."
         }
       ]
     },
@@ -126,8 +113,7 @@
           "id": "console-same",
           "name": "Same notes everywhere",
           "before": "Notes from the terminal and from the page were kept apart.",
-          "after": "Both kinds of note are listed together, each with the box it belongs to.",
-          "evidence": "reading"
+          "after": "Both kinds of note are listed together, each with the box it belongs to."
         }
       ],
       "data": [
@@ -135,8 +121,7 @@
           "id": "console-kept",
           "name": "Review notes",
           "what": "Each note, the box it is about, and whether the agent has read it",
-          "why": "So nothing is lost when the page is redrawn",
-          "evidence": "checked"
+          "why": "So nothing is lost when the page is redrawn"
         }
       ]
     },
@@ -151,8 +136,7 @@
           "id": "plan-older",
           "name": "Only an earlier plan counts",
           "before": "Any saved plan on the branch could be used for the comparison.",
-          "after": "A plan is used only if it was made before the first change it is compared with.",
-          "evidence": "checked"
+          "after": "A plan is used only if it was made before the first change it is compared with."
         }
       ]
     }

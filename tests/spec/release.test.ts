@@ -41,12 +41,12 @@ describe('release spec', () => {
   });
 
   it('caps what a section holds', () => {
-    const j = (i: number) => ({ id: `j${i}`, name: `Story ${i}`, now: [{ text: 'Before' }], after: [{ text: 'After' }], evidence: 'checked' });
+    const j = (i: number) => ({ id: `j${i}`, name: `Story ${i}`, now: [{ text: 'Before' }], after: [{ text: 'After' }] });
     const spec = release();
     spec.sections[2].journeys = Array.from({ length: 5 }, (_, i) => j(i));
     expect(errors(spec)).toEqual([expect.stringMatching(/^sections\[2\]\.journeys:/)]);
     spec.sections[2].journeys = [];
-    spec.sections[2].rules = Array.from({ length: 7 }, (_, i) => ({ id: `r${i}`, name: `Rule ${i}`, after: 'It works.', evidence: 'checked' }));
+    spec.sections[2].rules = Array.from({ length: 7 }, (_, i) => ({ id: `r${i}`, name: `Rule ${i}`, after: 'It works.' }));
     expect(errors(spec)).toEqual([expect.stringMatching(/^sections\[2\]\.rules:/)]);
   });
 
@@ -63,10 +63,16 @@ describe('release spec', () => {
     expect(errors(spec)).toEqual([expect.stringMatching(/^sections\[2\]\.id: duplicate "refunds"/), expect.stringMatching(/^sections\[1\]\.rules\[0\]\.id: duplicate "J1"/)]);
   });
 
-  it('a question is about an item of its own section', () => {
-    const spec = release();
-    spec.sections[1].questions = [{ id: 'Q2', about: 'R1', text: 'Does this apply to trials?', kind: 'other' }];
-    expect(errors(spec)).toEqual([expect.stringMatching(/^sections\[1\]\.questions\[0\]\.about: unknown/)]);
+  it('refuses questions and evidence: the release map only holds checked facts', () => {
+    const withQuestion = release();
+    withQuestion.sections[0].questions = [{ id: 'Q1', about: 'R1', text: 'Does this apply to trials?', kind: 'other' }];
+    const withEvidence = release();
+    withEvidence.sections[0].journeys[0].evidence = 'reading';
+    withEvidence.sections[1].rules[0].evidence = 'checked';
+    withEvidence.sections[1].data[0].evidence = 'checked';
+    expect(errors(withQuestion)).toEqual([expect.stringMatching(/^sections\[0\]\.questions: not allowed; a release map only holds facts checked in the code, PR text or diff/)]);
+    expect(errors(withEvidence).map((e) => e.split(':')[0])).toEqual(['sections[0].journeys[0].evidence', 'sections[1].rules[0].evidence', 'sections[1].data[0].evidence']);
+    expect(errors(withEvidence)[0]).toContain('ask the developer about anything uncertain, or leave it out');
   });
 
   it('keeps the step rules of business journeys', () => {

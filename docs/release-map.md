@@ -1,12 +1,8 @@
 # Release map
 
-One page for a whole release: a section per feature in plain words, for a product owner to review and then export as a PDF for sales and stakeholders. No code, file names or ids on the page, and the owner needs no access to the repo.
+A PDF of what is new in a release, in plain words, for sales and stakeholders. It shows what was already reviewed and is in main, so nobody reviews it: no questions, no notes, no Yes/No. No code, file names or ids on it, and the reader needs no access to the repo.
 
-<img src="images/release-map.gif" alt="The Export button says Confirm 2 items to export; the owner clicks Yes, that's right on one reading and No on the other, the button becomes Export release, and the printed view shows the cover with logo and the first feature" width="960">
-
-## When to use it
-
-When a release is coming and someone who doesn't read code has to sign off on what it says, or you need release notes a salesperson can hand out. Your agent never makes one on its own, and it never goes into a PR description. When you prepare a release with it (version bump, changelog, release notes, tag), it offers one in a single line at the end of its reply, once per conversation. For a single change, use a [business map](business-map.md).
+<img src="images/release-map.gif" alt="The PDF of a release map: a cover with the logo, product name, version and summary, then the features one after another with their journeys, rules and what is kept" width="960">
 
 ## How to ask
 
@@ -14,31 +10,35 @@ When a release is coming and someone who doesn't read code has to sign off on wh
 > make a release map of what's in the next release
 ```
 
-The agent runs `codechart release-context` (the changes merged since the last `v*` tag), groups them into features, writes a section for each, and replies with one line and a link to the page. Send that HTML file to the owner.
+The agent runs `codechart release-context` (the changes merged since the last `v*` tag), groups them into features, writes a section for each, and runs `codechart render`. It replies with the PDF path and a link to the page. Your agent never makes one on its own, except on a release branch (below), and it never goes into a PR description. When you prepare a release with it (version bump, changelog, release notes, tag) and have no release branch set up, it offers one in a single line at the end of its reply, once per conversation. For a single change, use a [business map](business-map.md).
 
-## What the owner sees
+It only writes facts it checked in the code, the PR text or the diff. Anything it can't confirm it asks you about in the chat before rendering, or leaves out. The spec can't carry questions or an *Agent's reading* tag: a spec with either is refused.
 
-- **Header:** the product name, version, date, a short summary, and how many features are new, changed or fixed.
-- **One section per feature** (up to 12): a *New*, *Changed* or *Fixed* badge, the pull request number if there is one, a short summary, then as many of these as apply:
+## What is in it
+
+- **Cover:** the logo, product name, version (and the one before), date, a short summary, and how many features are new, changed or fixed.
+- **One section per feature** (up to 12): a *New*, *Changed* or *Fixed* badge, a short summary, then as many of these as apply:
   - **How it works:** journeys, steps today and steps after (up to 4);
   - **Rules:** before and after, with exceptions (up to 6);
-  - **Information kept:** what the business now saves and why (up to 4);
-  - **Questions for you:** only the owner can answer (up to 4).
+  - **Information kept:** what the business now saves and why (up to 4).
   A small fix can be just a summary.
 
-Items carry the same tags as on the business map: **Checked in code**, or **Agent's reading, please confirm** with *Yes, that's right* and *No*. The owner can add a note to any item and type an answer under a question. Items have no technical links: the release page is not tied to a tech map.
+Features flow one after another: a heading stays with its first content, a card is never split, and there is no forced page per feature. Page numbers sit bottom right, none on the cover. Light colours always, whatever your theme.
 
-## Export as a PDF
+## The PDF
 
-The bottom bar has **Export release** next to **Send back to developer**. It stays disabled until every *Agent's reading* item has a Yes or a No, and says how many are left (*Confirm 3 items to export*). Then it opens the browser's print window: choose *Save as PDF*.
+`codechart render` writes the page, then prints it to a PDF next to it with a Chromium-based browser in headless mode, and prints:
 
-The printed version has:
+```text
+Release map: What is new in Shop 2.0 (2.0.0) · 3 features · 1 new · 1 changed · 1 fixed
+PDF: ~/.cache/codechart/shop-1a2b3c4d/20261109-100000-v2-0-0-what-is-new-in-shop-2-0.release.pdf
+full map → file://…/20261109-100000-v2-0-0-what-is-new-in-shop-2-0.release.html
+```
 
-- a cover with the logo, product name, version, date and summary;
-- the features one after another, a feature's heading never left alone at the bottom of a page and a card never split, with page numbers where the browser supports them (Chrome does; Safari may not);
-- light colours whatever theme the page is in.
-
-It leaves out the questions, notes, Yes/No buttons, trust tags, the legend, the bottom bar, and every item the owner answered **No**. A feature with nothing left of a kind loses that heading too.
+- **Browser:** the first of Google Chrome, Chromium, Microsoft Edge and Brave found where they are usually installed (`/Applications` on macOS, the `PATH` on Linux, Program Files and `LOCALAPPDATA` on Windows). To use another, set `release.browser` to its absolute path in your global config. A repo config can't set it: it names a program to run.
+- **`--pdf <file>`:** write the PDF there instead of next to the page. Absolute or relative to where you run it, ending in `.pdf`, in a folder that exists.
+- **No browser, or it fails:** the page is kept, one line says no PDF was made, and the command still succeeds. Open the page in any browser and use *Save as PDF*: it looks the same on screen as on paper.
+- **Clean-up:** pages are pruned like the others (the newest render of a release replaces older ones); a PDF next to a pruned page stays, so copy it where you keep it or use `--pdf`.
 
 ## Product name and logo
 
@@ -50,29 +50,38 @@ release:
   logo: docs/logo.svg
 ```
 
-Without `product` the cover uses the repo name. The logo is a repo-relative `.svg` or `.png` of at most 200 KB; it is embedded in the page, which still loads nothing from the internet. A logo that is missing, too big, the wrong type, or outside the repo (an absolute path, `..`, or a symlink that leaves the repo) is skipped with a warning on stderr; the page is still written. See [Configuration](configuration.md).
+Without `product` the cover uses the repo name. The logo is a repo-relative `.svg` or `.png` of at most 200 KB; it is embedded in the page, which still loads nothing from the internet. A logo that is missing, too big, the wrong type, or outside the repo (an absolute path, `..`, or a symlink that leaves the repo) is skipped with a warning on stderr; the page and PDF are still made. See [Configuration](configuration.md).
 
-## Sending it back
+## On release branches
 
-The same as the business map: **Send back to developer** copies the answers, verdicts and notes, the owner pastes them to the developer, and the agent runs `codechart feedback --import --take`. Each note names its item (`Rule "Manager approval" [R1]`) and has no tech links. The page's record is kept 30 days. Release pages are saved with the business pages: `codechart feedback --change <title>` finds either.
+`codechart check` tells the agent when you are on a release branch. With `release.branches` (default `v[0-9]*`, `release-*`, `release/*`) and `release.auto`, its output gets a `release` object: `{ "action": "suggest", "branch": "release-0.8.0", "version": "0.8.0" }`. The version is the first `x.y.z` or `x.y` in the branch name, after an optional `v`, if there is one.
+
+| `release.auto` | The agent |
+|---|---|
+| `suggest` (default) | ends its reply with a one-line offer of a release map, once per conversation |
+| `draw` | makes the release map, once: when a PDF or page for that version is already saved, `check` says `"action": "done"` with its `path`, and the agent just mentions it |
+| `off` | says nothing; no `release` key |
+
+A branch with no version in its name can't be matched to a saved PDF, so there `check` only says `suggest`, even with `draw`. A detached HEAD, or any other branch, has no `release` key. `--head <branch>` checks that branch instead.
 
 ## What is checked
 
 Before the page is drawn:
 
 - the version looks like a version, the date is a real `YYYY-MM-DD` date, a section's `change` is `new`, `changed` or `fixed`, and ids are unique across the whole page;
-- every sentence passes the same plain-words check as a business map: no code, file name or path, web address, setting name, secret or technical id.
+- every sentence passes the same plain-words check as a business map: no code, file name or path, web address, setting name, secret or technical id;
+- no `questions` and no `evidence` on any item.
 
-Your agent is told to re-read the code behind every *Checked in code* item before it draws the page. A wrong sentence can pass every check, which is why the owner confirms the rest. See [Why you can trust the diagram](trust.md#business-maps).
+A wrong sentence can pass every check: nobody reviews the PDF, so the agent is told to write only what it confirmed. See [Why you can trust the diagram](trust.md#release-maps).
 
 ## Limits
 
-- HTML only: no terminal or PR version. `--pr` and `--tech` are refused.
-- The PDF comes from the browser's print dialog, so page breaks and numbering follow the browser.
+- HTML page and PDF only: no terminal or PR version, and no notes sent back. `--pr` and `--tech` are refused.
+- The PDF comes from the browser's own layout, so page breaks follow the browser.
 - Sharing the HTML file: see [Business map](business-map.md#limits).
 
 ## Related
 
 - [Business map](business-map.md)
-- [Review](review.md#notes-from-a-product-owner)
 - [CLI commands](cli.md)
+- [Configuration](configuration.md)

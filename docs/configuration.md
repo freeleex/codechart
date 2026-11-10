@@ -48,6 +48,8 @@ Repo `.codechart.yaml` and global `~/.config/codechart/config.yaml`. Editor sche
 | `web.minNodes` | HTML from this many nodes on | `8` |
 | `release.product` | product name on the cover of a [release map](release-map.md): one line, up to 80 characters | the repo name |
 | `release.logo` | repo-relative `.svg` or `.png` of at most 200 KB, shown on that cover; a bad one is skipped with a warning | none |
+| `release.branches` | globs (same rules as `paths`) of the branches that are release branches; on one, `codechart check` adds a `release` hint for the agent | `["v[0-9]*", "release-*", "release/*"]` |
+| `release.auto` | on a release branch: `suggest` a release map, `draw` it, or `off` | `suggest` |
 | `useBuiltinRules` | built-in migration/model/infrastructure path rules, `related-files`, `behaviour-flow` | `true` |
 | `rules` | your own, run before the built-ins | none |
 
@@ -59,6 +61,7 @@ Global only:
 | `web.keep` | newest pages kept per repo | `20` |
 | `web.maxAgeDays` | pages younger than this are always kept | `7` |
 | `web.open` | `auto` (open new pages in your browser when running inside a VS Code-based editor), `always`, `never` | `auto` |
+| `release.browser` | absolute path of the Chromium-based browser that prints a [release map](release-map.md) to PDF; a repo config can't set it, since it names a program to run | Chrome, Chromium, Edge or Brave where they are usually installed |
 | `updateCheck` | look up the newest codechart on npm at most once a day and say when there is one ([Updating](install.md#updating)) | `true` |
 
 `defaults.output: none` in a repo also turns off [PR maps](pr-maps.md) there: `pr-sync` leaves descriptions alone.

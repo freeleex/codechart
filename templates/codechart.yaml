@@ -15,9 +15,12 @@
 #   open: auto (auto | always | never; auto opens new HTML in your browser inside VS Code-based editors, whose links show the source)
 # Also global only: updateCheck: true (look up the newest codechart on npm at most once a day; false turns it off)
 
-# release:                    # the cover of a release map
+# release:                    # release maps
 #   product: My Product       # product name on the cover (default: the repo name)
 #   logo: docs/logo.svg       # repo-relative .svg or .png, at most 200 KB
+#   branches: ["v[0-9]*", "release-*", "release/*"]   # on these branches `codechart check` tells the agent about the release map
+#   auto: suggest             # suggest | draw | off: offer a release map, draw it, or stay quiet on those branches
+# Global only: release.browser: /path/to/chrome   # Chromium-based browser that prints the PDF (default: Chrome, Chromium, Edge or Brave where they are usually installed)
 
 # useBuiltinRules: true   # common migration and model paths, "more than 2 changed files depend on each other", and behaviour-flow
 

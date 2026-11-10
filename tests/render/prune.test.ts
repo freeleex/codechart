@@ -47,6 +47,16 @@ describe('pruneHtml', () => {
     expect(existsSync(mine.replace('.html', '.review.json'))).toBe(false);
   });
 
+  it('a release page is replaced by the next render of the same release; its PDF and other releases are left alone', () => {
+    const old = htmlAt(60_000, 'v2-0-0-shop.release');
+    const pdf = file(old.replace(/^.*\//, '').replace('.html', '.pdf'));
+    const other = htmlAt(120_000, 'v1-9-0-shop.release');
+    htmlAt(0, 'v2-0-0-shop.release');
+    expect(pruneHtml(dir, { ...opts, replaceSlug: 'v2-0-0-shop.release', replaceBranch: 'a' })).toEqual([old]);
+    expect(existsSync(pdf)).toBe(true);
+    expect(existsSync(other)).toBe(true);
+  });
+
   /** A review file written by a render that made no page. */
   const standalone = (ago: number, slug: string, branch = 'a') => {
     const file = join(dir, `${stamp(new Date(now.getTime() - ago))}-${slug}.review.json`);

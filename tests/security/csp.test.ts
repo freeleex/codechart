@@ -33,7 +33,7 @@ async function pages(): Promise<[string, string][]> {
 }
 
 describe('S-17 CSP', () => {
-  it.each(['map', 'flow', 'business', 'release'])('%s page carries a CSP whose script hash matches the inline script', async (kind) => {
+  it.each(['map', 'flow', 'business'])('%s page carries a CSP whose script hash matches the inline script', async (kind) => {
     const html = (await pages()).find(([k]) => k === kind)![1];
     const csp = html.match(/<meta http-equiv="Content-Security-Policy" content="([^"]*)">/)?.[1];
     expect(csp).toBeDefined();
@@ -49,9 +49,12 @@ describe('S-17 CSP', () => {
     );
   });
 
-  it('the release page loads images only from data: URIs and has no inline handler or remote reference', async () => {
+  it('the release page has no script at all, so its CSP has no script-src and allows only inline styles and data: images', async () => {
     const html = (await pages()).find(([k]) => k === 'release')![1];
     const doc = new new Window().DOMParser().parseFromString(html, 'text/html');
+    expect(doc.querySelectorAll('script')).toHaveLength(0);
+    expect(html).toContain(`content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'"`);
+    expect(html).not.toContain('script-src');
     expect([...doc.querySelectorAll('img')].every((i) => i.getAttribute('src')!.startsWith('data:'))).toBe(true);
     expect(html).not.toMatch(/\son[a-z]+\s*=/i);
     expect(html).not.toMatch(/(?:src|href)="https?:/i);

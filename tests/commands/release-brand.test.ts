@@ -3,7 +3,8 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { repoFolder } from '../../src/render/output-path.js';
 import { release } from '../fixtures/release.js';
-import { makeSandbox, removeSandbox, repoFromTemplate, runCli, type Sandbox } from '../helpers/sandbox.js';
+import { fakeBrowser } from '../helpers/fake-browser.js';
+import { git, makeSandbox, removeSandbox, repoFromTemplate, runCli, type Sandbox } from '../helpers/sandbox.js';
 
 let sb: Sandbox;
 const PNG = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(64)]);
@@ -24,9 +25,9 @@ async function render() {
   process.exitCode = undefined;
   const file = join(sb.tmp, 'release.json');
   writeFileSync(file, JSON.stringify(release()));
-  const r = await runCli({ cwd: sb.repo, home: sb.home, now: () => new Date(2026, 10, 9, 10), isTTY: false }, ['render', file]);
+  const r = await runCli({ cwd: sb.repo, home: sb.home, now: () => new Date(2026, 10, 9, 10), isTTY: false, pdf: fakeBrowser() }, ['render', file]);
   const dir = join(sb.out, repoFolder(sb.repo));
-  const page = readFileSync(join(dir, readdirSync(dir).find((n) => n.endsWith('.business.html'))!), 'utf8');
+  const page = readFileSync(join(dir, readdirSync(dir).find((n) => n.endsWith('.release.html'))!), 'utf8');
   return { ...r, page };
 }
 const images = (page: string): string[] => [...page.matchAll(/<img src="([^"]*)"/g)].map((m) => m[1]!);
@@ -34,7 +35,13 @@ const images = (page: string): string[] => [...page.matchAll(/<img src="([^"]*)"
 describe('release.product and release.logo', () => {
   it('uses the repo name without a config', async () => {
     const r = await render();
-    expect(r.page).toContain('<span class="rel-id">repo</span>');
+    expect(r.page).toContain('<div class="co-product">repo</div>');
+  });
+
+  it("prefers the repo's name on its forge to the folder name", async () => {
+    git(sb.repo, 'remote', 'add', 'origin', 'git@github.com:acme/shop-web.git');
+    const r = await render();
+    expect(r.page).toContain('<div class="co-product">shop-web</div>');
   });
 
   it('puts the product name and a PNG logo on the page and the cover', async () => {
@@ -42,7 +49,7 @@ describe('release.product and release.logo', () => {
     const r = await render();
     expect(r.err).toBe('');
     expect(r.page).toContain('<div class="co-product">Acme Shop</div>');
-    expect(images(r.page)).toEqual([`data:image/png;base64,${PNG.toString('base64')}`, `data:image/png;base64,${PNG.toString('base64')}`]);
+    expect(images(r.page)).toEqual([`data:image/png;base64,${PNG.toString('base64')}`]);
   });
 
   it('accepts an SVG logo, as an image data URI', async () => {
@@ -76,7 +83,7 @@ describe('release.product and release.logo', () => {
     config({ logo: 'docs/alias.png' });
     const r = await render();
     expect(r.err).toBe('');
-    expect(images(r.page)).toHaveLength(2);
+    expect(images(r.page)).toHaveLength(1);
   });
 
   it.each([['over 80 characters', 'x'.repeat(81)], ['on two lines', 'Acme\nShop']])('a product name %s is a config error', async (_name, product) => {
@@ -88,9 +95,11 @@ describe('release.product and release.logo', () => {
     expect(r.code).toBe(1);
   });
 
-  it('shows in config with its source, and not at all when unset', async () => {
+  it('shows in config with its source; product and logo not at all when unset', async () => {
     const out = async () => (await runCli({ cwd: sb.repo, home: sb.home, isTTY: false }, ['config'])).out;
-    expect(await out()).not.toContain('release.');
+    expect(await out()).not.toMatch(/release\.(product|logo|browser)/);
+    expect(await out()).toContain('release.branches: v[0-9]*, release-*, release/*  (built-in)');
+    expect(await out()).toContain('release.auto: suggest  (built-in)');
     config({ product: 'Acme Shop', logo: 'docs/logo.png' });
     expect(await out()).toContain(`release.product: Acme Shop  (repo: ${join(sb.repo, '.codechart.yaml')})`);
     expect(await out()).toContain('release.logo: docs/logo.png');
@@ -100,5 +109,22 @@ describe('release.product and release.logo', () => {
     const r = await runCli({ cwd: sb.repo, home: sb.home, isTTY: false }, ['schema', '--release']);
     expect(Object.keys(JSON.parse(r.out).properties)).toContain('sections');
     expect((await runCli({ cwd: sb.repo, home: sb.home, isTTY: false }, ['schema', '--release', '--business'])).err).toContain('mutually exclusive');
+  });
+
+  it.each([
+    ['an unknown release.auto', { auto: 'always' }, 'release.auto'],
+    ['a brace in release.branches', { branches: ['release-{1,2}'] }, 'braces and extglobs'],
+    ['an empty release.branches', { branches: [] }, 'release.branches'],
+    ['a relative release.browser in the global config', { browser: 'chrome' }, 'must be an absolute path'],
+  ])('%s is a config error', async (_name, release, why) => {
+    writeFileSync(join(sb.home, '.config', 'codechart', 'config.yaml'), JSON.stringify({ web: { outDir: sb.out }, release }));
+    const r = await runCli({ cwd: sb.repo, home: sb.home, isTTY: false }, ['config']);
+    expect(r.err).toContain(why);
+    expect(r.code).toBe(1);
+  });
+
+  it('release.browser shows as global-only', async () => {
+    writeFileSync(join(sb.home, '.config', 'codechart', 'config.yaml'), JSON.stringify({ web: { outDir: sb.out }, release: { browser: '/opt/chrome' } }));
+    expect((await runCli({ cwd: sb.repo, home: sb.home, isTTY: false }, ['config'])).out).toMatch(/release\.browser: \/opt\/chrome  \(global: .*; global-only\)/);
   });
 });

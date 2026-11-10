@@ -4,9 +4,10 @@ import { findRepoRoot, loadConfig } from '../config/load.js';
 import type { CommandOptions } from '../program.js';
 import { type CheckResult, onlyBuiltinsToJudge, resolveRules } from '../rules/resolve.js';
 import { escapeJsonControls } from '../render/strip.js';
+import { releaseHint, type ReleaseHint } from './release-branch.js';
 import { csv, gitFiles, selectionError, type GitSelection } from '../rules/selection.js';
 
-type TerseResult = Partial<CheckResult> & { judgeBuiltins?: string[] };
+type TerseResult = Partial<CheckResult> & { judgeBuiltins?: string[]; release?: ReleaseHint };
 
 // Without exclusions remainingFiles is just the input, so it is printed only when something was excluded.
 // The built-ins' when texts live in the skill, but their names stay so `{}` never reads as "nothing to draw".
@@ -60,7 +61,8 @@ export function checkCommand(opts: CommandOptions): Command {
         const files = o.files !== undefined ? csv(o.files).map((f) => path.resolve(cwd, f)) : gitFiles(root, o);
         const config = loadConfig({ cwd, home: opts.home, env: opts.env, warn: (l) => opts.stderr(`codechart: ${l}\n`) });
         const result = resolveRules(config, files, o.matched !== undefined ? csv(o.matched) : undefined, root ?? path.resolve(cwd));
-        opts.stdout(escapeJsonControls(formatResult(terseResult(result))) + '\n');
+        const hint = root ? releaseHint(config, root, o.head) : undefined;
+        opts.stdout(escapeJsonControls(formatResult({ ...terseResult(result), ...(hint && { release: hint }) })) + '\n');
       } catch (e) {
         opts.stderr(`codechart: ${(e as Error).message}\n`);
         process.exitCode = 2;

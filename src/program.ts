@@ -12,6 +12,7 @@ import { updateCommand } from './commands/update.js';
 import { installSkillCommand } from './commands/install-skill.js';
 import { renderCommand } from './commands/render.js';
 import { releaseContextCommand } from './commands/release-context.js';
+import type { RunBrowser } from './commands/release-pdf.js';
 import { reviewCommand } from './commands/review.js';
 import { schemaCommand } from './commands/schema.js';
 import { uninstallCommand } from './commands/uninstall.js';
@@ -42,6 +43,8 @@ export interface ProgramOptions {
   editor?: (command: string, file: string) => number;
   /** Unsanitized stderr, for terminal escape codes (`feedback --copy`). */
   rawStderr?: (s: string) => void;
+  /** Finds and runs the browser that prints a release map to PDF (tests inject fakes). */
+  pdf?: { find?: (configured?: string) => string | undefined; run?: RunBrowser };
   /** False turns off the daily new-version check (tests). */
   updateCheck?: boolean;
 }

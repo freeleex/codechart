@@ -1,13 +1,12 @@
 import { z } from 'zod';
-import { dataSchema, itemIssues, itemTexts, journeySchema, questionSchema, ruleSchema, text, type Issue } from './business.js';
+import { dataSchema, itemIssues, itemTexts, journeySchema, ruleSchema, text, type Issue } from './business.js';
 import { plainTextIssues } from './plain-text.js';
-import { formatIssues, ident, short, type ValidationResult } from './shared.js';
+import { formatIssues, formatPath, ident, short, type ValidationResult } from './shared.js';
 
 const MAX_SECTIONS = 12;
 const MAX_JOURNEYS = 4;
 const MAX_RULES = 6;
 const MAX_DATA = 4;
-const MAX_QUESTIONS = 4;
 
 const VERSION = /^[0-9A-Za-z][0-9A-Za-z.+-]{0,31}$/;
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -18,17 +17,18 @@ const isDay = (d: string): boolean => {
   return DAY.test(d) && !Number.isNaN(at.getTime()) && at.toISOString().slice(0, 10) === d;
 };
 
-// Release items carry no tech map links: the page has no tech map to check them against.
+// A release map is not reviewed: no tech links, no trust tag, no questions.
+const OMIT = { links: true, evidence: true } as const;
+
 const sectionSchema = z.strictObject({
   id: ident(),
   title: short(),
   change: z.enum(['new', 'changed', 'fixed']).describe('new: a feature that did not exist; changed: an existing one works differently; fixed: something that was wrong now works'),
   summary: text().describe('One or two plain sentences: what this means for people using the product'),
-  pr: z.number().int().positive().optional().describe('Pull request number, shown on the page'),
-  journeys: z.array(journeySchema.omit({ links: true })).max(MAX_JOURNEYS).default([]),
-  rules: z.array(ruleSchema.omit({ links: true })).max(MAX_RULES).default([]),
-  data: z.array(dataSchema.omit({ links: true })).max(MAX_DATA).default([]),
-  questions: z.array(questionSchema).max(MAX_QUESTIONS).default([]),
+  pr: z.number().int().positive().optional().describe('Pull request number; not shown on the page'),
+  journeys: z.array(journeySchema.omit(OMIT)).max(MAX_JOURNEYS).default([]),
+  rules: z.array(ruleSchema.omit(OMIT)).max(MAX_RULES).default([]),
+  data: z.array(dataSchema.omit(OMIT)).max(MAX_DATA).default([]),
 });
 
 const releaseSchema = z
@@ -65,7 +65,30 @@ function releaseTexts(spec: ReleaseSpec): { path: (string | number)[]; text: str
   ];
 }
 
+const CHECKED_ONLY = 'a release map only holds facts checked in the code, PR text or diff: ask the developer about anything uncertain, or leave it out';
+const ITEM_GROUPS = ['journeys', 'rules', 'data'] as const;
+const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null;
+
+/** Questions and evidence belong to reviewed maps: name them instead of the generic "unrecognized key". */
+function reviewIssues(input: unknown): string[] {
+  const out: string[] = [];
+  const sections = isObj(input) && Array.isArray(input.sections) ? input.sections : [];
+  sections.forEach((s, i) => {
+    if (!isObj(s)) return;
+    if ('questions' in s) out.push(`${formatPath(['sections', i, 'questions'])}: not allowed; ${CHECKED_ONLY}`);
+    for (const group of ITEM_GROUPS) {
+      const items = Array.isArray(s[group]) ? s[group] : [];
+      items.forEach((item, j) => {
+        if (isObj(item) && 'evidence' in item) out.push(`${formatPath(['sections', i, group, j, 'evidence'])}: not allowed; ${CHECKED_ONLY}`);
+      });
+    }
+  });
+  return out;
+}
+
 export function validateReleaseSpec(input: unknown): ValidationResult<ReleaseSpec> {
+  const refused = reviewIssues(input);
+  if (refused.length) return { ok: false, errors: refused };
   const result = releaseSchema.safeParse(input);
   return result.success ? { ok: true, spec: result.data } : { ok: false, errors: formatIssues(result.error) };
 }

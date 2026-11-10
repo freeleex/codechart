@@ -191,12 +191,12 @@ More: [Business map](docs/business-map.md)
 
 ### Release map
 
-On request, a plain-words page for a whole release, with a section per feature. Once the owner has confirmed every item, Export release opens the print window to save a PDF for sales.
+On request, a PDF of what's new in a release, in plain words, for sales: a cover, then a section per feature. It only holds what the agent checked in the code, so nobody has to review it.
 
 More: [Release map](docs/release-map.md)
 
 </td>
-<td width="54%" valign="middle"><img src="docs/images/release-map.gif" alt="Release page: the Export button says Confirm 2 items to export; the owner clicks Yes, that's right on one reading and No on the other, the button becomes Export release, and the printed view shows the cover with logo and the first feature"></td>
+<td width="54%" valign="middle"><img src="docs/images/release-map.gif" alt="The PDF of a release map: a cover with the logo, product name, version and summary, then the features one after another"></td>
 </tr>
 </table>
 

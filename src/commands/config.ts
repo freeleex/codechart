@@ -10,7 +10,7 @@ function formatText({ config, sources, ruleSources }: ConfigWithSources): string
     ...Object.fromEntries(Object.entries(config.web).map(([k, v]) => [`web.${k}`, v])),
     useBuiltinRules: config.useBuiltinRules,
     updateCheck: config.updateCheck,
-    ...Object.fromEntries(Object.entries(config.release ?? {}).map(([k, v]) => [`release.${k}`, v])),
+    ...Object.fromEntries(Object.entries(config.release).map(([k, v]) => [`release.${k}`, Array.isArray(v) ? v.join(', ') : v])),
   };
   if (!config.useBuiltinRules) values['defaults.flows'] = 'inactive (built-in rules off)';
   const globalOnly = (key: string) => ((GLOBAL_ONLY as readonly string[]).includes(key) ? '; global-only' : '');
