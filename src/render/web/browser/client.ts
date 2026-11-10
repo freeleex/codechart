@@ -16,14 +16,7 @@ import { initTheme } from './theme.js';
 import { COMPONENTS, initViews, type Views } from './views.js';
 import { expandDrift, gotoOf, initWhy } from './why.js';
 
-interface Drag {
-  i: number;
-  x: number;
-  y: number;
-  sx: number;
-  sy: number;
-  canvas: HTMLElement;
-}
+interface Drag { i: number; x: number; y: number; sx: number; sy: number; canvas: HTMLElement }
 
 const data = JSON.parse(document.getElementById('spec-data')!.textContent!) as { page?: string; width: number; height: number; views?: { id: string; width: number; height: number }[]; repoKey: string; change?: { slug: string; branch: string; at: string } };
 const canvases = [...document.querySelectorAll<HTMLElement>('.canvas')];
@@ -95,7 +88,11 @@ function fit(all = true): void {
 }
 
 /** A view's canvas has no size while hidden, so it is fitted when first shown; a resize refits those showing. */
-const refit = (): void => (stopGlide(), fitted.clear(), fit());
+function refit(): void {
+  stopGlide();
+  fitted.clear();
+  fit();
+}
 
 function endDrag(): void {
   if (drag) drag.canvas.classList.remove('drag');
