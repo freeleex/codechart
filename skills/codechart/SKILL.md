@@ -1,17 +1,17 @@
 ---
 name: codechart
-description: 'Use this skill before you write any summary, wrap-up, PR description or plan of a code change, including your own final report after implementing something. Rule: finished a task that touched 3+ files or added branches, or about to plan one, or asked "what changed", "summarize the changes", "recap", "explain this diff/commit/branch", "write the PR description", "make a plan", "how would you implement", "show me the flow", "how does this work", "what are the edge cases"? Then run this skill FIRST and put its verified map or flow in your reply instead of a list of changed files. Skip only for a single-file text, comment, formatting, typo or version-bump change (look at the diff first). Also when the user asks for a map for a product owner or non-technical reader (step 6), or is preparing a release: version bump, changelog, release notes, tag (step 7).'
+description: 'Use this skill before you write any summary, wrap-up, PR description or plan of a code change, including your own final report after implementing something. Rule: finished a task that touched 3+ files or added branches, or about to plan one, or asked "what changed", "summarize the changes", "recap", "explain this diff/commit/branch", "write the PR description", "make a plan", "how would you implement", "show me the flow", "how does this work", "what are the edge cases"? Then run this skill FIRST and put its verified map or flow in your reply instead of a list of changed files. Skip only for a single-file text, comment, formatting, typo or version-bump change (look at the diff first). Also when the user asks for a map for a product owner or non-technical reader (step 6), or is preparing a release: version bump, changelog, release notes, tag (step 7). Also to explain existing code, nothing changed: "explain how X works", "map of the X module", "onboard me on X" (step 8).'
 ---
 
 # codechart
 
-Renders maps and flows from JSON specs you write, for a **plan** or **change summary**.
+Renders maps and flows from JSON specs you write, for a **plan** or **change summary**, or a map of how existing code works (step 8).
 
 A flow the user asked for ("show me the flow"): skip step 1, write a flow spec without `rules` (`summary`, unchanged code `existing`), render as in step 2 with `--output both`.
 
 The user asks why no map appeared: run `codechart doctor --last` and relay its output.
 
-Skip it for a trivial change (see description), a question not about code changes or behaviour, or if the user said no diagram. If `codechart` is "not found", say once "the codechart CLI is not installed (`npm i -g codechart`), so no map" and go on; never install it.
+Skip it for a trivial change (see description), a question that is neither about code changes or behaviour nor a request to explain or map existing code, or if the user said no diagram. If `codechart` is "not found", say once "the codechart CLI is not installed (`npm i -g codechart`), so no map" and go on; never install it.
 
 ## 1. Check
 
@@ -131,3 +131,9 @@ A PDF of what is already in main, for sales and stakeholders. It holds only fact
 Make one when the user asks (a release map, "what's in the next release", release notes for sales) or when `check` printed `release` (step 1): `action` `suggest`: end your reply with one line, once per conversation: "codechart can make a release map (a PDF of what's new, for sales): ask me."; `draw`: make it now, once; `done`: mention its `path` once and draw nothing. With no `release` in the output, when the user is preparing a release (version bump, changelog, release notes, tag) and didn't ask, end with that same line, once per conversation.
 
 Run `codechart release-context`, write the spec as [release-guide.md](release-guide.md) says, then `codechart render --md - <<'EOF'` as in step 2, no diff flags and no `--tech`. Anything you can't confirm: ask the developer in chat before rendering, or leave it out; never guess. Reply with the printed PDF path and page link. Printed no PDF (no Chromium-based browser): say so and give the page link; Save as PDF from the browser.
+
+## 8. Explain map
+
+Only when the user asks how an existing area works ("explain how billing works", "map of the billing module", "onboard me on X"): the code as it is, nothing changed. Skip step 1; no `rules`; never on your own.
+
+Read the area, write the spec as [explain-guide.md](explain-guide.md) says (`"kind": "explain"`, boxes `existing` or `outside`), then `codechart render --md - <<'EOF'` as in step 2. No diff flags: `--git`, `--since`, `--commit`, `--head` and `--pr` are refused; `--at '<rev>'` only when asked about another revision. A `✗` line is a box that doesn't match the code: fix the spec and rerender. Reply as in step 3, the prose being what surprised you and what you did not read. Never commit it or put it in a PR description; each request gets a fresh map.

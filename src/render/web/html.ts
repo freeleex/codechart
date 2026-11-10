@@ -20,7 +20,12 @@ function clip(s: string, max: number): string {
   return s.length > max ? s.slice(0, max - 1) + '…' : s;
 }
 
-export const nodeWhat = (n: SpecNode): string => (n.kind === 'other' ? n.status : `${n.status} ${n.kind}`);
+const AREA_WORDS = { existing: 'in this area', outside: 'outside this area' } as const;
+
+export function nodeWhat(n: SpecNode): string {
+  if (n.status === 'existing' || n.status === 'outside') return n.kind === 'other' ? AREA_WORDS[n.status] : `${n.kind}, ${AREA_WORDS[n.status]}`;
+  return n.kind === 'other' ? n.status : `${n.status} ${n.kind}`;
+}
 
 const FIELD_MARK = { added: '+ ', removed: '- ', modified: '~ ' } as const;
 
@@ -106,7 +111,7 @@ function renderNode(n: SpecNode, box: Box, flag: string, fields: Field[], rev: s
     `<line class="head" x1="${x}" y1="${y + head}" x2="${x + w}" y2="${y + head}"/>` +
     (n.kind === 'other' ? '' : `<text class="kind" x="${x + 8}" y="${y + 12}">${n.kind}</text>`) +
     labelLines(n.label).map((l, i) => `<text class="label" x="${x + 8}" y="${top + i * LABEL_LINE_HEIGHT}">${esc(l)}</text>`).join('') +
-    `<text class="badge" x="${x + w - 8}" y="${top}">${esc(ghost ? 'not built' : n.status)}</text>` +
+    (n.status === 'existing' ? '' : `<text class="badge" x="${x + w - 8}" y="${top}">${esc(ghost ? 'not built' : n.status)}</text>`) +
     lines.join('') +
     (ghost ? '' : tickSvg(x, y)) +
     (flagged ? flagMark(shape === 'file' ? x + w - FOLD - 6 : x + w, y) : '') +
@@ -202,6 +207,7 @@ export function renderHtml(spec: Spec, layout: Layout, meta: HtmlMeta, check?: M
   const drifted = itemsById(ghosts?.drift);
   const ghostIds = new Set(ghosts?.nodes.map((g) => g.id));
   const drift = Boolean(ghosts?.drift.items.length);
+  const explain = spec.kind === 'explain';
   return renderDiagramPage({
     title: spec.title,
     meta,
@@ -212,11 +218,14 @@ export function renderHtml(spec: Spec, layout: Layout, meta: HtmlMeta, check?: M
         label: drift ? 'Check / differences / gaps' : 'Check / gaps',
         title: "Show what doesn't match the code, how the build differs from the plan, what is not on the map and what the agent did not read",
       },
-      info: drift
-        ? { label: 'Differences / gaps', title: 'Show how the build differs from the plan, what is not on the map and what the agent did not read' }
-        : { label: 'Not on map / gaps', title: 'Show what is not on the map and what the agent did not read' },
+      info: explain
+        ? { label: 'Gaps', title: 'Show what the agent did not read' }
+        : drift
+          ? { label: 'Differences / gaps', title: 'Show how the build differs from the plan, what is not on the map and what the agent did not read' }
+          : { label: 'Not on map / gaps', title: 'Show what is not on the map and what the agent did not read' },
     }),
     statuses: spec.nodes.map((n) => n.status),
+    explain,
     sides,
     paneKey: SIDE_KEY,
     viewport: (side) => viewport(all, layout, check, side, previews, ghosts),

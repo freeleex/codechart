@@ -83,7 +83,7 @@ header .check{font-size:11px;color:var(--new-t)}header .check.bad{color:var(--re
 #review-bar i{display:block;height:100%;width:0;background:var(--new)}
 .chip{padding:0 7px;font:10.5px/16px system-ui,sans-serif;color:var(--muted);background:var(--panel);border:1px solid currentColor;border-radius:10px;cursor:pointer}
 .chip-new{color:var(--new-t)}.chip-changed{color:var(--chg-t)}.chip-removed{color:var(--rem)}.chip-planned,.chip-config{color:var(--cfg-t)}
-.chip-planned{border-style:dashed}.chip-delta{color:var(--text);border-color:var(--line)}
+.chip-planned,.chip-outside{border-style:dashed}.chip-delta{color:var(--text);border-color:var(--line)}
 .chip[aria-pressed="true"]{opacity:.5;text-decoration:line-through}
 .chip-delta[aria-pressed="true"]{opacity:1;text-decoration:none;border-color:var(--edge)}
 .node.faded,.edge.faded{--fade:.15}
@@ -113,7 +113,7 @@ body.focus .node:not(.lit),body.focus .edge:not(.lit){--dim:.25}
 .status-changed :is(.card,.fold){stroke:var(--chg)}.status-changed .badge{fill:var(--chg-t)}
 .status-removed :is(.card,.fold){stroke:var(--rem)}.status-removed .badge{fill:var(--rem)}.status-removed .label{text-decoration:line-through}
 .status-config :is(.card,.fold){stroke:var(--cfg)}.status-config .badge{fill:var(--cfg-t)}
-.status-context .card{stroke-dasharray:4 3}.status-context{--base:.75}.status-context .badge{fill:var(--muted)}
+:is(.status-context,.status-outside) .card{stroke-dasharray:4 3}:is(.status-context,.status-outside){--base:.75}:is(.status-context,.status-outside) .badge{fill:var(--muted)}
 .field-added-t{color:var(--add)}.field-removed-t{color:var(--muted);text-decoration:line-through}.field-modified-t{color:var(--chg-t)}
 
 #info-toggle[aria-expanded="true"]{border-color:var(--edge)}

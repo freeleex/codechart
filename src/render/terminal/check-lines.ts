@@ -13,7 +13,7 @@ export interface Mismatch {
 export interface CheckSummary {
   checked: number;
   mismatches: Mismatch[];
-  unit: 'node' | 'anchor';
+  unit: 'node' | 'box' | 'anchor';
   /** Changed files no node covers and `omitted` doesn't name. */
   uncovered?: string[];
   /** A summary rendered in a repo without --git, --since or --commit. */
@@ -23,7 +23,7 @@ export interface CheckSummary {
 const MAX_SHOWN = 5;
 const UNCHECKED = 'diff not checked';
 
-const units = (n: number, unit: string) => `${n} ${unit}${n === 1 ? '' : 's'}`;
+const units = (n: number, unit: string) => `${n} ${n === 1 ? unit : unit === 'box' ? 'boxes' : `${unit}s`}`;
 const uncoveredHead = (n: number) => `✗ ${n} changed ${n === 1 ? 'file' : 'files'} not on map`;
 
 export const flagged = (c: CheckSummary | undefined): boolean => Boolean(c?.mismatches.length || c?.uncovered?.length);
@@ -33,7 +33,7 @@ export function checkTag(c: CheckSummary | undefined): string {
   const unchecked = c?.diffUnchecked ? ` · ${UNCHECKED}` : '';
   if (!c || c.checked === 0) return unchecked;
   // A map's count line already says "nodes".
-  const total = c.unit === 'node' ? String(c.checked) : units(c.checked, c.unit);
+  const total = c.unit !== 'anchor' ? String(c.checked) : units(c.checked, c.unit);
   return ` · ✓ ${c.mismatches.length ? `${c.checked - c.mismatches.length} of ` : ''}${total} checked${unchecked}`;
 }
 

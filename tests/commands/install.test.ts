@@ -101,7 +101,7 @@ describe('codechart install-skill', () => {
 
   it('installs every file of the skill, so its links resolve', async () => {
     await run(repo, ['install-skill']);
-    for (const f of ['spec-guide.md', 'flow-guide.md', 'example.md', 'pr-maps.md']) {
+    for (const f of ['spec-guide.md', 'flow-guide.md', 'example.md', 'pr-maps.md', 'business-guide.md', 'release-guide.md', 'explain-guide.md']) {
       expect(readFileSync(join(home, '.claude', 'skills', 'codechart', f), 'utf8')).toBe(
         readFileSync(join(root, 'skills', 'codechart', f), 'utf8'),
       );

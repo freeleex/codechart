@@ -14,6 +14,8 @@ await page.waitForTimeout(700);
 if (clickId) {
   const box = await page.locator(`.node[data-id="${clickId}"]`).first().boundingBox();
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  // Esc undims the rest but keeps the panel open, so the whole map stays readable
+  await page.keyboard.press('Escape');
   await page.waitForTimeout(700);
 }
 await page.screenshot({ path: out });

@@ -12,7 +12,7 @@ const linksAmong = (spec: Spec, ids: Set<string>): SpecEdge[] =>
   spec.edges.filter((e) => ids.has(e.from) && ids.has(e.to));
 
 const shownFields = (node: SpecNode): Field[] => {
-  if (node.status === 'new') return node.fields ?? [];
+  if (node.status === 'new' || node.status === 'existing') return node.fields ?? [];
   if (node.status === 'changed') return (node.fields ?? []).filter((f) => f.change !== undefined);
   return [];
 };

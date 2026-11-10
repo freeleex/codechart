@@ -43,7 +43,7 @@ function differences(plan: SpecNode, built: SpecNode): Note[] {
 
 const noun = (n: SpecNode): string => (n.kind === 'other' ? 'node' : (n.kind ?? 'file'));
 const at = (n: SpecNode) => ({ id: n.id, label: n.label, noun: noun(n) });
-const CHANGE: Record<SpecNode['status'], DriftChange> = { new: 'add', changed: 'change', config: 'change', removed: 'remove', context: 'change' };
+const CHANGE: Record<SpecNode['status'], DriftChange> = { new: 'add', changed: 'change', config: 'change', removed: 'remove', context: 'change', existing: 'change', outside: 'change' };
 
 function plannedNodes(plan: Spec, pairs: Pairs, items: Items): void {
   for (const p of plan.nodes) {

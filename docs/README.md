@@ -8,6 +8,7 @@
 - [Infrastructure maps](infrastructure.md): Terraform, OpenTofu, Helm, Kustomize and Kubernetes
 - [The full page](page.md): node panel, diffs, reviewed ticks, keys
 - [Review](review.md): notes on the page or in the terminal, sent to your agent
+- [Explain map](explain-map.md): how an existing area works, for someone new to it
 - [Business map](business-map.md): a plain-words page for a product owner, with questions they answer
 - [Release map](release-map.md): a PDF of what's new in a release, in plain words, for sales
 - [Why you can trust the diagram](trust.md): what codechart checks against your code

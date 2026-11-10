@@ -73,6 +73,8 @@ interface DiagramPage {
   infoButton: string;
   /** The status of each node, for the header chips. */
   statuses: string[];
+  /** An explain map: its only chip is Outside. */
+  explain?: boolean;
   /** Two panes (Now / After) instead of one picture. */
   sides: boolean;
   paneKey: Record<Side, KeyPart[]>;
@@ -91,7 +93,7 @@ export function renderDiagramPage(p: DiagramPage): string {
     meta: p.meta,
     infoButton: p.infoButton,
     headerNote: checkNote(p.check) + driftNote(p.drift),
-    toolbar: statusChips(p.statuses) + reviewControls(p.statuses.length),
+    toolbar: statusChips(p.statuses, p.explain) + reviewControls(p.statuses.length),
     viewport: p.sides ? '' : p.viewport(),
     ...(p.sides ? { panes: SIDES.map((side) => ({ title: SIDE_TITLE[side], key: p.paneKey[side], viewport: p.viewport(side) })) } : {}),
     aside: p.aside,

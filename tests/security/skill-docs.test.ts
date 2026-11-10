@@ -47,7 +47,7 @@ describe('SKILL.md spec skeletons', () => {
 });
 
 describe('guide and example specs pass validation', () => {
-  it.each(['example.md', 'flow-guide.md', 'spec-guide.md'])('%s', (file) => {
+  it.each(['example.md', 'flow-guide.md', 'spec-guide.md', 'explain-guide.md'])('%s', (file) => {
     const specs = jsonBlocks(read(file));
     expect(specs.length).toBeGreaterThan(0);
     for (const spec of specs) {
@@ -64,5 +64,16 @@ describe('SKILL.md PR description step', () => {
     for (const template of ['templates/github-workflow.yml', 'templates/gitlab-ci.yml']) {
       expect(readFileSync(template, 'utf8')).toContain(pattern);
     }
+  });
+});
+
+describe('explain guide', () => {
+  it('SKILL.md points to it and the guide shows an explain spec', () => {
+    expect(read('SKILL.md')).toContain('[explain-guide.md](explain-guide.md)');
+    expect(jsonBlocks(read('explain-guide.md')).every((s) => s.kind === 'explain')).toBe(true);
+  });
+
+  it('SKILL.md does not put a titled JSON block of its own for it (the skeleton test takes the first two)', () => {
+    expect(jsonBlocks(read('SKILL.md'))).toHaveLength(2);
   });
 });

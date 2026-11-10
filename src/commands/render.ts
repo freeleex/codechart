@@ -111,7 +111,7 @@ function rangeStart(o: RenderFlags, root: string): string | null | undefined {
 
 /** A plan is saved for the summary that follows it, a summary gets the saved plan: neither for `--pr`, no plan saved for an older commit, and no plan for a summary of another target (`--at`, `--head`): the branch's plan and HEAD don't apply to it. A summary with a diff flag gets it only when its range starts at the plan's commit or before. */
 function planFor(spec: Spec | FlowSpec, diagram: Diagram, store: PlanStoreOptions & { inRepo: boolean }, o: RenderFlags): StoredPlan | undefined {
-  if (!store.inRepo || o.pr) return undefined;
+  if (!store.inRepo || o.pr || spec.kind === 'explain') return undefined;
   if (spec.kind === 'summary') {
     if (o.at !== undefined || o.head !== undefined) return undefined;
     const start = rangeStart(o, store.root);
@@ -130,6 +130,16 @@ const isPageSpec = (spec: Spec | FlowSpec | BusinessSpec | ReleaseSpec): spec is
 const renderPageSpec = (spec: BusinessSpec | ReleaseSpec, o: RenderFlags, opts: CommandOptions, cwd: string): Promise<void> =>
   spec.diagram === 'business' ? renderBusinessSpec(spec, o, opts, cwd) : renderReleaseSpec(spec, o, opts, cwd);
 
+/** An explain map shows the code as it is, so there is no change to check and nothing to put in a PR. */
+function explainFlags(spec: Spec | FlowSpec, o: RenderFlags): void {
+  if (spec.kind !== 'explain') return;
+  if (hasGitSelection(o)) throw new Error('--git, --commit, --since and --head do not apply to an explain map: it shows the code as it is (--at reads another commit)');
+  if (o.pr) throw new Error('explain maps are not for PR descriptions');
+}
+
+/** An explain map's files are named apart from a change map's of the same title. */
+const slugKind = (spec: Spec | FlowSpec, diagram: Diagram): Diagram | 'explain' => (spec.kind === 'explain' ? 'explain' : diagram);
+
 function pdfOnlyForRelease(spec: { diagram?: string }, o: RenderFlags): void {
   if (o.pdf !== undefined && spec.diagram !== 'release') throw new Error('--pdf only applies to release maps');
 }
@@ -138,6 +148,7 @@ async function renderSpec(arg: string, o: RenderFlags, opts: CommandOptions, cwd
   const spec = await readSpec(arg, cwd, opts.stdin ?? (() => readStdin(MAX_SPEC_BYTES, new Error(TOO_BIG))));
   pdfOnlyForRelease(spec, o);
   if (isPageSpec(spec)) return renderPageSpec(spec, o, opts, cwd);
+  explainFlags(spec, o);
   const repoRoot = findRepoRoot(cwd);
   const root = repoRoot ?? resolve(cwd);
   const at = resolveAt(o, repoRoot, root);
@@ -155,7 +166,7 @@ async function renderSpec(arg: string, o: RenderFlags, opts: CommandOptions, cwd
 
   const env = opts.env ?? process.env;
   const now = clock(opts);
-  const slug = fileSlug(spec.title, target.diagram);
+  const slug = fileSlug(spec.title, slugKind(spec, target.diagram));
   const ctx: RenderContext = {
     output,
     minNodes: config.web.minNodes,

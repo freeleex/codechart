@@ -42,8 +42,8 @@ interface CheckOptions {
 
 export const repoPath = (root: string, path: string) => relative(root, resolve(root, path)).split(sep).join('/');
 
-// A removed node may be a class deleted from a file that stays; a planned new file doesn't exist yet.
-const mustExist = (spec: Spec, node: SpecNode) => (spec.kind === 'plan' ? node.status !== 'new' : node.status !== 'removed');
+// A removed node may be a class deleted from a file that stays; a planned new file doesn't exist yet. An explain map's boxes with a path all exist.
+const mustExist = (spec: Spec, node: SpecNode) => spec.kind === 'explain' || (spec.kind === 'plan' ? node.status !== 'new' : node.status !== 'removed');
 export const IN_DIFF: ReadonlySet<string> = new Set(['new', 'changed', 'removed']);
 
 type Problem = Pick<Mismatch, 'short' | 'detail'>;
@@ -86,7 +86,7 @@ function checkNode(c: AnchorCtx, spec: Spec, node: SpecNode & { path: string }, 
 /** Checks each node with a `path` against the files (at `at`, or the working tree) and, given a diff, a summary's changes against it. */
 export function checkMapNodes(spec: Spec, root: string, opts: CheckOptions = {}): MapCheck {
   const c = anchorContext(root, opts.at, opts.cwd);
-  const result: MapCheck = { checked: 0, mismatches: [], matches: new Map(), found: new Map(), unit: 'node' };
+  const result: MapCheck = { checked: 0, mismatches: [], matches: new Map(), found: new Map(), unit: spec.kind === 'explain' ? 'box' : 'node' };
   for (const node of spec.nodes) {
     if (node.path === undefined) continue;
     result.checked++;

@@ -47,6 +47,17 @@ describe('pruneHtml', () => {
     expect(existsSync(mine.replace('.html', '.review.json'))).toBe(false);
   });
 
+  it('an explain page and its review file are replaced by the next render of the same title, and not by a change map of that title', () => {
+    const older = htmlAt(60_000, 'billing.explain');
+    withBranch(older, 'a');
+    const changeMap = htmlAt(90_000, 'billing');
+    withBranch(changeMap, 'a');
+    htmlAt(0, 'billing.explain');
+    expect(pruneHtml(dir, { ...opts, replaceSlug: 'billing.explain', replaceBranch: 'a' })).toEqual([older]);
+    expect(existsSync(older.replace('.html', '.review.json'))).toBe(false);
+    expect(existsSync(changeMap)).toBe(true);
+  });
+
   it('a release page is replaced by the next render of the same release; its PDF and other releases are left alone', () => {
     const old = htmlAt(60_000, 'v2-0-0-shop.release');
     const pdf = file(basename(old).replace('.html', '.pdf'));

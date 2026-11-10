@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Regenerates the README feature screenshots in docs/images (map, flow,
-# plan-map, plan-flow, infra). Needs a built dist/ and network for npm.
+# explain-map, plan-map, plan-flow, infra). Needs a built dist/ and network for npm.
 # pr-map.png is not made here: it is a GitHub PR whose description holds the
 # `render --pr` section for tests/fixtures/shop.spec.json on the make-repo.sh
 # repo, captured with Playwright (element screenshot of .comment-body, dark, 2x).
@@ -93,6 +93,7 @@ EOF
 render() { (cd "$work/$1" && shift && HOME="$work" node "$cli" render "$@" --output web); }
 render shop "$root/tests/fixtures/shop.spec.json" --git
 render shop "$demo/specs/shop-plan.spec.json"
+render shop "$demo/specs/explain.spec.json"
 render invites "$demo/specs/invite.flow.json" --git
 render invites "$demo/specs/invite-plan.flow.json"
 render infra "$demo/specs/infra.spec.json" --git
@@ -103,6 +104,7 @@ cache="$work/.cache/codechart"
 shot() { node "$work/pw/shot.mjs" "$@"; }
 shot "$(ls "$cache"/shop-*/*invoices-for-paid-orders.html)" "$root/docs/images/map.png" 1200 760 dark tbl.orders
 shot "$(ls "$cache"/invites-*/*accept-a-team-invite.flow.html)" "$root/docs/images/flow.png" 1200 760 dark expired
+shot "$(ls "$cache"/shop-*/*refunds-and-invoices-work.explain.html)" "$root/docs/images/explain-map.png" 1200 760 dark order
 shot "$(ls "$cache"/shop-*/*sequences-table.html)" "$root/docs/images/plan-map.png" 1200 640 dark
 shot "$(ls "$cache"/invites-*/*reject-revoked-invites.flow.html)" "$root/docs/images/plan-flow.png" 1200 760 dark
 shot "$(ls "$cache"/infra-*/*load-balancer.html)" "$root/docs/images/infra.png" 1200 640 light alb

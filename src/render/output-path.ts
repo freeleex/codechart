@@ -2,9 +2,9 @@ import { createHash } from 'node:crypto';
 import { basename, join } from 'node:path';
 import type { Config } from '../config/schema.js';
 
-export const HTML_NAME = /^(\d{8}-\d{6})-([a-z0-9-]+(?:\.flow|\.business|\.release)?)\.html$/;
+export const HTML_NAME = /^(\d{8}-\d{6})-([a-z0-9-]+(?:\.flow|\.business|\.release|\.explain)?)\.html$/;
 
-export const REVIEW_NAME = /^(\d{8}-\d{6}-[a-z0-9-]+(?:\.flow|\.business)?)\.review\.json$/;
+export const REVIEW_NAME = /^(\d{8}-\d{6}-[a-z0-9-]+(?:\.flow|\.business|\.explain)?)\.review\.json$/;
 
 /** The review notes file that sits next to a page. */
 export const reviewFile = (html: string): string => html.replace(/\.html$/, '.review.json');
@@ -29,9 +29,12 @@ function slugify(title: string): string {
   return slug || 'map';
 }
 
-// `.` can't come from a title, so a flow, business or release file never collides with a map file.
-export const fileSlug = (title: string, diagram: 'map' | 'flow' | 'business' | 'release'): string =>
+// `.` can't come from a title, so a flow, business, release or explain file never collides with a map file.
+export const fileSlug = (title: string, diagram: 'map' | 'flow' | 'business' | 'release' | 'explain'): string =>
   diagram === 'map' ? slugify(title) : `${slugify(title)}.${diagram}`;
+
+/** The file name slug of an explain map. */
+export const isExplainSlug = (slug: string): boolean => slug.endsWith('.explain');
 
 export function htmlOutputPath(config: Config, repo: string, slug: string, now: Date): string {
   return join(config.web.outDir, repo, `${stamp(now)}-${slug}.html`);

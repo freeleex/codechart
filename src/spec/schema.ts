@@ -2,9 +2,10 @@ import { z } from 'zod';
 import { validateBusinessSpec, type BusinessSpec } from './business.js';
 import { matchSchema, validateFlowSpec, type FlowSpec } from './flow.js';
 import { validateReleaseSpec, type ReleaseSpec } from './release.js';
+import { explainIssues } from './explain.js';
 import { codeLabelIssue, driftBase, driftIssues, formatIssues, ident, labelIssues, long, pathStr, short, shortOpt, type ValidationResult as Result } from './shared.js';
 
-export const STATUSES = ['new', 'changed', 'removed', 'context', 'config'] as const;
+export const STATUSES = ['new', 'changed', 'removed', 'context', 'config', 'existing', 'outside'] as const;
 export const NODE_KINDS = [
   'table', 'enum', 'model', 'service', 'endpoint', 'component', 'file', 'config', 'other',
 ] as const;
@@ -16,7 +17,7 @@ const fieldSchema = z.strictObject({
   name: short(),
   type: shortOpt().optional(),
   note: long().optional(),
-  change: z.enum(['added', 'removed', 'modified']).optional(),
+  change: z.enum(['added', 'removed', 'modified']).optional().describe('Plan or summary only'),
   was: shortOpt().optional().describe('The type before the change; only with change modified'),
 });
 
@@ -24,7 +25,7 @@ const nodeSchema = z.strictObject({
   id: ident(),
   label: short(),
   kind: z.enum(NODE_KINDS).optional().describe('Defaults to file when path is set'),
-  status: z.enum(STATUSES),
+  status: z.enum(STATUSES).describe('Plan or summary: new, changed, removed, config or context. Explain map: existing (in the area, path required) or outside (a neighbour the area talks to)'),
   layer: short(),
   summary: long().optional(),
   path: pathStr().optional(),
@@ -52,7 +53,7 @@ const specSchema = z
   .strictObject({
     diagram: z.literal('map').optional(),
     title: short(),
-    kind: z.enum(['plan', 'summary']),
+    kind: z.enum(['plan', 'summary', 'explain']),
     rules: z.array(shortOpt()).optional(),
     nodes: z.array(nodeSchema).max(MAX_NODES, `at most ${MAX_NODES} nodes; split the map`),
     edges: z.array(edgeSchema).max(MAX_EDGES, `at most ${MAX_EDGES} edges; split the map`),
@@ -62,7 +63,9 @@ const specSchema = z
   })
   // eslint-disable-next-line max-lines-per-function -- ratchet: one superRefine; barely over
   .superRefine((spec, ctx) => {
-    driftIssues(spec.kind, spec.drift?.map((d) => d.node), (path, message) => ctx.addIssue({ code: 'custom', path, message }));
+    const issue = (path: (string | number)[], message: string) => ctx.addIssue({ code: 'custom', path, message });
+    explainIssues(spec, issue);
+    driftIssues(spec.kind, spec.drift?.map((d) => d.node), issue);
     const ids = new Set<string>();
     spec.nodes.forEach((node, i) => {
       if (ids.has(node.id)) {

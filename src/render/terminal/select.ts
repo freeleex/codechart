@@ -5,7 +5,7 @@ interface Selection {
   hidden: number;
 }
 
-const PRIMARY: ReadonlySet<Status> = new Set(["new", "changed", "removed", "config"]);
+const PRIMARY: ReadonlySet<Status> = new Set(["new", "changed", "removed", "config", "existing"]);
 // The view shows the change; context only explains it, so it never outranks a changed node.
 const TIER: Record<Status, number> = {
   new: 0,
@@ -13,6 +13,8 @@ const TIER: Record<Status, number> = {
   removed: 0,
   config: 1,
   context: 2,
+  existing: 0,
+  outside: 2,
 };
 
 function candidates(spec: Spec): SpecNode[] {

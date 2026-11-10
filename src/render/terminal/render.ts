@@ -25,6 +25,7 @@ const NOT_TTY_WIDTH = 80;
 const MAX_ENV_WIDTH = 300;
 const KEY_ORDER = ['new', 'changed', 'removed', 'config'] as const;
 export const KEY = `key: ${KEY_ORDER.map((s) => `${marker(s)} ${s}`).join('  ')} · unmarked = unchanged`;
+export const EXPLAIN_KEY = `key: ${marker('outside')} outside · unmarked = in this area`;
 
 export const fullMapLine = (htmlPath: string): string => `full map → ${pathToFileURL(resolve(htmlPath)).href}`;
 
@@ -40,10 +41,12 @@ export function defaultWidth(
 function footer(spec: Spec, hidden: number, { width, htmlPath, check }: TermCtx, keyLine: boolean): string {
   const count = (status: string) => spec.nodes.filter((n) => n.status === status).length;
   const removed = count('removed') > 0 ? ` · ${count('removed')} removed` : '';
-  const lines = [
-    countLines(`${spec.nodes.length} nodes · ${count('new')} new · ${count('changed')} changed${removed} · ${count('config')} config`, check, width),
-  ];
-  if (keyLine) lines.push(truncate(KEY, width));
+  const explain = spec.kind === 'explain';
+  const counts = explain
+    ? `${spec.nodes.length} boxes${count('outside') > 0 ? ` · ${count('outside')} outside` : ''}`
+    : `${spec.nodes.length} nodes · ${count('new')} new · ${count('changed')} changed${removed} · ${count('config')} config`;
+  const lines = [countLines(counts, check, width)];
+  if (keyLine) lines.push(truncate(explain ? EXPLAIN_KEY : KEY, width));
   if (spec.gaps?.length) lines.push(wrapItems('gaps: ', spec.gaps.map(flat), width));
   if (spec.omitted?.length) lines.push(wrapItems('not on map: ', spec.omitted.map(flat), width));
   // No leading `+`: in a diff fence it would read as an addition.

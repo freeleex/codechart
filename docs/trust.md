@@ -38,6 +38,15 @@ A summary rendered without a diff says `diff not checked` instead of looking ver
 
 Every step that exists in code names its `file:line` or quotes the line. If the line doesn't exist, the render fails and the agent has to fix it. For a commit that isn't checked out, `--at <rev>` reads the lines from that revision. See [Flows](flows.md).
 
+## Explain maps
+
+An [explain map](explain-map.md) describes code as it is, so only the boxes are checked:
+
+- An `existing` box must name a file that exists, and its quoted line must be on exactly one line of it. An `outside` box is checked the same way when it names a file; an external service has none.
+- There is no diff, so no *not on map* check, and no *diff not checked* note. Change statuses, edge or field change marks, `drift` and `omitted` are refused.
+
+Limit: a box proves where to look, not that its summary is right.
+
 ## Business maps
 
 A [business map](business-map.md) is for readers who can't check the code, so more is checked before it is drawn:

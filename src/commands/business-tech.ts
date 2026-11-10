@@ -1,6 +1,6 @@
 import { join } from 'node:path';
-import { repoFolder } from '../render/output-path.js';
-import { findChange } from '../review/store.js';
+import { isExplainSlug, repoFolder } from '../render/output-path.js';
+import { listReviews } from '../review/store.js';
 import { gitBranch } from '../rules/git-files.js';
 import { validateSpec } from '../spec/schema.js';
 import type { TechBox } from '../spec/business-links.js';
@@ -21,7 +21,7 @@ export interface TechSource {
   root: string;
 }
 
-/** The boxes of the tech map a business map links to: from the `--tech` spec, else the newest saved map (or the one called `map`) on this branch. */
+/** The boxes of the tech map a business map links to: from the `--tech` spec, else the newest saved map (or the one called `map`) on this branch, never an explain map. */
 export async function loadTechBoxes(src: TechSource): Promise<TechBox[]> {
   if (src.file !== undefined) {
     const result = validateSpec(await readSpecJson(src.file, src.cwd, noStdin));
@@ -30,8 +30,10 @@ export async function loadTechBoxes(src: TechSource): Promise<TechBox[]> {
     return spec.diagram === 'flow' ? spec.steps.map(({ id, label }) => ({ id, label })) : spec.nodes.map(({ id, label }) => ({ id, label }));
   }
   try {
-    const { review } = findChange(join(src.outDir, repoFolder(src.root)), gitBranch(src.root), src.map, true);
-    return review.nodes.map(({ id, label }) => ({ id, label }));
+    // An explain map describes code that didn't change, so it is never the map of a change.
+    const found = listReviews(join(src.outDir, repoFolder(src.root)), gitBranch(src.root)).find((f) => !isExplainSlug(f.review.change.slug) && (src.map === undefined || f.review.change.slug === src.map));
+    if (!found) throw new Error(NO_TECH);
+    return found.review.nodes.map(({ id, label }) => ({ id, label }));
   } catch {
     throw new Error(NO_TECH);
   }

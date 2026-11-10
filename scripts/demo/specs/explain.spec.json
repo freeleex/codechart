@@ -1,0 +1,118 @@
+{
+  "title": "How refunds and invoices work",
+  "kind": "explain",
+  "nodes": [
+    {
+      "id": "refund",
+      "label": "POST /orders/{id}/refund",
+      "kind": "endpoint",
+      "status": "existing",
+      "layer": "api",
+      "summary": "Marks a paid order refunded",
+      "path": "shop/api/refunds.py",
+      "match": "def refund(order_id: str):",
+      "notes": ["Answers 404, not 403, while refundsEnabled is off"]
+    },
+    {
+      "id": "flag",
+      "label": "refundsEnabled",
+      "kind": "config",
+      "status": "existing",
+      "layer": "api",
+      "summary": "Feature flag that switches refunds on",
+      "path": "config/flags.yaml",
+      "match": "refundsEnabled: false"
+    },
+    {
+      "id": "migration",
+      "label": "migration 0042",
+      "kind": "file",
+      "status": "existing",
+      "layer": "api",
+      "summary": "Backfills one invoice per paid order",
+      "path": "db/migrations/0042_invoices.py",
+      "match": "def upgrade():"
+    },
+    {
+      "id": "prefix",
+      "label": "INVOICE_PREFIX",
+      "kind": "config",
+      "status": "existing",
+      "layer": "api",
+      "summary": "Env var put before every invoice number",
+      "path": "shop/settings.py",
+      "match": "INVOICE_PREFIX = os.environ.get"
+    },
+    {
+      "id": "order",
+      "label": "Order",
+      "kind": "model",
+      "status": "existing",
+      "layer": "models",
+      "summary": "An order, its buyer and its status",
+      "path": "shop/models/order.py",
+      "match": "class Order(Base):"
+    },
+    {
+      "id": "status",
+      "label": "OrderStatus",
+      "kind": "enum",
+      "status": "existing",
+      "layer": "models",
+      "summary": "pending, paid, shipped, refunded",
+      "path": "shop/models/order_status.py",
+      "match": "class OrderStatus(str, enum.Enum):"
+    },
+    {
+      "id": "invoice",
+      "label": "Invoice",
+      "kind": "model",
+      "status": "existing",
+      "layer": "models",
+      "summary": "One invoice per paid order",
+      "path": "shop/models/invoice.py",
+      "match": "class Invoice(Base):"
+    },
+    {
+      "id": "method",
+      "label": "PaymentMethod",
+      "kind": "enum",
+      "status": "existing",
+      "layer": "models",
+      "summary": "card, paypal, bank_transfer",
+      "path": "shop/models/payment.py",
+      "match": "class PaymentMethod(str, enum.Enum):"
+    },
+    {
+      "id": "customer",
+      "label": "Customer",
+      "kind": "model",
+      "status": "outside",
+      "layer": "other areas",
+      "summary": "Buyer accounts, owned by the accounts code",
+      "path": "shop/models/customer.py",
+      "match": "class Customer(Base):"
+    },
+    {
+      "id": "paypal",
+      "label": "PayPal",
+      "kind": "other",
+      "status": "outside",
+      "layer": "other areas",
+      "summary": "External payment provider"
+    }
+  ],
+  "edges": [
+    { "from": "refund", "to": "flag", "label": "checks", "kind": "reads" },
+    { "from": "refund", "to": "order", "label": "get_order", "kind": "calls" },
+    { "from": "refund", "to": "status", "label": "PAID → REFUNDED", "kind": "writes" },
+    { "from": "migration", "to": "invoice", "label": "creates", "kind": "writes" },
+    { "from": "migration", "to": "prefix", "label": "number prefix", "kind": "reads" },
+    { "from": "order", "to": "status", "label": "status", "kind": "fk" },
+    { "from": "invoice", "to": "order", "label": "order_id", "kind": "fk" },
+    { "from": "invoice", "to": "method", "label": "method", "kind": "fk" },
+    { "from": "order", "to": "customer", "label": "customer_id", "kind": "fk" },
+    { "from": "method", "to": "paypal", "label": "paypal", "kind": "other" }
+  ],
+  "gaps": ["get_order and flag(): not read"]
+}

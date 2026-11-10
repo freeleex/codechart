@@ -103,6 +103,7 @@ A summary written after a plan in this repo is compared with that plan (plans ar
 ```
 
 - `cause`: `bug-found`, `wrong-assumption`, `user-asked`, `cleaner-way`, `out-of-scope`, `other`. `why`: the detailed reason the user reads when they open it, 1-3 plain sentences (max 400 characters): what you found, what you did instead, what it means for them. No jargon or ids.
+- Explain map (a map of existing code, see [explain-guide.md](explain-guide.md)): `"kind": "explain"`, statuses `existing` and `outside` only; they are invalid in a plan or summary, and an explain map has no `new`, `changed`, `removed`, `config` or `context` boxes, edge or field `change`, `drift` or `omitted`.
 - Drifts: a planned `new`/`changed`/`removed`/`config` node not built, a built one not planned, one built with another path, status or changed fields (name, `change`, type), or a planned `"change": "added"` edge between built nodes that isn't there. Labels, summaries and notes never count; `context` nodes are ignored.
 - A drift without an entry prints `✗ … no reason given` (`--strict` exits 1); an entry for a node that didn't drift is a warning.
 

@@ -32,6 +32,7 @@ The agent decides what goes in the diagram. The CLI owns layout and drawing. The
   - `changed`: modified, with the added or removed fields marked;
   - `context`: untouched, shown so the reader knows what it is (e.g. tables A and B when new table C points at them);
   - `config`: a config value or environment variable.
+  - An explain map (`kind: explain`, P52) uses two other statuses: `existing` (part of the area) and `outside` (a neighbour it talks to).
 - **Hybrid output (chosen):**
   - Terminal: a short map of only new and changed nodes plus the edges between them. No summaries. A count line, a gaps line, and a link.
   - Web: everything, including context nodes, summaries, full field lists and file paths, grouped by layer, with zoom and click-for-details.
@@ -153,14 +154,14 @@ JSON, validated with a schema. `codechart schema` prints the JSON Schema so any 
 ```jsonc
 {
   "title": "Invoices for paid orders",
-  "kind": "summary",                 // "plan" | "summary"
+  "kind": "summary",                 // "plan" | "summary" | "explain"
   "rules": ["db-schema"],            // rule names from `check`; drives render's output
   "nodes": [
     {
       "id": "tbl.invoices",
       "label": "invoices",
       "kind": "table",               // table | enum | model | service | endpoint | component | file | config | other; defaults to file when path is set
-      "status": "new",               // new | changed | removed | context | config
+      "status": "new",               // new | changed | removed | context | config; explain maps: existing | outside
       "layer": "database",           // free text; becomes a group box (database, backend, frontend, config…)
       "summary": "One invoice per paid order",
       "path": "shop/models/invoice.py",
@@ -363,3 +364,15 @@ A fourth diagram, `"diagram": "release"` (P53), written only when the user asks 
 ## 13. Left to the builder
 
 Internal module structure, test strategy details, exact CLI flag names beyond those listed, HTML visual styling, and the edge-ranking heuristic for the terminal cap.
+
+### Explain map
+
+A map kind, `"kind": "explain"` (P52, part 1), written only when the user asks how an existing area works (skill §8; no rule or hook triggers it). It is the normal map spec and render path with nothing changed, so there is no diff and no change mark. Nodes use two statuses, and `plan` and `summary` specs refuse them:
+
+- **`existing`:** part of the area. `path` is required and checked as today (the file must exist; `match`, when given, must be on exactly one line).
+- **`outside`:** a part the area talks to but that isn't in it (another module's service, a shared table, an external API). `path` is optional: checked when given, absent for an external service.
+- **Refused in an explain spec:** the `new`, `changed`, `removed`, `config` and `context` statuses, edge `change`, field `change` and `was`, `drift` and `omitted`. `gaps`, `fields` (no change marks), `summary`, `notes`, `layer` and edges stay. The skill asks for about 15 boxes; `MAX_NODES` is the only hard limit.
+- **Render.** `render` refuses `--git`, `--since`, `--commit`, `--head` and `--pr` (as business and release maps do for `--pr`); `--at <rev>` still reads anchors from a revision. It never saves a plan and never loads one, so there is no drift, no `diff not checked` footer, no uncovered-files check and no `not in diff` check. Every `existing` box and every `outside` box with a path must exist.
+- **Look.** Terminal: `○` marks an outside box (dim when coloured), an existing box is unmarked; the count line is `N boxes · M outside · ✓ K checked` and the key `○ outside · unmarked = in this area`; the fence is `text`, not `diff`. Page: an existing box has the plain solid border and no badge; an outside box is dashed and faded like `context`, with an OUTSIDE badge; the panel says "in this area" / "outside this area". The only chip is *Outside* (no *Δ changes only*), and the page-info button reads *Gaps*.
+- **Review.** The review file has kind `map` and no `range` (no diff flag, so nothing can go stale), so page notes, `feedback --import` and `codechart review` work as on a summary drawn without a diff. The files are named `<stamp>-<title>.explain.html` and `.explain.review.json`, so an explain map and a change map with the same title never replace each other.
+
