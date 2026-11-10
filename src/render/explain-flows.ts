@@ -62,9 +62,10 @@ interface Options {
 
 /** The boxes' check plus every flow's anchors: what counts as checked is boxes and anchored steps; a step whose anchor fails is flagged like a box. */
 export function checkExplain(spec: Spec, root: string, opts: Options = {}): ExplainCheck {
-  const check = checkMapNodes(spec, root, opts);
+  // One context for boxes and flows: the 25 MB read limit is per render, and a file is read once.
   const ctx = anchorContext(root, opts.at, opts.cwd);
-  const mismatches = [...check.mismatches];
+  const check = checkMapNodes(spec, root, { ...opts, ctx });
+  const failed = new Map<string, Mismatch>();
   let steps = 0;
   const views = (spec.flows ?? []).map((flow): FlowView => {
     const ns = namespaced(flow);
@@ -77,10 +78,14 @@ export function checkExplain(spec: Spec, root: string, opts: Options = {}): Expl
       boxOf: new Map(flow.steps.flatMap((s) => (s.box === undefined ? [] : [[stepKey(flow.id, s.id), s.box] as const]))),
     };
     steps += ns.steps.filter((s) => s.source !== undefined).length;
-    mismatches.push(...scan.failures.map((f) => mismatchOf(view, f)));
+    for (const m of scan.failures.map((f) => mismatchOf(view, f))) {
+      const first = failed.get(m.id);
+      // A step counts once however many of its anchors fail (its own and its branches'); every message stays.
+      failed.set(m.id, first ? { ...first, detail: `${first.detail}; ${m.detail}` } : m);
+    }
     return view;
   });
-  return { ...check, checked: check.checked + steps, steps, mismatches, views };
+  return { ...check, checked: check.checked + steps, steps, mismatches: [...check.mismatches, ...failed.values()], views };
 }
 
 interface LaidOutView extends FlowView {
