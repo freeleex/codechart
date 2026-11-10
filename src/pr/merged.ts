@@ -4,7 +4,7 @@ import { gitRun } from './git.js';
 import { parseRemote, type Remote, type Tool } from './setup.js';
 import { BLOCK_END, BLOCK_START } from '../render/pr.js';
 import { sanitizeText } from '../render/strip.js';
-import type { LogEntry } from '../rules/git-files.js';
+import { trustedBinary, type LogEntry } from '../rules/git-files.js';
 
 const MAX_DESCRIPTION = 1500;
 
@@ -68,7 +68,7 @@ export function fetchPr(tool: Tool, remote: Remote, n: number): PrInfo {
 /** Runs gh or glab; its error says in a sentence why it could not. */
 export const runTool: Tool = (command, args) => {
   try {
-    return execFileSync(command, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 60_000, maxBuffer: 16 * 1024 * 1024 });
+    return execFileSync(trustedBinary(command), args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 60_000, maxBuffer: 16 * 1024 * 1024 });
   } catch (e) {
     if ((e as NodeJS.ErrnoException).code === 'ENOENT') throw new Error(`${command} is not installed`);
     const stderr = String((e as { stderr?: unknown }).stderr ?? '').trim().split('\n')[0];
