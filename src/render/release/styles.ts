@@ -31,7 +31,6 @@ img{display:block;object-fit:contain}
 .mk{display:inline-block;font-size:8.5pt;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border-radius:4px;padding:1px 6px}
 .mk.add{background:var(--new-bg);color:var(--new-t)}
 .mk.chg{background:var(--chg-bg);color:var(--chg-t)}
-.mk.rem{background:var(--rem-bg);color:var(--rem)}
 .j-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;padding:10px 14px;border-bottom:1px solid var(--line-soft)}
 .j-head h3{font-size:13pt;flex:1 1 60%}
 .who{font-size:9.5pt;color:var(--muted)}
@@ -42,7 +41,7 @@ img{display:block;object-fit:contain}
 .none{margin:0;color:var(--muted);font-style:italic;font-size:10pt}
 ol.steps{margin:0;padding:0 0 0 18px;font-size:10.5pt}
 .step{padding:2px 0}
-.step.rem .t{text-decoration:line-through;text-decoration-color:var(--rem)}
+.j-col:first-child .step{color:var(--muted)}
 .rules,.data{display:grid;grid-template-columns:1fr;gap:0}
 .rule,.datum{padding:10px 14px}
 .rule h3,.datum h3{font-size:12.5pt;margin:4px 0 6px}
@@ -69,7 +68,7 @@ body{padding:24px 12px}
 const PRINT = `
 @page{size:A4;margin:18mm 16mm 20mm;@bottom-right{content:counter(page);font:9pt sans-serif;color:#656d76}}
 @page:first{@bottom-right{content:none}}
-@media print{html,body{background:#fff}}
+@media print{html,body{background:#fff}.compact{break-inside:avoid}}
 `;
 
 /** One light palette and one layout: the page on screen is the page on paper. */

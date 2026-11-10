@@ -27,9 +27,10 @@ function normalised(slug: string): string {
   return groups.join('-');
 }
 
-/** The version a saved page's name leads with: up to three number groups after the stamp's `v`. */
+/** The version a saved page's name leads with: all groups before `--`, or up to three number groups in older names without it. */
 const normalisedSaved = (name: string): string | undefined => {
-  const slug = /^v(\d+(?:-\d+){0,2})-/.exec(name.slice(16))?.[1];
+  const rest = name.slice(16);
+  const slug = /^v(\d+(?:-\d+)*)--/.exec(rest)?.[1] ?? /^v(\d+(?:-\d+){0,2})-/.exec(rest)?.[1];
   return slug && normalised(slug);
 };
 

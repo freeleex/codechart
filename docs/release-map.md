@@ -23,7 +23,7 @@ It only writes facts it checked in the code, the PR text or the diff. Anything i
   - **Information kept:** what the business now saves and why (up to 4).
   A small fix can be just a summary.
 
-Features flow one after another: a heading stays with its first content, a card is never split, and there is no forced page per feature. Page numbers sit bottom right, none on the cover. Light colours always, whatever your theme.
+On each journey, *Before* shows today's steps in plain grey and *Now* marks the ones that are *New* or *Changed*; a rule shows *Before* and *Now*. Features flow one after another: a heading stays with its first content, a card is never split, a feature of up to three cards moves to the next page as a whole, and there is no forced page per feature. Page numbers sit bottom right, none on the cover. Light colours always, whatever your theme.
 
 ## The PDF
 

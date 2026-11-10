@@ -52,10 +52,15 @@ describe('release page', () => {
   it('shows journeys as now and after, a rule with its before and exception, and what is kept', () => {
     mount(html);
     const journey = q('.journey');
-    expect(within(journey, 'h4').map((h) => h.textContent)).toEqual(['Now', 'After this change']);
-    expect(within(journey, '.step.rem .t').map((t) => t.textContent)).toEqual(['Agent passes it to a manager']);
+    expect(within(journey, 'h4').map((h) => h.textContent)).toEqual(['Before', 'Now']);
+    expect(within(journey, '.j-col:first-child .step').map((t) => t.textContent)).toEqual(['Customer asks for money back', 'Agent passes it to a manager']);
+    expect(within(journey, '.j-col:first-child .mk, .rem')).toHaveLength(0);
+    expect(within(journey, '.j-col:last-child .mk').map((m) => m.textContent)).toEqual(['New']);
     expect(within(journey, '.step.add .t').map((t) => t.textContent)).toEqual(['Agent enters the amount and a reason']);
     const rules = qa('.rule');
+    expect(rules.map((r) => r.querySelector('.mk')!.textContent)).toEqual(['New', 'Changed']);
+    expect(within(rules[1]!, 'dt').map((d) => d.textContent)).toEqual(['Before', 'Now']);
+    expect(q('main').textContent).not.toMatch(/Removed|After this change|New rule|Changed rule/);
     expect(rules[1]!.textContent).toContain('Up to 30 days after paying.');
     expect(rules[1]!.textContent).toContain('Annual plans keep 30 days.');
     expect(q('.datum').textContent).toContain('So finance can review refunds later');
@@ -103,6 +108,13 @@ describe('release page styles', () => {
   it('shows the same sheet on screen as on paper: only the screen adds a grey backdrop', () => {
     mount(html);
     expect(css()).toMatch(/@media screen\{[^]*\.sheet\{[^}]*max-width:210mm/);
-    expect(css()).toContain('@media print{html,body{background:#fff}}');
+    expect(css()).toContain('@media print{html,body{background:#fff}.compact{break-inside:avoid}}');
+  });
+
+  it('keeps a section of up to three cards together on paper and lets a bigger one flow', () => {
+    const spec = release();
+    spec.sections[0].rules.push({ id: 'R9', name: 'Extra', after: 'One more rule.' });
+    mount(build({}, spec));
+    expect(qa('section.feature').map((s) => s.classList.contains('compact'))).toEqual([false, true, true]);
   });
 });
