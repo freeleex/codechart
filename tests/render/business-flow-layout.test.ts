@@ -153,3 +153,40 @@ describe('answers of one question', () => {
     for (let i = 0; i < segs.length; i++) for (let j = i + 1; j < segs.length; j++) for (const s of segs[i]!) for (const t of segs[j]!) expect(meets(s, t), `${i}/${j}`).toBe(false);
   });
 });
+
+describe('answers that loop back', () => {
+  const answers = (loop: boolean) => {
+    const arrows: [string, string, string][] = [['Q', 'F', 'no'], ['Q', 'S', 'yes'], ['Q', 'R', 'unsure']];
+    return loop ? arrows : arrows.slice(1);
+  };
+  const build = (arrows: [string, string, string][]) =>
+    flowOf(['A'], [['F', 0, 'Fill form'], ['Q', 0, 'Valid?'], ['S', 0, 'Saved'], ['R', 0, 'Review']].filter((s) => s[0] === 'F' || s[0] === 'Q' || arrows.some((a) => a[1] === s[0])) as [string, number, string][], [['F', 'Q'], ...arrows]);
+  const exitsOf = (flow: ReturnType<typeof build>) => {
+    const { edges } = layoutFlow(flow);
+    return Object.fromEntries(flow.arrows.slice(1).map((a, i) => [a.to, edges[i + 1]!.points[0]!]).map(([to, p]) => [to as string, `${(p as Pt).x},${(p as Pt).y}`]));
+  };
+
+  it.each([2, 3])('%i answers, loop back listed first: the right exit goes forward and nothing is shared', (n) => {
+    const arrows = answers(true).slice(0, n);
+    const flow = build(arrows);
+    const layout = layoutFlow(flow);
+    const q = layout.nodes.find((x) => x.id === 'Q')!;
+    const right = `${q.cx + q.w / 2},${q.cy}`;
+    expect(exitsOf(flow).S).toBe(right);
+    expect(exitsOf(flow).F).not.toBe(right);
+    expect(clashes(segments(flow), 10)).toEqual([]);
+  });
+
+  it('gives each answer the same exit whatever the order of the arrows', () => {
+    const perms = (xs: [string, string, string][]): [string, string, string][][] => (xs.length < 2 ? [xs] : xs.flatMap((x, i) => perms([...xs.slice(0, i), ...xs.slice(i + 1)]).map((p) => [x, ...p])));
+    for (const loop of [true, false]) {
+      const base = answers(loop);
+      const seen = new Set(perms(base).map((p) => {
+        const flow = build(p);
+        const e = exitsOf(flow);
+        return JSON.stringify(Object.keys(e).sort().map((k) => [k, e[k]]));
+      }));
+      expect(seen.size).toBe(1);
+    }
+  });
+});

@@ -1,7 +1,7 @@
 import { isQuestion } from '../../spec/business-flow.js';
 import type { Flow } from '../../spec/business.js';
 import { layersOf, spineOf } from './flow-graph.js';
-import { portsOf, type Port } from './flow-ports.js';
+import { portsOf, type Port, type Spot } from './flow-ports.js';
 import { sizeOf, wrap } from './flow-wrap.js';
 import { dedupe, slotOrder, type Seg } from './flow-slots.js';
 
@@ -89,6 +89,7 @@ function rawNodes(flow: Flow, layer: number[]): Raw[] {
 }
 
 const rank = (r: Raw): number => r.node.lane * 1000 + r.row;
+const spot = (r: Raw): Spot => ({ rank: rank(r), layer: r.layer });
 
 function arrowsOf(flow: Flow, raws: Raw[]): Arrow[] {
   const byId = new Map(raws.map((r) => [r.node.id, r]));
@@ -98,7 +99,7 @@ function arrowsOf(flow: Flow, raws: Raw[]): Arrow[] {
   for (const [from, ks] of out) {
     const a = byId.get(from)!;
     const targets = ks.map((k) => byId.get(flow.arrows[k]!.to)!);
-    const ports = portsOf(a.node.kind === 'question', rank(a), targets.map(rank));
+    const ports = portsOf(a.node.kind === 'question', spot(a), targets.map(spot));
     ks.forEach((k, n) => list[k] = { a, b: targets[n]!, label: flow.arrows[k]!.label, port: ports[n]!, below: rank(targets[n]!) >= rank(a), slot: 0 });
   }
   const tracks = new Map<string, number>();
