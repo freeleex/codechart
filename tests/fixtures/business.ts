@@ -47,3 +47,27 @@ export const business = (): Record<string, any> => ({
   data: [{ id: 'D1', name: 'Refund reason', what: 'Why each refund was given and who approved it', why: 'So finance can review refunds later', links: ['refunds'], evidence: 'checked' }],
   questions: [{ id: 'Q1', about: 'R2', text: 'What happens when an agent has no manager?', kind: 'unhandled' }],
 });
+
+export const EXPLAIN_TECH_IDS = ['api', 'billing', 'email', 'stripe', 'flow:create/zero', 'flow:create/skip'];
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- tests edit fields freely
+export const businessExplain = (): Record<string, any> => ({
+  diagram: 'business',
+  kind: 'explain',
+  title: 'How billing works',
+  summary: 'Customers get an invoice and are charged by card. A receipt goes out by email.',
+  journeys: [
+    {
+      id: 'J1',
+      name: 'Customer is billed',
+      who: 'Customer',
+      steps: [{ text: 'An invoice is created' }, { text: 'The charge is skipped', if: 'the total is zero' }, { text: 'The card is charged' }],
+      links: ['api', 'flow:create/zero'],
+      evidence: 'checked',
+    },
+  ],
+  rules: [{ id: 'R1', name: 'Free invoices', rule: 'An invoice of zero is never charged.', exceptions: ['A test account is charged a cent.'], links: ['billing', 'flow:create/skip'], evidence: 'reading' }],
+  cases: [{ id: 'C1', situation: 'The card is declined', outcome: 'The invoice stays open and the customer is emailed.', links: ['stripe', 'email'], evidence: 'checked' }],
+  data: [{ id: 'D1', name: 'Invoice', what: 'Amount, date and who paid', why: 'So finance can check the books', links: ['billing'], evidence: 'checked' }],
+  questions: [{ id: 'Q1', about: 'C1', text: 'Is a declined card tried again?', kind: 'unhandled' }],
+});

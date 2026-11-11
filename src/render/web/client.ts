@@ -1238,7 +1238,7 @@ export const CLIENT_JS = [
   "}",
   "",
   "const BIZ_MAX = 4000;",
-  "const BIZ_WORD = { journey: 'journey', rule: 'rule', data: 'saved data', question: 'question' };",
+  "const BIZ_WORD = { journey: 'journey', rule: 'rule', case: 'odd case', data: 'saved data', question: 'question' };",
   "const bizCards = () => [...document.querySelectorAll('[data-item]')];",
   "const bare = () => Object.create(null);",
   "function bizSaved(key, ids) {",

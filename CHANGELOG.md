@@ -2,6 +2,12 @@
 
 What's new in each codechart release. Update with `codechart update`; the [releases page](https://github.com/freeleex/codechart/releases) has the same notes.
 
+## Unreleased
+
+### New
+
+- Business page that explains how something works today: ask your agent to explain an area for a product owner, QA or support. Journeys, rules, odd cases and saved data in plain words, with questions for what the code doesn't cover. It starts from the explain map of that area.
+
 ## 0.9.0 (2026-11-10)
 
 ### New

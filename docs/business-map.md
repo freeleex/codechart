@@ -32,6 +32,23 @@ Every item carries a tag:
 
 The owner can type an answer under a question and add a note to any item.
 
+## Explain how something works
+
+The same page can explain how an area works today, for a product owner, QA or support, with no change to review:
+
+```text
+> explain how refunds work for the product owner
+```
+
+The agent draws the [explain map](explain-map.md) of the area first, then writes the page from it. It has the sections **How it works** (each journey as one list of steps; a step that only happens sometimes reads "If … → …"), **Rules today**, **Odd cases** (a situation and what happens), **What we keep and why** and **Open questions**, and ends "Made by codechart from the code as it is today." There is no before and after and nothing is marked new. Tags, Yes/No, notes and *Send back to developer* work as above.
+
+<img src="images/business-explain.png" alt="The explain page for refunds: a journey with If steps, rules today with exceptions, two odd cases, what is kept and why, and an open question" width="720">
+
+- One feature per page; a bigger area is split.
+- *Checked in code* only for what the agent read; a guess is *Agent's reading, please confirm*. What the code doesn't cover becomes a question.
+- The page links to the explain map of that area, the newest one on your branch or `codechart render --tech <spec.json>`. A change map can't be used for it, nor an explain map for a change page.
+- `codechart schema --business --explain` prints the format.
+
 ## Sending it back
 
 1. The owner presses **Send back to developer**. Their answers, yes/no verdicts and notes are copied as text.

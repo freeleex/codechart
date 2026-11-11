@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { businessSpecJsonSchema } from '../../src/spec/business.js';
 import { businessLinkIssues } from '../../src/spec/business-links.js';
 import { validateAnySpec } from '../../src/spec/schema.js';
-import { business, TECH_IDS } from '../fixtures/business.js';
+import { business, businessExplain, EXPLAIN_TECH_IDS, TECH_IDS } from '../fixtures/business.js';
 
 const check = (spec: unknown) => validateAnySpec(spec);
 const errors = (spec: unknown): string[] => {
@@ -142,5 +142,77 @@ describe('business links', () => {
     const spec = business();
     spec.rules[0].after = 'See subscription_model for details.';
     expect(businessLinkIssues(spec as never, boxes)).toHaveLength(1);
+  });
+});
+
+describe('business explain spec', () => {
+  it('accepts the sample', () => {
+    expect(errors(businessExplain())).toEqual([]);
+  });
+
+  it('needs at least one journey, rule, odd case or saved data item', () => {
+    const { diagram, kind, title, summary } = businessExplain();
+    expect(errors({ diagram, kind, title, summary })).toEqual([expect.stringContaining('at least one journey, rule, odd case or saved data item')]);
+  });
+
+  it('refuses now and after, steps that changed, and before and after on a rule', () => {
+    const spec = businessExplain();
+    spec.journeys[0].now = [{ text: 'x' }];
+    spec.journeys[0].steps[0].change = 'new';
+    spec.rules[0].before = 'x';
+    expect(errors(spec)).toEqual([
+      'journeys[0].now: an explain page has one list of steps, not now and after',
+      'journeys[0].steps[0].change: an explain page has no changed steps',
+      'rules[0].before: an explain page has no before and after; use rule',
+    ]);
+  });
+
+  it('needs steps and a rule in the explain shape', () => {
+    const spec = businessExplain();
+    delete spec.journeys[0].steps;
+    delete spec.rules[0].rule;
+    expect(errors(spec)).toEqual([expect.stringMatching(/^journeys\[0\]\.steps/), expect.stringMatching(/^rules\[0\]\.rule/)]);
+  });
+
+  it('refuses kind and cases in a change map', () => {
+    expect(errors({ ...business(), cases: [] })).toEqual(['cases: only on an explain page (kind "explain")']);
+    expect(errors({ ...business(), kind: 'change' })).toEqual(['kind: only "explain" is allowed here; leave it out for a change map']);
+  });
+
+  it('rejects an id used twice across lists', () => {
+    const spec = businessExplain();
+    spec.cases[0].id = 'R1';
+    spec.questions[0].about = 'R1';
+    expect(errors(spec)).toEqual(['cases[0].id: duplicate "R1"']);
+  });
+
+  it('lets a question be about an odd case, and rejects an unknown one', () => {
+    const spec = businessExplain();
+    expect(errors(spec)).toEqual([]);
+    spec.questions[0].about = 'C9';
+    expect(errors(spec)).toEqual(['questions[0].about: unknown journey, rule, odd case or saved data item "C9"']);
+  });
+
+  it('checks the plain words of steps, conditions and cases', () => {
+    const spec = businessExplain();
+    spec.journeys[0].steps[1].if = 'refundWindow is zero';
+    spec.cases[0].outcome = 'Calls createInvoice';
+    expect(errors(spec)).toEqual([expect.stringMatching(/^journeys\[0\]\.steps\[1\]\.if: looks like code/), expect.stringMatching(/^cases\[0\]\.outcome: looks like code/)]);
+  });
+
+  it('checks links, including flow steps, and tech ids in the words', () => {
+    const r = check(businessExplain());
+    if (!r.ok || r.spec.diagram !== 'business') throw new Error('fixture');
+    expect(businessLinkIssues(r.spec, EXPLAIN_TECH_IDS.map((id) => ({ id, label: id })))).toEqual([]);
+    expect(businessLinkIssues(r.spec, [{ id: 'api', label: 'api' }]).filter((m) => m.startsWith('cases'))).toEqual([
+      'cases[0].links[0]: "stripe" is not a box on the tech map',
+      'cases[0].links[1]: "email" is not a box on the tech map',
+    ]);
+  });
+
+  it('has its own JSON schema', () => {
+    const schema = businessSpecJsonSchema(true) as { properties: Record<string, { const?: string }> };
+    expect(schema.properties.kind!.const).toBe('explain');
+    expect(Object.keys(schema.properties)).toEqual(expect.arrayContaining(['cases', 'journeys', 'rules']));
   });
 });

@@ -53,6 +53,8 @@ h2{font-size:27px}
 .actor{display:inline-flex;align-items:center;gap:7px;font-size:13px;color:var(--muted)}
 .actor .av{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:var(--edge-bg);color:var(--edge);font-weight:700;font-size:11px}
 .j-cols{display:grid;grid-template-columns:1fr 1fr}
+.j-cols.one{grid-template-columns:1fr}
+.step .if{font-weight:600;color:var(--edge)}
 .j-col{padding:16px 20px 20px}
 .j-col.now{background:var(--sunk);border-right:1px solid var(--line-soft)}
 .j-col h4{margin:0 0 12px;font-size:12px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);display:flex;align-items:center;gap:8px}

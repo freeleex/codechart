@@ -1,7 +1,8 @@
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { business, TECH } from '../fixtures/business.js';
+import { business, businessExplain, TECH } from '../fixtures/business.js';
+import { EXPLAIN_FILES, withFlows } from '../fixtures/explain.js';
 import { git, makeSandbox, removeSandbox, repoFromTemplate, runCli, type Sandbox } from '../helpers/sandbox.js';
 
 let sb: Sandbox;
@@ -191,5 +192,61 @@ describe('schema --business', () => {
     const r = await runCli({ cwd: sb.repo, home: sb.home }, ['schema', '--business', '--flow']);
     expect(r.code).toBe(2);
     expect(r.out).toBe('');
+  });
+});
+
+describe('render: business explain page', () => {
+  const explainMap = () => {
+    for (const [file, text] of Object.entries(EXPLAIN_FILES)) {
+      mkdirSync(join(sb.repo, file, '..'), { recursive: true });
+      writeFileSync(join(sb.repo, file), text);
+    }
+    return fileOf('explain.json', withFlows());
+  };
+  const renderExplainMap = () => run(['render', explainMap(), '--output', 'cli']);
+
+  it('uses the saved explain map: its boxes and its flow steps are the links', async () => {
+    const saved = await renderExplainMap();
+    expect(saved.err).toBe('');
+    const r = await renderBusiness(businessExplain());
+    expect(r.err).toBe('');
+    expect(r.out).toMatch(/^Business explain page: How billing works · 1 journey · 1 rule · 1 odd case · 1 saved data · 1 question · 1 agent's reading\nfull map → file:\/\/.*\.business\.html\n$/);
+    const review = reviewOf();
+    expect(review.change).toMatchObject({ kind: 'business', slug: 'how-billing-works.business' });
+    expect(review.nodes.map((n) => n.id)).toEqual(['J1', 'R1', 'C1', 'D1', 'Q1']);
+  });
+
+  it('takes the explain map named by map, with or without .explain', async () => {
+    await renderExplainMap();
+    expect((await renderBusiness({ ...businessExplain(), map: 'how-billing-works' })).err).toBe('');
+    expect((await renderBusiness({ ...businessExplain(), map: 'how-billing-works.explain' })).err).toBe('');
+    expect((await renderBusiness({ ...businessExplain(), map: 'other' })).err).toContain('no explain map found');
+  });
+
+  it('works from an explain spec with --tech, deriving the flow step ids', async () => {
+    const r = await renderBusiness(businessExplain(), '--tech', fileOf('explain.json', withFlows()));
+    expect(r.err).toBe('');
+    const bad = businessExplain();
+    bad.cases[0].links = ['flow:create/nope'];
+    expect((await renderBusiness(bad, '--tech', fileOf('explain.json', withFlows()))).err).toBe('cases[0].links[0]: "flow:create/nope" is not a box on the tech map\n');
+  });
+
+  it('refuses a change map as the --tech of an explain page', async () => {
+    const r = await renderBusiness(businessExplain(), '--tech', tech());
+    expect(r.err).toContain('an explain page needs an explain map');
+    expect(r.code).toBe(1);
+  });
+
+  it('never takes a saved change map, and tells the agent to draw the explain map first', async () => {
+    await renderTech();
+    const r = await renderBusiness(businessExplain());
+    expect(r.err).toBe("codechart: no explain map found for this area: draw the explain map of it first (kind: \"explain\"), or pass --tech '<spec.json>'\n");
+    expect(r.code).toBe(1);
+    expect(outFiles().some((n) => n.endsWith('.business.html'))).toBe(false);
+  });
+
+  it('a change map still refuses a saved explain map', async () => {
+    await renderExplainMap();
+    expect((await renderBusiness(business())).err).toContain('no tech map found for this change');
   });
 });

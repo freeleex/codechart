@@ -4,7 +4,7 @@ import type { Note, NoteKind, Review, ReviewNode, Target } from './schema.js';
 
 const LABEL: Record<NoteKind, string> = { comment: 'Comment', question: 'Question', delete: 'Delete', answer: 'Answer', confirm: 'Confirmed', reject: 'Rejected' };
 
-const ITEM_WORD = { journey: 'Journey', rule: 'Rule', data: 'Saved data', question: 'Question' } as const;
+const ITEM_WORD = { journey: 'Journey', rule: 'Rule', case: 'Case', data: 'Saved data', question: 'Question' } as const;
 
 const pending = (review: Review): Note[] => review.notes.filter((n) => n.state === 'pending');
 

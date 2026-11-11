@@ -191,7 +191,7 @@ More: [Explain map](docs/explain-map.md)
 
 ### Business map
 
-On request, a plain-words page for a product owner with no repo access: journeys, rules, saved data and questions. They answer, confirm and send it back.
+On request, a plain-words page for a product owner with no repo access: journeys, rules, saved data and questions. They answer, confirm and send it back. It can also explain how an area works today, for a product owner, QA or support.
 
 More: [Business map](docs/business-map.md)
 

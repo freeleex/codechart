@@ -56,6 +56,8 @@ A [business map](business-map.md) is for readers who can't check the code, so mo
 - No sentence may look like code, a file name or path, a web address, a setting name, a technical id or a secret. A match fails the render with the offending word, and a secret is shown only as its first characters.
 - Each item says how sure it is: **Checked in code**, or **Agent's reading, please confirm**, which the owner answers Yes or No.
 
+A page that explains how an area works today is checked the same way, against an [explain map](explain-map.md): items link to its boxes or flow steps, and a change map is refused. The agent is told to mark *Checked in code* only for what it read, and to turn what the code doesn't cover into questions.
+
 Limits: a link proves where to look, not that the words are right. The check cannot tell whether a sentence about the code is true, and plain words can still be wrong. Your agent is told to re-read the code behind each *Checked in code* item before drawing the page, but that is the agent's own spot-check, not something codechart verifies.
 
 ## Release maps

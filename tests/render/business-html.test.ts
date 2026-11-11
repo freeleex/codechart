@@ -3,7 +3,7 @@ import { Window } from 'happy-dom';
 import { describe, expect, it } from 'vitest';
 import { businessPage } from '../../src/render/business/html.js';
 import { validateBusinessSpec, type BusinessSpec } from '../../src/spec/business.js';
-import { business } from '../fixtures/business.js';
+import { business, businessExplain } from '../fixtures/business.js';
 
 const meta = { generatedAt: new Date('2026-11-08T12:00:00Z'), repo: 'demo', change: { slug: 'new-refund-rules.business', branch: 'feat/refunds', at: '2026-11-08T12:00:00.000Z' } };
 
@@ -153,5 +153,56 @@ describe('business page', () => {
     expect(JSON.parse(d.getElementById('spec-data')!.textContent!)).toEqual({ page: 'business', repoKey: 'demo', change: meta.change });
     expect(doc(page()).documentElement.getAttribute('data-theme')).toBe('auto');
     expect(doc(businessPage(spec(), { ...meta, theme: 'dark' })).documentElement.getAttribute('data-theme')).toBe('dark');
+  });
+});
+
+describe('business explain page', () => {
+  const explain = (edit?: (raw: ReturnType<typeof businessExplain>) => void): string => {
+    const raw = businessExplain();
+    edit?.(raw);
+    const r = validateBusinessSpec(raw);
+    if (!r.ok) throw new Error(r.errors.join('\n'));
+    return businessPage(r.spec, meta);
+  };
+
+  it('has the explain sections and no word of a change', () => {
+    const html = explain();
+    const d = doc(html);
+    expect([...d.querySelectorAll('section h2')].map((h) => h.textContent)).toEqual(['How it works', 'Rules today', 'Odd cases', 'What we keep and why', 'Open questions']);
+    const text = visible(html);
+    for (const word of ['Now', 'After this change', 'New rule', 'Changed rule', 'Kept', 'Removed', 'Before', "developer's change"]) expect(text).not.toContain(word);
+    expect(d.querySelector('.legend')!.textContent).not.toContain('Steps');
+    expect(d.querySelectorAll('.mk')).toHaveLength(0);
+    expect(d.querySelector('footer')!.textContent).toContain('Made by codechart from the code as it is today.');
+  });
+
+  it('shows a fork as "If <condition> → <step>" in one column of steps', () => {
+    const d = doc(explain());
+    const steps = [...d.querySelectorAll('[data-item="J1"] .step')].map((x) => x.textContent);
+    expect(steps).toEqual(['An invoice is created', 'If the total is zero → The charge is skipped', 'The card is charged']);
+    expect(d.querySelectorAll('[data-item="J1"] .j-col')).toHaveLength(1);
+  });
+
+  it('gives odd cases a note box, a verdict when read from names, and questions about them a link', () => {
+    const d = doc(explain((raw) => (raw.cases[0].evidence = 'reading')));
+    const c = d.querySelector('[data-item="C1"]')!;
+    expect(c.getAttribute('data-kind')).toBe('case');
+    expect(c.querySelector('h3')!.textContent).toBe('The card is declined');
+    expect(c.querySelector('textarea[data-note="C1"]')).not.toBeNull();
+    expect(c.querySelector('[data-verdict="yes"]')).not.toBeNull();
+    expect(d.querySelector('[data-item="Q1"] .about a')!.getAttribute('href')).toBe('#i-C1');
+  });
+
+  it('shows no id, tech link or flow step anywhere a person reads', () => {
+    const text = visible(explain());
+    for (const hidden of ['J1', 'R1', 'C1', 'D1', 'Q1', 'flow:create', 'stripe', 'api']) expect(text).not.toMatch(new RegExp(`(^|[^A-Za-z-])${hidden}([^A-Za-z-]|$)`));
+  });
+
+  it('leaves out sections without items', () => {
+    const d = doc(explain((raw) => {
+      raw.cases = [];
+      raw.questions[0].about = 'R1';
+    }));
+    expect([...d.querySelectorAll('section h2')].map((h) => h.textContent)).toEqual(['How it works', 'Rules today', 'What we keep and why', 'Open questions']);
   });
 });

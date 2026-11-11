@@ -1,12 +1,14 @@
 import { z } from 'zod';
+import { explainTexts } from './business-explain.js';
 import { plainTextIssues } from './plain-text.js';
-import { formatIssues, ident, long, short, type ValidationResult } from './shared.js';
+import { formatIssues, formatPath, ident, long, short, type ValidationResult } from './shared.js';
 
 const MAX_JOURNEYS = 8;
 const MAX_RULES = 12;
 const MAX_DATA = 8;
 const MAX_STEPS = 10;
 const MAX_EXCEPTIONS = 5;
+const MAX_CASES = 8;
 const MAX_QUESTIONS = 7;
 const MAX_LINKS = 12;
 
@@ -52,7 +54,7 @@ const QUESTION_KINDS = ['unhandled', 'number', 'conflict', 'assumption', 'other'
 
 const questionSchema = z.strictObject({
   id: ident(),
-  about: ident().describe('Id of the journey, rule or saved data it is about'),
+  about: ident().describe('Id of the journey, rule, odd case or saved data it is about'),
   text: text(),
   kind: z.enum(QUESTION_KINDS),
 });
@@ -80,7 +82,94 @@ const businessSchema = z
     }
   });
 
-export type BusinessSpec = z.infer<typeof businessSchema>;
+const explainStepSchema = z.strictObject({
+  text: short(),
+  if: short().optional().describe('A plain condition: the step happens only then, and the page shows "If <condition> → <step>"'),
+});
+
+const explainJourneySchema = z.strictObject({
+  id: ident(),
+  name: short(),
+  who: short().optional(),
+  steps: z.array(explainStepSchema).min(1).max(MAX_STEPS),
+  links: links(),
+  evidence: evidence(),
+});
+
+const explainRuleSchema = z.strictObject({
+  id: ident(),
+  name: short(),
+  rule: text(),
+  exceptions: z.array(text()).max(MAX_EXCEPTIONS).optional(),
+  links: links(),
+  evidence: evidence(),
+});
+
+const caseSchema = z.strictObject({
+  id: ident(),
+  situation: text().describe('An odd or edge situation, in plain words'),
+  outcome: text().describe('What happens then'),
+  links: links(),
+  evidence: evidence(),
+});
+
+const explainSchema = z
+  .strictObject({
+    diagram: z.literal('business'),
+    kind: z.literal('explain'),
+    title: short(),
+    summary: text().describe('One or two plain sentences: what this area of the product does'),
+    map: ident().describe('File name slug of the explain map this describes; left out: the newest one on the branch').optional(),
+    journeys: z.array(explainJourneySchema).max(MAX_JOURNEYS).default([]),
+    rules: z.array(explainRuleSchema).max(MAX_RULES).default([]),
+    cases: z.array(caseSchema).max(MAX_CASES).default([]),
+    data: z.array(dataSchema).max(MAX_DATA).default([]),
+    questions: z.array(questionSchema).max(MAX_QUESTIONS).default([]),
+  })
+  .superRefine((spec, ctx) => {
+    const issue: Issue = (path, message) => ctx.addIssue({ code: 'custom', path, message });
+    if (!spec.journeys.length && !spec.rules.length && !spec.cases.length && !spec.data.length) issue([], 'needs at least one journey, rule, odd case or saved data item');
+    const seen = new Set<string>();
+    const groups = [['journeys', spec.journeys], ['rules', spec.rules], ['cases', spec.cases], ['data', spec.data], ['questions', spec.questions]] as const;
+    for (const [group, list] of groups) {
+      list.forEach((item, i) => {
+        if (seen.has(item.id)) issue([group, i, 'id'], `duplicate "${item.id}"`);
+        seen.add(item.id);
+      });
+    }
+    const about = new Set([...spec.journeys, ...spec.rules, ...spec.cases, ...spec.data].map((x) => x.id));
+    spec.questions.forEach((q, i) => {
+      if (!about.has(q.about)) issue(['questions', i, 'about'], `unknown journey, rule, odd case or saved data item "${q.about}"`);
+    });
+    for (const t of explainTexts(spec)) {
+      for (const message of plainTextIssues(t.text)) issue(t.path, message);
+    }
+  });
+
+export type ChangeSpec = z.infer<typeof businessSchema>;
+export type ExplainSpec = z.infer<typeof explainSchema>;
+/** A business map: of a change (journeys and rules before and after), or an explain page (how an area works today). */
+export type BusinessSpec = ChangeSpec | ExplainSpec;
+
+export const isExplain = (spec: BusinessSpec): spec is ExplainSpec => (spec as { kind?: string }).kind === 'explain';
+
+export type ItemGroup = 'journeys' | 'rules' | 'cases' | 'data';
+
+/** What every kind of item has: its id, what a reader calls it, and the tech map boxes it comes from. */
+export interface ItemBase {
+  id: string;
+  name: string;
+  links: string[];
+  evidence: 'checked' | 'reading';
+}
+
+/** The items a page takes notes on, by group, in page order; an explain page's cases are named by their situation. */
+export function itemGroups(spec: BusinessSpec): [ItemGroup, ItemBase[]][] {
+  const groups: [ItemGroup, ItemBase[]][] = [['journeys', spec.journeys], ['rules', spec.rules]];
+  if (isExplain(spec)) groups.push(['cases', spec.cases.map((c) => ({ ...c, name: c.situation }))]);
+  groups.push(['data', spec.data]);
+  return groups;
+}
 
 type JourneyItem = Omit<z.infer<typeof journeySchema>, 'links' | 'evidence'>;
 type RuleItem = Omit<z.infer<typeof ruleSchema>, 'links' | 'evidence'>;
@@ -123,6 +212,7 @@ function stepIssues(journey: JourneyItem, at: Path, issue: Issue): void {
 
 /** Every string a reader sees in a business map, with its path: the ones the plain-words check applies to. */
 export function businessTexts(spec: BusinessSpec): { path: Path; text: string }[] {
+  if (isExplain(spec)) return explainTexts(spec);
   return [{ path: ['title'], text: spec.title }, { path: ['summary'], text: spec.summary }, ...itemTexts(spec)];
 }
 
@@ -150,11 +240,33 @@ export function itemTexts(items: Items, at: Path = []): { path: Path; text: stri
   return out;
 }
 
+const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
+
+/** Fields of the other mode, named in plain words instead of as unknown keys. */
+function modeIssues(input: unknown): string[] {
+  if (!isRecord(input)) return [];
+  const out: string[] = [];
+  const list = (key: string): Record<string, unknown>[] => (Array.isArray(input[key]) ? input[key].filter(isRecord) : []);
+  if (input.kind === 'explain') {
+    list('journeys').forEach((j, i) => {
+      for (const side of ['now', 'after']) if (side in j) out.push(`${formatPath(['journeys', i, side])}: an explain page has one list of steps, not now and after`);
+      if (Array.isArray(j.steps)) j.steps.forEach((s, k) => isRecord(s) && 'change' in s && out.push(`${formatPath(['journeys', i, 'steps', k, 'change'])}: an explain page has no changed steps`));
+    });
+    list('rules').forEach((r, i) => 'before' in r && out.push(`${formatPath(['rules', i, 'before'])}: an explain page has no before and after; use rule`));
+  } else {
+    if ('kind' in input) out.push('kind: only "explain" is allowed here; leave it out for a change map');
+    if ('cases' in input) out.push('cases: only on an explain page (kind "explain")');
+  }
+  return out;
+}
+
 export function validateBusinessSpec(input: unknown): ValidationResult<BusinessSpec> {
-  const result = businessSchema.safeParse(input);
+  const mode = modeIssues(input);
+  if (mode.length) return { ok: false, errors: mode };
+  const result = isRecord(input) && input.kind === 'explain' ? explainSchema.safeParse(input) : businessSchema.safeParse(input);
   return result.success ? { ok: true, spec: result.data } : { ok: false, errors: formatIssues(result.error) };
 }
 
-export function businessSpecJsonSchema(): object {
-  return z.toJSONSchema(businessSchema, { io: 'input' });
+export function businessSpecJsonSchema(explain = false): object {
+  return z.toJSONSchema(explain ? explainSchema : businessSchema, { io: 'input' });
 }

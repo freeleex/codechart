@@ -1,6 +1,6 @@
 import { businessPage } from './html.js';
 import { businessSnapshot } from '../../review/snapshot.js';
-import type { BusinessSpec } from '../../spec/business.js';
+import { isExplain, itemGroups, type BusinessSpec } from '../../spec/business.js';
 import type { TechBox } from '../../spec/business-links.js';
 import { markdownBlock } from '../markdown.js';
 import { fullMapLine } from '../terminal/render.js';
@@ -17,15 +17,17 @@ export interface BusinessContext {
 const count = (n: number, one: string, many = `${one}s`): string | undefined => (n ? `${n} ${n === 1 ? one : many}` : undefined);
 
 function businessSummary(spec: BusinessSpec): string {
-  const items = [...spec.journeys, ...spec.rules, ...spec.data];
+  const groups = itemGroups(spec);
+  const items = groups.flatMap(([, list]) => list);
   const parts = [
     count(spec.journeys.length, 'journey'),
     count(spec.rules.length, 'rule'),
+    count(groups.find(([g]) => g === 'cases')?.[1].length ?? 0, 'odd case'),
     count(spec.data.length, 'saved data', 'saved data'),
     count(spec.questions.length, 'question'),
     count(items.filter((x) => x.evidence === 'reading').length, "agent's reading"),
   ];
-  return [`Business map: ${spec.title}`, ...parts.filter(Boolean)].join(' · ');
+  return [`${isExplain(spec) ? 'Business explain page' : 'Business map'}: ${spec.title}`, ...parts.filter(Boolean)].join(' · ');
 }
 
 /** Business maps are HTML-only: the page is always written, and the console gets one summary line with its link. */

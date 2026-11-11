@@ -13,7 +13,7 @@ interface BizState {
 }
 
 const BIZ_MAX = 4000;
-const BIZ_WORD: Record<string, string> = { journey: 'journey', rule: 'rule', data: 'saved data', question: 'question' };
+const BIZ_WORD: Record<string, string> = { journey: 'journey', rule: 'rule', case: 'odd case', data: 'saved data', question: 'question' };
 
 const bizCards = (): HTMLElement[] => [...document.querySelectorAll<HTMLElement>('[data-item]')];
 

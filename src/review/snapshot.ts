@@ -8,7 +8,7 @@ import { flowGaps, type FlowView } from '../render/explain-flows.js';
 import { stepLabel } from '../render/flow/tree.js';
 import { gitDirtyHashes, gitHead } from '../rules/git-files.js';
 import { hasGitSelection, type GitSelection } from '../rules/selection.js';
-import type { BusinessSpec } from '../spec/business.js';
+import { itemGroups, type BusinessSpec, type ItemGroup } from '../spec/business.js';
 import type { FlowSpec, FlowStep } from '../spec/flow.js';
 import type { Spec } from '../spec/schema.js';
 import type { Range, ReviewNode } from './schema.js';
@@ -68,25 +68,26 @@ export function flowSnapshot(spec: FlowSpec, snippets: FlowSnippets, range: Rang
 }
 
 const REV_FIELDS = {
-  journey: ['name', 'who', 'now', 'after', 'links'],
-  rule: ['name', 'before', 'after', 'exceptions', 'links'],
+  journey: ['name', 'who', 'now', 'after', 'links', 'steps'],
+  rule: ['name', 'before', 'after', 'exceptions', 'links', 'rule'],
+  case: ['situation', 'outcome', 'links'],
   data: ['name', 'what', 'why', 'links'],
   question: ['about', 'text'],
 } as const;
 
+const ITEM_OF = { journeys: 'journey', rules: 'rule', cases: 'case', data: 'data' } as const satisfies Record<ItemGroup, keyof typeof REV_FIELDS>;
+
 /** An item's hash covers its words and links, so a confirmation of the old words never counts for new ones; 6 characters keep the page's token short. */
 export function businessRev(kind: keyof typeof REV_FIELDS, item: object): string {
   const fields = item as Record<string, unknown>;
-  return hash(REV_FIELDS[kind].map((f) => fields[f])).slice(0, 6);
+  const values = REV_FIELDS[kind].map((f) => fields[f]);
+  while (values.at(-1) === undefined) values.pop();
+  return hash(values).slice(0, 6);
 }
 
-/** A business page takes notes on its items: journeys, rules, saved data and questions, by id. */
+/** A business page takes notes on its items: journeys, rules, odd cases, saved data and questions, by id. */
 export function businessSnapshot(spec: BusinessSpec): ReviewSnapshot {
-  const items = [
-    ...spec.journeys.map((x) => ({ ...x, item: 'journey' as const })),
-    ...spec.rules.map((x) => ({ ...x, item: 'rule' as const })),
-    ...spec.data.map((x) => ({ ...x, item: 'data' as const })),
-  ];
+  const items = itemGroups(spec).flatMap(([group, list]) => list.map((x) => ({ ...x, item: ITEM_OF[group] })));
   const linksOf = new Map(items.map((x) => [x.id, x.links]));
   const nodes = items.map((x) => ({ id: clean(x.id), label: clean(x.name), item: x.item, rev: businessRev(x.item, x), links: x.links.map(clean) }));
   const questions = spec.questions.map((q) => ({ id: clean(q.id), label: clean(q.text), item: 'question' as const, rev: businessRev('question', q), about: clean(q.about), links: (linksOf.get(q.about) ?? []).map(clean) }));
