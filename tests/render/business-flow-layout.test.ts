@@ -1,0 +1,65 @@
+import { describe, expect, it } from 'vitest';
+import { flowDiagram } from '../../src/render/business/flow-diagram.js';
+import { layoutFlow, type Pt } from '../../src/render/business/flow-layout.js';
+import { businessExplain, refundsFlow } from '../fixtures/business.js';
+
+interface Seg {
+  edge: number;
+  a: Pt;
+  b: Pt;
+}
+
+const segments = (flow: Parameters<typeof layoutFlow>[0]): Seg[] =>
+  layoutFlow(flow).edges.flatMap((e, edge) => e.points.slice(1).map((b, i) => ({ edge, a: e.points[i]!, b })));
+
+const range = (a: number, b: number): [number, number] => [Math.min(a, b), Math.max(a, b)];
+const overlap = (p: [number, number], q: [number, number]): number => Math.min(p[1], q[1]) - Math.max(p[0], q[0]);
+
+/** Segments of different arrows on one line, or parallel closer than `gap` with a shared stretch. */
+function clashes(segs: Seg[], gap: number): string[] {
+  const out: string[] = [];
+  segs.forEach((s, i) =>
+    segs.slice(i + 1).forEach((t) => {
+      if (s.edge === t.edge) return;
+      const sv = s.a.x === s.b.x;
+      const tv = t.a.x === t.b.x;
+      if (sv !== tv) return;
+      const [across, along] = sv ? (['x', 'y'] as const) : (['y', 'x'] as const);
+      if (Math.abs(s.a[across] - t.a[across]) >= gap) return;
+      if (overlap(range(s.a[along], s.b[along]), range(t.a[along], t.b[along])) > 0) out.push(`${s.edge}/${t.edge} at ${sv ? 'x' : 'y'}=${s.a[across]}`);
+    }),
+  );
+  return out;
+}
+
+describe('flow layout', () => {
+  it('gives every refunds arrow its own run: none shares a line or runs within 10px of another', () => {
+    const flow = refundsFlow() as Parameters<typeof layoutFlow>[0];
+    expect(layoutFlow(flow).edges).toHaveLength(7);
+    expect(clashes(segments(flow), 10)).toEqual([]);
+  });
+
+  it('keeps the fixture flow clean too, and one with a loop back', () => {
+    const flow = businessExplain().flow;
+    expect(clashes(segments(flow), 10)).toEqual([]);
+    const loop = refundsFlow();
+    loop.arrows.push({ from: 'S7', to: 'S1' } as never);
+    expect(clashes(segments(loop as never), 10)).toEqual([]);
+  });
+
+  it('draws text at body size: nodes 13px or more, answers 12px, lane names 11px', () => {
+    const svg = flowDiagram(refundsFlow() as never);
+    const sizes = (cls: string): number[] => [...svg.matchAll(new RegExp(`class="${cls}[^"]*" font-size="(\\d+)"`, 'g'))].map((m) => Number(m[1]));
+    expect(sizes('nt').length).toBe(7);
+    expect(Math.min(...sizes('nt'))).toBeGreaterThanOrEqual(13);
+    expect(Math.min(...sizes('elab'))).toBeGreaterThanOrEqual(12);
+    expect(Math.min(...sizes('lane'))).toBeGreaterThanOrEqual(11);
+    expect(svg).not.toMatch(/min-width|max-width|scale/);
+  });
+
+  it('spreads arrows into one step along its left side', () => {
+    const into = layoutFlow(refundsFlow() as never).edges.slice(5).map((e) => e.points.at(-1)!.y);
+    expect(new Set(into).size).toBe(2);
+    expect(Math.abs(into[0]! - into[1]!)).toBeGreaterThanOrEqual(10);
+  });
+});

@@ -81,3 +81,30 @@ export const businessExplain = (): Record<string, any> => ({
   cases: [{ id: 'C1', situation: 'The card is declined', outcome: 'The invoice stays open and the customer is emailed.', links: ['stripe', 'email'], evidence: 'checked' }],
   data: [{ id: 'D1', name: 'Invoice', what: 'Amount, date and who paid', why: 'So finance can check the books', links: ['billing'], evidence: 'checked' }],
 });
+
+export const refundsFlow = () => ({
+  lanes: [
+    { id: 'customer', name: 'Customer' },
+    { id: 'agent', name: 'Support agent' },
+    { id: 'manager', name: 'Manager' },
+    { id: 'pay', name: 'Payment system' },
+  ],
+  steps: [
+    { id: 'S1', text: 'Asks for money back', lane: 'customer' },
+    { id: 'S2', text: 'Older than the refund window?', lane: 'agent' },
+    { id: 'S3', text: 'The refund is refused', lane: 'agent' },
+    { id: 'S4', text: 'Above €100?', lane: 'agent' },
+    { id: 'S5', text: 'Confirms the refund', lane: 'agent' },
+    { id: 'S6', text: 'Approves it by email', lane: 'manager' },
+    { id: 'S7', text: 'Money goes back to the card that night', lane: 'pay' },
+  ].map((s) => ({ ...s, links: ['api'], evidence: 'checked' as const })),
+  arrows: [
+    { from: 'S1', to: 'S2' },
+    { from: 'S2', to: 'S3', label: 'yes' },
+    { from: 'S2', to: 'S4', label: 'no' },
+    { from: 'S4', to: 'S6', label: 'yes' },
+    { from: 'S4', to: 'S5', label: 'no' },
+    { from: 'S6', to: 'S7' },
+    { from: 'S5', to: 'S7' },
+  ],
+});

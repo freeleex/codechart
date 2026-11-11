@@ -1,9 +1,11 @@
 import type { Flow } from '../../spec/business.js';
 import { esc } from '../web/page.js';
-import { layoutFlow, LINE, type FlowNode, type Pt } from './flow-layout.js';
+import { layoutFlow, type FlowNode, type Pt } from './flow-layout.js';
 
 const RADIUS = 7;
-const MIN_SCALE = 0.8;
+const NODE_FONT = 13;
+const LANE_FONT = 11;
+const LABEL_FONT = 12;
 
 const num = (n: number): string => String(Math.round(n * 10) / 10);
 
@@ -30,26 +32,28 @@ function shape(n: FlowNode): string {
   return `<rect class="shape" x="${num(x)}" y="${num(y)}" width="${n.w}" height="${n.h}" rx="${n.kind === 'end' ? n.h / 2 : 8}"/>`;
 }
 
-const textOf = (lines: string[], cx: number, cy: number, cls: string, anchor = 'middle'): string =>
-  `<text class="${cls}" text-anchor="${anchor}">${lines.map((l, i) => `<tspan x="${num(cx)}" y="${num(cy - (lines.length * LINE) / 2 + LINE * (i + 0.78))}">${esc(l)}</tspan>`).join('')}</text>`;
+const textOf = (lines: string[], cx: number, cy: number, cls: string, size: number, anchor = 'middle'): string => {
+  const step = size + 4;
+  return `<text class="${cls}" font-size="${size}" text-anchor="${anchor}">${lines.map((l, i) => `<tspan x="${num(cx)}" y="${num(cy - (lines.length * step) / 2 + step * (i + 0.8))}">${esc(l)}</tspan>`).join('')}</text>`;
+};
 
 function node(n: FlowNode): string {
   const note = n.reading ? " (the agent's reading, not checked in code)" : '';
-  return `<g class="fn ${n.kind}${n.reading ? ' guess' : ''}" id="i-${esc(n.id)}"><title>${esc(n.text + note)}</title>${shape(n)}${textOf(n.lines, n.cx, n.cy, 'nt')}</g>`;
+  return `<g class="fn ${n.kind}${n.reading ? ' guess' : ''}" id="i-${esc(n.id)}"><title>${esc(n.text + note)}</title>${shape(n)}${textOf(n.lines, n.cx, n.cy, 'nt', NODE_FONT)}</g>`;
 }
 
-/** The flow as server-drawn inline SVG: one band per lane, a node per step; it shrinks with the page down to 80%, then scrolls. */
+/** The flow as server-drawn inline SVG: one band per lane, a node per step; it keeps its size and scrolls sideways in its box when wider than the page. */
 export function flowDiagram(flow: Flow): string {
   const layout = layoutFlow(flow);
   const { width, height } = layout;
   const lanes = layout.lanes
-    .map((l, i) => `<rect class="band b${i % 2}" x="0" y="${num(l.top)}" width="${width}" height="${num(l.height)}"/>${textOf(l.lines, 14, l.top + l.height / 2, 'lane', 'start')}`)
+    .map((l, i) => `<rect class="band b${i % 2}" x="0" y="${num(l.top)}" width="${width}" height="${num(l.height)}"/>${textOf(l.lines, 14, l.top + l.height / 2, 'lane', LANE_FONT, 'start')}`)
     .join('');
   const edges = layout.edges
-    .map((e) => `<path class="edge" d="${pathOf(e.points)}" marker-end="url(#flow-arrow)"/>${e.label ? `<text class="elab h${e.label.lane % 2}" x="${num(e.label.at.x)}" y="${num(e.label.at.y)}" text-anchor="${e.label.anchor}">${esc(e.label.text)}</text>` : ''}`)
+    .map((e) => `<path class="edge" d="${pathOf(e.points)}" marker-end="url(#flow-arrow)"/>${e.label ? `<text class="elab h${e.label.lane % 2}" font-size="${LABEL_FONT}" x="${num(e.label.at.x)}" y="${num(e.label.at.y)}" text-anchor="${e.label.anchor}">${esc(e.label.text)}</text>` : ''}`)
     .join('');
   const label = `Flow of ${flow.steps.length} ${flow.steps.length === 1 ? 'step' : 'steps'} across ${flow.lanes.map((l) => l.name).join(', ')}: ${flow.steps.map((s) => s.text).join('; ')}`;
-  return `<div class="card flowbox"><svg class="flow" role="img" aria-label="${esc(label)}" viewBox="0 0 ${width} ${num(height)}" width="${width}" height="${num(height)}" style="min-width:${Math.round(width * MIN_SCALE)}px;max-width:${width}px">
+  return `<div class="card flowbox"><svg class="flow" role="img" aria-label="${esc(label)}" viewBox="0 0 ${width} ${num(height)}" width="${width}" height="${num(height)}">
 <defs><marker id="flow-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="ah" d="M0 0L10 5L0 10z"/></marker></defs>
 ${lanes}${edges}${layout.nodes.map(node).join('')}</svg></div>`;
 }

@@ -140,17 +140,16 @@ footer{color:var(--muted);font-size:12.5px;padding:30px 0 10px}
 .sheet .row button{border:1px solid var(--line);background:var(--paper);color:var(--text);border-radius:8px;padding:7px 14px}
 .sheet .row .send{border:0;background:var(--btn);color:#fff}
 .flowbox{overflow-x:auto;margin-bottom:22px}
-svg.flow{display:block;width:100%;height:auto}
+svg.flow{display:block;max-width:none}
 .flow text{font-family:var(--sans);fill:var(--text)}
 .flow .band.b0{fill:var(--paper)}
 .flow .band.b1{fill:var(--bg)}
-.flow .lane{font-size:10.5px;font-weight:700;letter-spacing:.07em;fill:var(--muted)}
+.flow .lane{font-weight:700;letter-spacing:.07em;fill:var(--muted)}
 .flow .edge{fill:none;stroke:var(--muted);stroke-width:1.4}
 .flow .ah{fill:var(--muted)}
-.flow .elab{font-size:11px;font-weight:650;fill:var(--soft);paint-order:stroke;stroke-width:3px;stroke-linejoin:round}
+.flow .elab{font-weight:650;fill:var(--soft);paint-order:stroke;stroke-width:3px;stroke-linejoin:round}
 .flow .elab.h0{stroke:var(--paper)}
 .flow .elab.h1{stroke:var(--bg)}
-.flow .nt{font-size:12px}
 .fn .shape{fill:var(--paper);stroke:var(--muted);stroke-width:1.4}
 .fn.question .shape{fill:var(--edge-bg);stroke:var(--edge)}
 .fn.end .shape{fill:var(--new-bg);stroke:var(--new)}
