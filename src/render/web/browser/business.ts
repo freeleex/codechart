@@ -185,6 +185,16 @@ function bizNoteClick(p: BizPage, t: Element): boolean {
   return !!(cbtn || prev || rm);
 }
 
+function bizJump(t: Element): void {
+  const jump = t.closest<HTMLAnchorElement>('a[data-jump]');
+  const target = jump && document.getElementById(jump.getAttribute('href')!.slice(1));
+  if (target) {
+    target.classList.remove('flash');
+    void target.offsetWidth;
+    target.classList.add('flash');
+  }
+}
+
 function bizClick(p: BizPage, t: Element): void {
   if (bizNoteClick(p, t)) return;
   const verdict = t.closest<HTMLElement>('[data-verdict]');
@@ -197,13 +207,7 @@ function bizClick(p: BizPage, t: Element): void {
     if (val === 'no' && p.s.verdict[id]) bizToggle(p, id, true);
     return;
   }
-  const jump = t.closest<HTMLAnchorElement>('a[data-jump]');
-  const target = jump && document.getElementById(jump.getAttribute('href')!.slice(1));
-  if (target) {
-    target.classList.remove('flash');
-    void target.offsetWidth;
-    target.classList.add('flash');
-  }
+  bizJump(t);
 }
 
 function bizDialog(p: BizPage, change: Change): void {
@@ -225,6 +229,7 @@ function bizDialog(p: BizPage, change: Change): void {
 
 /** The business page: answers, Yes / No on the agent's readings, and notes, kept in localStorage; "Send back" turns them into the message `codechart feedback --import` reads. */
 export function initBusiness(repo: string, change: Change = { slug: 'business', branch: '', at: '' }): void {
+  if (!document.getElementById('send')) return;
   const cards = bizCards();
   const key = `codechart.business:${repo}:${change.slug}:${change.at}`;
   const p: BizPage = { cards, s: bizSaved(key, new Set(cards.map((c) => c.dataset.item!))), key, send: bizEl<HTMLButtonElement>('send') };

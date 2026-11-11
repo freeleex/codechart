@@ -1,6 +1,6 @@
 ---
 name: codechart
-description: 'Use this skill before you write any summary, wrap-up, PR description or plan of a code change, including your own final report after implementing something. Rule: finished a task that touched 3+ files or added branches, or about to plan one, or asked "what changed", "summarize the changes", "recap", "explain this diff/commit/branch", "write the PR description", "make a plan", "how would you implement", "show me the flow", "how does this work", "what are the edge cases"? Then run this skill FIRST and put its verified map or flow in your reply instead of a list of changed files. Skip only for a single-file text, comment, formatting, typo or version-bump change (look at the diff first). Also when the user asks for a map for a product owner or non-technical reader (step 6), or is preparing a release: version bump, changelog, release notes, tag (step 7). Also to explain existing code, nothing changed: "explain how X works", "map of the X module", "onboard me on X" (step 8).'
+description: 'Use this skill before you write any summary, wrap-up, PR description or plan of a code change, including your own final report after implementing something. Rule: finished a task that touched 3+ files or added branches, or about to plan one, or asked "what changed", "summarize the changes", "recap", "explain this diff/commit/branch", "write the PR description", "make a plan", "how would you implement", "show me the flow", "how does this work", "what are the edge cases"? Then run this skill FIRST and put its verified map or flow in your reply instead of a list of changed files. Skip only for a single-file text, comment, formatting, typo or version-bump change (look at the diff first). Also when the user asks for a map for a product owner or non-technical reader (step 6), or is preparing a release: version bump, changelog, release notes, tag (step 7). Also to explain existing code, nothing changed: "explain how X works", "map of the X module", "onboard me on X" (step 8; for a PO/QA/support, then 6).'
 ---
 
 # codechart
@@ -121,6 +121,8 @@ Only when the user asks for a map for a product owner, a non-technical reader or
 2. Write the business spec as [business-guide.md](business-guide.md) says, spot-check included, then `codechart render --md - <<'EOF'` as in step 2, no diff flags. Add `--tech '<tech spec file>'` to link to a spec file; without it the newest saved map on the branch is used, and with none the render errors.
 3. Errors name what to fix: a link that is not a box on the tech map, an item without links, code, file names or ids in the text. Fix the spec and rerender; never reword to dodge the check.
 4. Reply with the printed summary line and link verbatim, and tell the user to send the HTML file to the product owner: it shows no code and needs no repo.
+
+Explaining how an area works today to a product owner, QA or support (no change): draw the explain map first (step 8), then write the explain page (`"kind": "explain"`, see the guide's "Explain how something works"); it links to that map (the newest, or the one named by `map`, on the current branch; from another branch pass `--tech`). The page is read-only: no feedback comes back.
 
 The owner's reply, pasted ending in `codechart review ·`, goes through step 5; see the guide for what to do with it.
 

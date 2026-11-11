@@ -1,4 +1,4 @@
-import { businessTexts, type BusinessSpec } from './business.js';
+import { businessTexts, itemGroups, type BusinessSpec } from './business.js';
 import { quotable, techIdIssue } from './plain-text.js';
 import { formatPath } from './shared.js';
 
@@ -12,11 +12,10 @@ export interface TechBox {
 export function businessLinkIssues(spec: BusinessSpec, boxes: readonly TechBox[]): string[] {
   const ids = new Set(boxes.map((b) => b.id));
   const issues: string[] = [];
-  const groups = [['journeys', spec.journeys], ['rules', spec.rules], ['data', spec.data]] as const;
-  for (const [group, items] of groups) {
+  for (const [group, items] of itemGroups(spec)) {
     items.forEach((item, i) =>
       item.links.forEach((link, j) => {
-        if (!ids.has(link)) issues.push(`${formatPath([group, i, 'links', j])}: "${quotable(link)}" is not a box on the tech map`);
+        if (!ids.has(link)) issues.push(`${formatPath(group === 'flow' ? ['flow', 'steps', i, 'links', j] : [group, i, 'links', j])}: "${quotable(link)}" is not a box on the tech map`);
       }),
     );
   }

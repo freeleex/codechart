@@ -5,7 +5,7 @@ import { carryNotes } from '../../src/review/carry.js';
 import { importNotes, parseReviewText } from '../../src/review/import.js';
 import type { Note, Review, ReviewNode } from '../../src/review/schema.js';
 import { businessSnapshot } from '../../src/review/snapshot.js';
-import { validateBusinessSpec } from '../../src/spec/business.js';
+import { validateBusinessSpec, type ChangeSpec } from '../../src/spec/business.js';
 import { business } from '../fixtures/business.js';
 import { review } from '../review/fixture.js';
 import { click, mount, q, qa, usePages } from '../helpers/page.js';
@@ -306,7 +306,7 @@ describe('business items that change', () => {
   const pageOf = (raw: ReturnType<typeof business>) => {
     const r = validateBusinessSpec(raw);
     if (!r.ok) throw new Error(r.errors.join('\n'));
-    return { spec: r.spec, html: businessPage(r.spec, { generatedAt: new Date(), repo: 'demo', change }) };
+    return { spec: r.spec as ChangeSpec, html: businessPage(r.spec, { generatedAt: new Date(), repo: 'demo', change }) };
   };
   const reviewOf = (nodes: ReviewNode[], notes: Note[] = []): Review => ({ ...review(notes, nodes), change: { ...review().change, kind: 'business' } });
 

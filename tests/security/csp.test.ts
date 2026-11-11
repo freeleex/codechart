@@ -11,7 +11,7 @@ import { layoutSpec } from '../../src/render/web/layout.js';
 import { validateBusinessSpec } from '../../src/spec/business.js';
 import { validateReleaseSpec } from '../../src/spec/release.js';
 import { validateSpec } from '../../src/spec/schema.js';
-import { business } from '../fixtures/business.js';
+import { business, businessExplain } from '../fixtures/business.js';
 import { explain } from '../fixtures/explain.js';
 import { explainFlowsPage, explainRepo } from '../helpers/explain-flows.js';
 import { release } from '../fixtures/release.js';
@@ -24,21 +24,23 @@ async function pages(): Promise<[string, string][]> {
   if (!v.ok || v.spec.diagram === 'flow') throw new Error('fixture');
   const flow = sampleFlow();
   const b = validateBusinessSpec(business());
+  const be = validateBusinessSpec(businessExplain());
   const r = validateReleaseSpec(release());
   const e = validateSpec(explain());
-  if (!b.ok || !r.ok || !e.ok || e.spec.diagram === 'flow') throw new Error('fixture');
+  if (!b.ok || !be.ok || !r.ok || !e.ok || e.spec.diagram === 'flow') throw new Error('fixture');
   return [
     ['map', await renderHtml(v.spec, await layoutSpec(v.spec), meta)],
     ['explain', await renderHtml(e.spec, await layoutSpec(e.spec), meta)],
     ['explain-flows', await explainFlowsPage(explainRepo())],
     ['flow', await renderFlowHtml(flow, await layoutFlow(flow), sampleSnippets(), meta)],
     ['business', businessPage(b.spec, meta)],
+    ['business-explain', businessPage(be.spec, meta)],
     ['release', releasePage(r.spec, meta, { product: 'Acme', logo: 'data:image/png;base64,AAAA' })],
   ];
 }
 
 describe('S-17 CSP', () => {
-  it.each(['map', 'explain', 'explain-flows', 'flow', 'business'])('%s page carries a CSP whose script hash matches the inline script', async (kind) => {
+  it.each(['map', 'explain', 'explain-flows', 'flow', 'business', 'business-explain'])('%s page carries a CSP whose script hash matches the inline script', async (kind) => {
     const html = (await pages()).find(([k]) => k === kind)![1];
     const csp = html.match(/<meta http-equiv="Content-Security-Policy" content="([^"]*)">/)?.[1];
     expect(csp).toBeDefined();

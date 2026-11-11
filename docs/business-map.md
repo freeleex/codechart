@@ -32,6 +32,23 @@ Every item carries a tag:
 
 The owner can type an answer under a question and add a note to any item.
 
+## Explain how something works
+
+The same page can explain how an area works today, for a product owner, QA or support, with no change to review:
+
+```text
+> explain how refunds work for the product owner
+```
+
+The agent draws the [explain map](explain-map.md) of the area first, then writes the page from it. It has the sections **How it works** (one diagram: a lane for each person or system, a box for each step, arrows for the hand-offs; a diamond is a question and every answer has its own arrow, side paths included; a dashed amber outline is the agent's reading), **Rules today**, **Odd cases** (a situation and what happens) and **What we keep and why**, and ends "Made by codechart from the code as it is today." There is no before and after and nothing is marked new. The page is read-only: no notes, Yes/No, answers or *Send back to developer*, so nothing comes back and no review file is saved. There are no open questions: the reader takes what is unclear up with the team.
+
+<img src="images/business-explain.png" alt="The explain page for refunds: a lane diagram of who does what with its yes and no branches, rules today with exceptions, two odd cases, and what is kept and why" width="720">
+
+- One feature per page; a bigger area is split.
+- *Checked in code* only for what the agent read; a guess is *Agent's reading, not checked in code*. What the code doesn't cover becomes a question.
+- The page links to the explain map of that area. It uses the explain map named by `map` in the spec, else the newest one, and only looks at explain maps saved on the current git branch. One drawn on another branch is not found, even by name: pass `codechart render --tech <explain spec.json>` instead. A change map can't be used for it, nor an explain map for a change page.
+- `codechart schema --business --explain` prints the format.
+
 ## Sending it back
 
 1. The owner presses **Send back to developer**. Their answers, yes/no verdicts and notes are copied as text.

@@ -8,7 +8,7 @@ import { stepLabel } from './flow/tree.js';
 import type { Mismatch } from './terminal/check-lines.js';
 
 /** The page's id for a step. A flow id has no `/` (the spec refuses it) and a box id doesn't start with `flow:`, so no two steps or boxes share one. */
-const stepKey = (flowId: string, stepId: string): string => `${FLOW_PREFIX}${flowId}/${stepId}`;
+export const stepKey = (flowId: string, stepId: string): string => `${FLOW_PREFIX}${flowId}/${stepId}`;
 
 /** A flow as the page draws it: step ids namespaced with the flow's, so they never clash with box ids or another flow's steps. */
 export interface FlowView {

@@ -8,7 +8,7 @@ import { flowGaps, type FlowView } from '../render/explain-flows.js';
 import { stepLabel } from '../render/flow/tree.js';
 import { gitDirtyHashes, gitHead } from '../rules/git-files.js';
 import { hasGitSelection, type GitSelection } from '../rules/selection.js';
-import type { BusinessSpec } from '../spec/business.js';
+import type { ChangeSpec } from '../spec/business.js';
 import type { FlowSpec, FlowStep } from '../spec/flow.js';
 import type { Spec } from '../spec/schema.js';
 import type { Range, ReviewNode } from './schema.js';
@@ -81,7 +81,7 @@ export function businessRev(kind: keyof typeof REV_FIELDS, item: object): string
 }
 
 /** A business page takes notes on its items: journeys, rules, saved data and questions, by id. */
-export function businessSnapshot(spec: BusinessSpec): ReviewSnapshot {
+export function businessSnapshot(spec: ChangeSpec): ReviewSnapshot {
   const items = [
     ...spec.journeys.map((x) => ({ ...x, item: 'journey' as const })),
     ...spec.rules.map((x) => ({ ...x, item: 'rule' as const })),

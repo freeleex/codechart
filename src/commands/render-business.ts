@@ -5,7 +5,7 @@ import type { CommandOptions } from '../program.js';
 import { renderBusiness } from '../render/business/render.js';
 import { openBlockedNote } from '../render/markdown.js';
 import { fileSlug } from '../render/output-path.js';
-import type { BusinessSpec } from '../spec/business.js';
+import { isExplain, type BusinessSpec } from '../spec/business.js';
 import { businessLinkIssues } from '../spec/business-links.js';
 import { loadTechBoxes } from './business-tech.js';
 import { htmlWriter } from './html-writer.js';
@@ -24,7 +24,7 @@ export async function renderBusinessSpec(spec: BusinessSpec, o: BusinessFlags, o
   if (o.pr) throw new Error('business maps are not for PR descriptions');
   const root = findRepoRoot(cwd) ?? resolve(cwd);
   const config = loadConfig({ cwd, home: opts.home, env: opts.env, warn: (l) => opts.stderr(`codechart: ${l}\n`) });
-  const tech = await loadTechBoxes({ file: o.tech, map: spec.map, cwd, outDir: config.web.outDir, root });
+  const tech = await loadTechBoxes({ file: o.tech, map: spec.map, explain: isExplain(spec), cwd, outDir: config.web.outDir, root });
   const issues = businessLinkIssues(spec, tech);
   if (issues.length) throw new InvalidSpec(issues);
   const now = opts.now?.() ?? new Date();

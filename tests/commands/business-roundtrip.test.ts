@@ -1,10 +1,11 @@
 // @vitest-environment happy-dom
-import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { repoFolder } from '../../src/render/output-path.js';
 import { readReview } from '../../src/review/store.js';
-import { business, TECH } from '../fixtures/business.js';
+import { business, businessExplain, TECH } from '../fixtures/business.js';
+import { EXPLAIN_FILES, withFlows } from '../fixtures/explain.js';
 import { click, mount, q, usePages } from '../helpers/page.js';
 import { git, makeSandbox, removeSandbox, repoFromTemplate, runCli, type Sandbox } from '../helpers/sandbox.js';
 
@@ -169,5 +170,21 @@ describe('business page → Send back → feedback --import', () => {
     const r = await run(['feedback', '--import'], stdin(`1. On rule "R": Approve: ok\n\ncodechart review · 1 note · ${token}\n`));
     expect(r.err).toContain('damaged');
     expect(r.code).toBe(1);
+  });
+});
+
+describe('business explain page', () => {
+  it('is read-only: no review file, no controls, no questions or jump links', async () => {
+    for (const [file, text] of Object.entries(EXPLAIN_FILES)) {
+      mkdirSync(join(sb.repo, file, '..'), { recursive: true });
+      writeFileSync(join(sb.repo, file), text);
+    }
+    await run(['render', fileOf('explain.json', withFlows()), '--output', 'cli']);
+    await run(['render', fileOf('business.json', businessExplain())]);
+    expect(named('.business.review.json')).toEqual([]);
+    mount(readFileSync(join(dir(), named('.business.html').at(-1)!), 'utf8'));
+    expect(document.querySelector('#send, #send-modal, .bar, textarea, [data-cbtn], [data-verdict]')).toBeNull();
+    expect(document.querySelector('a[data-jump], .qa, #questions')).toBeNull();
+    expect(document.querySelectorAll('svg.flow .fn').length).toBeGreaterThan(0);
   });
 });

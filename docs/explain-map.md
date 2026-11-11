@@ -67,6 +67,10 @@ Every box in the area must name a file that exists, and the line the agent quote
 - It is not saved as a plan and never compared with one. It is not for PR descriptions or commits.
 - Page notes work as on other maps ([Review](review.md)), on boxes and on flow steps, but there is no diff, so a note never goes stale and `codechart review` shows the boxes and steps without code changes.
 
+## For a product owner
+
+Ask for a plain-words page of the same area, for a product owner, QA or support: the agent writes it from this map. See [Business map](business-map.md#explain-how-something-works).
+
 ## Related
 
 - [Flows](flows.md): one behaviour on its own, or as a change

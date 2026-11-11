@@ -64,3 +64,5 @@ Read the area before writing: the entry points, the models or tables, the servic
 ## Render
 
 `codechart render --md - <<'EOF'` as in step 2 of [SKILL.md](SKILL.md), with no diff flags (they and `--pr` are refused). `--at '<rev>'` only when the user asks about another revision. Reply as in step 3: one line on the area, the render output verbatim (with flows it ends with `Flows on the page: …`), then the prose: what surprised you, what you did not read. Never commit the map; draw a fresh one for each request.
+
+For a product owner, QA or support, write the plain-words page from this map next: [business-guide.md](business-guide.md#explain-how-something-works).

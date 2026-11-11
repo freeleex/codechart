@@ -1,12 +1,15 @@
 import { z } from 'zod';
+import { explainTexts } from './business-explain.js';
+import { flowIssues } from './business-flow.js';
 import { plainTextIssues } from './plain-text.js';
-import { formatIssues, ident, long, short, type ValidationResult } from './shared.js';
+import { formatIssues, formatPath, ident, long, short, type ValidationResult } from './shared.js';
 
 const MAX_JOURNEYS = 8;
 const MAX_RULES = 12;
 const MAX_DATA = 8;
 const MAX_STEPS = 10;
 const MAX_EXCEPTIONS = 5;
+const MAX_CASES = 8;
 const MAX_QUESTIONS = 7;
 const MAX_LINKS = 12;
 
@@ -52,7 +55,7 @@ const QUESTION_KINDS = ['unhandled', 'number', 'conflict', 'assumption', 'other'
 
 const questionSchema = z.strictObject({
   id: ident(),
-  about: ident().describe('Id of the journey, rule or saved data it is about'),
+  about: ident().describe('Id of the journey, rule, odd case or saved data it is about'),
   text: text(),
   kind: z.enum(QUESTION_KINDS),
 });
@@ -80,7 +83,108 @@ const businessSchema = z
     }
   });
 
-export type BusinessSpec = z.infer<typeof businessSchema>;
+const MAX_LANES = 5;
+const MAX_FLOW_STEPS = 16;
+const MAX_ARROWS = 32;
+const MAX_STEP_TEXT = 60;
+const MAX_LABEL = 24;
+
+const laneSchema = z.strictObject({
+  id: ident(),
+  name: z.string().min(1).max(30, 'keep a lane name to a few words').describe('Who acts in this lane: a person, a page or a system, in plain words'),
+});
+
+const flowStepSchema = z.strictObject({
+  id: ident(),
+  text: z.string().min(1).max(MAX_STEP_TEXT, `keep each step to one short action (${MAX_STEP_TEXT} characters at most)`).describe('One short action. Ending in "?" makes it a question (a diamond) with two or three labelled arrows out'),
+  lane: ident().describe('Id of the lane of whoever does this'),
+  links: links(),
+  evidence: evidence(),
+});
+
+const arrowSchema = z.strictObject({
+  from: ident(),
+  to: ident(),
+  label: z.string().min(1).max(MAX_LABEL, 'keep an answer to a few words').optional().describe('The answer, such as yes or no: required on every arrow out of a question'),
+});
+
+const flowSchema = z.strictObject({
+  lanes: z.array(laneSchema).min(1).max(MAX_LANES),
+  steps: z.array(flowStepSchema).min(1).max(MAX_FLOW_STEPS),
+  arrows: z.array(arrowSchema).max(MAX_ARROWS).describe('Hand-offs, step to step. A step with no arrow out is where the story ends'),
+});
+
+const explainRuleSchema = z.strictObject({
+  id: ident(),
+  name: short(),
+  rule: text(),
+  exceptions: z.array(text()).max(MAX_EXCEPTIONS).optional(),
+  links: links(),
+  evidence: evidence(),
+});
+
+const caseSchema = z.strictObject({
+  id: ident(),
+  situation: text().describe('An odd or edge situation, in plain words'),
+  outcome: text().describe('What happens then'),
+  links: links(),
+  evidence: evidence(),
+});
+
+const explainSchema = z
+  .strictObject({
+    diagram: z.literal('business'),
+    kind: z.literal('explain'),
+    title: short(),
+    summary: text().describe('One or two plain sentences: what this area of the product does'),
+    map: ident().describe('File name slug of the explain map this describes; left out: the newest one on the branch').optional(),
+    flow: flowSchema,
+    rules: z.array(explainRuleSchema).max(MAX_RULES).default([]),
+    cases: z.array(caseSchema).max(MAX_CASES).default([]),
+    data: z.array(dataSchema).max(MAX_DATA).default([]),
+  })
+  .superRefine((spec, ctx) => {
+    const issue: Issue = (path, message) => ctx.addIssue({ code: 'custom', path, message });
+    const seen = new Set<string>();
+    const groups = [[['flow', 'steps'], spec.flow.steps], [['rules'], spec.rules], [['cases'], spec.cases], [['data'], spec.data]] as const;
+    for (const [at, list] of groups) {
+      list.forEach((item, i) => {
+        if (seen.has(item.id)) issue([...at, i, 'id'], `duplicate "${item.id}"`);
+        seen.add(item.id);
+      });
+    }
+    flowIssues(spec.flow, issue);
+    for (const t of explainTexts(spec)) {
+      for (const message of plainTextIssues(t.text)) issue(t.path, message);
+    }
+  });
+
+export type Flow = z.infer<typeof flowSchema>;
+export type ChangeSpec = z.infer<typeof businessSchema>;
+export type ExplainSpec = z.infer<typeof explainSchema>;
+/** A business map: of a change (journeys and rules before and after), or an explain page (how an area works today). */
+export type BusinessSpec = ChangeSpec | ExplainSpec;
+
+export const isExplain = (spec: BusinessSpec): spec is ExplainSpec => (spec as { kind?: string }).kind === 'explain';
+
+/** The questions of a business map: an explain page has none. */
+export const questionsOf = (spec: BusinessSpec): ChangeSpec['questions'] => (isExplain(spec) ? [] : spec.questions);
+
+export type ItemGroup = 'journeys' | 'flow' | 'rules' | 'cases' | 'data';
+
+/** What every kind of item has: its id, what a reader calls it, and the tech map boxes it comes from. */
+export interface ItemBase {
+  id: string;
+  name: string;
+  links: string[];
+  evidence: 'checked' | 'reading';
+}
+
+/** The items of a page, by group, in page order; an explain page's flow steps are named by their text and its cases by their situation. */
+export function itemGroups(spec: BusinessSpec): [ItemGroup, ItemBase[]][] {
+  if (!isExplain(spec)) return [['journeys', spec.journeys], ['rules', spec.rules], ['data', spec.data]];
+  return [['flow', spec.flow.steps.map((s) => ({ ...s, name: s.text }))], ['rules', spec.rules], ['cases', spec.cases.map((c) => ({ ...c, name: c.situation }))], ['data', spec.data]];
+}
 
 type JourneyItem = Omit<z.infer<typeof journeySchema>, 'links' | 'evidence'>;
 type RuleItem = Omit<z.infer<typeof ruleSchema>, 'links' | 'evidence'>;
@@ -123,6 +227,7 @@ function stepIssues(journey: JourneyItem, at: Path, issue: Issue): void {
 
 /** Every string a reader sees in a business map, with its path: the ones the plain-words check applies to. */
 export function businessTexts(spec: BusinessSpec): { path: Path; text: string }[] {
+  if (isExplain(spec)) return explainTexts(spec);
   return [{ path: ['title'], text: spec.title }, { path: ['summary'], text: spec.summary }, ...itemTexts(spec)];
 }
 
@@ -150,11 +255,32 @@ export function itemTexts(items: Items, at: Path = []): { path: Path; text: stri
   return out;
 }
 
+const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
+
+/** Fields of the other mode, named in plain words instead of as unknown keys. */
+function modeIssues(input: unknown): string[] {
+  if (!isRecord(input)) return [];
+  const out: string[] = [];
+  const list = (key: string): Record<string, unknown>[] => (Array.isArray(input[key]) ? input[key].filter(isRecord) : []);
+  if (input.kind === 'explain') {
+    if ('journeys' in input) out.push('journeys: an explain page draws one flow, not journeys; use flow with lanes, steps and arrows');
+    if ('questions' in input) out.push('questions: explain pages have no open questions; the reader asks the team');
+    list('rules').forEach((r, i) => 'before' in r && out.push(`${formatPath(['rules', i, 'before'])}: an explain page has no before and after; use rule`));
+  } else {
+    if ('kind' in input) out.push('kind: only "explain" is allowed here; leave it out for a change map');
+    if ('cases' in input) out.push('cases: only on an explain page (kind "explain")');
+    if ('flow' in input) out.push('flow: only on an explain page (kind "explain"); a change map has journeys');
+  }
+  return out;
+}
+
 export function validateBusinessSpec(input: unknown): ValidationResult<BusinessSpec> {
-  const result = businessSchema.safeParse(input);
+  const mode = modeIssues(input);
+  if (mode.length) return { ok: false, errors: mode };
+  const result = isRecord(input) && input.kind === 'explain' ? explainSchema.safeParse(input) : businessSchema.safeParse(input);
   return result.success ? { ok: true, spec: result.data } : { ok: false, errors: formatIssues(result.error) };
 }
 
-export function businessSpecJsonSchema(): object {
-  return z.toJSONSchema(businessSchema, { io: 'input' });
+export function businessSpecJsonSchema(explain = false): object {
+  return z.toJSONSchema(explain ? explainSchema : businessSchema, { io: 'input' });
 }
