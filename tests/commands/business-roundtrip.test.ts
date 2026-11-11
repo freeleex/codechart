@@ -173,44 +173,18 @@ describe('business page → Send back → feedback --import', () => {
   });
 });
 
-describe('business explain page → Send back → feedback --import', () => {
-  it('carries notes on odd cases and journeys, with their links to boxes and flow steps', async () => {
+describe('business explain page', () => {
+  it('is read-only: no review file, no controls, and its "About" link still works', async () => {
     for (const [file, text] of Object.entries(EXPLAIN_FILES)) {
       mkdirSync(join(sb.repo, file, '..'), { recursive: true });
       writeFileSync(join(sb.repo, file), text);
     }
     await run(['render', fileOf('explain.json', withFlows()), '--output', 'cli']);
     await run(['render', fileOf('business.json', businessExplain())]);
+    expect(named('.business.review.json')).toEqual([]);
     mount(readFileSync(join(dir(), named('.business.html').at(-1)!), 'utf8'));
-    const type = (sel: string, text: string) => {
-      const el = q<HTMLTextAreaElement>(sel);
-      el.value = text;
-      el.dispatchEvent(new Event('input', { bubbles: true }));
-    };
-    click(q('[data-item="C1"] [data-cbtn]'));
-    type('[data-note="C1"]', 'Retry three times');
-    click(q('[data-item="R1"] [data-verdict="no"]'));
-    type('[data-note="R1"]', 'Zero still gets a receipt');
-    const writeText = vi.fn().mockResolvedValue(undefined);
-    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
-    click(q('#send'));
-    await new Promise((r) => setTimeout(r, 0));
-    const text = writeText.mock.calls[0]![0] as string;
-
-    const r = await run(['feedback', '--import'], stdin(text));
-    expect(r.err).toBe('✔ Imported 2 notes into "How billing works"\n');
-    expect(r.out).toBe('2 notes saved — 0 answers · 0 confirmed · 1 rejected · 1 comment\n');
-    expect((await run(['feedback'])).out).toBe(
-      [
-        '# Review feedback: How billing works (2 notes)',
-        '',
-        '1. Rule "Free invoices" [R1] (links: billing, flow:create/skip)',
-        '   Rejected: Zero still gets a receipt',
-        '',
-        '2. Case "The card is declined" [C1] (links: stripe, email)',
-        '   Comment: Retry three times',
-        '',
-      ].join('\n'),
-    );
+    expect(document.querySelector('#send, #send-modal, .bar, textarea, [data-cbtn], [data-verdict]')).toBeNull();
+    click(q('[data-item="Q1"] a[data-jump]'));
+    expect(q('#i-C1').classList.contains('flash')).toBe(true);
   });
 });

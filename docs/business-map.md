@@ -40,13 +40,13 @@ The same page can explain how an area works today, for a product owner, QA or su
 > explain how refunds work for the product owner
 ```
 
-The agent draws the [explain map](explain-map.md) of the area first, then writes the page from it. It has the sections **How it works** (each journey as one list of steps; a step that only happens sometimes reads "If … → …"), **Rules today**, **Odd cases** (a situation and what happens), **What we keep and why** and **Open questions**, and ends "Made by codechart from the code as it is today." There is no before and after and nothing is marked new. Tags, Yes/No, notes and *Send back to developer* work as above.
+The agent draws the [explain map](explain-map.md) of the area first, then writes the page from it. It has the sections **How it works** (each journey as one list of steps; a step that only happens sometimes reads "If … → …"), **Rules today**, **Odd cases** (a situation and what happens), **What we keep and why** and **Open questions**, and ends "Made by codechart from the code as it is today." There is no before and after and nothing is marked new. The page is read-only: no notes, Yes/No, answers or *Send back to developer*, so nothing comes back and no review file is saved. Open questions are for the reader to take up with the team.
 
 <img src="images/business-explain.png" alt="The explain page for refunds: a journey with If steps, rules today with exceptions, two odd cases, what is kept and why, and an open question" width="720">
 
 - One feature per page; a bigger area is split.
-- *Checked in code* only for what the agent read; a guess is *Agent's reading, please confirm*. What the code doesn't cover becomes a question.
-- The page links to the explain map of that area, the newest one on your branch or `codechart render --tech <spec.json>`. A change map can't be used for it, nor an explain map for a change page.
+- *Checked in code* only for what the agent read; a guess is *Agent's reading, not checked in code*. What the code doesn't cover becomes a question.
+- The page links to the explain map of that area. Without `map` in the spec it uses the newest explain map saved on the current git branch; one drawn on another branch is not found. Then name it with `map`, or pass `codechart render --tech <explain spec.json>`. A change map can't be used for it, nor an explain map for a change page.
 - `codechart schema --business --explain` prints the format.
 
 ## Sending it back

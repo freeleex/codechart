@@ -183,13 +183,16 @@ describe('business explain page', () => {
     expect(d.querySelectorAll('[data-item="J1"] .j-col')).toHaveLength(1);
   });
 
-  it('gives odd cases a note box, a verdict when read from names, and questions about them a link', () => {
-    const d = doc(explain((raw) => (raw.cases[0].evidence = 'reading')));
+  it('is read-only: no notes, Yes or No, answers or send bar, and questions are plain text with a link', () => {
+    const html = explain((raw) => (raw.cases[0].evidence = 'reading'));
+    const d = doc(html);
+    expect(d.querySelectorAll('textarea, button, [data-cbtn], [data-verdict], [data-note], [data-answer], [data-rev], #send, #send-modal, .bar')).toHaveLength(0);
+    expect(visible(html)).not.toMatch(/Send back|Add a note|Yes, that|answers and notes|please confirm/);
     const c = d.querySelector('[data-item="C1"]')!;
     expect(c.getAttribute('data-kind')).toBe('case');
     expect(c.querySelector('h3')!.textContent).toBe('The card is declined');
-    expect(c.querySelector('textarea[data-note="C1"]')).not.toBeNull();
-    expect(c.querySelector('[data-verdict="yes"]')).not.toBeNull();
+    expect(c.querySelector('.ev.guess')!.textContent).toBe("Agent's reading — not checked in code");
+    expect(d.querySelector('.legend .ev.guess')!.textContent).toBe("Agent's reading — not checked in code");
     expect(d.querySelector('[data-item="Q1"] .about a')!.getAttribute('href')).toBe('#i-C1');
   });
 

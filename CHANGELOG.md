@@ -6,7 +6,7 @@ What's new in each codechart release. Update with `codechart update`; the [relea
 
 ### New
 
-- Business page that explains how something works today: ask your agent to explain an area for a product owner, QA or support. Journeys, rules, odd cases and saved data in plain words, with questions for what the code doesn't cover. It starts from the explain map of that area.
+- Business page that explains how something works today: ask your agent to explain an area for a product owner, QA or support. Journeys, rules, odd cases and saved data in plain words, with questions for what the code doesn't cover. It starts from the explain map of that area (the newest one on your current branch) and is read-only: no notes or replies.
 
 ## 0.9.0 (2026-11-10)
 

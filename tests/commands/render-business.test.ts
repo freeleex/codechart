@@ -211,9 +211,8 @@ describe('render: business explain page', () => {
     const r = await renderBusiness(businessExplain());
     expect(r.err).toBe('');
     expect(r.out).toMatch(/^Business explain page: How billing works · 1 journey · 1 rule · 1 odd case · 1 saved data · 1 question · 1 agent's reading\nfull map → file:\/\/.*\.business\.html\n$/);
-    const review = reviewOf();
-    expect(review.change).toMatchObject({ kind: 'business', slug: 'how-billing-works.business' });
-    expect(review.nodes.map((n) => n.id)).toEqual(['J1', 'R1', 'C1', 'D1', 'Q1']);
+    expect(outFiles().filter((n) => n.endsWith('.business.html'))).toHaveLength(1);
+    expect(outFiles().filter((n) => n.endsWith('.business.review.json'))).toEqual([]);
   });
 
   it('takes the explain map named by map, with or without .explain', async () => {

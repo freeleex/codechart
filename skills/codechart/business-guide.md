@@ -56,7 +56,7 @@ For each `checked` item, re-read the code behind its links and confirm each sent
 
 ## Explain how something works
 
-How an area works today, for a product owner, QA or support: no change. `codechart schema --business --explain` prints its schema. Draw the explain map of the area first (step 8; [explain-guide.md](explain-guide.md)): links point to its boxes, or to a flow step as `flow:<flow>/<step>`. The page picks the spec's `map` slug, else the newest explain map on the branch, else `--tech`. A change map is refused, and an explain map is refused for a change page.
+How an area works today, for a product owner, QA or support: no change. `codechart schema --business --explain` prints its schema. Draw the explain map of the area first (step 8; [explain-guide.md](explain-guide.md)): links point to its boxes, or to a flow step as `flow:<flow>/<step>`. The page picks the spec's `map` slug, else the newest explain map saved on the current git branch (one drawn on another branch is not found: name it with `map` or pass `--tech '<explain spec.json>'`). A change map is refused, and an explain map is refused for a change page.
 
 ```json
 { "diagram": "business", "kind": "explain", "title": "How refunds work",
@@ -81,6 +81,7 @@ How an area works today, for a product owner, QA or support: no change. `codecha
 - Stricter evidence: `checked` only for what you read in the code; a guess, an inference from names or something you could not run is `reading`.
 - Spot-check is mandatory, as above, for every `checked` item.
 - What the code does not cover (a state nothing handles, a number nobody explained, two rules that disagree) goes in `questions`, never filled in with a guess.
+- The page is read-only: no notes, Yes/No, answers or send-back, and no review file, so no feedback comes back. Open questions are for the reader to take up with the team; tell the user so.
 
 ## Feedback from the owner
 

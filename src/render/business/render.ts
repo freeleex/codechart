@@ -10,7 +10,7 @@ export interface BusinessContext {
   md: boolean;
   /** The boxes of the tech map the spec's links were checked against. */
   tech: TechBox[];
-  /** Writes the page and its review file (`businessSnapshot`) as the other maps do. */
+  /** Writes the page and, for a change map, its review file (`businessSnapshot`) as the other maps do. An explain page is read-only: nothing comes back, so it has none. */
   write: WriteHtml;
 }
 
@@ -32,7 +32,7 @@ function businessSummary(spec: BusinessSpec): string {
 
 /** Business maps are HTML-only: the page is always written, and the console gets one summary line with its link. */
 export async function renderBusiness(spec: BusinessSpec, ctx: BusinessContext): Promise<{ text: string; html: WrittenHtml }> {
-  const html = await ctx.write(async (meta) => businessPage(spec, meta), () => businessSnapshot(spec));
+  const html = await ctx.write(async (meta) => businessPage(spec, meta), isExplain(spec) ? undefined : () => businessSnapshot(spec));
   const summary = businessSummary(spec);
   if (ctx.md) return { text: markdownBlock(`**${summary}**`, undefined, html.file), html };
   return { text: `${summary}\n${fullMapLine(html.file)}\n`, html };

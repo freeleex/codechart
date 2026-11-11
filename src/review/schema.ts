@@ -9,7 +9,7 @@ const nodeSchema = z.object({
   rev: z.string().optional(),
   lines: z.array(lineSchema).optional(),
   note: z.string().optional(),
-  item: z.enum(['journey', 'rule', 'case', 'data', 'question']).optional(),
+  item: z.enum(['journey', 'rule', 'data', 'question']).optional(),
   links: z.array(z.string()).optional(),
   about: z.string().optional(),
 });
