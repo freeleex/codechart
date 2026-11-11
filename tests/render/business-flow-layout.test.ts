@@ -161,10 +161,7 @@ describe('answers that loop back', () => {
   };
   const build = (arrows: [string, string, string][]) =>
     flowOf(['A'], [['F', 0, 'Fill form'], ['Q', 0, 'Valid?'], ['S', 0, 'Saved'], ['R', 0, 'Review']].filter((s) => s[0] === 'F' || s[0] === 'Q' || arrows.some((a) => a[1] === s[0])) as [string, number, string][], [['F', 'Q'], ...arrows]);
-  const exitsOf = (flow: ReturnType<typeof build>) => {
-    const { edges } = layoutFlow(flow);
-    return Object.fromEntries(flow.arrows.slice(1).map((a, i) => [a.to, edges[i + 1]!.points[0]!]).map(([to, p]) => [to as string, `${(p as Pt).x},${(p as Pt).y}`]));
-  };
+  const exitsOf = (flow: ReturnType<typeof build>) => Object.fromEntries(layoutFlow(flow).edges.filter((e) => e.from === 'Q').map((e) => [e.to, `${e.points[0]!.x},${e.points[0]!.y}`]));
 
   it.each([2, 3])('%i answers, loop back listed first: the right exit goes forward and nothing is shared', (n) => {
     const arrows = answers(true).slice(0, n);
@@ -188,5 +185,32 @@ describe('answers that loop back', () => {
       }));
       expect(seen.size).toBe(1);
     }
+  });
+});
+
+describe('loop backs and skips from one question', () => {
+  const perms = <T,>(xs: T[]): T[][] => (xs.length < 2 ? [xs] : xs.flatMap((x, i) => perms([...xs.slice(0, i), ...xs.slice(i + 1)]).map((p) => [x, ...p])));
+  type Arrow3 = [string, string, string?];
+  const lane = (name: string, ids: string[]): [string, number, string][] => ids.map((id) => [id, 0, `${name} ${id}`]);
+  const flows: [string, [string, number, string][], Arrow3[]][] = [
+    ['two loop backs', [['S', 0, 'Start'], ['C', 0, 'Check'], ['Q', 0, 'Again?']], [['S', 'C'], ['C', 'Q'], ['Q', 'S', 'from start'], ['Q', 'C', 'recheck']]],
+    ['three loop backs', [...lane('Step', ['A', 'B', 'C']), ['Q', 0, 'Again?']], [['A', 'B'], ['B', 'C'], ['C', 'Q'], ['Q', 'A', 'one'], ['Q', 'B', 'two'], ['Q', 'C', 'three']]],
+    ['forward, skip and loop back', [['A', 0, 'Start'], ['Q', 0, 'Again?'], ['N', 0, 'Next'], ['K', 0, 'Skip'], ['E', 0, 'End']], [['A', 'Q'], ['Q', 'N', 'ok'], ['Q', 'E', 'later'], ['Q', 'A', 'redo'], ['N', 'K'], ['K', 'E']]],
+    ['two skips and one forward', [['Q', 0, 'Which?'], ['N', 0, 'Near'], ['M', 0, 'Mid'], ['F', 0, 'Far'], ['E', 0, 'End']], [['Q', 'N', 'a'], ['Q', 'F', 'c'], ['Q', 'E', 'b'], ['N', 'M'], ['M', 'F'], ['F', 'E']]],
+    ['loop back across lanes', [['S', 0, 'Start'], ['C', 1, 'Check'], ['Q', 2, 'Again?'], ['E', 2, 'End']], [['S', 'C'], ['C', 'Q'], ['Q', 'S', 'from start'], ['Q', 'C', 'recheck'], ['Q', 'E', 'done']]],
+  ];
+  const touches = (p: [Pt, Pt], q: [Pt, Pt]): boolean => overlap(range(p[0].x, p[1].x), range(q[0].x, q[1].x)) >= 0 && overlap(range(p[0].y, p[1].y), range(q[0].y, q[1].y)) >= 0;
+
+  it.each(flows)('%s: answers never cross, whatever the order of the arrows, and the picture is the same', (_, steps, arrows) => {
+    const pictures = new Set<string>();
+    for (const order of perms(arrows)) {
+      const flow = flowOf(['A', 'B', 'C'], steps, order as [string, string, string?][]);
+      const layout = layoutFlow(flow);
+      const mine = layout.edges.filter((e) => e.from === 'Q').map((e) => e.points.slice(1).map((b, i): [Pt, Pt] => [e.points[i]!, b]));
+      for (let i = 0; i < mine.length; i++) for (let j = i + 1; j < mine.length; j++) for (const s of mine[i]!) for (const t of mine[j]!) expect(touches(s, t), `${i}/${j}`).toBe(false);
+      expect(clashes(segments(flow), 5)).toEqual([]);
+      pictures.add(flowDiagram(flow));
+    }
+    expect(pictures.size).toBe(1);
   });
 });

@@ -1,9 +1,9 @@
 import { isQuestion } from '../../spec/business-flow.js';
 import type { Flow } from '../../spec/business.js';
 import { layersOf, spineOf } from './flow-graph.js';
-import { portsOf, type Port, type Spot } from './flow-ports.js';
+import { arrowsOf, corridorY, entries, exitOf, SLOT, startY, TRACK, verticals, type Arrow, type Raw, type Vertical } from './flow-arrows.js';
 import { sizeOf, wrap } from './flow-wrap.js';
-import { dedupe, slotOrder, type Seg } from './flow-slots.js';
+import { dedupe, slotOrder } from './flow-slots.js';
 
 export interface Pt {
   x: number;
@@ -26,11 +26,13 @@ export interface FlowNode {
 }
 
 interface FlowEdge {
+  from: string;
+  to: string;
   points: Pt[];
   label?: { text: string; at: Pt; anchor: 'start' | 'middle'; lane: number };
 }
 
-interface FlowLane {
+export interface FlowLane {
   name: string;
   lines: string[];
   top: number;
@@ -48,29 +50,10 @@ export interface FlowLayout {
 const MIN_GUTTER = 100;
 const LABEL_CHAR = 8.4;
 const PAD = 22;
-const TRACK = 10;
 const ROW_GAP = 30;
-const RISER = 18;
-const SLOT = 12;
 const STUB = 28;
 const EDGE_GAP = 8;
 const LANE_CHARS = 12;
-
-interface Raw {
-  node: FlowNode;
-  layer: number;
-  row: number;
-}
-
-interface Arrow {
-  a: Raw;
-  b: Raw;
-  label?: string;
-  port: Port;
-  below: boolean;
-  slot: number;
-  corridor?: { lane: number; below: boolean; track: number };
-}
 
 /** Rows: the spine in row one of its lane, side steps below it (or from row one in a lane with no spine step). */
 function rawNodes(flow: Flow, layer: number[]): Raw[] {
@@ -84,33 +67,8 @@ function rawNodes(flow: Flow, layer: number[]): Raw[] {
     const key = `${lane}:${layer[i]}`;
     const row = spine.has(i) ? 0 : (next.get(key) ?? (spineLanes.has(lane) ? 1 : 0));
     if (!spine.has(i)) next.set(key, row + 1);
-    return { node: { id: s.id, kind, reading: s.evidence === 'reading', text: s.text, lane, cx: 0, cy: 0, ...sizeOf(kind === 'question', s.text) }, layer: layer[i]!, row };
+    return { node: { id: s.id, kind, reading: s.evidence === 'reading', text: s.text, lane, cx: 0, cy: 0, ...sizeOf(kind === 'question', s.text) }, idx: i, layer: layer[i]!, row };
   });
-}
-
-const rank = (r: Raw): number => r.node.lane * 1000 + r.row;
-const spot = (r: Raw): Spot => ({ rank: rank(r), layer: r.layer });
-
-function arrowsOf(flow: Flow, raws: Raw[]): Arrow[] {
-  const byId = new Map(raws.map((r) => [r.node.id, r]));
-  const out = new Map<string, number[]>();
-  flow.arrows.forEach((a, k) => out.set(a.from, [...(out.get(a.from) ?? []), k]));
-  const list: Arrow[] = [];
-  for (const [from, ks] of out) {
-    const a = byId.get(from)!;
-    const targets = ks.map((k) => byId.get(flow.arrows[k]!.to)!);
-    const ports = portsOf(a.node.kind === 'question', spot(a), targets.map(spot));
-    ks.forEach((k, n) => list[k] = { a, b: targets[n]!, label: flow.arrows[k]!.label, port: ports[n]!, below: rank(targets[n]!) >= rank(a), slot: 0 });
-  }
-  const tracks = new Map<string, number>();
-  for (const e of list) {
-    if (!e || e.b.layer === e.a.layer + 1) continue;
-    const key = `${e.a.node.lane}${e.below}`;
-    const track = tracks.get(key) ?? 0;
-    tracks.set(key, track + 1);
-    e.corridor = { lane: e.a.node.lane, below: e.below, track };
-  }
-  return list.filter(Boolean);
 }
 
 /** Lane bands as tall as their rows plus room for the arrows that run along their edges; sets every step's y. */
@@ -132,51 +90,6 @@ function laneBands(flow: Flow, raws: Raw[], list: Arrow[]): FlowLane[] {
   });
   return lanes;
 }
-
-/** Entry heights: arrows into one step arrive a slot apart, ordered by where they come from. */
-function entries(list: Arrow[]): Map<Arrow, number> {
-  const into = new Map<Raw, Arrow[]>();
-  for (const e of list) into.set(e.b, [...(into.get(e.b) ?? []), e]);
-  const y = new Map<Arrow, number>();
-  for (const [b, es] of into) {
-    es.sort((p, q) => rank(p.a) - rank(q.a));
-    const max = b.node.h / 2 - 8;
-    es.forEach((e, i) => y.set(e, b.node.cy + Math.max(-max, Math.min(max, (i - (es.length - 1) / 2) * SLOT))));
-  }
-  return y;
-}
-
-const exitOf = (e: Arrow): Pt => {
-  const { cx, cy, w, h } = e.a.node;
-  const at = { right: [w / 2, 0], top: [0, -h / 2], bottom: [0, h / 2], upper: [w / 4, -h / 4], lower: [w / 4, h / 4] }[e.port];
-  return { x: cx + at[0]!, y: cy + at[1]! };
-};
-const startY = (e: Arrow): number => exitOf(e).y + (e.port === 'top' ? -RISER : e.port === 'bottom' ? RISER : 0);
-
-interface Vertical {
-  e: Arrow;
-  gap: number;
-  seg: Seg;
-}
-
-/** The vertical runs of each arrow, with the gap between columns they sit in. */
-function verticals(list: Arrow[], lanes: FlowLane[], entry: Map<Arrow, number>): Vertical[] {
-  const out: Vertical[] = [];
-  for (const e of list) {
-    const from = startY(e);
-    const to = entry.get(e)!;
-    if (!e.corridor) {
-      if (from !== to) out.push({ e, gap: e.a.layer + 1, seg: { left: from, right: to } });
-      continue;
-    }
-    const lane = lanes[e.corridor.lane]!;
-    const line = corridorY(e, lane);
-    out.push({ e, gap: e.a.layer + 1, seg: { left: from, right: line } }, { e, gap: e.b.layer, seg: { left: line, right: to } });
-  }
-  return out;
-}
-
-const corridorY = (e: Arrow, lane: FlowLane): number => (e.corridor!.below ? lane.top + lane.height - 8 - TRACK * e.corridor!.track : lane.top + 8 + TRACK * e.corridor!.track);
 
 interface Columns {
   x: number[];
@@ -228,7 +141,7 @@ function edgeOf(e: Arrow, lanes: FlowLane[], entry: Map<Arrow, number>, mine: Ve
     pts.push({ x: slot(0), y }, { x: slot(0), y: line }, { x: slot(1), y: line }, { x: slot(1), y: end.y });
   } else if (mine.length) pts.push({ x: slot(0), y }, { x: slot(0), y: end.y });
   pts.push(end);
-  return { points: dedupe(pts), ...(e.label !== undefined && { label: { text: e.label, at: labelAt(e, start, y), anchor: 'start' as const, lane: a.lane } }) };
+  return { from: a.id, to: e.b.node.id, points: dedupe(pts), ...(e.label !== undefined && { label: { text: e.label, at: labelAt(e, start, y), anchor: 'start' as const, lane: a.lane } }) };
 }
 
 /** Swimlane layout: a column per layer, a band per lane, the spine straight and side branches in rows below it; every arrow has its own channel and entry point. */
