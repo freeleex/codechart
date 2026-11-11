@@ -56,7 +56,7 @@ For each `checked` item, re-read the code behind its links and confirm each sent
 
 ## Explain how something works
 
-How an area works today, for a product owner, QA or support: no change. `codechart schema --business --explain` prints its schema. Draw the explain map of the area first (step 8; [explain-guide.md](explain-guide.md)): links point to its boxes, or to a flow step as `flow:<flow>/<step>`. The page picks the spec's `map` slug, else the newest explain map saved on the current git branch (one drawn on another branch is not found: name it with `map` or pass `--tech '<explain spec.json>'`). A change map is refused, and an explain map is refused for a change page.
+How an area works today, for a product owner, QA or support: no change. `codechart schema --business --explain` prints its schema. Draw the explain map of the area first (step 8; [explain-guide.md](explain-guide.md)): links point to its boxes, or to a flow step as `flow:<flow>/<step>`. The page picks `--tech '<explain spec.json>'`, else the spec's `map` slug, else the newest explain map; saved maps are looked up on the current git branch only, so for one drawn on another branch pass `--tech`. A change map is refused, and an explain map is refused for a change page.
 
 ```json
 { "diagram": "business", "kind": "explain", "title": "How refunds work",

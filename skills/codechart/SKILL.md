@@ -122,7 +122,7 @@ Only when the user asks for a map for a product owner, a non-technical reader or
 3. Errors name what to fix: a link that is not a box on the tech map, an item without links, code, file names or ids in the text. Fix the spec and rerender; never reword to dodge the check.
 4. Reply with the printed summary line and link verbatim, and tell the user to send the HTML file to the product owner: it shows no code and needs no repo.
 
-Explaining how an area works today to a product owner, QA or support (no change): draw the explain map first (step 8), then write the explain page (`"kind": "explain"`, see the guide's "Explain how something works"); it links to that map (the newest on the current branch; else name it with `map` or pass `--tech`). The page is read-only: no feedback comes back.
+Explaining how an area works today to a product owner, QA or support (no change): draw the explain map first (step 8), then write the explain page (`"kind": "explain"`, see the guide's "Explain how something works"); it links to that map (the newest, or the one named by `map`, on the current branch; from another branch pass `--tech`). The page is read-only: no feedback comes back.
 
 The owner's reply, pasted ending in `codechart review ·`, goes through step 5; see the guide for what to do with it.
 
