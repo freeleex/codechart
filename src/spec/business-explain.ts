@@ -1,4 +1,5 @@
 import type { ExplainSpec } from './business.js';
+import { flowTexts } from './business-flow.js';
 
 type Path = (string | number)[];
 
@@ -8,16 +9,8 @@ export function explainTexts(spec: ExplainSpec): { path: Path; text: string }[] 
 }
 
 function explainItemTexts(spec: ExplainSpec): { path: Path; text: string }[] {
-  const out: { path: Path; text: string }[] = [];
+  const out: { path: Path; text: string }[] = flowTexts(spec.flow);
   const add = (path: Path, value: string | undefined) => value !== undefined && out.push({ path, text: value });
-  spec.journeys.forEach((j, i) => {
-    add(['journeys', i, 'name'], j.name);
-    add(['journeys', i, 'who'], j.who);
-    j.steps.forEach((s, k) => {
-      add(['journeys', i, 'steps', k, 'text'], s.text);
-      add(['journeys', i, 'steps', k, 'if'], s.if);
-    });
-  });
   spec.rules.forEach((r, i) => {
     add(['rules', i, 'name'], r.name);
     add(['rules', i, 'rule'], r.rule);
@@ -32,6 +25,5 @@ function explainItemTexts(spec: ExplainSpec): { path: Path; text: string }[] {
     add(['data', i, 'what'], d.what);
     add(['data', i, 'why'], d.why);
   });
-  spec.questions.forEach((q, i) => add(['questions', i, 'text'], q.text));
   return out;
 }

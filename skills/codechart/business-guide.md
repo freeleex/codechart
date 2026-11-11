@@ -61,27 +61,35 @@ How an area works today, for a product owner, QA or support: no change. `codecha
 ```json
 { "diagram": "business", "kind": "explain", "title": "How refunds work",
   "summary": "A support agent can give a customer money back within 14 days of paying.",
-  "journeys": [
-    { "id": "J1", "name": "Support agent refunds a payment", "who": "Support agent",
-      "steps": [{ "text": "Customer asks for money back" }, { "text": "Agent enters the amount and a reason" },
-        { "text": "The manager gets an approval email", "if": "the amount is above €100" }],
-      "links": ["refunds-api", "flow:refund/approve"], "evidence": "checked" }],
+  "flow": {
+    "lanes": [{ "id": "customer", "name": "Customer" }, { "id": "agent", "name": "Support agent" }, { "id": "manager", "name": "Manager" }],
+    "steps": [
+      { "id": "S1", "text": "Asks for money back", "lane": "customer", "links": ["refunds-api"], "evidence": "checked" },
+      { "id": "S2", "text": "Older than the refund window?", "lane": "agent", "links": ["flow:refund/window"], "evidence": "checked" },
+      { "id": "S3", "text": "The refund is refused", "lane": "agent", "links": ["flow:refund/reject"], "evidence": "checked" },
+      { "id": "S4", "text": "Above €100?", "lane": "agent", "links": ["flow:refund/big"], "evidence": "reading" },
+      { "id": "S5", "text": "Approves it by email", "lane": "manager", "links": ["flow:refund/approve"], "evidence": "checked" },
+      { "id": "S6", "text": "The money goes back to the card", "lane": "agent", "links": ["refunds"], "evidence": "checked" }],
+    "arrows": [
+      { "from": "S1", "to": "S2" }, { "from": "S2", "to": "S3", "label": "yes" }, { "from": "S2", "to": "S4", "label": "no" },
+      { "from": "S4", "to": "S5", "label": "yes" }, { "from": "S4", "to": "S6", "label": "no" }, { "from": "S5", "to": "S6" }] },
   "rules": [{ "id": "R1", "name": "Refund window", "rule": "Up to 14 days after paying.",
     "exceptions": ["Annual plans keep 30 days."], "links": ["refund-policy"], "evidence": "checked" }],
   "cases": [{ "id": "C1", "situation": "A customer asks twice for the same payment", "outcome": "The second request is refused.",
     "links": ["refunds-api"], "evidence": "reading" }],
   "data": [{ "id": "D1", "name": "Refund reason", "what": "Why each refund was given", "why": "So finance can review it",
-    "links": ["refunds"], "evidence": "checked" }],
-  "questions": [{ "id": "Q1", "about": "C1", "text": "Should a second request be refused or queued?", "kind": "unhandled" }] }
+    "links": ["refunds"], "evidence": "checked" }] }
 ```
 
 - One feature per page: a bigger area is split, one explain map and page each.
-- A journey has one list of `steps`; a step that only happens in some case gets `if` (shown "If X → Y"). Rules have `rule` and `exceptions`, no `before`/`after`. Odd cases: `situation` and `outcome`. A question's `about` may be a case. Up to 8 cases.
+- The page draws one diagram, `flow`: a lane per person or system (`lanes`, 1-5, plain names such as Customer, Support agent, Payment system), `steps` in the lane of whoever acts (at most 16), `arrows` for the hand-offs. Keep each step to one short action (60 characters at most); put detail in a rule or odd case. Every step has `links` and `evidence`.
+- A step that asks something ends in "?" and is drawn as a diamond: give it two or more arrows, each with a `label` (yes, no, …), none repeated. Only a question may have more than one arrow out; a step with no arrow out is where the story ends. At least one step has no arrow in (the start); every step must be reachable from one. Draw every branch, including the side paths ("Copies it by hand") and where they rejoin; the longest path runs straight, the others drop below it in the same lane.
+- No `journeys` and no `questions` on an explain page: both are refused. Rules have `rule` and `exceptions`, no `before`/`after`. Odd cases: `situation` and `outcome` (up to 8).
 - Never "new", "now", "after", "changed" or any before/after wording: nothing changed.
-- Stricter evidence: `checked` only for what you read in the code; a guess, an inference from names or something you could not run is `reading`.
+- Stricter evidence: `checked` only for what you read in the code; a guess, an inference from names or something you could not run is `reading` (drawn with a dashed amber outline).
 - Spot-check is mandatory, as above, for every `checked` item.
-- What the code does not cover (a state nothing handles, a number nobody explained, two rules that disagree) goes in `questions`, never filled in with a guess.
-- The page is read-only: no notes, Yes/No, answers or send-back, and no review file, so no feedback comes back. Open questions are for the reader to take up with the team; tell the user so.
+- What the code does not cover (a state nothing handles, a number nobody explained, two rules that disagree) is not filled in with a guess and has no place on the page: say it in your reply to the user.
+- The page is read-only: no notes, Yes/No, answers or send-back, and no review file, so no feedback comes back.
 
 ## Feedback from the owner
 

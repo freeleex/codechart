@@ -174,7 +174,7 @@ describe('business page → Send back → feedback --import', () => {
 });
 
 describe('business explain page', () => {
-  it('is read-only: no review file, no controls, and its "About" link still works', async () => {
+  it('is read-only: no review file, no controls, no questions or jump links', async () => {
     for (const [file, text] of Object.entries(EXPLAIN_FILES)) {
       mkdirSync(join(sb.repo, file, '..'), { recursive: true });
       writeFileSync(join(sb.repo, file), text);
@@ -184,7 +184,7 @@ describe('business explain page', () => {
     expect(named('.business.review.json')).toEqual([]);
     mount(readFileSync(join(dir(), named('.business.html').at(-1)!), 'utf8'));
     expect(document.querySelector('#send, #send-modal, .bar, textarea, [data-cbtn], [data-verdict]')).toBeNull();
-    click(q('[data-item="Q1"] a[data-jump]'));
-    expect(q('#i-C1').classList.contains('flash')).toBe(true);
+    expect(document.querySelector('a[data-jump], .qa, #questions')).toBeNull();
+    expect(document.querySelectorAll('svg.flow .fn').length).toBeGreaterThan(0);
   });
 });

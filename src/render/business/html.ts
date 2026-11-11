@@ -3,6 +3,7 @@ import { businessRev } from '../../review/snapshot.js';
 import { isExplain, itemGroups, type BusinessSpec, type ChangeSpec, type ExplainSpec } from '../../spec/business.js';
 import { CLIENT_JS } from '../web/client.js';
 import { esc, jsonForScript, PAGE_CSP, prettyDate, type HtmlMeta } from '../web/page.js';
+import { flowDiagram } from './flow-diagram.js';
 import { BUSINESS_CSS } from './styles.js';
 
 type Spec = ChangeSpec;
@@ -48,19 +49,7 @@ const initials = (who: string): string =>
     .slice(0, 2)
     .toUpperCase();
 
-type ExplainStep = ExplainSpec['journeys'][number]['steps'][number];
-type ExplainJourney = ExplainSpec['journeys'][number];
-
-const explainStep = (s: ExplainStep): string => `<li class="step same"><div class="box">${s.if ? `<span class="if">If ${esc(s.if)}</span> → ` : ''}<span class="t">${esc(s.text)}</span></div></li>`;
-
 const who = (name: string | undefined): string => (name ? `<span class="actor"><span class="av">${esc(initials(name))}</span>${esc(name)}</span>` : '');
-
-function explainJourneyCard(j: ExplainJourney): string {
-  return `<article class="card journey${j.evidence === 'reading' ? ' guess' : ''}" ${itemAttrs('journey', j, j.name)}>
-<div class="j-head"><h3>${esc(j.name)}</h3>${who(j.who)}${tag(j.evidence, true)}</div>
-<div class="j-cols one"><div class="j-col"><ol class="steps">${j.steps.map(explainStep).join('')}</ol></div></div>
-</article>`;
-}
 
 function explainRuleCard(r: ExplainSpec['rules'][number]): string {
   return `<article class="card rule${r.evidence === 'reading' ? ' guess' : ''}" ${itemAttrs('rule', r, r.name)}>
@@ -116,13 +105,12 @@ function explainDataCard(d: ExplainSpec['data'][number]): string {
 </article>`;
 }
 
-function questionCard(spec: BusinessSpec, q: Spec['questions'][number], i: number): string {
+function questionCard(spec: Spec, q: Spec['questions'][number], i: number): string {
   const about = itemGroups(spec).flatMap(([, list]) => list).find((x) => x.id === q.about)!;
-  const explain = isExplain(spec);
-  return `<article class="card qa" ${explain ? itemAttrs('question', q, q.text) : attrs('question', q, q.text)}><span class="qn">${i + 1}</span><div>
+  return `<article class="card qa" ${attrs('question', q, q.text)}><span class="qn">${i + 1}</span><div>
 <p>${esc(q.text)}</p>
-<div class="about">About: <a href="#i-${esc(q.about)}" data-jump>${esc(about.name)}</a></div>${explain ? '' : `
-<textarea data-answer="${esc(q.id)}" maxlength="4000" aria-label="Your answer" placeholder="Your answer…"></textarea>`}</div></article>`;
+<div class="about">About: <a href="#i-${esc(q.about)}" data-jump>${esc(about.name)}</a></div>
+<textarea data-answer="${esc(q.id)}" maxlength="4000" aria-label="Your answer" placeholder="Your answer…"></textarea></div></article>`;
 }
 
 function section(id: string, n: number, title: string, sub: string, body: string): string {
@@ -131,33 +119,31 @@ function section(id: string, n: number, title: string, sub: string, body: string
 
 function sections(spec: BusinessSpec): string[] {
   const out: [string, string, string, string][] = [];
-  const questions = (title: string, sub: string): void => {
-    if (spec.questions.length) out.push(['questions', title, sub, `<div class="qs">${spec.questions.map((q, i) => questionCard(spec, q, i)).join('\n')}</div>`]);
-  };
   if (isExplain(spec)) {
-    if (spec.journeys.length) out.push(['journeys', 'How it works', 'Each story shows how it works today, step by step. A step that starts with "If" happens only then.', spec.journeys.map(explainJourneyCard).join('\n')]);
+    out.push(['flow', 'How it works', 'Who does what, in order. A diamond is a question; follow the answer.', flowDiagram(spec.flow)]);
     if (spec.rules.length) out.push(['rules', 'Rules today', "The business rules that apply today. Dashed amber cards are the agent's best reading, not checked in code.", `<div class="rules">${spec.rules.map(explainRuleCard).join('\n')}</div>`]);
     if (spec.cases.length) out.push(['cases', 'Odd cases', 'Unusual situations and what happens in them.', `<div class="rules">${spec.cases.map(caseCard).join('\n')}</div>`]);
     if (spec.data.length) out.push(['data', 'What we keep and why', 'Information the business saves here, and why.', `<div class="data">${spec.data.map(explainDataCard).join('\n')}</div>`]);
-    questions('Open questions', 'Things the code does not settle. Take them up with the team.');
     return out.map(([id, title, sub, body], i) => section(id, i + 1, title, sub, body));
   }
   if (spec.journeys.length) out.push(['journeys', 'What people will experience', 'Each story shows how it works today and how it will work after this change.', spec.journeys.map(journeyCard).join('\n')]);
   if (spec.rules.length) out.push(['rules', 'Rules, before and after', "The business rules that apply after this change. Dashed amber cards are the agent's best reading and need your yes or no.", `<div class="rules">${spec.rules.map(ruleCard).join('\n')}</div>`]);
   if (spec.data.length) out.push(['data', 'What the business now keeps', 'Information saved because of this change, and why.', `<div class="data">${spec.data.map(dataCard).join('\n')}</div>`]);
-  questions('Questions for you', 'The developer could not decide these alone. Short answers are fine.');
+  if (spec.questions.length) out.push(['questions', 'Questions for you', 'The developer could not decide these alone. Short answers are fine.', `<div class="qs">${spec.questions.map((q, i) => questionCard(spec, q, i)).join('\n')}</div>`]);
   return out.map(([id, title, sub, body], i) => section(id, i + 1, title, sub, body));
 }
 
 function stats(spec: BusinessSpec): string {
   const pill = (id: string, n: number, one: string, many?: string, cls = '') => (n ? `<a href="#${id}"${cls ? ` class="${cls}"` : ''}>${plural(n, one, many)}</a>` : '');
-  return [pill('journeys', spec.journeys.length, 'journey'), pill('rules', spec.rules.length, 'rule'), pill('cases', isExplain(spec) ? spec.cases.length : 0, 'odd case'), pill('data', spec.data.length, 'saved item'), (isExplain(spec) ? pill('questions', spec.questions.length, 'open question ↓', 'open questions ↓', 'q') : pill('questions', spec.questions.length, 'question for you ↓', 'questions for you ↓', 'q'))].join('');
+  if (isExplain(spec)) return [pill('flow', spec.flow.steps.length, 'step'), pill('rules', spec.rules.length, 'rule'), pill('cases', spec.cases.length, 'odd case'), pill('data', spec.data.length, 'saved item')].join('');
+  return [pill('journeys', spec.journeys.length, 'journey'), pill('rules', spec.rules.length, 'rule'), pill('data', spec.data.length, 'saved item'), pill('questions', spec.questions.length, 'question for you ↓', 'questions for you ↓', 'q')].join('');
 }
 
 const sure = (explain: boolean): string => `<div class="grp"><span class="lab">How sure</span><span class="ev ok">Checked in code</span><span class="ev guess">Agent's reading — ${explain ? 'not checked in code' : 'please confirm'}</span></div>`;
 const LEGEND = `<div class="legend">${sure(false)}
 <div class="grp"><span class="lab">Steps</span><span class="mk add">New</span><span class="mk chg">Changed</span><span class="mk rem">Removed</span><span>plain = same as now</span></div></div>`;
-const EXPLAIN_LEGEND = `<div class="legend">${sure(true)}</div>`;
+const EXPLAIN_LEGEND = `<div class="legend">${sure(true)}
+<div class="grp"><span class="lab">Flow</span><span class="lg q"></span>a question<span class="lg e"></span>where it ends<span class="lg g"></span>agent's reading</div></div>`;
 
 const DIALOG = `<div class="modal" id="send-modal" role="dialog" aria-modal="true" aria-labelledby="send-title" hidden>
 <div class="sheet"><h3 id="send-title">Your message for the developer</h3>

@@ -15,7 +15,7 @@ export function businessLinkIssues(spec: BusinessSpec, boxes: readonly TechBox[]
   for (const [group, items] of itemGroups(spec)) {
     items.forEach((item, i) =>
       item.links.forEach((link, j) => {
-        if (!ids.has(link)) issues.push(`${formatPath([group, i, 'links', j])}: "${quotable(link)}" is not a box on the tech map`);
+        if (!ids.has(link)) issues.push(`${formatPath(group === 'flow' ? ['flow', 'steps', i, 'links', j] : [group, i, 'links', j])}: "${quotable(link)}" is not a box on the tech map`);
       }),
     );
   }

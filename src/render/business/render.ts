@@ -1,6 +1,6 @@
 import { businessPage } from './html.js';
 import { businessSnapshot } from '../../review/snapshot.js';
-import { isExplain, itemGroups, type BusinessSpec } from '../../spec/business.js';
+import { isExplain, itemGroups, questionsOf, type BusinessSpec } from '../../spec/business.js';
 import type { TechBox } from '../../spec/business-links.js';
 import { markdownBlock } from '../markdown.js';
 import { fullMapLine } from '../terminal/render.js';
@@ -20,11 +20,11 @@ function businessSummary(spec: BusinessSpec): string {
   const groups = itemGroups(spec);
   const items = groups.flatMap(([, list]) => list);
   const parts = [
-    count(spec.journeys.length, 'journey'),
+    isExplain(spec) ? count(spec.flow.steps.length, 'step') : count(spec.journeys.length, 'journey'),
     count(spec.rules.length, 'rule'),
     count(groups.find(([g]) => g === 'cases')?.[1].length ?? 0, 'odd case'),
     count(spec.data.length, 'saved data', 'saved data'),
-    count(spec.questions.length, 'question'),
+    count(questionsOf(spec).length, 'question'),
     count(items.filter((x) => x.evidence === 'reading').length, "agent's reading"),
   ];
   return [`${isExplain(spec) ? 'Business explain page' : 'Business map'}: ${spec.title}`, ...parts.filter(Boolean)].join(' · ');

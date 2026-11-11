@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { explainTexts } from './business-explain.js';
+import { flowIssues } from './business-flow.js';
 import { plainTextIssues } from './plain-text.js';
 import { formatIssues, formatPath, ident, long, short, type ValidationResult } from './shared.js';
 
@@ -82,18 +83,34 @@ const businessSchema = z
     }
   });
 
-const explainStepSchema = z.strictObject({
-  text: short(),
-  if: short().optional().describe('A plain condition: the step happens only then, and the page shows "If <condition> → <step>"'),
+const MAX_LANES = 5;
+const MAX_FLOW_STEPS = 16;
+const MAX_ARROWS = 32;
+const MAX_STEP_TEXT = 60;
+
+const laneSchema = z.strictObject({
+  id: ident(),
+  name: z.string().min(1).max(30, 'keep a lane name to a few words').describe('Who acts in this lane: a person, a page or a system, in plain words'),
 });
 
-const explainJourneySchema = z.strictObject({
+const flowStepSchema = z.strictObject({
   id: ident(),
-  name: short(),
-  who: short().optional(),
-  steps: z.array(explainStepSchema).min(1).max(MAX_STEPS),
+  text: z.string().min(1).max(MAX_STEP_TEXT, `keep each step to one short action (${MAX_STEP_TEXT} characters at most)`).describe('One short action. Ending in "?" makes it a question (a diamond) with two or more labelled arrows out'),
+  lane: ident().describe('Id of the lane of whoever does this'),
   links: links(),
   evidence: evidence(),
+});
+
+const arrowSchema = z.strictObject({
+  from: ident(),
+  to: ident(),
+  label: short().optional().describe('The answer, such as yes or no: required on every arrow out of a question'),
+});
+
+export const flowSchema = z.strictObject({
+  lanes: z.array(laneSchema).min(1).max(MAX_LANES),
+  steps: z.array(flowStepSchema).min(1).max(MAX_FLOW_STEPS),
+  arrows: z.array(arrowSchema).max(MAX_ARROWS).describe('Hand-offs, step to step. A step with no arrow out is where the story ends'),
 });
 
 const explainRuleSchema = z.strictObject({
@@ -120,32 +137,28 @@ const explainSchema = z
     title: short(),
     summary: text().describe('One or two plain sentences: what this area of the product does'),
     map: ident().describe('File name slug of the explain map this describes; left out: the newest one on the branch').optional(),
-    journeys: z.array(explainJourneySchema).max(MAX_JOURNEYS).default([]),
+    flow: flowSchema,
     rules: z.array(explainRuleSchema).max(MAX_RULES).default([]),
     cases: z.array(caseSchema).max(MAX_CASES).default([]),
     data: z.array(dataSchema).max(MAX_DATA).default([]),
-    questions: z.array(questionSchema).max(MAX_QUESTIONS).default([]),
   })
   .superRefine((spec, ctx) => {
     const issue: Issue = (path, message) => ctx.addIssue({ code: 'custom', path, message });
-    if (!spec.journeys.length && !spec.rules.length && !spec.cases.length && !spec.data.length) issue([], 'needs at least one journey, rule, odd case or saved data item');
     const seen = new Set<string>();
-    const groups = [['journeys', spec.journeys], ['rules', spec.rules], ['cases', spec.cases], ['data', spec.data], ['questions', spec.questions]] as const;
-    for (const [group, list] of groups) {
+    const groups = [[['flow', 'steps'], spec.flow.steps], [['rules'], spec.rules], [['cases'], spec.cases], [['data'], spec.data]] as const;
+    for (const [at, list] of groups) {
       list.forEach((item, i) => {
-        if (seen.has(item.id)) issue([group, i, 'id'], `duplicate "${item.id}"`);
+        if (seen.has(item.id)) issue([...at, i, 'id'], `duplicate "${item.id}"`);
         seen.add(item.id);
       });
     }
-    const about = new Set([...spec.journeys, ...spec.rules, ...spec.cases, ...spec.data].map((x) => x.id));
-    spec.questions.forEach((q, i) => {
-      if (!about.has(q.about)) issue(['questions', i, 'about'], `unknown journey, rule, odd case or saved data item "${q.about}"`);
-    });
+    flowIssues(spec.flow, issue);
     for (const t of explainTexts(spec)) {
       for (const message of plainTextIssues(t.text)) issue(t.path, message);
     }
   });
 
+export type Flow = z.infer<typeof flowSchema>;
 export type ChangeSpec = z.infer<typeof businessSchema>;
 export type ExplainSpec = z.infer<typeof explainSchema>;
 /** A business map: of a change (journeys and rules before and after), or an explain page (how an area works today). */
@@ -153,7 +166,10 @@ export type BusinessSpec = ChangeSpec | ExplainSpec;
 
 export const isExplain = (spec: BusinessSpec): spec is ExplainSpec => (spec as { kind?: string }).kind === 'explain';
 
-export type ItemGroup = 'journeys' | 'rules' | 'cases' | 'data';
+/** The questions of a business map: an explain page has none. */
+export const questionsOf = (spec: BusinessSpec): ChangeSpec['questions'] => (isExplain(spec) ? [] : spec.questions);
+
+export type ItemGroup = 'journeys' | 'flow' | 'rules' | 'cases' | 'data';
 
 /** What every kind of item has: its id, what a reader calls it, and the tech map boxes it comes from. */
 export interface ItemBase {
@@ -163,12 +179,10 @@ export interface ItemBase {
   evidence: 'checked' | 'reading';
 }
 
-/** The items a page takes notes on, by group, in page order; an explain page's cases are named by their situation. */
+/** The items of a page, by group, in page order; an explain page's flow steps are named by their text and its cases by their situation. */
 export function itemGroups(spec: BusinessSpec): [ItemGroup, ItemBase[]][] {
-  const groups: [ItemGroup, ItemBase[]][] = [['journeys', spec.journeys], ['rules', spec.rules]];
-  if (isExplain(spec)) groups.push(['cases', spec.cases.map((c) => ({ ...c, name: c.situation }))]);
-  groups.push(['data', spec.data]);
-  return groups;
+  if (!isExplain(spec)) return [['journeys', spec.journeys], ['rules', spec.rules], ['data', spec.data]];
+  return [['flow', spec.flow.steps.map((s) => ({ ...s, name: s.text }))], ['rules', spec.rules], ['cases', spec.cases.map((c) => ({ ...c, name: c.situation }))], ['data', spec.data]];
 }
 
 type JourneyItem = Omit<z.infer<typeof journeySchema>, 'links' | 'evidence'>;
@@ -248,14 +262,13 @@ function modeIssues(input: unknown): string[] {
   const out: string[] = [];
   const list = (key: string): Record<string, unknown>[] => (Array.isArray(input[key]) ? input[key].filter(isRecord) : []);
   if (input.kind === 'explain') {
-    list('journeys').forEach((j, i) => {
-      for (const side of ['now', 'after']) if (side in j) out.push(`${formatPath(['journeys', i, side])}: an explain page has one list of steps, not now and after`);
-      if (Array.isArray(j.steps)) j.steps.forEach((s, k) => isRecord(s) && 'change' in s && out.push(`${formatPath(['journeys', i, 'steps', k, 'change'])}: an explain page has no changed steps`));
-    });
+    if ('journeys' in input) out.push('journeys: an explain page draws one flow, not journeys; use flow with lanes, steps and arrows');
+    if ('questions' in input) out.push('questions: explain pages have no open questions; the reader asks the team');
     list('rules').forEach((r, i) => 'before' in r && out.push(`${formatPath(['rules', i, 'before'])}: an explain page has no before and after; use rule`));
   } else {
     if ('kind' in input) out.push('kind: only "explain" is allowed here; leave it out for a change map');
     if ('cases' in input) out.push('cases: only on an explain page (kind "explain")');
+    if ('flow' in input) out.push('flow: only on an explain page (kind "explain"); a change map has journeys');
   }
   return out;
 }

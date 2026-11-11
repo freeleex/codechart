@@ -56,18 +56,28 @@ export const businessExplain = (): Record<string, any> => ({
   kind: 'explain',
   title: 'How billing works',
   summary: 'Customers get an invoice and are charged by card. A receipt goes out by email.',
-  journeys: [
-    {
-      id: 'J1',
-      name: 'Customer is billed',
-      who: 'Customer',
-      steps: [{ text: 'An invoice is created' }, { text: 'The charge is skipped', if: 'the total is zero' }, { text: 'The card is charged' }],
-      links: ['api', 'flow:create/zero'],
-      evidence: 'checked',
-    },
-  ],
+  flow: {
+    lanes: [
+      { id: 'customer', name: 'Customer' },
+      { id: 'billing', name: 'Billing system' },
+    ],
+    steps: [
+      { id: 'S1', text: 'Asks for an invoice', lane: 'customer', links: ['api'], evidence: 'checked' },
+      { id: 'S2', text: 'The invoice is created', lane: 'billing', links: ['api'], evidence: 'checked' },
+      { id: 'S3', text: 'Is the total zero?', lane: 'billing', links: ['flow:create/zero'], evidence: 'reading' },
+      { id: 'S4', text: 'The charge is skipped', lane: 'billing', links: ['flow:create/skip'], evidence: 'checked' },
+      { id: 'S5', text: 'The card is charged', lane: 'billing', links: ['stripe'], evidence: 'checked' },
+      { id: 'S6', text: 'Gets a receipt by email', lane: 'customer', links: ['email'], evidence: 'checked' },
+    ],
+    arrows: [
+      { from: 'S1', to: 'S2' },
+      { from: 'S2', to: 'S3' },
+      { from: 'S3', to: 'S4', label: 'yes' },
+      { from: 'S3', to: 'S5', label: 'no' },
+      { from: 'S5', to: 'S6' },
+    ],
+  },
   rules: [{ id: 'R1', name: 'Free invoices', rule: 'An invoice of zero is never charged.', exceptions: ['A test account is charged a cent.'], links: ['billing', 'flow:create/skip'], evidence: 'reading' }],
   cases: [{ id: 'C1', situation: 'The card is declined', outcome: 'The invoice stays open and the customer is emailed.', links: ['stripe', 'email'], evidence: 'checked' }],
   data: [{ id: 'D1', name: 'Invoice', what: 'Amount, date and who paid', why: 'So finance can check the books', links: ['billing'], evidence: 'checked' }],
-  questions: [{ id: 'Q1', about: 'C1', text: 'Is a declined card tried again?', kind: 'unhandled' }],
 });

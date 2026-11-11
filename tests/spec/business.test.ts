@@ -146,73 +146,134 @@ describe('business links', () => {
 });
 
 describe('business explain spec', () => {
+  const edit = (change: (raw: ReturnType<typeof businessExplain>) => void): string[] => {
+    const raw = businessExplain();
+    change(raw);
+    return errors(raw);
+  };
+
   it('accepts the sample', () => {
     expect(errors(businessExplain())).toEqual([]);
   });
 
-  it('needs at least one journey, rule, odd case or saved data item', () => {
+  it('needs a flow', () => {
     const { diagram, kind, title, summary } = businessExplain();
-    expect(errors({ diagram, kind, title, summary })).toEqual([expect.stringContaining('at least one journey, rule, odd case or saved data item')]);
+    expect(errors({ diagram, kind, title, summary })).toEqual([expect.stringMatching(/^flow/)]);
   });
 
-  it('refuses now and after, steps that changed, and before and after on a rule', () => {
+  it('refuses journeys, questions and before and after on a rule, in plain words', () => {
     const spec = businessExplain();
-    spec.journeys[0].now = [{ text: 'x' }];
-    spec.journeys[0].steps[0].change = 'new';
+    spec.journeys = [];
+    spec.questions = [];
     spec.rules[0].before = 'x';
     expect(errors(spec)).toEqual([
-      'journeys[0].now: an explain page has one list of steps, not now and after',
-      'journeys[0].steps[0].change: an explain page has no changed steps',
+      'journeys: an explain page draws one flow, not journeys; use flow with lanes, steps and arrows',
+      'questions: explain pages have no open questions; the reader asks the team',
       'rules[0].before: an explain page has no before and after; use rule',
     ]);
   });
 
-  it('needs steps and a rule in the explain shape', () => {
-    const spec = businessExplain();
-    delete spec.journeys[0].steps;
-    delete spec.rules[0].rule;
-    expect(errors(spec)).toEqual([expect.stringMatching(/^journeys\[0\]\.steps/), expect.stringMatching(/^rules\[0\]\.rule/)]);
-  });
-
-  it('refuses kind and cases in a change map', () => {
+  it('refuses a flow in a change map, and kind and cases too', () => {
+    expect(errors({ ...business(), flow: businessExplain().flow })).toEqual(['flow: only on an explain page (kind "explain"); a change map has journeys']);
     expect(errors({ ...business(), cases: [] })).toEqual(['cases: only on an explain page (kind "explain")']);
     expect(errors({ ...business(), kind: 'change' })).toEqual(['kind: only "explain" is allowed here; leave it out for a change map']);
   });
 
-  it('rejects an id used twice across lists', () => {
+  it('needs a rule in the explain shape', () => {
     const spec = businessExplain();
-    spec.cases[0].id = 'R1';
-    spec.questions[0].about = 'R1';
-    expect(errors(spec)).toEqual(['cases[0].id: duplicate "R1"']);
+    delete spec.rules[0].rule;
+    expect(errors(spec)).toEqual([expect.stringMatching(/^rules\[0\]\.rule/)]);
   });
 
-  it('lets a question be about an odd case, and rejects an unknown one', () => {
-    const spec = businessExplain();
-    expect(errors(spec)).toEqual([]);
-    spec.questions[0].about = 'C9';
-    expect(errors(spec)).toEqual(['questions[0].about: unknown journey, rule, odd case or saved data item "C9"']);
+  it('rejects an id used twice across steps, rules, cases and saved data', () => {
+    expect(edit((raw) => (raw.cases[0].id = 'R1'))).toEqual(['cases[0].id: duplicate "R1"']);
+    expect(edit((raw) => (raw.data[0].id = 'S1'))).toEqual(['data[0].id: duplicate "S1"']);
+    expect(edit((raw) => (raw.flow.steps[1].id = 'S1'))).toContain('flow.steps[1].id: duplicate "S1"');
   });
 
-  it('checks the plain words of steps, conditions and cases', () => {
+  it('keeps lanes to 5, steps to 16 and a step to one short action', () => {
+    expect(edit((raw) => (raw.flow.lanes = ['a', 'b', 'c', 'd', 'e', 'f'].map((id) => ({ id, name: id }))))).toEqual([expect.stringMatching(/^flow\.lanes/)]);
+    expect(edit((raw) => (raw.flow.steps[0].text = 'ab '.repeat(21)))).toEqual(['flow.steps[0].text: keep each step to one short action (60 characters at most)']);
+    expect(edit((raw) => (raw.flow.lanes = [])).length).toBeGreaterThan(0);
+    const many = edit((raw) => {
+      raw.flow.steps = Array.from({ length: 17 }, (_, i) => ({ id: `s${i}`, text: `Step ${i}`, lane: 'customer', links: ['api'], evidence: 'checked' }));
+      raw.flow.arrows = [];
+    });
+    expect(many).toEqual([expect.stringMatching(/^flow\.steps/)]);
+  });
+
+  it('refuses an unknown lane, an unknown step in an arrow, a self-loop and a repeated arrow', () => {
+    expect(edit((raw) => (raw.flow.steps[0].lane = 'ghost'))).toEqual(['flow.steps[0].lane: unknown lane "ghost"']);
+    expect(edit((raw) => (raw.flow.arrows[0].to = 'ghost'))).toContain('flow.arrows[0].to: unknown step "ghost"');
+    expect(edit((raw) => raw.flow.arrows.push({ from: 'S1', to: 'S1' }))).toEqual(['flow.arrows[5].to: a step cannot lead to itself']);
+    expect(edit((raw) => raw.flow.arrows.push({ from: 'S1', to: 'S2' }))).toEqual(['flow.arrows[5].to: a second arrow from "S1" to "S2"']);
+    expect(edit((raw) => raw.flow.lanes.push({ id: 'customer', name: 'Again' }))).toEqual(['flow.lanes[2].id: duplicate lane "customer"']);
+  });
+
+  it('makes a step ending in "?" a question: two or more arrows out, each labelled once', () => {
+    expect(edit((raw) => raw.flow.arrows.splice(3, 1))).toEqual(['flow.steps[2].text: a question needs at least two arrows out, one for each answer; drop the "?" if nothing is asked']);
+    expect(edit((raw) => delete raw.flow.arrows[2].label)).toEqual(['flow.arrows[2].label: label each answer of a question, for example yes or no']);
+    expect(edit((raw) => (raw.flow.arrows[3].label = 'yes'))).toEqual(['flow.arrows[3].label: two answers of the same question are both "yes"']);
+  });
+
+  it('lets only a question branch, and tells the agent to turn the step into one', () => {
+    expect(edit((raw) => raw.flow.arrows.push({ from: 'S1', to: 'S4' }))).toEqual(['flow.steps[0].text: only a question can lead to two steps: turn this step into a question (end it with "?") and label each arrow with its answer']);
+  });
+
+  it('needs a start, and refuses steps no start reaches', () => {
+    expect(edit((raw) => raw.flow.arrows.push({ from: 'S6', to: 'S1' }))).toEqual(['flow.steps: needs a start: a step that no arrow leads to'].map(() => expect.stringMatching(/^flow\.steps: needs a start/)) as never);
+    expect(
+      edit((raw) => {
+        raw.flow.steps.push({ id: 'a', text: 'Loops one way', lane: 'billing', links: ['api'], evidence: 'checked' }, { id: 'b', text: 'Loops back', lane: 'billing', links: ['api'], evidence: 'checked' });
+        raw.flow.arrows.push({ from: 'a', to: 'b' }, { from: 'b', to: 'a' });
+      }),
+    ).toEqual(['flow.steps[6].id: "a" can never be reached from a start', 'flow.steps[7].id: "b" can never be reached from a start']);
+  });
+
+  it('allows several starts and a loop back to a step the flow started from', () => {
+    expect(
+      edit((raw) => {
+        raw.flow.steps.push({ id: 'cron', text: 'Month end comes', lane: 'billing', links: ['api'], evidence: 'checked' });
+        raw.flow.arrows.push({ from: 'cron', to: 'S2' });
+      }),
+    ).toEqual([]);
+    expect(edit((raw) => raw.flow.arrows.push({ from: 'S6', to: 'S2' }))).toEqual([]);
+  });
+
+  it('checks the plain words of lanes, steps, answers and cases', () => {
     const spec = businessExplain();
-    spec.journeys[0].steps[1].if = 'refundWindow is zero';
+    spec.flow.lanes[0].name = 'refundWindow';
+    spec.flow.steps[1].text = 'Calls createInvoice now';
+    spec.flow.arrows[2].label = 'is_zero';
     spec.cases[0].outcome = 'Calls createInvoice';
-    expect(errors(spec)).toEqual([expect.stringMatching(/^journeys\[0\]\.steps\[1\]\.if: looks like code/), expect.stringMatching(/^cases\[0\]\.outcome: looks like code/)]);
-  });
-
-  it('checks links, including flow steps, and tech ids in the words', () => {
-    const r = check(businessExplain());
-    if (!r.ok || r.spec.diagram !== 'business') throw new Error('fixture');
-    expect(businessLinkIssues(r.spec, EXPLAIN_TECH_IDS.map((id) => ({ id, label: id })))).toEqual([]);
-    expect(businessLinkIssues(r.spec, [{ id: 'api', label: 'api' }]).filter((m) => m.startsWith('cases'))).toEqual([
-      'cases[0].links[0]: "stripe" is not a box on the tech map',
-      'cases[0].links[1]: "email" is not a box on the tech map',
+    expect(errors(spec)).toEqual([
+      expect.stringMatching(/^flow\.lanes\[0\]\.name: looks like code/),
+      expect.stringMatching(/^flow\.steps\[1\]\.text: looks like code/),
+      expect.stringMatching(/^flow\.arrows\[2\]\.label: looks like code/),
+      expect.stringMatching(/^cases\[0\]\.outcome: looks like code/),
     ]);
   });
 
-  it('has its own JSON schema', () => {
+  it('checks the links of steps, including flow steps, and tech ids in the words', () => {
+    const r = check(businessExplain());
+    if (!r.ok || r.spec.diagram !== 'business') throw new Error('fixture');
+    expect(businessLinkIssues(r.spec, EXPLAIN_TECH_IDS.map((id) => ({ id, label: id })))).toEqual([]);
+    expect(businessLinkIssues(r.spec, [{ id: 'api', label: 'api' }]).filter((m) => m.startsWith('flow'))).toEqual([
+      'flow.steps[2].links[0]: "flow:create/zero" is not a box on the tech map',
+      'flow.steps[3].links[0]: "flow:create/skip" is not a box on the tech map',
+      'flow.steps[4].links[0]: "stripe" is not a box on the tech map',
+      'flow.steps[5].links[0]: "email" is not a box on the tech map',
+    ]);
+    const spec = businessExplain();
+    delete spec.flow.steps[0].links;
+    expect(errors(spec)).toEqual([expect.stringMatching(/^flow\.steps\[0\]\.links/)]);
+  });
+
+  it('has its own JSON schema, with the flow and without journeys and questions', () => {
     const schema = businessSpecJsonSchema(true) as { properties: Record<string, { const?: string }> };
     expect(schema.properties.kind!.const).toBe('explain');
-    expect(Object.keys(schema.properties)).toEqual(expect.arrayContaining(['cases', 'journeys', 'rules']));
+    expect(Object.keys(schema.properties)).toEqual(expect.arrayContaining(['flow', 'cases', 'rules']));
+    expect(Object.keys(schema.properties)).not.toContain('journeys');
+    expect(Object.keys(schema.properties)).not.toContain('questions');
   });
 });

@@ -40,9 +40,9 @@ The same page can explain how an area works today, for a product owner, QA or su
 > explain how refunds work for the product owner
 ```
 
-The agent draws the [explain map](explain-map.md) of the area first, then writes the page from it. It has the sections **How it works** (each journey as one list of steps; a step that only happens sometimes reads "If … → …"), **Rules today**, **Odd cases** (a situation and what happens), **What we keep and why** and **Open questions**, and ends "Made by codechart from the code as it is today." There is no before and after and nothing is marked new. The page is read-only: no notes, Yes/No, answers or *Send back to developer*, so nothing comes back and no review file is saved. Open questions are for the reader to take up with the team.
+The agent draws the [explain map](explain-map.md) of the area first, then writes the page from it. It has the sections **How it works** (one diagram: a lane for each person or system, a box for each step, arrows for the hand-offs; a diamond is a question and every answer has its own arrow, side paths included; a dashed amber outline is the agent's reading), **Rules today**, **Odd cases** (a situation and what happens) and **What we keep and why**, and ends "Made by codechart from the code as it is today." There is no before and after and nothing is marked new. The page is read-only: no notes, Yes/No, answers or *Send back to developer*, so nothing comes back and no review file is saved. There are no open questions: the reader takes what is unclear up with the team.
 
-<img src="images/business-explain.png" alt="The explain page for refunds: a journey with If steps, rules today with exceptions, two odd cases, what is kept and why, and an open question" width="720">
+<img src="images/business-explain.png" alt="The explain page for refunds: a lane diagram of who does what with its yes and no branches, rules today with exceptions, two odd cases, and what is kept and why" width="720">
 
 - One feature per page; a bigger area is split.
 - *Checked in code* only for what the agent read; a guess is *Agent's reading, not checked in code*. What the code doesn't cover becomes a question.

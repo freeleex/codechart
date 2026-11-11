@@ -210,7 +210,7 @@ describe('render: business explain page', () => {
     expect(saved.err).toBe('');
     const r = await renderBusiness(businessExplain());
     expect(r.err).toBe('');
-    expect(r.out).toMatch(/^Business explain page: How billing works · 1 journey · 1 rule · 1 odd case · 1 saved data · 1 question · 1 agent's reading\nfull map → file:\/\/.*\.business\.html\n$/);
+    expect(r.out).toMatch(/^Business explain page: How billing works · 6 steps · 1 rule · 1 odd case · 1 saved data · 2 agent's readings\nfull map → file:\/\/.*\.business\.html\n$/);
     expect(outFiles().filter((n) => n.endsWith('.business.html'))).toHaveLength(1);
     expect(outFiles().filter((n) => n.endsWith('.business.review.json'))).toEqual([]);
   });

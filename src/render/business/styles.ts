@@ -139,6 +139,26 @@ footer{color:var(--muted);font-size:12.5px;padding:30px 0 10px}
 .sheet .row{display:flex;justify-content:flex-end;gap:8px}
 .sheet .row button{border:1px solid var(--line);background:var(--paper);color:var(--text);border-radius:8px;padding:7px 14px}
 .sheet .row .send{border:0;background:var(--btn);color:#fff}
+.flowbox{overflow-x:auto;margin-bottom:22px}
+svg.flow{display:block;width:100%;height:auto}
+.flow text{font-family:var(--sans);fill:var(--text)}
+.flow .band.b0{fill:var(--paper)}
+.flow .band.b1{fill:var(--bg)}
+.flow .lane{font-size:10.5px;font-weight:700;letter-spacing:.07em;fill:var(--muted)}
+.flow .edge{fill:none;stroke:var(--muted);stroke-width:1.4}
+.flow .ah{fill:var(--muted)}
+.flow .elab{font-size:11px;font-weight:650;fill:var(--soft);paint-order:stroke;stroke-width:3px;stroke-linejoin:round}
+.flow .elab.h0{stroke:var(--paper)}
+.flow .elab.h1{stroke:var(--bg)}
+.flow .nt{font-size:12px}
+.fn .shape{fill:var(--paper);stroke:var(--muted);stroke-width:1.4}
+.fn.question .shape{fill:var(--edge-bg);stroke:var(--edge)}
+.fn.end .shape{fill:var(--new-bg);stroke:var(--new)}
+.fn.guess .shape{stroke:var(--amber);stroke-width:1.8;stroke-dasharray:6 3}
+.lg{display:inline-block;width:14px;height:14px;border:1.5px solid var(--muted);margin-right:-6px;vertical-align:-3px}
+.lg.q{transform:rotate(45deg) scale(.75);border-color:var(--edge);background:var(--edge-bg)}
+.lg.e{width:22px;height:12px;border-radius:99px;border-color:var(--new);background:var(--new-bg);vertical-align:-2px}
+.lg.g{border:1.5px dashed var(--amber);border-radius:3px;background:var(--amber-bg)}
 @media (max-width:760px){.wrap{padding:0 16px}h1{font-size:30px}.j-cols{grid-template-columns:1fr}.j-col.now{border-right:0;border-bottom:1px solid var(--line-soft)}.rules{grid-template-columns:1fr}}
 @media (prefers-reduced-motion:reduce){.card.flash{animation:none;box-shadow:0 0 0 3px var(--edge)}}
 `;
