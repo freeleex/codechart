@@ -1,8 +1,9 @@
 import { isQuestion } from '../../spec/business-flow.js';
 import type { Flow } from '../../spec/business.js';
 import { layersOf, spineOf } from './flow-graph.js';
-import { fit, wrap } from './flow-wrap.js';
-import { slotOrder, type Seg } from './flow-slots.js';
+import { portsOf, type Port } from './flow-ports.js';
+import { sizeOf, wrap } from './flow-wrap.js';
+import { dedupe, slotOrder, type Seg } from './flow-slots.js';
 
 export interface Pt {
   x: number;
@@ -44,10 +45,8 @@ export interface FlowLayout {
   edges: FlowEdge[];
 }
 
-type Port = 'right' | 'top' | 'bottom';
-
-const LINE = 17;
-const GUTTER = 100;
+const MIN_GUTTER = 100;
+const LABEL_CHAR = 8.4;
 const PAD = 22;
 const TRACK = 10;
 const ROW_GAP = 30;
@@ -55,7 +54,6 @@ const RISER = 18;
 const SLOT = 12;
 const STUB = 28;
 const EDGE_GAP = 8;
-const CHAR = 7.2;
 const LANE_CHARS = 12;
 
 interface Raw {
@@ -74,14 +72,6 @@ interface Arrow {
   corridor?: { lane: number; below: boolean; track: number };
 }
 
-/** Where a step sits: wrapped to its text, a diamond wide enough for its question. */
-function sizeOf(kind: Kind, text: string): Pick<FlowNode, 'lines' | 'w' | 'h'> {
-  const lines = kind === 'question' ? fit(text, 15, 22) : fit(text, 16, 28);
-  const longest = Math.max(...lines.map((l) => l.length));
-  if (kind === 'question') return { lines, w: Math.max(124, Math.ceil(longest * CHAR * 1.4) + 28), h: Math.max(84, Math.round(lines.length * LINE * 1.75) + 16) };
-  return { lines, w: Math.max(96, Math.ceil(longest * CHAR) + 28), h: Math.max(42, lines.length * LINE + 20) };
-}
-
 /** Rows: the spine in row one of its lane, side steps below it (or from row one in a lane with no spine step). */
 function rawNodes(flow: Flow, layer: number[]): Raw[] {
   const laneOf = new Map(flow.lanes.map((l, i) => [l.id, i]));
@@ -94,28 +84,11 @@ function rawNodes(flow: Flow, layer: number[]): Raw[] {
     const key = `${lane}:${layer[i]}`;
     const row = spine.has(i) ? 0 : (next.get(key) ?? (spineLanes.has(lane) ? 1 : 0));
     if (!spine.has(i)) next.set(key, row + 1);
-    return { node: { id: s.id, kind, reading: s.evidence === 'reading', text: s.text, lane, cx: 0, cy: 0, ...sizeOf(kind, s.text) }, layer: layer[i]!, row };
+    return { node: { id: s.id, kind, reading: s.evidence === 'reading', text: s.text, lane, cx: 0, cy: 0, ...sizeOf(kind === 'question', s.text) }, layer: layer[i]!, row };
   });
 }
 
 const rank = (r: Raw): number => r.node.lane * 1000 + r.row;
-
-/** Which vertex each arrow out of a step leaves from: a question's answers fan out top, right and bottom. */
-function portsOf(a: Raw, targets: Raw[]): Port[] {
-  const ports = targets.map((): Port => 'right');
-  if (a.node.kind !== 'question' || targets.length < 2) return ports;
-  const order = targets.map((_, i) => i).sort((i, j) => rank(targets[i]!) - rank(targets[j]!) || i - j);
-  if (targets.length > 2) {
-    const straight = order.find((t) => rank(targets[t]!) === rank(a)) ?? order[1]!;
-    order.filter((t) => t !== straight).forEach((t, k) => (ports[t] = k ? 'bottom' : 'top'));
-    return ports;
-  }
-  const first = order[0]!;
-  const last = order[1]!;
-  if (rank(targets[first]!) < rank(a)) ports[first] = 'top';
-  if (rank(targets[last]!) > rank(a) || ports[first] === 'right') ports[last] = 'bottom';
-  return ports;
-}
 
 function arrowsOf(flow: Flow, raws: Raw[]): Arrow[] {
   const byId = new Map(raws.map((r) => [r.node.id, r]));
@@ -125,7 +98,7 @@ function arrowsOf(flow: Flow, raws: Raw[]): Arrow[] {
   for (const [from, ks] of out) {
     const a = byId.get(from)!;
     const targets = ks.map((k) => byId.get(flow.arrows[k]!.to)!);
-    const ports = portsOf(a, targets);
+    const ports = portsOf(a.node.kind === 'question', rank(a), targets.map(rank));
     ks.forEach((k, n) => list[k] = { a, b: targets[n]!, label: flow.arrows[k]!.label, port: ports[n]!, below: rank(targets[n]!) >= rank(a), slot: 0 });
   }
   const tracks = new Map<string, number>();
@@ -148,7 +121,8 @@ function laneBands(flow: Flow, raws: Raw[], list: Arrow[]): FlowLane[] {
     const rowH = Math.max(42, ...mine.map((r) => r.node.h));
     const count = (below: boolean): number => list.filter((e) => e.corridor?.lane === i && e.corridor.below === below).length;
     const above = PAD + TRACK * count(false);
-    const lines = wrap(l.name.toUpperCase(), LANE_CHARS);
+    const name = l.name.toUpperCase();
+    const lines = wrap(name, Math.max(LANE_CHARS, ...name.split(/\s+/).map((w) => w.length)));
     const height = Math.max(above + rows * rowH + (rows - 1) * ROW_GAP + PAD + TRACK * count(true), lines.length * 15 + 24);
     for (const r of mine) r.node.cy = top + above + r.row * (rowH + ROW_GAP) + rowH / 2;
     const lane = { name: l.name, lines, top, height };
@@ -171,8 +145,12 @@ function entries(list: Arrow[]): Map<Arrow, number> {
   return y;
 }
 
-const topOf = (n: FlowNode): number => n.cy - n.h / 2;
-const startY = (e: Arrow): number => (e.port === 'right' ? e.a.node.cy : e.port === 'top' ? topOf(e.a.node) - RISER : e.a.node.cy + e.a.node.h / 2 + RISER);
+const exitOf = (e: Arrow): Pt => {
+  const { cx, cy, w, h } = e.a.node;
+  const at = { right: [w / 2, 0], top: [0, -h / 2], bottom: [0, h / 2], upper: [w / 4, -h / 4], lower: [w / 4, h / 4] }[e.port];
+  return { x: cx + at[0]!, y: cy + at[1]! };
+};
+const startY = (e: Arrow): number => exitOf(e).y + (e.port === 'top' ? -RISER : e.port === 'bottom' ? RISER : 0);
 
 interface Vertical {
   e: Arrow;
@@ -207,11 +185,11 @@ interface Columns {
 }
 
 /** Column x positions: each gap is as wide as its arrows need, one slot per vertical run, ordered so the runs cross as little as possible. */
-function columns(raws: Raw[], runs: Vertical[], count: number): Columns {
+function columns(raws: Raw[], runs: Vertical[], count: number, gutter: number): Columns {
   const width = Array.from({ length: count }, (_, c) => Math.max(...raws.filter((r) => r.layer === c).map((r) => r.node.w), 0));
   const slotX = new Map<Vertical, number>();
   const x: number[] = [];
-  let cursor = GUTTER;
+  let cursor = gutter;
   for (let g = 0; g <= count; g++) {
     const here = runs.filter((v) => v.gap === g);
     const base = g === 0 ? 14 : STUB;
@@ -233,25 +211,13 @@ function entryPoint(b: FlowNode, y: number): Pt {
 }
 
 function labelAt(e: Arrow, start: Pt, y: number): Pt {
-  if (e.port === 'right') return { x: start.x + 6, y: y + (e.below ? -6 : 17) };
-  return { x: start.x + 8, y: y + (e.port === 'top' ? -6 : 17) };
-}
-
-function dedupe(points: Pt[]): Pt[] {
-  const out: Pt[] = [];
-  for (const p of points) {
-    const prev = out[out.length - 1];
-    if (prev && prev.x === p.x && prev.y === p.y) continue;
-    const before = out[out.length - 2];
-    if (prev && before && ((before.x === prev.x && prev.x === p.x) || (before.y === prev.y && prev.y === p.y))) out.pop();
-    out.push(p);
-  }
-  return out;
+  const up = e.port === 'top' || e.port === 'upper' || (e.port === 'right' && e.below);
+  return { x: start.x + (e.port === 'top' || e.port === 'bottom' ? 8 : 6), y: y + (up ? -6 : 17) };
 }
 
 function edgeOf(e: Arrow, lanes: FlowLane[], entry: Map<Arrow, number>, mine: Vertical[], cols: Columns): FlowEdge {
   const a = e.a.node;
-  const start: Pt = e.port === 'right' ? { x: a.cx + a.w / 2, y: a.cy } : { x: a.cx, y: e.port === 'top' ? topOf(a) : a.cy + a.h / 2 };
+  const start = exitOf(e);
   const y = startY(e);
   const pts: Pt[] = [start, { x: start.x, y }];
   const slot = (i: number): number => cols.slotX.get(mine[i]!)!;
@@ -273,7 +239,8 @@ export function layoutFlow(flow: Flow): FlowLayout {
   const entry = entries(list);
   const runs = verticals(list, lanes, entry);
   const count = Math.max(...layer) + 1;
-  const cols = columns(raws, runs, count);
+  const gutter = Math.max(MIN_GUTTER, Math.ceil(Math.max(...lanes.flatMap((l) => l.lines.map((x) => x.length))) * LABEL_CHAR) + 28);
+  const cols = columns(raws, runs, count, gutter);
   for (const r of raws) r.node.cx = cols.x[r.layer]! + cols.width[r.layer]! / 2;
   const edges = list.map((e) => edgeOf(e, lanes, entry, runs.filter((v) => v.e === e), cols));
   return { width: cols.total, height: lanes.reduce((h, l) => h + l.height, 0), lanes, nodes: raws.map((r) => r.node), edges };

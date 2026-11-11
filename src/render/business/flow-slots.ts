@@ -37,3 +37,16 @@ export function slotOrder(segs: Seg[]): number[] {
   }
   return best;
 }
+
+/** A path without repeated points or points in the middle of a straight run. */
+export function dedupe<P extends { x: number; y: number }>(points: P[]): P[] {
+  const out: P[] = [];
+  for (const p of points) {
+    const prev = out[out.length - 1];
+    if (prev && prev.x === p.x && prev.y === p.y) continue;
+    const before = out[out.length - 2];
+    if (prev && before && ((before.x === prev.x && prev.x === p.x) || (before.y === prev.y && prev.y === p.y))) out.pop();
+    out.push(p);
+  }
+  return out;
+}

@@ -116,3 +116,40 @@ describe('question exits', () => {
     expect(clashes(layout.edges.flatMap((e, edge) => e.points.slice(1).map((b, i) => ({ edge, a: e.points[i]!, b }))), 10)).toEqual([]);
   });
 });
+
+describe('lane names', () => {
+  it('keep whole words and make room for them: the label column never reaches the first column', () => {
+    const flow = flowOf(['Sales representative', 'Customer administrator'], [['A', 0, 'Asks'], ['B', 1, 'Answers']], [['A', 'B']]);
+    const layout = layoutFlow(flow);
+    expect(layout.lanes.map((l) => l.lines)).toEqual([['SALES', 'REPRESENTATIVE'], ['CUSTOMER', 'ADMINISTRATOR']]);
+    const svg = flowDiagram(flow);
+    for (const w of ['SALES', 'REPRESENTATIVE', 'CUSTOMER', 'ADMINISTRATOR']) expect(svg).toContain(`>${w}<`);
+    const first = Math.min(...layout.nodes.map((n) => n.cx - n.w / 2));
+    expect(14 + 'REPRESENTATIVE'.length * 8.4).toBeLessThan(first);
+    const narrow = layoutFlow(flowOf(['Sales'], [['A', 0, 'Asks'], ['B', 0, 'Answers']], [['A', 'B']]));
+    expect(Math.min(...narrow.nodes.map((n) => n.cx - n.w / 2))).toBeLessThan(first);
+  });
+});
+
+describe('answers of one question', () => {
+  type Segment = [Pt, Pt];
+  const meets = ([p, q]: Segment, [r, s]: Segment): boolean => {
+    const box = (a: Pt, b: Pt) => ({ x: range(a.x, b.x), y: range(a.y, b.y) });
+    const u = box(p, q);
+    const v = box(r, s);
+    return overlap(u.x, v.x) >= 0 && overlap(u.y, v.y) >= 0;
+  };
+  const cases: [string, number[]][] = [
+    ['one lane', [0, 0, 0, 0]],
+    ['targets in lanes above and below', [1, 0, 1, 2]],
+    ['all targets in lanes below', [0, 1, 2, 2]],
+    ['all targets in lanes above', [2, 1, 0, 0]],
+  ];
+  it.each(cases)('3 answers, %s: no answer arrow touches another', (_, lanes) => {
+    const arrows: [string, string, string][] = [['Q', 'Y', 'full'], ['Q', 'M', 'partial'], ['Q', 'N', 'credit']];
+    const steps: [string, number, string][] = [['Q', lanes[0]!, 'Is it right?'], ...arrows.map((a, i): [string, number, string] => [a[1], lanes[i + 1]!, `Then ${a[1]}`])];
+    const { edges } = layoutFlow(flowOf(['A', 'B', 'C'], steps, arrows));
+    const segs = edges.map((e) => e.points.slice(1).map((b, i): Segment => [e.points[i]!, b]));
+    for (let i = 0; i < segs.length; i++) for (let j = i + 1; j < segs.length; j++) for (const s of segs[i]!) for (const t of segs[j]!) expect(meets(s, t), `${i}/${j}`).toBe(false);
+  });
+});
