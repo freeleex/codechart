@@ -63,3 +63,56 @@ describe('flow layout', () => {
     expect(Math.abs(into[0]! - into[1]!)).toBeGreaterThanOrEqual(10);
   });
 });
+
+const flowOf = (laneNames: string[], steps: [string, number, string][], arrows: [string, string, string?][]) =>
+  ({
+    lanes: laneNames.map((name, i) => ({ id: `L${i}`, name })),
+    steps: steps.map(([id, lane, text]) => ({ id, text, lane: `L${lane}`, links: ['api'], evidence: 'checked' as const })),
+    arrows: arrows.map(([from, to, label]) => ({ from, to, ...(label && { label }) })),
+  }) as Parameters<typeof layoutFlow>[0];
+
+describe('flow text fits', () => {
+  const words = ['Reconciliation', 'Authorization', 'Verification', 'Registration'];
+  const long = 'Reconciliation Authorization Verification Registration';
+  const decode = (svg: string): string => svg.replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&');
+
+  it('shows a 60-character step of long words and a 30-character lane name in full', () => {
+    const step = 'Verification Authorization Registration Reconciliation ab';
+    expect(step.length).toBeLessThanOrEqual(60);
+    const flow = flowOf(['Alpha Bravo Delta Echo Fox Golf Hotel', 'Intake Review Final Sign Off'], [['A', 0, step], ['B', 1, `${step.slice(0, 50)}?`], ['C', 1, 'Done']], [['A', 'B'], ['B', 'C', 'yes'], ['B', 'A', 'no']]);
+    flow.lanes[0]!.name = 'Alpha Bravo Delta Echo Fox Go';
+    const svg = flowDiagram(flow);
+    expect(svg).not.toContain('…');
+    const text = decode(svg).replace(/\s+/g, ' ');
+    for (const w of step.split(' ')) expect(text).toContain(w);
+    for (const w of 'ALPHA BRAVO DELTA ECHO FOX GO'.split(' ')) expect(text).toContain(w);
+    const nodes = layoutFlow(flow).nodes;
+    expect(nodes[0]!.lines.join(' ')).toBe(step);
+  });
+
+  it('never cuts a lane name of four long words or a step of long words', () => {
+    const flow = flowOf([words.slice(0, 2).join(' ').slice(0, 30)], [['A', 0, long.slice(0, 60)], ['B', 0, 'End']], [['A', 'B']]);
+    const svg = flowDiagram(flow);
+    expect(svg).not.toContain('…');
+    expect(layoutFlow(flow).nodes[0]!.lines.join(' ')).toBe(long.slice(0, 54).trim());
+  });
+});
+
+describe('question exits', () => {
+  const cases: [string, number[], string[][]][] = [
+    ['two answers, one lane', [0, 0, 0], [['Q', 'Y', 'yes'], ['Q', 'N', 'no']]],
+    ['three answers, one lane', [0, 0, 0, 0], [['Q', 'Y', 'full'], ['Q', 'M', 'partial'], ['Q', 'N', 'credit']]],
+    ['two answers, across lanes', [0, 1, 2], [['Q', 'Y', 'yes'], ['Q', 'N', 'no']]],
+    ['three answers, across lanes', [1, 0, 1, 2], [['Q', 'Y', 'full'], ['Q', 'M', 'partial'], ['Q', 'N', 'credit']]],
+  ];
+  it.each(cases)('%s: every answer leaves from its own point with its own label spot', (_, lanes, arrows) => {
+    const steps: [string, number, string][] = [['Q', lanes[0]!, 'Is it right?'], ...arrows.map((a, i): [string, number, string] => [a[1]!, lanes[i + 1]!, `Then ${a[1]}`])];
+    const layout = layoutFlow(flowOf(['A', 'B', 'C'], steps, arrows as [string, string, string?][]));
+    expect(layout.edges).toHaveLength(arrows.length);
+    const starts = layout.edges.map((e) => `${e.points[0]!.x},${e.points[0]!.y}`);
+    const spots = layout.edges.map((e) => `${e.label!.at.x},${e.label!.at.y}`);
+    expect(new Set(starts).size).toBe(arrows.length);
+    expect(new Set(spots).size).toBe(arrows.length);
+    expect(clashes(layout.edges.flatMap((e, edge) => e.points.slice(1).map((b, i) => ({ edge, a: e.points[i]!, b }))), 10)).toEqual([]);
+  });
+});

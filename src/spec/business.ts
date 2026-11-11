@@ -95,7 +95,7 @@ const laneSchema = z.strictObject({
 
 const flowStepSchema = z.strictObject({
   id: ident(),
-  text: z.string().min(1).max(MAX_STEP_TEXT, `keep each step to one short action (${MAX_STEP_TEXT} characters at most)`).describe('One short action. Ending in "?" makes it a question (a diamond) with two or more labelled arrows out'),
+  text: z.string().min(1).max(MAX_STEP_TEXT, `keep each step to one short action (${MAX_STEP_TEXT} characters at most)`).describe('One short action. Ending in "?" makes it a question (a diamond) with two or three labelled arrows out'),
   lane: ident().describe('Id of the lane of whoever does this'),
   links: links(),
   evidence: evidence(),
@@ -107,7 +107,7 @@ const arrowSchema = z.strictObject({
   label: short().optional().describe('The answer, such as yes or no: required on every arrow out of a question'),
 });
 
-export const flowSchema = z.strictObject({
+const flowSchema = z.strictObject({
   lanes: z.array(laneSchema).min(1).max(MAX_LANES),
   steps: z.array(flowStepSchema).min(1).max(MAX_FLOW_STEPS),
   arrows: z.array(arrowSchema).max(MAX_ARROWS).describe('Hand-offs, step to step. A step with no arrow out is where the story ends'),

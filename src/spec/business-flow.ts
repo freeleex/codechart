@@ -1,5 +1,7 @@
 import type { Flow, Issue } from './business.js';
 
+const MAX_ANSWERS = 3;
+
 type Path = (string | number)[];
 
 /** A step ending in "?" is a question: it branches, and every other step leads to at most one. */
@@ -35,6 +37,7 @@ export function flowIssues(flow: Flow, issue: Issue): void {
     const arrows = out[i]!;
     if (isQuestion(s.text)) {
       if (arrows.length < 2) issue(['flow', 'steps', i, 'text'], 'a question needs at least two arrows out, one for each answer; drop the "?" if nothing is asked');
+      if (arrows.length > MAX_ANSWERS) issue(['flow', 'steps', i, 'text'], `a question can have at most ${MAX_ANSWERS} answers`);
       const labels = new Set<string>();
       for (const k of arrows) {
         const label = flow.arrows[k]!.label;

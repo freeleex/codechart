@@ -229,11 +229,7 @@ function bizDialog(p: BizPage, change: Change): void {
 
 /** The business page: answers, Yes / No on the agent's readings, and notes, kept in localStorage; "Send back" turns them into the message `codechart feedback --import` reads. */
 export function initBusiness(repo: string, change: Change = { slug: 'business', branch: '', at: '' }): void {
-  if (!document.getElementById('send')) {
-    // A read-only explain page has no notes, answers or bar; only the "About" links work.
-    window.addEventListener('click', (e) => bizJump(e.target as Element));
-    return;
-  }
+  if (!document.getElementById('send')) return;
   const cards = bizCards();
   const key = `codechart.business:${repo}:${change.slug}:${change.at}`;
   const p: BizPage = { cards, s: bizSaved(key, new Set(cards.map((c) => c.dataset.item!))), key, send: bizEl<HTMLButtonElement>('send') };

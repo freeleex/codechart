@@ -216,6 +216,18 @@ describe('business explain spec', () => {
     expect(edit((raw) => (raw.flow.arrows[3].label = 'yes'))).toEqual(['flow.arrows[3].label: two answers of the same question are both "yes"']);
   });
 
+  it('allows at most 3 answers to a question', () => {
+    const add = (raw: ReturnType<typeof businessExplain>) => {
+      raw.flow.steps.push({ id: 'S7', text: 'Credit it', lane: 'billing', links: ['api'], evidence: 'checked' }, { id: 'S8', text: 'Hold it', lane: 'billing', links: ['api'], evidence: 'checked' });
+      raw.flow.arrows.push({ from: 'S3', to: 'S7', label: 'partly' }, { from: 'S3', to: 'S8', label: 'later' });
+    };
+    expect(edit(add)).toEqual(['flow.steps[2].text: a question can have at most 3 answers']);
+    expect(edit((raw) => {
+      add(raw);
+      raw.flow.arrows.pop();
+    })).toEqual([]);
+  });
+
   it('lets only a question branch, and tells the agent to turn the step into one', () => {
     expect(edit((raw) => raw.flow.arrows.push({ from: 'S1', to: 'S4' }))).toEqual(['flow.steps[0].text: only a question can lead to two steps: turn this step into a question (end it with "?") and label each arrow with its answer']);
   });

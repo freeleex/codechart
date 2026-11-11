@@ -1,7 +1,7 @@
 import { isQuestion } from '../../spec/business-flow.js';
 import type { Flow } from '../../spec/business.js';
-import { wrapText } from '../web/layout.js';
 import { layersOf, spineOf } from './flow-graph.js';
+import { fit, wrap } from './flow-wrap.js';
 import { slotOrder, type Seg } from './flow-slots.js';
 
 export interface Pt {
@@ -9,7 +9,7 @@ export interface Pt {
   y: number;
 }
 
-export type Kind = 'action' | 'question' | 'end';
+type Kind = 'action' | 'question' | 'end';
 
 export interface FlowNode {
   id: string;
@@ -24,12 +24,12 @@ export interface FlowNode {
   h: number;
 }
 
-export interface FlowEdge {
+interface FlowEdge {
   points: Pt[];
   label?: { text: string; at: Pt; anchor: 'start' | 'middle'; lane: number };
 }
 
-export interface FlowLane {
+interface FlowLane {
   name: string;
   lines: string[];
   top: number;
@@ -46,8 +46,8 @@ export interface FlowLayout {
 
 type Port = 'right' | 'top' | 'bottom';
 
-export const LINE = 17;
-export const GUTTER = 100;
+const LINE = 17;
+const GUTTER = 100;
 const PAD = 22;
 const TRACK = 10;
 const ROW_GAP = 30;
@@ -56,7 +56,6 @@ const SLOT = 12;
 const STUB = 28;
 const EDGE_GAP = 8;
 const CHAR = 7.2;
-const MAX_LINES = 3;
 const LANE_CHARS = 12;
 
 interface Raw {
@@ -77,7 +76,7 @@ interface Arrow {
 
 /** Where a step sits: wrapped to its text, a diamond wide enough for its question. */
 function sizeOf(kind: Kind, text: string): Pick<FlowNode, 'lines' | 'w' | 'h'> {
-  const lines = wrapText(text, kind === 'question' ? 15 : 16, MAX_LINES);
+  const lines = kind === 'question' ? fit(text, 15, 22) : fit(text, 16, 28);
   const longest = Math.max(...lines.map((l) => l.length));
   if (kind === 'question') return { lines, w: Math.max(124, Math.ceil(longest * CHAR * 1.4) + 28), h: Math.max(84, Math.round(lines.length * LINE * 1.75) + 16) };
   return { lines, w: Math.max(96, Math.ceil(longest * CHAR) + 28), h: Math.max(42, lines.length * LINE + 20) };
@@ -106,8 +105,13 @@ function portsOf(a: Raw, targets: Raw[]): Port[] {
   const ports = targets.map((): Port => 'right');
   if (a.node.kind !== 'question' || targets.length < 2) return ports;
   const order = targets.map((_, i) => i).sort((i, j) => rank(targets[i]!) - rank(targets[j]!) || i - j);
+  if (targets.length > 2) {
+    const straight = order.find((t) => rank(targets[t]!) === rank(a)) ?? order[1]!;
+    order.filter((t) => t !== straight).forEach((t, k) => (ports[t] = k ? 'bottom' : 'top'));
+    return ports;
+  }
   const first = order[0]!;
-  const last = order[order.length - 1]!;
+  const last = order[1]!;
   if (rank(targets[first]!) < rank(a)) ports[first] = 'top';
   if (rank(targets[last]!) > rank(a) || ports[first] === 'right') ports[last] = 'bottom';
   return ports;
@@ -144,9 +148,10 @@ function laneBands(flow: Flow, raws: Raw[], list: Arrow[]): FlowLane[] {
     const rowH = Math.max(42, ...mine.map((r) => r.node.h));
     const count = (below: boolean): number => list.filter((e) => e.corridor?.lane === i && e.corridor.below === below).length;
     const above = PAD + TRACK * count(false);
-    const height = above + rows * rowH + (rows - 1) * ROW_GAP + PAD + TRACK * count(true);
+    const lines = wrap(l.name.toUpperCase(), LANE_CHARS);
+    const height = Math.max(above + rows * rowH + (rows - 1) * ROW_GAP + PAD + TRACK * count(true), lines.length * 15 + 24);
     for (const r of mine) r.node.cy = top + above + r.row * (rowH + ROW_GAP) + rowH / 2;
-    const lane = { name: l.name, lines: wrapText(l.name.toUpperCase(), LANE_CHARS, MAX_LINES), top, height };
+    const lane = { name: l.name, lines, top, height };
     top += height;
     return lane;
   });
