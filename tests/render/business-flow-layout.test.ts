@@ -214,3 +214,63 @@ describe('loop backs and skips from one question', () => {
     expect(pictures.size).toBe(1);
   });
 });
+
+describe('answer labels', () => {
+  const longest = 'The customer paid a diff';
+  const cases: [string, number[]][] = [
+    ['one lane', [0, 0, 0, 0]],
+    ['across lanes', [1, 0, 1, 2]],
+    ['all below', [0, 1, 2, 2]],
+    ['all above', [2, 1, 0, 0]],
+  ];
+  it.each(cases)('a longest-allowed label, %s: clear of every step and inside the picture', (_, lanes) => {
+    expect(longest).toHaveLength(24);
+    const arrows: [string, string, string][] = [['Q', 'Y', longest], ['Q', 'M', `${longest.slice(0, 23)}x`], ['Q', 'N', `${longest.slice(0, 22)}xy`]];
+    const steps: [string, number, string][] = [['Q', lanes[0]!, 'Is it right?'], ...arrows.map((a, i): [string, number, string] => [a[1], lanes[i + 1]!, `Then ${a[1]}`])];
+    const layout = layoutFlow(flowOf(['A', 'B', 'C'], steps, arrows));
+    const labels = layout.edges.map((e) => e.label!.box);
+    expect(labels).toHaveLength(3);
+    for (const b of labels) {
+      expect(b.x).toBeGreaterThanOrEqual(0);
+      expect(b.y).toBeGreaterThanOrEqual(0);
+      expect(b.x + b.w).toBeLessThanOrEqual(layout.width);
+      expect(b.y + b.h).toBeLessThanOrEqual(layout.height);
+      for (const n of layout.nodes) {
+        const nearX = Math.min(Math.max(n.cx, b.x), b.x + b.w);
+        const nearY = Math.min(Math.max(n.cy, b.y), b.y + b.h);
+        const inside = n.kind === 'question' ? Math.abs(nearX - n.cx) / (n.w / 2) + Math.abs(nearY - n.cy) / (n.h / 2) < 1 : Math.abs(nearX - n.cx) < n.w / 2 && Math.abs(nearY - n.cy) < n.h / 2;
+        expect(inside, `${b.x},${b.y} vs ${n.id}`).toBe(false);
+      }
+    }
+  });
+
+  it('puts every label clear of the lines that leave the question', () => {
+    const arrows: [string, string, string][] = [['Q', 'Y', longest], ['Q', 'M', 'no'], ['Q', 'N', 'maybe']];
+    const steps: [string, number, string][] = [['Q', 0, 'Is it right?'], ['Y', 0, 'Then Y'], ['M', 1, 'Then M'], ['N', 1, 'Then N']];
+    const layout = layoutFlow(flowOf(['A', 'B'], steps, arrows));
+    const verticals = layout.edges.flatMap((e) => e.points.slice(1).map((b, i) => [e.points[i]!, b] as const)).filter(([p, q]) => p.x === q.x);
+    for (const { label } of layout.edges) {
+      const b = label!.box;
+      for (const [p, q] of verticals) {
+        const crosses = p.x > b.x && p.x < b.x + b.w && Math.min(p.y, q.y) < b.y + b.h && Math.max(p.y, q.y) > b.y;
+        expect(crosses, label!.text).toBe(false);
+      }
+    }
+  });
+});
+
+describe('many arrows into one step', () => {
+  it('gives eight branches that join a short step eight separate entry points', () => {
+    const ids = Array.from({ length: 8 }, (_, i) => `B${i}`);
+    const flow = flowOf(['A'], [...ids.map((id): [string, number, string] => [id, 0, `Branch ${id}`]), ['D', 0, 'Done']], ids.map((id): [string, string] => [id, 'D']));
+    const layout = layoutFlow(flow);
+    const ends = layout.edges.map((e) => e.points.at(-1)!);
+    expect(new Set(ends.map((p) => `${p.x},${p.y}`)).size).toBe(8);
+    const ys = ends.map((p) => p.y).sort((a, b) => a - b);
+    for (let i = 1; i < ys.length; i++) expect(ys[i]! - ys[i - 1]!).toBeGreaterThanOrEqual(10);
+    const done = layout.nodes.find((n) => n.id === 'D')!;
+    expect(ys[0]!).toBeGreaterThan(done.cy - done.h / 2);
+    expect(ys.at(-1)!).toBeLessThan(done.cy + done.h / 2);
+    expect(clashes(segments(flow), 10)).toEqual([]);
+  });
+});

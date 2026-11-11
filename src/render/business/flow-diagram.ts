@@ -50,7 +50,7 @@ export function flowDiagram(flow: Flow): string {
     .map((l, i) => `<rect class="band b${i % 2}" x="0" y="${num(l.top)}" width="${width}" height="${num(l.height)}"/>${textOf(l.lines, 14, l.top + l.height / 2, 'lane', LANE_FONT, 'start')}`)
     .join('');
   const edges = layout.edges
-    .map((e) => `<path class="edge" d="${pathOf(e.points)}" marker-end="url(#flow-arrow)"/>${e.label ? `<text class="elab h${e.label.lane % 2}" font-size="${LABEL_FONT}" x="${num(e.label.at.x)}" y="${num(e.label.at.y)}" text-anchor="${e.label.anchor}">${esc(e.label.text)}</text>` : ''}`)
+    .map((e) => `<path class="edge" d="${pathOf(e.points)}" marker-end="url(#flow-arrow)"/>${e.label ? `<text class="elab h${e.label.lane % 2}" font-size="${LABEL_FONT}" x="${num(e.label.at.x)}" y="${num(e.label.at.y)}">${esc(e.label.text)}</text>` : ''}`)
     .join('');
   const label = `Flow of ${flow.steps.length} ${flow.steps.length === 1 ? 'step' : 'steps'} across ${flow.lanes.map((l) => l.name).join(', ')}: ${flow.steps.map((s) => s.text).join('; ')}`;
   return `<div class="card flowbox"><svg class="flow" role="img" aria-label="${esc(label)}" viewBox="0 0 ${width} ${num(height)}" width="${width}" height="${num(height)}">

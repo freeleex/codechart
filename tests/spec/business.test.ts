@@ -216,6 +216,11 @@ describe('business explain spec', () => {
     expect(edit((raw) => (raw.flow.arrows[3].label = 'yes'))).toEqual(['flow.arrows[3].label: two answers of the same question are both "yes"']);
   });
 
+  it('keeps an answer to a few words', () => {
+    expect(edit((raw) => (raw.flow.arrows[2].label = 'x'.repeat(25)))).toEqual(['flow.arrows[2].label: keep an answer to a few words']);
+    expect(edit((raw) => (raw.flow.arrows[2].label = 'x'.repeat(24)))).toEqual([]);
+  });
+
   it('allows at most 3 answers to a question', () => {
     const add = (raw: ReturnType<typeof businessExplain>) => {
       raw.flow.steps.push({ id: 'S7', text: 'Credit it', lane: 'billing', links: ['api'], evidence: 'checked' }, { id: 'S8', text: 'Hold it', lane: 'billing', links: ['api'], evidence: 'checked' });

@@ -87,6 +87,7 @@ const MAX_LANES = 5;
 const MAX_FLOW_STEPS = 16;
 const MAX_ARROWS = 32;
 const MAX_STEP_TEXT = 60;
+const MAX_LABEL = 24;
 
 const laneSchema = z.strictObject({
   id: ident(),
@@ -104,7 +105,7 @@ const flowStepSchema = z.strictObject({
 const arrowSchema = z.strictObject({
   from: ident(),
   to: ident(),
-  label: short().optional().describe('The answer, such as yes or no: required on every arrow out of a question'),
+  label: z.string().min(1).max(MAX_LABEL, 'keep an answer to a few words').optional().describe('The answer, such as yes or no: required on every arrow out of a question'),
 });
 
 const flowSchema = z.strictObject({
