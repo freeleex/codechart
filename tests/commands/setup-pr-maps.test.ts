@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { makeTool } from '../../src/commands/setup-pr-maps.js';
 import { buildPlan, parseRemote, SETUP_BRANCH, type Remote } from '../../src/pr/setup.js';
 import { git, makeSandbox, removeSandbox, runCli, type Sandbox } from '../helpers/sandbox.js';
 
@@ -159,5 +160,52 @@ describe('codechart setup-pr-maps', () => {
     expect(ci.startsWith('test:\n  script: [make]\n\n# codechart PR maps')).toBe(true);
     expect(calls[0]!.slice(0, 7)).toEqual(['glab', 'mr', 'create', '--source-branch', SETUP_BRANCH, '--target-branch', 'main']);
     expect(calls[0]!.join(' ')).toContain('CODECHART_GITLAB_TOKEN');
+  });
+});
+
+describe('the tool that runs gh/glab', () => {
+  it('on Windows runs the .exe from an absolute PATH entry, never the bare name', () => {
+    const calls: string[][] = [];
+    const tool = makeTool({
+      platform: 'win32',
+      env: { PATH: '.;C:\\Tools' },
+      exists: (p) => p === 'C:\\Tools\\gh.exe',
+      exec: (file, args) => {
+        calls.push([file, ...args]);
+        return 'https://github.com/o/r/pull/1\n';
+      },
+    });
+    expect(tool('gh', ['pr', 'create'])).toBe('https://github.com/o/r/pull/1\n');
+    expect(calls).toEqual([['C:\\Tools\\gh.exe', 'pr', 'create']]);
+  });
+
+  it('on Windows a command off PATH is not installed, even with a repo-local file of that name', () => {
+    const tool = makeTool({
+      platform: 'win32',
+      env: { PATH: '.;C:\\Tools' },
+      exists: (p) => p === 'gh.exe',
+      exec: () => {
+        throw new Error('must not run');
+      },
+    });
+    expect(() => tool('gh', ['pr', 'create'])).toThrow('gh is not installed; install it or run without --pr');
+  });
+
+  it('ENOENT from the run maps to the same message; other failures keep the stderr', () => {
+    const win = { platform: 'win32' as const, env: { PATH: 'C:\\Tools' }, exists: (p: string) => p.endsWith('.exe') };
+    const missing = makeTool({
+      ...win,
+      exec: () => {
+        throw Object.assign(new Error('spawnSync gh ENOENT'), { code: 'ENOENT' });
+      },
+    });
+    expect(() => missing('gh', [])).toThrow('gh is not installed; install it or run without --pr');
+    const failed = makeTool({
+      ...win,
+      exec: () => {
+        throw Object.assign(new Error('exit 1'), { stderr: 'boom\n' });
+      },
+    });
+    expect(() => failed('glab', [])).toThrow('glab failed: boom');
   });
 });

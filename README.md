@@ -77,6 +77,8 @@ You don't need to ask for any of this. The skill fires when the agent summarizes
 npm i -g codechart && codechart install-skill
 ```
 
+Install may edit global files (`~/.claude/CLAUDE.md`, your agents' `AGENTS.md`/`GEMINI.md`, `~/.claude/settings.json`) when you accept its extras; [Install and agents](docs/install.md) says what each adds.
+
 That's it. Open your coding agent in any repo and try:
 
 ```text

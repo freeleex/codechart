@@ -42,6 +42,13 @@ interface Flags {
 const hasClaude = (agents: AgentPreset[]) => agents.some((a) => a.name === 'claude');
 const hasOpencode = (agents: AgentPreset[]) => agents.some((a) => a.name === 'opencode');
 
+/** "Reminder, hook and plugin not added. Run with --reminder --hook --plugin to add them.", naming only `keys`. */
+function notAddedLine(keys: (keyof Extras)[]): string {
+  const words = keys.map((k, i) => (i === 0 ? `${k[0]!.toUpperCase()}${k.slice(1)}` : k));
+  const list = words.length > 1 ? `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}` : words[0];
+  return `${list} not added. Run with ${keys.map((k) => `--${k}`).join(' ')} to add them.`;
+}
+
 async function chooseExtras(agents: AgentPreset[], opts: CommandOptions): Promise<Extras> {
   const choose = opts.choose ?? terminalChoose();
   const files = agents.flatMap((a) => (a.instructions ? [`~/${a.instructions}`] : []));
@@ -53,7 +60,12 @@ async function chooseExtras(agents: AgentPreset[], opts: CommandOptions): Promis
   if (hasOpencode(agents)) {
     items.push({ key: 'plugin', label: 'OpenCode plugin', hint: 'ask for a diagram when a turn changed 3+ files → ~/.config/opencode/plugins/codechart.js' });
   }
-  if (!choose || items.length === 0) return { reminder: true, hook: hasClaude(agents), plugin: hasOpencode(agents) };
+  if (items.length === 0) return { reminder: true, hook: hasClaude(agents), plugin: hasOpencode(agents) };
+  // Off a terminal nobody can answer, and the extras edit global files, so only flags add them.
+  if (!choose) {
+    opts.stdout(`${notAddedLine(items.map((i) => i.key))}\n`);
+    return { reminder: false, hook: false, plugin: false };
+  }
   const picked = await choose('Agents forget skills in long sessions; these help them remember codechart:', items, true);
   const keys = new Set((picked ?? []).map((i) => items[i]!.key));
   return { reminder: keys.has('reminder'), hook: keys.has('hook'), plugin: keys.has('plugin') };
@@ -125,7 +137,7 @@ export function installSkillCommand(opts: CommandOptions): Command {
     .option('--agent <names...>', `install for these agents: ${NAMES}`)
     .option('--dir <path>', 'install into this skills folder')
     .option('--force', 'overwrite an install that is not an older codechart copy')
-    .option('--reminder', "only the reminder line in each agent's global instructions file (all extras are added by default)")
+    .option('--reminder', "only the reminder line in each agent's global instructions file (extras are added by default in a terminal)")
     .option('--no-reminder', 'skip the reminder line')
     .option('--hook', 'only the Claude Code hook that asks for a diagram after a turn that changed 3+ files without one')
     .option('--no-hook', 'skip the Claude Code hook')
