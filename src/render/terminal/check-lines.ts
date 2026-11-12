@@ -84,16 +84,33 @@ export function countLines(counts: string, c: CheckSummary | undefined, width: n
   return [truncate(counts, width), ...rest].join('\n');
 }
 
-export function checkHeadline(c: CheckSummary | undefined): string {
-  if (!c) return '';
-  const parts: string[] = [];
+type HeadlineTone = 'ok' | 'bad' | 'warn' | 'muted';
+
+export interface HeadlinePart {
+  text: string;
+  /** How the HTML colors this part: a green ✓ next to a red ✗, not the whole line in one color. */
+  tone: HeadlineTone;
+}
+
+/** The headline split per claim, so each part keeps its own tone. */
+export function checkHeadlineParts(c: CheckSummary | undefined): HeadlinePart[] {
+  if (!c) return [];
+  const parts: HeadlinePart[] = [];
   const n = c.mismatches.length;
   // With flows, the count says boxes and steps: "9 boxes and 6 steps", or "✗ 1 of 15 boxes and steps".
   const total = c.steps ? `${units(c.checked - c.steps, 'box')} and ${units(c.steps, 'step')}` : units(c.checked, c.unit);
   const of = c.steps ? `${c.checked} boxes and steps` : total;
-  if (c.checked > 0) parts.push(n ? `✗ ${n} of ${of} ${n === 1 ? "doesn't" : "don't"} match the code` : `✓ ${total} checked against the code`);
-  if (c.uncovered?.length) parts.push(uncoveredHead(c.uncovered.length));
-  if (c.warnings?.length) parts.push(`⚠ ${c.warnings.length} ${c.warnings.length === 1 ? 'warning' : 'warnings'}`);
-  if (c.diffUnchecked) parts.push(UNCHECKED);
-  return parts.join(' · ');
+  if (c.checked > 0) {
+    parts.push(n ? { text: `✗ ${n} of ${of} ${n === 1 ? "doesn't" : "don't"} match the code`, tone: 'bad' } : { text: `✓ ${total} checked against the code`, tone: 'ok' });
+  }
+  if (c.uncovered?.length) parts.push({ text: uncoveredHead(c.uncovered.length), tone: 'bad' });
+  if (c.warnings?.length) parts.push({ text: `⚠ ${c.warnings.length} ${c.warnings.length === 1 ? 'warning' : 'warnings'}`, tone: 'warn' });
+  if (c.diffUnchecked) parts.push({ text: UNCHECKED, tone: 'muted' });
+  return parts;
+}
+
+export function checkHeadline(c: CheckSummary | undefined): string {
+  return checkHeadlineParts(c)
+    .map((p) => p.text)
+    .join(' · ');
 }

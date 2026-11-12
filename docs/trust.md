@@ -49,6 +49,8 @@ With a diff, every changed file must sit under a node's path or be named in *Not
 
 A summary rendered without a diff says `diff not checked` instead of looking verified.
 
+A group deliberately left off the page (too many files to draw) is drawn as a dashed *omitted* box when its entry says what it is and why, like `frontend pages calling telemetry: frontend/src/pages/`. The box's panel lists the changed files that entry covers, from the same diff match the check uses. A bare `tests:` or `docs:` entry stays in the *Not on map* list, without a box.
+
 ## Flows are anchored to real code
 
 Every step that exists in code names its `file:line` or quotes the line. If the line doesn't exist, the render fails and the agent has to fix it. For a commit that isn't checked out, `--at <rev>` reads the lines from that revision. See [Flows](flows.md).

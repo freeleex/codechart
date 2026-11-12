@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { checkFlowDiff, checkMapNodes, diffOf } from '../../src/render/check.js';
-import { alertLine, checkHeadline, checkTag, countLines } from '../../src/render/terminal/check-lines.js';
+import { alertLine, checkHeadline, checkHeadlineParts, checkTag, countLines } from '../../src/render/terminal/check-lines.js';
 import type { ChangeStatus } from '../../src/rules/git-files.js';
 import type { FlowSpec } from '../../src/spec/flow.js';
 import { validateSpec, type Spec, type SpecNode } from '../../src/spec/schema.js';
@@ -340,6 +340,17 @@ describe('check lines', () => {
     expect(checkHeadline({ checked: 10, mismatches: [], unit: 'node' })).toBe('✓ 10 nodes checked against the code');
     expect(checkHeadline({ checked: 10, mismatches: m(1), unit: 'node' })).toBe("✗ 1 of 10 nodes doesn't match the code");
     expect(checkHeadline({ checked: 0, mismatches: [], unit: 'node' })).toBe('');
+  });
+
+  it('headline parts keep their own tone: the ✓ stays green beside a red ✗', () => {
+    const c = { checked: 15, mismatches: [], uncovered: ['src/x.ts'], unit: 'node' as const };
+    expect(checkHeadlineParts(c)).toEqual([
+      { text: '✓ 15 nodes checked against the code', tone: 'ok' },
+      { text: '✗ 1 changed file not on map', tone: 'bad' },
+    ]);
+    const warning = { checked: 3, mismatches: [], warnings: [m(1)[0]!], diffUnchecked: true, unit: 'node' as const };
+    expect(checkHeadlineParts(warning).map((p) => p.tone)).toEqual(['ok', 'warn', 'muted']);
+    expect(checkHeadlineParts(undefined)).toEqual([]);
   });
 });
 

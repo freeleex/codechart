@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { explains } from '../../src/render/omitted.js';
+import { entryPaths, entryProse, entryWords, explains } from '../../src/render/omitted.js';
 
 describe('explains: an omitted entry names a changed file', () => {
   it('by repo path, file name, folder or glob', () => {
@@ -24,5 +24,26 @@ describe('explains: an omitted entry names a changed file', () => {
     expect(explains('tests: tests', 'tests/a.test.ts')).toBe(false);
     expect(explains('docs', 'docs/guide.md')).toBe(false);
     expect(explains('tests: test_teams.py', 'tests/test_users.py')).toBe(false);
+  });
+});
+
+describe('the words and paths of an omitted entry', () => {
+  it('paths are globs, folders and paths with a slash; file names and words are not', () => {
+    expect(entryPaths('frontend pages calling telemetry: frontend/src/pages/, frontend/src/components/')).toEqual(['frontend/src/pages/', 'frontend/src/components/']);
+    expect(entryPaths('tests: backend/tests/*, frontend/src/**/*.test.*, test_teams.py')).toEqual(['backend/tests/*', 'frontend/src/**/*.test.*']);
+    expect(entryPaths('docs: README.md, CHANGELOG.md')).toEqual([]);
+  });
+
+  it('plain words leave out paths, file names, counts and stop words', () => {
+    expect(entryWords('frontend pages and components calling telemetry: frontend/src/pages/')).toHaveLength(5);
+    expect(entryWords('~25 services rewritten from log() to log_event: backend/app/services/')).toContain('log_event');
+    expect(entryWords('tests: backend/tests/*, frontend/src/**/*.test.*')).toEqual(['tests']);
+    expect(entryWords('docs: README.md, CLAUDE.md')).toEqual(['docs']);
+    expect(entryWords('tests and docs: tests/*, docs/*')).toEqual(['tests', 'docs']);
+  });
+
+  it('the prose keeps the reason, without the paths', () => {
+    expect(entryProse('frontend pages and components calling telemetry: frontend/src/pages/, frontend/src/components/')).toBe('frontend pages and components calling telemetry');
+    expect(entryProse('tests: frontend/src/**/*.test.*')).toBe('tests');
   });
 });

@@ -11,6 +11,7 @@ import { writeFileSync } from 'node:fs';
 import { prBlock, renderSvg } from '../render/pr.js';
 import { nodePreviews } from '../render/preview.js';
 import { ghostsFor } from '../render/web/drift-html.js';
+import { gapBoxes, withGaps } from '../render/web/gaps.js';
 import { renderHtml, withGhosts } from '../render/web/html.js';
 import { DESCRIPTION_CANVASES, layoutSpec, PANE_CANVASES } from '../render/web/layout.js';
 import { hasNowAfter } from '../render/web/states.js';
@@ -56,11 +57,12 @@ export async function renderMap(spec: Spec, ctx: RenderContext): Promise<Rendere
   const previews = () => (diff ? (cached ??= nodePreviews(spec, root, diff, diffRange(root, ctx.selection), check.found, ctx.cwd)) : undefined);
   const snapshot = () => mapSnapshot(spec, previews(), rangeOf(root, ctx.selection), drift?.items, ghosts?.links, 'views' in check ? check.views : undefined);
   const canvases = hasNowAfter(spec) ? PANE_CANVASES : undefined;
+  const gaps = 'views' in check ? [] : gapBoxes(spec, check, ghosts?.nodes.map((g) => g.id) ?? []);
   const chosen = await chooseOutput(
     ctx.output,
     needsWeb(spec, hidden, ctx.minNodes),
     (htmlPath) => renderTerminalDetailed(spec, { ...termOpts, htmlPath }),
-    () => ctx.write(async (meta) => renderHtml(spec, await layoutSpec(withGhosts(spec, ghosts), canvases), meta, await laidOut(check), previews(), ghosts), snapshot),
+    () => ctx.write(async (meta) => renderHtml(spec, await layoutSpec(withGaps(withGhosts(spec, ghosts), gaps), canvases), meta, await laidOut(check), previews(), ghosts, gaps), snapshot),
   );
   if (!chosen.html) ctx.saveReview(snapshot);
   if (chosen.kind === 'web') {

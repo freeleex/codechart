@@ -27,7 +27,7 @@ const nodeSchema = z.strictObject({
   kind: z.enum(NODE_KINDS).optional().describe('Defaults to file when path is set'),
   status: z.enum(STATUSES).describe('Plan or summary: new, changed, removed, config or context. Explain map: existing (in the area, path required) or outside (a neighbour the area talks to)'),
   layer: short(),
-  summary: long().optional(),
+  summary: long().optional().describe('On every node: one or two plain sentences on what it does, its role in the system (not what changed)'),
   path: pathStr().optional(),
   match: matchSchema.describe('Text on exactly one line of path (plain substring, not a regex), checked at render').optional(),
   fields: z.array(fieldSchema).optional(),

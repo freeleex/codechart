@@ -37,6 +37,8 @@ export interface MapCheck extends CheckSummary {
   blocks: Map<string, Block>;
   /** Where each node's file was found, repo-relative with `/`. */
   found: Map<string, string>;
+  /** Changed files each `omitted` entry explains, in spec order; only when a diff was checked. */
+  explained?: string[][];
 }
 
 interface CheckOptions {
@@ -213,7 +215,11 @@ export function checkMapNodes(spec: Spec, root: string, opts: CheckOptions = {})
     if (warnings.length) result.warnings = warnings;
   }
   if (opts.diff && spec.kind === 'summary') {
-    const uncovered = uncoveredFiles(c, spec, opts.diff, result.found, opts.ignored);
+    const diff = opts.diff;
+    const omitted = spec.omitted ?? [];
+    // What each entry covers, for the dashed box the page draws for entries that say why they are off the map.
+    if (omitted.length) result.explained = omitted.map((o) => diff.files.filter((f) => explains(o, f)));
+    const uncovered = uncoveredFiles(c, spec, diff, result.found, opts.ignored);
     if (uncovered.length) result.uncovered = uncovered;
   }
   return result;

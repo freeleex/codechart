@@ -44,7 +44,7 @@ const NODE_WIDTH = 220;
 /** Room for the kind tag above the title. */
 export const KIND_ROW = 10;
 const HEADER_HEIGHT = 28 + KIND_ROW;
-const LINE_HEIGHT = 16;
+export const LINE_HEIGHT = 16;
 const LAYER_PREFIX = 'layer:';
 
 export const SUMMARY_CHARS_PER_LINE = 34;

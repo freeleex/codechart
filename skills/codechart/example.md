@@ -30,14 +30,14 @@ So: a map (all three rules have output `auto`) with context `short` (none says `
   "kind": "summary",
   "rules": ["migrations", "orm-schema", "related-files"],
   "nodes": [
-    { "id": "teams", "label": "teams", "kind": "table", "status": "new", "layer": "database", "fieldsComplete": true,
+    { "id": "teams", "label": "teams", "kind": "table", "status": "new", "layer": "database", "fieldsComplete": true, "summary": "Teams a user can join; one row per team.",
       "fields": [{ "name": "id", "type": "uuid PK" }, { "name": "name", "type": "text unique" }] },
-    { "id": "memberships", "label": "memberships", "kind": "table", "status": "new", "layer": "database", "fieldsComplete": true,
+    { "id": "memberships", "label": "memberships", "kind": "table", "status": "new", "layer": "database", "fieldsComplete": true, "summary": "Join table: which user belongs to which team.",
       "fields": [{ "name": "user_id", "type": "uuid FK users" }, { "name": "team_id", "type": "uuid FK teams" }] },
-    { "id": "users", "label": "users", "kind": "table", "status": "context", "layer": "database" },
-    { "id": "team-model", "label": "Team", "kind": "model", "status": "new", "layer": "backend", "path": "app/models/team.py" },
-    { "id": "list-teams", "label": "GET /users/{id}/teams", "kind": "endpoint", "status": "new", "layer": "backend", "path": "app/api/teams.py" },
-    { "id": "migration", "label": "migration: add teams", "status": "new", "layer": "database", "path": "migrations/versions/7f3d_add_teams.py" }
+    { "id": "users", "label": "users", "kind": "table", "status": "context", "layer": "database", "summary": "Application users; unchanged in this work, but memberships points at them." },
+    { "id": "team-model", "label": "Team", "kind": "model", "status": "new", "layer": "backend", "path": "app/models/team.py", "summary": "Reads and writes a team row and its members." },
+    { "id": "list-teams", "label": "GET /users/{id}/teams", "kind": "endpoint", "status": "new", "layer": "backend", "path": "app/api/teams.py", "summary": "Lists the teams a user belongs to, for the account page." },
+    { "id": "migration", "label": "migration: add teams", "status": "new", "layer": "database", "path": "migrations/versions/7f3d_add_teams.py", "summary": "Creates the teams and memberships tables, with a unique user and team pair." }
   ],
   "edges": [
     { "from": "memberships", "to": "users", "label": "user_id", "kind": "fk" },

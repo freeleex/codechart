@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { layoutSpec } from '../../src/render/web/layout.js';
 import { CSS } from '../../src/render/web/styles.js';
 import { renderHtml, type Theme } from '../../src/render/web/html.js';
+import { gapBoxes, withGaps } from '../../src/render/web/gaps.js';
 import { prettyDate } from '../../src/render/web/page.js';
 import { validateSpec, type Spec } from '../../src/spec/schema.js';
 
@@ -149,6 +150,30 @@ describe('renderHtml', () => {
       const out = await html(spec);
       expect(out).not.toContain('id="info-toggle"');
       expect(out).toContain('<section id="page-info"');
+    });
+  });
+
+  describe('omitted groups on the canvas', () => {
+    it('an entry that says why is a dashed box with its own panel', async () => {
+      const spec = loadFixture();
+      spec.omitted = ['frontend pages and components calling telemetry: frontend/src/pages/'];
+      const gaps = gapBoxes(spec);
+      const out = renderHtml(spec, await layoutSpec(withGaps(spec, gaps)), meta, undefined, undefined, undefined, gaps);
+      expect(out).toContain('<g class="node gap" data-id="omitted-0"');
+      expect(out).toContain('frontend pages and components calling telemetry');
+      expect(out).toContain('<template class="card-panel" data-for="omitted-0"><div class="gap-panel">');
+      expect(out).toContain('id="page-info"');
+      expect(CSS).toContain('.node.gap .card{fill:var(--bg)');
+    });
+
+    it('a bare list gets no box and stays in the page info', async () => {
+      const spec = loadFixture();
+      spec.omitted = ['tests: shop/tests/*'];
+      const gaps = gapBoxes(spec);
+      expect(gaps).toEqual([]);
+      const out = renderHtml(spec, await layoutSpec(withGaps(spec, gaps)), meta, undefined, undefined, undefined, gaps);
+      expect(out).not.toContain('class="node gap"');
+      expect(out).toContain('<li>tests: shop/tests/*</li>');
     });
   });
 

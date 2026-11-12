@@ -4,7 +4,7 @@ import { composerEl, cmButton, cmEl, edgeMarkers, nodeBadge, noteRow } from './n
 import { noteAdding, notesOn, type NoteStore } from './note-store.js';
 import { edgeTarget, lineTarget, nodeOfTarget, targetKey, type NoteTarget } from './targets.js';
 
-export const noteSelectedId = (): string | null => document.querySelector('.node.selected')?.getAttribute('data-id') ?? null;
+export const noteSelectedId = (): string | null => document.querySelector('.node.selected:not(.gap)')?.getAttribute('data-id') ?? null;
 
 /** The notes made on `t` and, if one is being written, its box; null when there is neither. */
 function thread(s: NoteStore, t: NoteTarget, float = false): HTMLElement | null {
@@ -75,6 +75,8 @@ function paintDrift(s: NoteStore, panel: Element, id: string): void {
 
 function paintPanel(s: NoteStore, id: string): void {
   const panel = document.getElementById('panel')!;
+  // A gap box has no node to note; its entry in the page info takes notes instead.
+  if (panel.querySelector('.gap-panel')) return;
   const head = panel.querySelector('.phead');
   if (!head) return;
   const t: NoteTarget = { node: id };
