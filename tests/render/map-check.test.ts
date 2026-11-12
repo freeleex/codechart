@@ -326,6 +326,16 @@ describe('check lines', () => {
     expect(checkHeadline({ checked: 3, mismatches: [], warnings: w, unit: 'node' })).toBe('✓ 3 nodes checked against the code · ⚠ 1 warning');
   });
 
+  it('flattens control characters in a warning label and short, so they cannot drive the terminal', () => {
+    writeFileSync(join(repo, 'src/evil.ts'), 'export const x = 1;\n');
+    const spec = map('summary', { status: 'context', path: 'src/evil.ts', fields: [{ name: 'bad\u001b[2Jname' }], fieldsComplete: false });
+    const r = checkMapNodes(spec, repo);
+    const line = alertLine(r, 200);
+    expect(line).not.toMatch(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/);
+    expect(line).toContain('field bad');
+    expect(line).toContain('name not found');
+  });
+
   it('HTML headline', () => {
     expect(checkHeadline({ checked: 10, mismatches: [], unit: 'node' })).toBe('✓ 10 nodes checked against the code');
     expect(checkHeadline({ checked: 10, mismatches: m(1), unit: 'node' })).toBe("✗ 1 of 10 nodes doesn't match the code");

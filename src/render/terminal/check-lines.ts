@@ -62,7 +62,7 @@ export function alertLine(c: CheckSummary | undefined, width: number): string {
   if (c.uncovered?.length) lines.push(itemsLine(`${uncoveredHead(c.uncovered.length)}: `, c.uncovered.map(flat), width));
   if (c.warnings?.length) {
     const w = c.warnings.length;
-    lines.push(itemsLine(`⚠ ${w} ${w === 1 ? 'warning' : 'warnings'}: `, c.warnings.map((m) => `${flat(m.label)} ${m.short}`), width));
+    lines.push(itemsLine(`⚠ ${w} ${w === 1 ? 'warning' : 'warnings'}: `, c.warnings.map((m) => `${flat(m.label)} ${flat(m.short)}`), width));
   }
   return lines.join('\n');
 }
