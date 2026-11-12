@@ -170,6 +170,14 @@ describe('checkMapNodes: git status', () => {
     expect(checkMapNodes(s, repo, { diff: statusDiff([['src/pkg/x.ts', 'M']]) }).mismatches).toEqual([]);
     expect(checkMapNodes(s, repo, { diff: statusDiff([['src/pkg/x.ts', 'A']]) }).mismatches[0]!.short).toBe('marked changed, but added in git');
   });
+
+  it('a folder of deleted files reads as removed; added and deleted together read as added', () => {
+    const removed = map('summary', { status: 'removed', path: 'src/pkg' });
+    expect(checkMapNodes(removed, repo, { diff: statusDiff([['src/pkg/x.ts', 'D'], ['src/pkg/y.ts', 'D']]) }).mismatches).toEqual([]);
+    mkdirSync(join(repo, 'src/pkg'), { recursive: true });
+    const changed = map('summary', { status: 'changed', path: 'src/pkg' });
+    expect(checkMapNodes(changed, repo, { diff: statusDiff([['src/pkg/x.ts', 'A'], ['src/pkg/y.ts', 'D']]) }).mismatches[0]!.short).toBe('marked changed, but added in git');
+  });
 });
 
 describe('checkMapNodes: field warnings', () => {
