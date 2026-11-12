@@ -76,6 +76,34 @@ describe('gapBoxes: omitted groups drawn on the map', () => {
     ]);
   });
 
+  it('a glob with no folder of its own goes where the files it explains are', () => {
+    const spec = map({
+      title: 'X',
+      kind: 'summary',
+      nodes: [node('svc', 'backend', 'backend/app/service.py')],
+      edges: [],
+      omitted: ['unit tests for the changed modules: **/*.test.ts'],
+    });
+    const boxes = gapBoxes(spec, check([['backend/tests/a.test.ts', 'frontend/src/b.test.ts']]));
+    expect(boxes.map((g) => [g.layer, g.paths, g.files])).toEqual([
+      ['backend', ['**/*.test.ts'], ['backend/tests/a.test.ts']],
+      ['frontend', ['**/*.test.ts'], ['frontend/src/b.test.ts']],
+    ]);
+    expect(boxes.map((g) => g.id)).toEqual(['omitted-0-backend', 'omitted-0-frontend']);
+  });
+
+  it('a glob with no folder and no diff has no place, so no box', () => {
+    const spec = map({
+      title: 'X',
+      kind: 'summary',
+      nodes: [node('svc', 'backend', 'backend/app/service.py')],
+      edges: [],
+      omitted: ['unit tests for the changed modules: *.test.ts'],
+    });
+    expect(gapBoxes(spec)).toEqual([]);
+    expect(gapBoxes(spec, check([]))).toEqual([]);
+  });
+
   it('withGaps adds the boxes to the layout spec only, as plain context nodes', () => {
     const spec = map({
       title: 'X',

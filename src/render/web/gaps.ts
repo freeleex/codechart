@@ -9,6 +9,8 @@ import { panelShell, panelTitle } from './tools.js';
 
 /** A few plain words are the reason a group of omitted files gets a box: a bare `tests:` or `docs:` list stays in the page info. */
 const MIN_REASON_WORDS = 3;
+/** A folder segment with a glob in it names no place of its own. */
+const GLOB = /[*?[]/;
 
 /** An omitted group the page draws as a dashed box in the area of the folder it names. */
 export interface GapBox {
@@ -62,17 +64,27 @@ export function gapBoxes(spec: Spec, check?: MapCheck, takenIds: readonly string
   const out: GapBox[] = [];
   omitted.forEach((text, entry) => {
     if (entryWords(text).length < MIN_REASON_WORDS) return;
+    const explained = check?.explained?.[entry] ?? [];
     const groups = new Map<string, string[]>();
+    // A glob whose first segment is itself a glob (`**/*.test.ts`, `*.test.ts`) names no folder:
+    // it goes where the files it explains are, and nowhere when no diff says.
+    const wild: string[] = [];
     for (const path of entryPaths(text)) {
       const top = topOf(path);
-      if (top === '') continue;
-      groups.set(top, [...(groups.get(top) ?? []), path]);
+      if (top === '' || GLOB.test(top)) wild.push(path);
+      else groups.set(top, [...(groups.get(top) ?? []), path]);
+    }
+    if (wild.length) {
+      for (const file of explained) {
+        const top = topOf(file);
+        if (top !== '') groups.set(top, groups.get(top) ?? wild);
+      }
     }
     for (const [top, paths] of groups) {
       let id = `omitted-${entry}${groups.size > 1 ? `-${safeId(top)}` : ''}`;
       while (taken.has(id)) id += 'x';
       taken.add(id);
-      const files = (check?.explained?.[entry] ?? []).filter((f) => topOf(f) === top);
+      const files = explained.filter((f) => topOf(f) === top);
       out.push({
         entry,
         text,
