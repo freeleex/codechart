@@ -26,7 +26,7 @@ main{flex:1;display:flex;min-height:0}
 .pane-title{padding:4px 10px;font-size:11px;font-weight:600;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line)}
 .pane-key{font-weight:400;text-transform:none}.k-rem{color:var(--rem)}.k-new{color:var(--new-t)}.k-chg{color:var(--chg-t)}.k-cfg{color:var(--cfg-t)}
 @media (max-width:900px){#panes{flex-direction:column}.pane+.pane{border-left:0;border-top:1px solid var(--line)}}
-aside{width:clamp(300px,35vw,600px);min-width:300px;max-width:80vw;border-left:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;overflow:hidden}
+aside{width:clamp(300px,35vw,600px);min-width:300px;max-width:80vw;border-left:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;overflow:hidden;container-type:inline-size}
 #aside-scroll{flex:1;min-height:0;overflow:auto;padding:10px 14px}
 #panel-rel{flex:none;max-height:35vh;overflow:auto;padding:0 14px 10px;border-top:1px solid var(--line);background:var(--panel)}#panel-rel[hidden]{display:none}
 #resize{flex:none;width:5px;margin-right:-5px;position:relative;z-index:1;cursor:col-resize;touch-action:none}
@@ -34,6 +34,7 @@ aside{width:clamp(300px,35vw,600px);min-width:300px;max-width:80vw;border-left:1
 #panel-nav{float:right;display:flex;gap:4px;margin:0 0 4px 8px}
 #panel-nav button{padding:0 7px;font:13px/20px system-ui,sans-serif;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:10px;cursor:pointer}
 #panel-nav button:hover:not(:disabled){border-color:var(--edge)}#panel-nav button:disabled{opacity:.4;cursor:default}
+@container (max-width:340px){#panel-nav{float:none;justify-content:flex-end;margin:0 0 4px}}
 aside h2{margin:0 0 6px;font-size:13px;overflow-wrap:anywhere}
 aside .ptitle{display:flex;gap:7px;align-items:flex-start;min-height:26px;margin-bottom:8px;line-height:1.35}aside .ptitle input{flex:none;margin:2px 0 0}
 aside .phead{border-bottom:1px solid var(--line);padding-bottom:10px;margin-bottom:12px}aside .phead .ptitle{margin-bottom:0}aside .psub{margin:4px 0 0;color:var(--muted);font-size:12.5px;line-height:1.4}
@@ -162,12 +163,12 @@ body.cm aside .dr:hover .ln::before{content:"+";position:absolute;inset:0;displa
 aside .cm-thread{margin-right:14px}aside .dr+.cm-thread{margin-left:calc(4px + 4.5ch)}
 .cm-float{position:fixed;z-index:6;width:320px;background:var(--panel);box-shadow:0 2px 10px #0004}
 .cm-k-comment{--k:var(--chg)}.cm-k-question{--k:var(--edge)}.cm-k-delete{--k:var(--rem)}
-.cm-note{display:flex;gap:6px;align-items:baseline;padding:2px 0 2px 7px;border-left:3px solid var(--k)}
+.cm-note{display:flex;flex-wrap:wrap;gap:6px;align-items:baseline;padding:2px 0 2px 7px;border-left:3px solid var(--k)}
 .cm-note.sent{opacity:.5}
 .cm-kind{flex:none;font-size:10.5px;text-transform:uppercase;color:var(--k)}
-.cm-body{flex:1;min-width:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.cm-body{flex:1 1 10em;min-width:0;white-space:pre-wrap;overflow-wrap:anywhere}
 .cm-actions{display:flex;gap:6px}
-.cm-note .cm-actions{flex:none}
+.cm-note .cm-actions{flex:none;margin-left:auto}
 .cm-thread button:not(.cm-btn),.cm-dialog button{padding:0 8px;font:11px/18px system-ui,sans-serif;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:10px;cursor:pointer}
 .cm-thread button:hover,.cm-dialog button:hover{border-color:var(--edge)}
 .cm-composer{display:flex;flex-direction:column;gap:6px;padding:4px 0 4px 7px;border-left:3px solid var(--k)}
