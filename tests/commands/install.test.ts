@@ -46,13 +46,25 @@ describe('codechart install-skill', () => {
   beforeEach(() => mkdirSync(join(home, '.claude')));
 
   it('install-skill writes file in temp HOME', async () => {
-    const { out, code } = await run(repo, ['install-skill']);
+    const { out, code } = await run(repo, ['install-skill', '--reminder', '--hook']);
     expect(code).toBeUndefined();
     expect(readFileSync(target(), 'utf8')).toBe(skill);
     expect(out).toBe(
       `agents: Claude Code\ninstalled for Claude Code: ${join(home, '.claude', 'skills', 'codechart')}\n` +
         `reminder added: ${join(home, '.claude', 'CLAUDE.md')}\nhook added: ${join(home, '.claude', 'settings.json')}\n`,
     );
+  });
+
+  it('off a terminal with no flags: only the skill, and a line naming the flags that add the extras', async () => {
+    const { out, code } = await run(repo, ['install-skill']);
+    expect(code).toBeUndefined();
+    expect(readFileSync(target(), 'utf8')).toBe(skill);
+    expect(out).toBe(
+      `agents: Claude Code\ninstalled for Claude Code: ${join(home, '.claude', 'skills', 'codechart')}\n` +
+        'Reminder and hook not added. Run with --reminder --hook to add them.\n',
+    );
+    expect(existsSync(join(home, '.claude', 'CLAUDE.md'))).toBe(false);
+    expect(existsSync(join(home, '.claude', 'settings.json'))).toBe(false);
   });
 
   it('updates an older codechart copy without --force; a current one is left alone', async () => {
@@ -157,6 +169,20 @@ describe('codechart install-skill for other agents', () => {
     expect(readFileSync(skillAt('.gemini', 'skills'), 'utf8')).toBe(skill);
     expect(readFileSync(skillAt('.kiro', 'skills'), 'utf8')).toBe(skill);
     expect(existsSync(join(home, '.claude'))).toBe(false);
+  });
+
+  it('off a terminal the line names only the extras the detected agents can use', async () => {
+    mkdirSync(join(home, '.gemini'));
+    mkdirSync(join(home, '.kiro'));
+    const { out } = await run(repo, ['install-skill']);
+    expect(out).toContain('Reminder not added. Run with --reminder to add them.\n');
+    expect(existsSync(join(home, '.gemini', 'GEMINI.md'))).toBe(false);
+  });
+
+  it('off a terminal, agents with no extras at all install silently', async () => {
+    mkdirSync(join(home, '.kiro'));
+    const { out } = await run(repo, ['install-skill']);
+    expect(out).toBe(`agents: Kiro\ninstalled for Kiro: ${join(home, '.kiro', 'skills', 'codechart')}\n`);
   });
 
   it('installs once per folder: agents that also read a chosen folder are skipped', async () => {
