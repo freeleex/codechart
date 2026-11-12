@@ -53,7 +53,7 @@ describe('render: explain map', () => {
         '○ service EmailService',
         '○ Stripe API',
         '',
-        '4 boxes · 2 outside · ✓ 3 checked',
+        '4 boxes · 2 outside · ✓ 3 checked · 1 not checkable',
         'gaps: refund job: not read',
         '```',
         '',

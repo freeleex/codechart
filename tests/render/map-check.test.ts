@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { checkFlowDiff, checkMapNodes, diffOf } from '../../src/render/check.js';
 import { alertLine, checkHeadline, checkTag, countLines } from '../../src/render/terminal/check-lines.js';
+import type { ChangeStatus } from '../../src/rules/git-files.js';
 import type { FlowSpec } from '../../src/spec/flow.js';
 import { validateSpec, type Spec, type SpecNode } from '../../src/spec/schema.js';
 import { repoFromTemplate } from '../helpers/sandbox.js';
@@ -41,10 +42,22 @@ const map = (kind: Spec['kind'], ...nodes: NodeIn[]): Spec => ({
 const shorts = (s: Spec, diff?: string[]) =>
   checkMapNodes(s, repo, { diff: diff && diffOf(diff) }).mismatches.map((m) => `${m.label} ${m.short}`);
 
+const statusDiff = (changes: [string, ChangeStatus][]) =>
+  diffOf(changes.map(([path]) => path), changes.map(([path, status]) => ({ path, status })));
+
 describe('checkMapNodes: file exists', () => {
   it('counts only nodes with a path', () => {
     const r = checkMapNodes(map('summary', { status: 'changed', path: 'src/a.ts' }, { status: 'context', kind: 'table' }), repo);
-    expect(r).toMatchObject({ checked: 1, mismatches: [], unit: 'node' });
+    expect(r).toMatchObject({ checked: 1, mismatches: [], notCheckable: 1, unit: 'node' });
+  });
+
+  it('says how many nodes are not checkable, only when some are', () => {
+    const two = checkMapNodes(map('summary', { status: 'context', path: 'src/a.ts' }, { status: 'config', kind: 'table' }, { status: 'config', kind: 'service' }), repo);
+    expect(two.notCheckable).toBe(2);
+    expect(checkTag(two)).toBe(' · ✓ 1 checked · 2 not checkable');
+    const none = checkMapNodes(map('summary', { status: 'context', path: 'src/a.ts' }), repo);
+    expect(none.notCheckable).toBeUndefined();
+    expect(checkTag(none)).toBe(' · ✓ 1 checked');
   });
 
   it('summary: new, changed, context and config need their file; removed does not', () => {
@@ -127,6 +140,100 @@ describe('checkMapNodes: diff', () => {
   });
 });
 
+describe('checkMapNodes: git status', () => {
+  const check = (status: SpecNode['status'], changes: [string, ChangeStatus][]) =>
+    checkMapNodes(map('summary', { status, path: 'src/a.ts' }), repo, { diff: statusDiff(changes) }).mismatches;
+
+  it('new needs an added file: modified, deleted and renamed are mismatches', () => {
+    expect(check('new', [['src/a.ts', 'A']])).toEqual([]);
+    expect(check('new', [['src/a.ts', 'M']])[0]).toMatchObject({ short: 'marked new, but modified in git', detail: 'marked new, but src/a.ts is modified in git' });
+    expect(check('new', [['src/a.ts', 'D']])[0]!.short).toBe('marked new, but deleted in git');
+    expect(check('new', [['src/a.ts', 'R']])[0]!.short).toBe('marked new, but renamed in git');
+  });
+
+  it('removed needs a deleted file; changed needs modified or renamed', () => {
+    expect(check('removed', [['src/a.ts', 'D']])).toEqual([]);
+    expect(check('removed', [['src/a.ts', 'M']])[0]!.short).toBe('marked removed, but modified in git');
+    expect(check('changed', [['src/a.ts', 'A']])[0]!.short).toBe('marked changed, but added in git');
+    expect(check('changed', [['src/a.ts', 'M']])).toEqual([]);
+    expect(check('changed', [['src/a.ts', 'R']])).toEqual([]);
+  });
+
+  it('a plain file list has no statuses, so it stays a membership check', () => {
+    expect(shorts(map('summary', { status: 'new', path: 'src/a.ts' }), ['src/a.ts'])).toEqual([]);
+  });
+
+  it('a folder takes the statuses of its files', () => {
+    mkdirSync(join(repo, 'src/pkg'), { recursive: true });
+    writeFileSync(join(repo, 'src/pkg/x.ts'), 'x\n');
+    const s = map('summary', { status: 'changed', path: 'src/pkg' });
+    expect(checkMapNodes(s, repo, { diff: statusDiff([['src/pkg/x.ts', 'M']]) }).mismatches).toEqual([]);
+    expect(checkMapNodes(s, repo, { diff: statusDiff([['src/pkg/x.ts', 'A']]) }).mismatches[0]!.short).toBe('marked changed, but added in git');
+  });
+});
+
+describe('checkMapNodes: field warnings', () => {
+  it('matches loosely and warns on a missing field, skipping removed ones', () => {
+    writeFileSync(join(repo, 'src/fields.ts'), 'export const totalAmount = 1;\n');
+    const s = map('summary', {
+      status: 'changed',
+      path: 'src/fields.ts',
+      fields: [{ name: 'total_amount' }, { name: 'discount_code' }, { name: 'old_name', change: 'removed' }],
+      fieldsComplete: false,
+    });
+    const r = checkMapNodes(s, repo);
+    expect(r.mismatches).toEqual([]);
+    expect(r.warnings).toEqual([{ id: 'n0', label: '~node0', short: 'field discount_code not found', detail: "src/fields.ts doesn't mention the field discount_code" }]);
+  });
+
+  it('warns only in a summary, and skips a file too big to read', () => {
+    writeFileSync(join(repo, 'src/fields.ts'), 'export const totalAmount = 1;\n');
+    const node = { status: 'changed' as const, path: 'src/fields.ts', fields: [{ name: 'missing' }], fieldsComplete: false };
+    expect(checkMapNodes(map('plan', node), repo).warnings).toBeUndefined();
+    writeFileSync(join(repo, 'src/huge.ts'), 'x'.repeat(5 * 1024 * 1024 + 1));
+    expect(checkMapNodes(map('summary', { ...node, path: 'src/huge.ts' }), repo).warnings).toBeUndefined();
+  });
+});
+
+describe('checkMapNodes: arrow warnings', () => {
+  it('warns when the from file does not mention the to file, loosely', () => {
+    writeFileSync(join(repo, 'src/order.ts'), 'import { totalAmount } from "./total_amount";\n');
+    writeFileSync(join(repo, 'src/total_amount.ts'), 'export const totalAmount = 1;\n');
+    writeFileSync(join(repo, 'src/other.ts'), 'export const other = 1;\n');
+    const s = map('summary', { status: 'context', path: 'src/order.ts' }, { status: 'context', path: 'src/total_amount.ts' }, { status: 'context', path: 'src/other.ts' });
+    s.edges = [
+      { from: 'n0', to: 'n1', kind: 'imports' },
+      { from: 'n0', to: 'n2', kind: 'imports' },
+    ];
+    const r = checkMapNodes(s, repo);
+    expect(r.mismatches).toEqual([]);
+    expect(r.warnings).toEqual([{ id: 'edge-1', label: 'node0 → node2', short: 'no mention of other', detail: "src/order.ts doesn't mention other, the file src/other.ts" }]);
+  });
+
+  it('skips an arrow whose ends have no path', () => {
+    const s = map('summary', { status: 'context', path: 'src/order.ts' }, { status: 'context', kind: 'service' });
+    s.edges = [{ from: 'n0', to: 'n1', kind: 'calls' }];
+    expect(checkMapNodes(s, repo).warnings).toBeUndefined();
+  });
+});
+
+describe('checkMapNodes: edge cases', () => {
+  it('an empty diff flags every claimed change', () => {
+    expect(shorts(map('summary', { status: 'changed', path: 'src/a.ts' }), [])).toEqual(['~node0 not in diff']);
+  });
+
+  it('keeps a path with spaces whole', () => {
+    writeFileSync(join(repo, 'src/my file.ts'), 'x\n');
+    const s = map('summary', { status: 'new', path: 'src/my file.ts' });
+    expect(checkMapNodes(s, repo, { diff: statusDiff([['src/my file.ts', 'A']]) }).mismatches).toEqual([]);
+  });
+
+  it('a Windows-style path to a missing file is a clean mismatch', () => {
+    const r = checkMapNodes(map('summary', { status: 'changed', path: 'nope\\a.ts' }), repo, { diff: statusDiff([['nope/a.ts', 'M']]) });
+    expect(r.mismatches[0]!.short).toBe('file missing');
+  });
+});
+
 describe('checkMapNodes: match', () => {
   it('stores the matched line', () => {
     const r = checkMapNodes(map('summary', { status: 'changed', path: 'src/a.ts', match: 'const b2' }), repo);
@@ -202,6 +309,13 @@ describe('check lines', () => {
     expect(many.split('\n').every((l) => [...l].length <= 80)).toBe(true);
     const narrow = alertLine({ checked: 9, mismatches: m(2), unit: 'node' }, 60);
     expect(narrow).toBe("✗ 2 claims don't match the code:\n  ~n0 not in diff · ~n1 not in diff");
+  });
+
+  it('warnings: one softer line under the ✗ lines, and counted in the headline', () => {
+    const w = [{ id: 'e', label: 'a → b', short: 'no mention of b', detail: '' }];
+    const c = { checked: 3, mismatches: m(1), warnings: w, unit: 'node' as const };
+    expect(alertLine(c, 80)).toBe("✗ 1 claim doesn't match the code: ~n0 not in diff\n⚠ 1 warning: a → b no mention of b");
+    expect(checkHeadline({ checked: 3, mismatches: [], warnings: w, unit: 'node' })).toBe('✓ 3 nodes checked against the code · ⚠ 1 warning');
   });
 
   it('HTML headline', () => {

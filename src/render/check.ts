@@ -5,21 +5,26 @@ import { anchorContext, findMatch, likelyPath, load, locate, type AnchorCtx, typ
 import { blockOf, type Block } from './block.js';
 import { stepLabel } from './flow/tree.js';
 import { explains } from './omitted.js';
+import type { ChangeStatus, FileChange } from '../rules/git-files.js';
 import type { CheckSummary, Mismatch } from './terminal/check-lines.js';
 import { plainLabel } from './terminal/labels.js';
 
 /** Files the change touched, repo-relative with `/`. A folder is in it when a file under it is. */
 export interface Diff {
   files: readonly string[];
+  /** Git's change to a file; absent when the diff names files only. */
+  status(path: string): ChangeStatus | undefined;
   has(path: string): boolean;
   /** Only a file, not a folder above one. */
   hasFile(path: string): boolean;
 }
 
-export function diffOf(files: string[]): Diff {
+export function diffOf(files: readonly string[], changes: readonly FileChange[] = []): Diff {
   const set = new Set(files);
+  const statuses = new Map(changes.map((c) => [c.path, c.status]));
   return {
     files: [...set],
+    status: (p) => statuses.get(p),
     has: (p) => (p === '' ? files.length > 0 : set.has(p) || files.some((f) => f.startsWith(`${p}/`))),
     hasFile: (p) => set.has(p),
   };
@@ -57,12 +62,42 @@ type Problem = Pick<Mismatch, 'short' | 'detail'>;
 const inDiff = (c: AnchorCtx, path: string, diff: Diff) =>
   diff.has(repoPath(c.root, path)) || (c.cwd !== undefined && diff.has(repoPath(c.root, resolve(c.cwd, path))));
 
+const STATUS_WORD: Record<ChangeStatus, string> = { A: 'added', M: 'modified', D: 'deleted', R: 'renamed' };
+const acceptsStatus = (claimed: string, status: ChangeStatus) =>
+  claimed === 'new' ? status === 'A' : claimed === 'removed' ? status === 'D' : status === 'M' || status === 'R';
+
+/** A file's status; a folder takes its files': changed if any moved or were modified, else added, else deleted. */
+function statusOf(diff: Diff, path: string): ChangeStatus | undefined {
+  const exact = diff.status(path);
+  if (exact) return exact;
+  const under = diff.files.filter((f) => f.startsWith(`${path}/`));
+  if (!under.length) return undefined;
+  const statuses = under.map((f) => diff.status(f));
+  if (statuses.some((s) => s === 'M' || s === 'R')) return 'M';
+  if (statuses.some((s) => s === 'A')) return 'A';
+  return statuses.every((s) => s === 'D') ? 'D' : undefined;
+}
+
+const statusIn = (c: AnchorCtx, path: string, diff: Diff): ChangeStatus | undefined =>
+  statusOf(diff, repoPath(c.root, path)) ??
+  (c.cwd === undefined ? undefined : statusOf(diff, repoPath(c.root, resolve(c.cwd, path))));
+
 interface NodeCheck {
   problem?: Problem;
   /** Where the node's file was found, repo-relative with `/`. */
   found?: string;
   match?: Snippet;
   block?: Block;
+}
+
+/** Why a summary node's change doesn't match the diff, as a claim or as the file's git status. */
+function diffProblem(c: AnchorCtx, spec: Spec, node: SpecNode, path: string, diff: Diff): Problem | undefined {
+  if (spec.kind !== 'summary' || !IN_DIFF.has(node.status)) return undefined;
+  if (!inDiff(c, path, diff)) return { short: 'not in diff', detail: `marked ${node.status}, but ${path} isn't in the diff` };
+  const status = statusIn(c, path, diff);
+  if (!status || acceptsStatus(node.status, status)) return undefined;
+  const word = STATUS_WORD[status];
+  return { short: `marked ${node.status}, but ${word} in git`, detail: `marked ${node.status}, but ${path} is ${word} in git` };
 }
 
 function checkNode(c: AnchorCtx, spec: Spec, node: SpecNode & { path: string }, diff: Diff | undefined): NodeCheck {
@@ -74,8 +109,9 @@ function checkNode(c: AnchorCtx, spec: Spec, node: SpecNode & { path: string }, 
     const at = c.at ? ` at ${c.at.slice(0, 12)}` : '';
     return { problem: { short: 'file missing', detail: `${node.path} does not exist${at}${likelyPath(c, node.path)}` } };
   }
-  if (diff && spec.kind === 'summary' && IN_DIFF.has(node.status) && !inDiff(c, where.path, diff)) {
-    return { found, problem: { short: 'not in diff', detail: `marked ${node.status}, but ${where.path} isn't in the diff` } };
+  if (diff) {
+    const problem = diffProblem(c, spec, node, where.path, diff);
+    if (problem) return { found, problem };
   }
   const explaining = spec.kind === 'explain';
   if (!needed || !where.found || (node.match === undefined && !explaining)) return { found };
@@ -99,18 +135,82 @@ function matchAndBlock(path: string, lines: string[], needle: string | undefined
   return { match, block: explaining ? blockOf(path, lines, match?.startLine) : undefined };
 }
 
+const loose = (s: string) => s.toLowerCase().replace(/[_-]/g, '');
+const baseNoExt = (p: string) => {
+  const base = p.slice(p.lastIndexOf('/') + 1);
+  const dot = base.lastIndexOf('.');
+  return dot > 0 ? base.slice(0, dot) : base;
+};
+
+/** The file's text with case, `_` and `-` dropped; undefined when it can't be read (missing, a folder, too big). */
+function looseText(c: AnchorCtx, path: string): string | undefined {
+  const loaded = load(c, path);
+  return loaded.lines !== null && Array.isArray(loaded.lines) ? loose(loaded.lines.join('\n')) : undefined;
+}
+
+/** A summary's fields the file doesn't mention, loosely compared so `total_amount` matches `totalAmount`. */
+function fieldWarnings(c: AnchorCtx, spec: Spec): Mismatch[] {
+  const warnings: Mismatch[] = [];
+  for (const node of spec.nodes) {
+    if (node.path === undefined || !node.fields?.length) continue;
+    const text = looseText(c, node.path);
+    if (text === undefined) continue;
+    for (const field of node.fields) {
+      if (field.change === 'removed' || text.includes(loose(field.name))) continue;
+      warnings.push({
+        id: node.id,
+        label: plainLabel(node),
+        short: `field ${field.name} not found`,
+        detail: `${node.path} doesn't mention the field ${field.name}`,
+      });
+    }
+  }
+  return warnings;
+}
+
+/** A summary's arrows whose starting file doesn't mention the ending file's name. */
+function arrowWarnings(c: AnchorCtx, spec: Spec): Mismatch[] {
+  const byId = new Map(spec.nodes.map((n) => [n.id, n]));
+  const warnings: Mismatch[] = [];
+  for (const [i, edge] of spec.edges.entries()) {
+    const from = byId.get(edge.from);
+    const to = byId.get(edge.to);
+    if (from?.path === undefined || to?.path === undefined) continue;
+    const text = looseText(c, from.path);
+    if (text === undefined) continue;
+    const name = baseNoExt(to.path);
+    if (text.includes(loose(name))) continue;
+    warnings.push({
+      id: `edge-${i}`,
+      label: `${plainLabel(from)} → ${plainLabel(to)}`,
+      short: `no mention of ${name}`,
+      detail: `${from.path} doesn't mention ${name}, the file ${to.path}`,
+    });
+  }
+  return warnings;
+}
+
 /** Checks each node with a `path` against the files (at `at`, or the working tree) and, given a diff, a summary's changes against it. */
 export function checkMapNodes(spec: Spec, root: string, opts: CheckOptions = {}): MapCheck {
   const c = opts.ctx ?? anchorContext(root, opts.at, opts.cwd);
   const result: MapCheck = { checked: 0, mismatches: [], matches: new Map(), blocks: new Map(), found: new Map(), unit: spec.kind === 'explain' ? 'box' : 'node' };
+  let notCheckable = 0;
   for (const node of spec.nodes) {
-    if (node.path === undefined) continue;
+    if (node.path === undefined) {
+      notCheckable++;
+      continue;
+    }
     result.checked++;
     const { problem, found, match, block } = checkNode(c, spec, { ...node, path: node.path }, opts.diff);
     if (found) result.found.set(node.id, found);
     if (match) result.matches.set(node.id, match);
     if (block) result.blocks.set(node.id, block);
     if (problem) result.mismatches.push({ id: node.id, label: plainLabel(node), ...problem });
+  }
+  if (notCheckable) result.notCheckable = notCheckable;
+  if (spec.kind === 'summary') {
+    const warnings = [...fieldWarnings(c, spec), ...arrowWarnings(c, spec)];
+    if (warnings.length) result.warnings = warnings;
   }
   if (opts.diff && spec.kind === 'summary') {
     const uncovered = uncoveredFiles(c, spec, opts.diff, result.found, opts.ignored);

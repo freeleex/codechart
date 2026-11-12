@@ -103,6 +103,63 @@ function repoConfigKeys(cwd: string): string[] {
 
 const nulList = (out: string) => out.split('\0').filter(Boolean);
 
+/** Git's change to a file: added, modified, deleted, or moved (the status is the new path's). */
+export type ChangeStatus = 'A' | 'M' | 'D' | 'R';
+
+/** One changed file, repo-relative with `/`. */
+export interface FileChange {
+  path: string;
+  status: ChangeStatus;
+}
+
+const porcelainStatus = (x: string, y: string): ChangeStatus => {
+  if (x === '?') return 'A';
+  if (x === 'D' || y === 'D') return 'D';
+  if (x === 'R' || y === 'R') return 'R';
+  return x === 'A' || y === 'A' || x === 'C' ? 'A' : 'M';
+};
+
+/** `--name-status -z` records, where a rename or copy adds the old path before the new one. */
+function parseNameStatus(out: string): FileChange[] {
+  const parts = out.split('\0');
+  const changes: FileChange[] = [];
+  for (let i = 0; i < parts.length; ) {
+    const code = parts[i++];
+    if (!code) continue;
+    const letter = code[0]!.toUpperCase();
+    if (letter === 'R' || letter === 'C') {
+      const from = parts[i++];
+      const to = parts[i++];
+      // A rename's old path is gone, so it reads as deleted; a copy leaves it in place.
+      if (from && letter === 'R') changes.push({ path: from, status: 'D' });
+      if (to) changes.push({ path: to, status: letter === 'R' ? 'R' : 'A' });
+      continue;
+    }
+    const path = parts[i++];
+    if (path) changes.push({ path, status: letter === 'A' || letter === 'D' || letter === 'R' ? letter : letter === 'C' ? 'A' : 'M' });
+  }
+  return changes;
+}
+
+/** Each changed file in the working tree with git's status; `renameSources` adds where a rename moved from, as deleted. */
+export function gitChangedChanges(cwd: string, renameSources = false): FileChange[] {
+  const records = git(cwd, ['status', '--porcelain=v1', '-z', '-uall', '--ignore-submodules=dirty'], { config: repoFilterOverrides(cwd) }).split('\0');
+  const changes: FileChange[] = [];
+  for (let i = 0; i < records.length; i++) {
+    const rec = records[i];
+    if (!rec || rec.length < 4) continue;
+    const [x, y] = [rec[0]!, rec[1]!];
+    changes.push({ path: rec.slice(3), status: porcelainStatus(x, y) });
+    // rename/copy records are followed by the original path
+    if (x === 'R' || x === 'C' || y === 'R' || y === 'C') {
+      i++;
+      // The old path of a rename is gone, so it reads as deleted; a copy leaves it in place.
+      if (records[i] && renameSources && (x === 'R' || y === 'R')) changes.push({ path: records[i]!, status: 'D' });
+    }
+  }
+  return changes;
+}
+
 /** Returns why `ref` is unsafe or malformed as a git revision argument, or undefined when it is fine. */
 function refProblem(ref: string): string | undefined {
   if (ref === '') return 'is empty';
@@ -122,19 +179,7 @@ function checkRef(flag: string, ref: string): void {
  * --ignore-submodules=dirty: checking a nested repo's files runs that repo's own filters, which the overrides do not reach.
  */
 export function gitChangedFiles(cwd: string, renameSources = false): string[] {
-  const records = git(cwd, ['status', '--porcelain=v1', '-z', '-uall', '--ignore-submodules=dirty'], { config: repoFilterOverrides(cwd) }).split('\0');
-  const files: string[] = [];
-  for (let i = 0; i < records.length; i++) {
-    const rec = records[i];
-    if (!rec || rec.length < 4) continue;
-    files.push(rec.slice(3));
-    // rename/copy records are followed by the original path
-    if (rec[0] === 'R' || rec[0] === 'C' || rec[1] === 'R' || rec[1] === 'C') {
-      i++;
-      if (renameSources && (rec[0] === 'R' || rec[1] === 'R') && records[i]) files.push(records[i]!);
-    }
-  }
-  return files;
+  return gitChangedChanges(cwd, renameSources).map((c) => c.path);
 }
 
 /** Validates `ref` and resolves it to a commit sha. */
@@ -297,20 +342,36 @@ export function gitUntracked(cwd: string, rels: string[]): Set<string> {
   return found;
 }
 
-/** Files one commit changed; a merge is compared with its first parent. */
-export function gitCommitFiles(cwd: string, ref: string): string[] {
+// A partial clone has no blobs to compare, so rename detection fails there: fall back to added and deleted.
+const withRenames = (cwd: string, args: string[], paths = true): FileChange[] => {
+  const run = (renames: string) => git(cwd, [...args, renames, ...(paths ? ['--'] : [])]);
+  try {
+    return parseNameStatus(run('--find-renames'));
+  } catch {
+    return parseNameStatus(run('--no-renames'));
+  }
+};
+
+/** What one commit changed, with statuses; a merge is compared with its first parent. */
+export function gitCommitChanges(cwd: string, ref: string): FileChange[] {
   const sha = resolveCommit(cwd, '--commit', ref);
   const parent = gitParent(cwd, sha);
-  if (!parent) return nulList(git(cwd, ['diff-tree', '-r', '--root', '--no-commit-id', '--name-only', '-z', sha]));
-  return nulList(git(cwd, ['diff', '--no-renames', '--name-only', '-z', parent, sha, '--']));
+  if (!parent) return withRenames(cwd, ['diff-tree', '-r', '--root', '--no-commit-id', '--name-status', '-z', sha], false);
+  return withRenames(cwd, ['diff', '--name-status', '-z', parent, sha]);
 }
 
-/** Files changed on `head` since it forked from `base` (`base...head`). */
-export function gitSinceFiles(cwd: string, base: string, head = 'HEAD'): string[] {
+/** What changed on `head` since it forked from `base` (`base...head`), with statuses. */
+export function gitSinceChanges(cwd: string, base: string, head = 'HEAD'): FileChange[] {
   checkRef('--since', base);
   checkRef('--head', head);
-  return nulList(git(cwd, ['diff', '--no-renames', '--name-only', '-z', `${base}...${head}`, '--']));
+  return withRenames(cwd, ['diff', '--name-status', '-z', `${base}...${head}`]);
 }
+
+/** Files one commit changed; a merge is compared with its first parent. */
+export const gitCommitFiles = (cwd: string, ref: string): string[] => gitCommitChanges(cwd, ref).map((c) => c.path);
+
+/** Files changed on `head` since it forked from `base` (`base...head`). */
+export const gitSinceFiles = (cwd: string, base: string, head = 'HEAD'): string[] => gitSinceChanges(cwd, base, head).map((c) => c.path);
 
 /** Tracked and untracked (not ignored) files, or the files of commit `sha`. */
 export function gitListFiles(cwd: string, sha?: string): string[] {

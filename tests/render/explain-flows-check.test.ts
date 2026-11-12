@@ -31,7 +31,7 @@ describe('checkExplain', () => {
     expect(c.mismatches[0]!.detail).toContain('"Nope yes" not found');
     expect(c.mismatches[0]!.detail).toContain('"Nope no" not found');
     expect(checkHeadline(c)).toBe("✗ 1 of 9 boxes and steps doesn't match the code");
-    expect(checkTag(c)).toBe(' · ✓ 8 of 9 checked');
+    expect(checkTag(c)).toBe(' · ✓ 8 of 9 checked · 1 not checkable');
   });
 
   it('a step whose own anchor and branch both fail is still one', () => {

@@ -1,15 +1,19 @@
 import {
+  gitChangedChanges,
   gitChangedFiles,
+  gitCommitChanges,
   gitCommitFiles,
   gitEmptyTree,
   gitHead,
   gitMergeBase,
   gitParent,
+  gitSinceChanges,
   gitSinceFiles,
   repoDiffOverrides,
   repoFilterOverrides,
   resolveCommit,
   type DiffRange,
+  type FileChange,
 } from './git-files.js';
 
 export interface GitSelection {
@@ -44,6 +48,16 @@ export function gitFiles(root: string | undefined, o: GitSelection, renameSource
   if (o.commit !== undefined) files = files.concat(gitCommitFiles(root, o.commit));
   if (o.git) files = files.concat(gitChangedFiles(root, renameSources));
   return files;
+}
+
+/** As `gitFiles`, with git's status for each file; a file in two selections keeps the last status. */
+export function gitChanges(root: string | undefined, o: GitSelection, renameSources = false): FileChange[] {
+  if (!root) throw new Error('not a git repository (use --files)');
+  let changes: FileChange[] = [];
+  if (o.since !== undefined) changes = changes.concat(gitSinceChanges(root, o.since, o.head));
+  if (o.commit !== undefined) changes = changes.concat(gitCommitChanges(root, o.commit));
+  if (o.git) changes = changes.concat(gitChangedChanges(root, renameSources));
+  return [...new Map(changes.map((c) => [c.path, c])).values()];
 }
 
 /** The revisions `gitFiles` compares, for reading a file's diff over the same change. */
