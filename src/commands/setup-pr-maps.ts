@@ -7,6 +7,7 @@ import { findRepoRoot } from '../config/load.js';
 import type { CommandOptions } from '../program.js';
 import { readRegularFile } from '../read-regular.js';
 import { gitRun } from '../pr/git.js';
+import { trustedBinary } from '../rules/git-files.js';
 import { currentVersion } from '../update/check.js';
 import { buildPlan, openSetupReview, parseRemote, prepareSetupReview, type Host, type Plan, type Remote, type Tool } from '../pr/setup.js';
 
@@ -81,14 +82,31 @@ async function terminalConfirm(question: string): Promise<boolean> {
   }
 }
 
-const defaultTool: Tool = (command, args) => {
+interface ToolDeps {
+  platform?: NodeJS.Platform;
+  env?: NodeJS.ProcessEnv;
+  exists?: (p: string) => boolean;
+  exec?: (file: string, args: string[]) => string;
+}
+
+export const makeTool = (deps: ToolDeps = {}): Tool => (command, args) => {
+  const missing = () => new Error(`${command} is not installed; install it or run without --pr`);
+  let file: string;
   try {
-    return execFileSync(command, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 120_000 });
+    file = trustedBinary(command, deps.platform, deps.env, deps.exists);
+  } catch {
+    throw missing();
+  }
+  const exec = deps.exec ?? ((f: string, a: string[]) => execFileSync(f, a, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 120_000 }));
+  try {
+    return exec(file, args);
   } catch (e) {
-    if ((e as NodeJS.ErrnoException).code === 'ENOENT') throw new Error(`${command} is not installed; install it or run without --pr`);
+    if ((e as NodeJS.ErrnoException).code === 'ENOENT') throw missing();
     throw new Error(`${command} failed: ${String((e as { stderr?: unknown }).stderr ?? (e as Error).message).trim()}`);
   }
 };
+
+const defaultTool: Tool = makeTool();
 
 async function agreed(o: Flags, opts: CommandOptions): Promise<boolean> {
   if (o.yes) return true;

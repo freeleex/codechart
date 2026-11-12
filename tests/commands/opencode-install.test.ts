@@ -2,6 +2,7 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, symlinkSync, writeFileS
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { writeRecord } from '../../src/commands/hook-record.js';
+import { pluginBlocker } from '../../src/commands/opencode-version.js';
 import { makeSandbox, removeSandbox, repoFromTemplate, runCli, type Sandbox } from '../helpers/sandbox.js';
 
 let sb: Sandbox;
@@ -186,6 +187,36 @@ describe('OpenCode 2 guard', () => {
     });
     expect(seen[1]).toBe(join(sb.home, '.opencode', 'bin', 'opencode'));
     expect(existsSync(plugin())).toBe(true);
+  });
+
+  it('on Windows the bare name runs as the .exe from an absolute PATH entry', () => {
+    const seen: string[][] = [];
+    const blocker = pluginBlocker({ stdout: () => {}, stderr: () => {} }, sb.home, {
+      platform: 'win32',
+      env: { PATH: '.;C:\\Tools' },
+      exists: (p) => p === 'C:\\Tools\\opencode.exe',
+      exec: (file, args) => {
+        seen.push([file, ...args]);
+        return 'opencode v2.2.5\n';
+      },
+    });
+    expect(blocker).toBeUndefined();
+    expect(seen).toEqual([['C:\\Tools\\opencode.exe', '--version']]);
+  });
+
+  it('on Windows a bare name off PATH is not found; the absolute fallback runs as it is', () => {
+    const seen: string[] = [];
+    const blocker = pluginBlocker({ stdout: () => {}, stderr: () => {} }, sb.home, {
+      platform: 'win32',
+      env: { PATH: '.;C:\\nope' },
+      exists: () => false,
+      exec: (file) => {
+        seen.push(file);
+        throw new Error('gone');
+      },
+    });
+    expect(blocker).toBe('needs OpenCode 2 (not found)');
+    expect(seen).toEqual([join(sb.home, '.opencode', 'bin', 'opencode')]);
   });
 
   it('update leaves an older copy alone on OpenCode 1', async () => {
