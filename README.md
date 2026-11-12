@@ -63,7 +63,7 @@ not on map: tests: test_invoice_backfill.py · docs: CHANGELOG.md, .env.example
 
 Open full map
 
-New things are `+`, changed ones `~`, removed ones `-`, config `◆`; anything unmarked already existed. The block is a `diff` fence, so Claude Code, OpenCode, Codex, Gemini CLI, Cursor and GitHub colour the new and removed lines on their own. Layers are grouped, every relation is drawn, and `✓ 10 checked` means each claim on the map was verified against your files and the git diff. It takes ten seconds to read, and `gaps` tells you what the agent *didn't* look at.
+New things are `+`, changed ones `~`, removed ones `-`, config `◆`; anything unmarked already existed. The block is a `diff` fence, so Claude Code, OpenCode, Codex, Gemini CLI, Cursor and GitHub colour the new and removed lines on their own. Layers are grouped, every relation is drawn, and `✓ 10 checked` counts the claims checked against your files and the git diff; boxes without a file are listed separately as *not checkable*. It takes ten seconds to read, and `gaps` tells you what the agent *didn't* look at.
 
 **Open full map** opens an interactive page. Click any node for its summary, file, fields — and in a change summary, its diff, read straight from git:
 
@@ -223,7 +223,7 @@ When the agent summarizes a change, writes a plan or explains how code behaves: 
 ## Why you can trust the diagram
 
 - **The agent writes data, codechart draws.** Layout is code, not hand-drawn ASCII.
-- **Claims are checked** against your files and the git diff: `✓ 10 checked`, or a `✗` that says what doesn't match.
+- **Claims are checked** against your files and the git diff: each file exists, a quoted line is in it, and a new, changed or removed box matches git's added, modified, deleted or renamed status. A listed field or an arrow the code doesn't mention is a softer warning. Not checked: whether a label, summary or note is true, and boxes without a file (they show as *not checkable*). A `✓ 10 checked` or a `✗` says what matched or didn't.
 - **Nothing left off quietly:** every changed file is on the map or listed as left out.
 - **Flows are tied to real lines,** and whatever the agent didn't read is listed under `gaps`.
 
@@ -235,7 +235,7 @@ A diagram is about **2–3 extra API calls**, roughly 2–3% of a long session's
 
 ## Safe to run
 
-- No telemetry, no shell, read-only `git`. Pages load nothing external and are saved to `~/.cache/codechart`, never to your repo. The only network calls: a daily version check, plus that version's changelog from GitHub when there's a newer one ([off with one setting](docs/install.md#updating)), and opt-in [PR maps](docs/pr-maps.md).
+- No telemetry, no shell except two fixed cases: `npm` on Windows during `codechart update`, and the editor you choose with `$VISUAL` or `$EDITOR` for `codechart review`. `git` is read-only. Pages load nothing external and are saved to `~/.cache/codechart`, never to your repo. The only network calls: a daily version check, plus that version's changelog from GitHub when there's a newer one ([off with one setting](docs/install.md#updating)), and opt-in [PR maps](docs/pr-maps.md).
 - Audited before release across 8 areas, including untrusted repos and prompt-injected specs: [SECURITY.md](SECURITY.md) and [docs/security-review.md](docs/security-review.md).
 
 ## Configure
