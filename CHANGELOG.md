@@ -6,10 +6,13 @@ What's new in each codechart release. Update with `codechart update`; the [relea
 
 ### New
 
+- Every map box and explain node carries a short summary paragraph now: what it does, its role in the system. The page shows it at the top of the node's panel and inside the box. The agent is told to write one on every node.
+- Omitted groups on the page: a *Not on map* entry that says what the group is and why it is off the map (`frontend pages calling telemetry: frontend/src/pages/`) is drawn as a dashed *omitted* box in that area. Its panel lists the changed files the entry covers; a bare `tests:` or `docs:` list stays in the page info without a box.
 - Business page that explains how something works today: ask your agent to explain an area for a product owner, QA or support. One lane diagram of who does what, with every yes and no branch, then rules, odd cases and saved data in plain words. It starts from the explain map of that area (the newest one on your current branch) and is read-only: no notes or replies.
 
 ### Fixed
 
+- The HTML check line keeps each claim's own colour: `✓ 15 nodes checked against the code` stays green next to a red `✗ 1 changed file not on map`; warnings are amber and `diff not checked` muted. One failed claim used to paint the whole line red.
 - On Windows, the `gh`, `glab`, `powershell` and `opencode` commands that codechart runs are now looked up on PATH before they run, so a file inside your repo can't stand in for one of them.
 
 ### Changed

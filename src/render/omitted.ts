@@ -29,3 +29,34 @@ export function explains(entry: string, file: string): boolean {
     .map((t) => t.replace(/^\.\//, ''))
     .some((t) => t !== '' && tokenNames(t, file));
 }
+
+const PATH_TOKEN = /[*?[]/;
+const PLAIN_WORD = /^[A-Za-z][A-Za-z'_-]*$/;
+/** "tests and docs" names categories, not a reason: only the words that say what the group is count. */
+const STOP = new Set(['a', 'an', 'and', 'as', 'at', 'by', 'for', 'from', 'in', 'of', 'on', 'or', 'the', 'to', 'with']);
+
+/** The entry's tokens with `./` and a trailing comma or semicolon dropped, as `explains` reads them. */
+const tokens = (entry: string): string[] =>
+  entry
+    .split(/[\s,:;()]+/)
+    .map((t) => t.replace(/^\.\//, '').replace(/[,;]+$/, ''))
+    .filter((t) => t !== '');
+
+/** The path tokens in an entry: a glob, a `folder/`, or a path with a `/` in it (its place on the map). */
+export const entryPaths = (entry: string): string[] => tokens(entry).filter((t) => PATH_TOKEN.test(t) || t.includes('/'));
+
+/** The words that say what the omitted group is, no paths, file names or stop words: `tests and docs` has two. */
+export const entryWords = (entry: string): string[] => tokens(entry).filter((t) => PLAIN_WORD.test(t) && !STOP.has(t.toLowerCase()));
+
+/** The entry without its path tokens: the reason it gives for leaving those files off the map. */
+export function entryProse(entry: string): string {
+  return entry
+    .split(/\s+/)
+    .filter((w) => {
+      const t = w.replace(/^\.\//, '').replace(/[,;]+$/, '');
+      return t === '' || !(PATH_TOKEN.test(t) || t.includes('/'));
+    })
+    .join(' ')
+    .replace(/[\s,;:]+$/, '')
+    .trim();
+}

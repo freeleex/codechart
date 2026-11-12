@@ -99,7 +99,6 @@ export function driftInfo(drift: Drift<unknown> | undefined, now: Date): string 
 /** Only in a page with a plan, so a page without one is unchanged. */
 export const DRIFT_CSS = `
 header button.check.warn{font-family:inherit;color:var(--chg-t);background:none;border:0;padding:0;cursor:pointer;text-decoration:underline dotted}
-header .check .bad{color:var(--rem);font-weight:600}
 .node .drift-mark{fill:var(--chg-t);font-size:12px;text-anchor:middle}.node .drift-mark.bad{fill:var(--rem)}
 .node.ghost :is(.card,.fold,.shape){stroke:var(--muted);stroke-dasharray:4 3;fill:var(--bg);fill-opacity:.5}
 .node.ghost :is(.label,.kind,.summary,.field){fill:var(--muted)}

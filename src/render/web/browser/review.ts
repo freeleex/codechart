@@ -23,7 +23,7 @@ function savedTicks(key: string): Map<string, string> {
 
 /** On a page with views, progress and Next cover the view showing: of `ids`, those with a node outside a hidden view. */
 function shownIds(ids: string[]): string[] {
-  const shown = new Set([...document.querySelectorAll('.node:not(.ghost)')].filter((g) => !g.closest('.view[hidden]')).map((g) => g.getAttribute('data-id')!));
+  const shown = new Set([...document.querySelectorAll('.node:not(.ghost):not(.gap)')].filter((g) => !g.closest('.view[hidden]')).map((g) => g.getAttribute('data-id')!));
   return ids.filter((id) => shown.has(id));
 }
 
@@ -41,7 +41,7 @@ function nextUnticked(list: string[], current: string, dir: 1 | -1, done: Set<st
 export function initReview(repo: string, goTo: (id: string) => void): Review {
   const key = `codechart.reviewed:${repo}`;
   const revs = new Map<string, string>();
-  document.querySelectorAll('.node:not(.ghost)').forEach((g) => revs.set(g.getAttribute('data-id')!, g.getAttribute('data-rev') ?? ''));
+  document.querySelectorAll('.node:not(.ghost):not(.gap)').forEach((g) => revs.set(g.getAttribute('data-id')!, g.getAttribute('data-rev') ?? ''));
   const ids = [...revs.keys()];
   const scope = () => shownIds(ids);
   const saved = savedTicks(key);

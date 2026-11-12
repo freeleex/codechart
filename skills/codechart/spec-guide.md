@@ -23,7 +23,7 @@ Rules:
   { "id": "legacy-roles", "label": "legacy_roles", "kind": "table", "status": "removed", "layer": "database" }
   ```
   with `users` as `changed` (its `legacy_role_id` field `"change": "removed"`) and the old edge `users → legacy-roles` kept.
-- Leave out tests, docs and lock files; list them in `omitted` instead (`"tests: test_teams.py"`). With a diff flag, `render` flags every changed file that no node's `path` covers (a folder path covers the files under it) and no `omitted` entry names by repo path, file name, `folder/` or glob. Lockfiles, generated files and files a map rule sends to output `none` are never flagged.
+- Leave out tests, docs and lock files; list them in `omitted` instead (`"tests: test_teams.py"`). With a diff flag, `render` flags every changed file that no node's `path` covers (a folder path covers the files under it) and no `omitted` entry names by repo path, file name, `folder/` or glob. Lockfiles, generated files and files a map rule sends to output `none` are never flagged. When a whole group is deliberately off the map (too many files to draw), say what they are and why before the paths (`"frontend pages and components calling telemetry: frontend/src/pages/"`): the page draws the entry as a dashed `omitted` box in that area, with the changed files it covers in its panel. A bare `tests:` or `docs:` list stays in the page's *Not on map* list.
 - Don't add a node you can't describe from what you read. Put it in `gaps`.
 - In a plan, name files the repo's way (look at neighbouring files for naming and numbering); they are shown as `new`.
 - Aim for under 15 nodes. More than that: drop the least connected `context` nodes and mention them in `omitted`.
@@ -32,7 +32,7 @@ Rules:
 
 ```json
 { "id": "users", "label": "users", "kind": "table", "status": "changed", "layer": "database",
-  "summary": "application users", "path": "app/models/user.py",
+  "summary": "application users, each in one team", "path": "app/models/user.py",
   "fieldsComplete": true,
   "fields": [
     { "name": "id", "type": "uuid PK" },
@@ -45,7 +45,7 @@ Rules:
 - `label`: what the reader knows it by, kept short (`users`, `Team`, `DEFAULT_CURRENCY`). For files, the short name, not the full path (the path goes in `path`).
 - `kind`: table, enum, model, service, endpoint, component, file, config, other. Defaults to `file` when `path` is set, so a plain file node needs only `path`.
 - `layer`: free text, one per area: `database`, `backend`, `frontend`, `config`, `ci`. Nodes in a layer are drawn together, so keep the set small and consistent.
-- `summary`: one short line, what it is (not what changed).
+- `summary`: **every node gets one**: one or two plain sentences on what it does, its role in the flow or system (not what changed). The page shows it at the top of the node's panel and inside its box; a box without one reads as an empty outline.
 - `fields`: for tables, models and enums: **every** field you read, not only the changed ones. Mark changes with `change` (added, removed, modified); leave unchanged fields unmarked. On a `modified` field, `was` is the old type when the type changes (`"type": "enum", "was": "text"`). In `short` mode only fields you actually read; in a plan, the fields you are committing to build are always listed (they are the plan).
 - `match` (optional, needs `path`): a distinctive piece of one line in that file, copied from the diff, like a flow anchor. It must be on exactly one line. The HTML shows the line in the node's panel; the terminal doesn't.
 - `fieldsComplete`: required on every node with `fields`.
@@ -74,10 +74,10 @@ Terraform, OpenTofu, Terragrunt, Helm, Kustomize and Kubernetes files match the 
 ```json
 { "kind": "summary", "title": "Access logs bucket for the load balancer", "rules": ["infrastructure"],
   "nodes": [
-    { "id": "logs", "label": "aws_s3_bucket.logs", "kind": "other", "status": "new", "layer": "storage", "path": "infra/logs.tf", "match": "resource \"aws_s3_bucket\" \"logs\"" },
-    { "id": "alb", "label": "aws_lb.api", "kind": "other", "status": "changed", "layer": "network", "path": "infra/alb.tf", "fieldsComplete": false,
+    { "id": "logs", "label": "aws_s3_bucket.logs", "kind": "other", "status": "new", "layer": "storage", "path": "infra/logs.tf", "match": "resource \"aws_s3_bucket\" \"logs\"", "summary": "S3 bucket the load balancer writes its access logs to; objects expire after 30 days." },
+    { "id": "alb", "label": "aws_lb.api", "kind": "other", "status": "changed", "layer": "network", "path": "infra/alb.tf", "fieldsComplete": false, "summary": "Public load balancer in front of the API service; now keeps access logs.",
       "fields": [{ "name": "access_logs.enabled", "type": "true", "change": "modified", "was": "false" }] },
-    { "id": "retention", "label": "var.log_retention_days", "kind": "config", "status": "config", "layer": "config", "path": "infra/variables.tf" }
+    { "id": "retention", "label": "var.log_retention_days", "kind": "config", "status": "config", "layer": "config", "path": "infra/variables.tf", "summary": "How many days the access logs are kept before S3 deletes them." }
   ],
   "edges": [
     { "from": "alb", "to": "logs", "label": "access_logs.bucket", "kind": "reads" },
@@ -125,5 +125,5 @@ A summary written after a plan in this repo is compared with that plan (plans ar
 | Goes in | What |
 |---|---|
 | `gaps` | What you did **not** read or do not know: `"users: relations to other tables not read"`, `"migration: downgrade not checked"`. A partial field list is not a gap: set `fieldsComplete: false` instead. Only real unknowns: if you read everything relevant, leave it empty. Never list something you did read: if you saw the migration has no downgrade, that is a finding for your prose, not `"downgrade not checked"`. In a plan, also open decisions that change the map (`"teams: extra columns not decided"`). |
-| `omitted` (shown as "Not on map") | Things that exist (or, in a plan, will exist) but are deliberately left off the map: tests, docs, low-value context nodes. Leave it empty rather than writing "none". |
+| `omitted` (shown as "Not on map") | Things that exist (or, in a plan, will exist) but are deliberately left off the map: tests, docs, low-value context nodes. Leave it empty rather than writing "none". An entry that says what the group is and why (three or more words, then its `folder/` or glob) is also drawn on the page as a dashed `omitted` box in its area. |
 | Your prose (not the spec) | Findings, risks and opinions: "migration lacks an index", "no backfill for existing rows". |

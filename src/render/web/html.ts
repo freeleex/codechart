@@ -10,6 +10,7 @@ import { changesHtml } from './changes.js';
 import { flowGaps, type LaidOutCheck } from '../explain-flows.js';
 import { flowPanels, flowSections, flowsThrough, FLOW_DEFS, viewTabs, VIEW_CSS } from './explain-flows-html.js';
 import { DRIFT_CSS, driftInfo, driftMark, driftSection, itemsById, type Ghosts } from './drift-html.js';
+import { gapPanel, gapSvg, type GapBox } from './gaps.js';
 import { edgeEnds, gapsHtml, infoButton, pageInfoSection, renderDiagramPage, renderEdgeSvg, type EdgeEnds } from './diagram.js';
 import { CHANGE_ARROWS, esc, list, num, type HtmlMeta } from './page.js';
 import { edgeChange, edgeOn, fieldsOn, hasNowAfter, nodeOn, SIDE_KEY, type Side } from './states.js';
@@ -148,14 +149,15 @@ export const withGhosts = (spec: Spec, ghosts: Ghosts<SpecNode, SpecEdge> | unde
   ghosts ? { ...spec, nodes: [...spec.nodes, ...ghosts.nodes], edges: [...spec.edges, ...ghosts.links] } : spec;
 
 /** Without `side`: the plan or summary as one picture, both states overlaid. `spec` is laid out with its ghosts. */
-export function viewport(spec: Spec, layout: Layout, check: MapCheck | undefined, side?: Side, previews?: Map<string, Preview>, ghosts?: Ghosts<SpecNode, SpecEdge>): string {
+// eslint-disable-next-line max-params -- the trailing previews, ghosts and gaps are optional, and only a map page passes them
+export function viewport(spec: Spec, layout: Layout, check: MapCheck | undefined, side?: Side, previews?: Map<string, Preview>, ghosts?: Ghosts<SpecNode, SpecEdge>, gaps: readonly GapBox[] = []): string {
   const drifted = itemsById(ghosts?.drift);
   const ghostIds = new Set(ghosts?.nodes.map((g) => g.id));
   const ghostEdges = new Set(ghosts?.links);
   const boxes = new Map(layout.nodes.map((n) => [n.id, n]));
   const statusOf = new Map(spec.nodes.map((n) => [n.id, n.status]));
   const shown = spec.nodes.filter((n) => !side || nodeOn(side, n.status));
-  const layers = new Set(shown.map((n) => n.layer));
+  const layers = new Set([...shown.map((n) => n.layer), ...gaps.map((g) => g.layer)]);
   const present = new Set(shown.map((n) => n.id));
   const groups = layout.groups
     .filter((g) => layers.has(g.layer))
@@ -179,11 +181,19 @@ export function viewport(spec: Spec, layout: Layout, check: MapCheck | undefined
       return drawn ? renderEdge(e, change, edgeEnds(edge.from, edge.to, labelOf(spec)), ghostEdges.has(edge)) : '';
     })
     .join('');
-  return `${groups}${edges}${nodes}`;
+  // A gap box has no status or change: it shows in every state and is never faded by a chip.
+  const gapNodes = gaps
+    .map((g) => {
+      const b = boxes.get(g.id);
+      return b ? gapSvg(g, b) : '';
+    })
+    .join('');
+  return `${groups}${edges}${nodes}${gapNodes}`;
 }
 
-/** `previews`: each node's diff, when the render was given one. `ghosts`: a summary's drift from its plan; `layout` is of `withGhosts(spec, ghosts)`. */
-export function renderHtml(spec: Spec, layout: Layout, meta: HtmlMeta, check?: MapCheck | LaidOutCheck, previews?: Map<string, Preview>, ghosts?: Ghosts<SpecNode, SpecEdge>): string {
+/** `previews`: each node's diff, when the render was given one. `ghosts`: a summary's drift from its plan; `gaps`: omitted groups to draw, laid out with the spec. */
+// eslint-disable-next-line max-params -- previews, ghosts and gaps are optional, and only the map page passes them
+export function renderHtml(spec: Spec, layout: Layout, meta: HtmlMeta, check?: MapCheck | LaidOutCheck, previews?: Map<string, Preview>, ghosts?: Ghosts<SpecNode, SpecEdge>, gaps: readonly GapBox[] = []): string {
   const sides = hasNowAfter(spec);
   const all = withGhosts(spec, ghosts);
   const drifted = itemsById(ghosts?.drift);
@@ -211,8 +221,8 @@ export function renderHtml(spec: Spec, layout: Layout, meta: HtmlMeta, check?: M
     explain,
     sides,
     paneKey: SIDE_KEY,
-    viewport: (side) => viewport(all, layout, check, side, previews, ghosts),
-    aside: `${pageInfo(spec, check, sides, ghosts, meta.generatedAt)}<div id="panel" hidden></div>${all.nodes.map((n) => cardPanel(all, n, check, previews, sides, mark(drifted.get(n.id), ghostIds.has(n.id)))).join('')}${flows ? flowPanels(flows, spec) : ''}`,
+    viewport: (side) => viewport(all, layout, check, side, previews, ghosts, gaps),
+    aside: `${pageInfo(spec, check, sides, ghosts, meta.generatedAt)}<div id="panel" hidden></div>${all.nodes.map((n) => cardPanel(all, n, check, previews, sides, mark(drifted.get(n.id), ghostIds.has(n.id)))).join('')}${gaps.map(gapPanel).join('')}${flows ? flowPanels(flows, spec) : ''}`,
     width: layout.width,
     height: layout.height,
     extraDefs: flows ? CHANGE_ARROWS + FLOW_DEFS : CHANGE_ARROWS,
@@ -220,7 +230,7 @@ export function renderHtml(spec: Spec, layout: Layout, meta: HtmlMeta, check?: M
     ...(flows && {
       extraCss: VIEW_CSS,
       tabs: viewTabs(flows.views),
-      views: [{ id: COMPONENTS_VIEW, pane: 'Components', viewport: viewport(all, layout, check, undefined, previews, ghosts), width: layout.width, height: layout.height }, ...flowSections(flows, meta.change !== undefined)],
+      views: [{ id: COMPONENTS_VIEW, pane: 'Components', viewport: viewport(all, layout, check, undefined, previews, ghosts, gaps), width: layout.width, height: layout.height }, ...flowSections(flows, meta.change !== undefined)],
     }),
   });
 }

@@ -23,10 +23,10 @@ Read the area before writing: the entry points, the models or tables, the servic
       "summary": "Totals the lines, applies discounts and calls the payment provider.",
       "notes": ["A zero total skips the charge but still sends the receipt."] },
     { "id": "invoice", "label": "invoices", "kind": "table", "status": "existing", "layer": "database",
-      "path": "app/models/invoice.py", "fieldsComplete": false,
+      "path": "app/models/invoice.py", "fieldsComplete": false, "summary": "The invoices a customer is charged for, and where each one is in its lifecycle.",
       "fields": [{ "name": "status", "type": "enum draft|paid|void" }] },
-    { "id": "email", "label": "EmailService", "kind": "service", "status": "outside", "layer": "other areas", "path": "app/email/service.py" },
-    { "id": "stripe", "label": "Stripe API", "kind": "other", "status": "outside", "layer": "other areas" }],
+    { "id": "email", "label": "EmailService", "kind": "service", "status": "outside", "layer": "other areas", "path": "app/email/service.py", "summary": "Sends the receipt email to the customer." },
+    { "id": "stripe", "label": "Stripe API", "kind": "other", "status": "outside", "layer": "other areas", "summary": "Charges the customer's card; outside the repo." }],
   "edges": [
     { "from": "invoices-api", "to": "billing", "label": "create_invoice", "kind": "calls" },
     { "from": "billing", "to": "invoice", "label": "status", "kind": "writes" },
@@ -53,7 +53,7 @@ Read the area before writing: the entry points, the models or tables, the servic
 - One box per table, model, service, endpoint, job or file, labelled as the code names it. About 15 at most: a bigger area is split by feature, one map each.
 - `existing`: part of the area. `path` is required, and a `match` (a distinctive piece of one line, on exactly one line of the file) is the proof, so give one where you can; the render checks both.
 - `outside`: a neighbour the area talks to but that isn't in it: another module's service, a shared table, an external API. Give `path` when it is in the repo (checked like the others); an external service has none.
-- `summary`: one line on what the box is for. `notes`: what surprises a newcomer: hidden rules, odd cases, things that look wrong but are on purpose. Leave both out when there is nothing to say.
+- `summary`: **every box gets one**: one or two plain sentences on what it does, its role in the area (not what changed); the page shows it at the top of the box's panel. `notes`: what surprises a newcomer: hidden rules, odd cases, things that look wrong but are on purpose; leave them out when there is nothing to say.
 - `layer` required, from a small set (`api`, `billing`, `database`, `other areas`). `fields`: no `change`; `fieldsComplete` as in [spec-guide.md](spec-guide.md).
 - Edges: dependent → dependency, in plain words (the column, method or key), never pasted code; only ones you saw. No `change`.
 - Not allowed: `new`, `changed`, `removed`, `config` and `context` boxes, edge or field `change`, `was`, `drift`, `omitted`. No `rules`: nothing triggers an explain map but the user's ask.

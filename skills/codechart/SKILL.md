@@ -74,16 +74,16 @@ Draw only branches you saw in the code or (plan) will build; unverified ones go 
 ```json
 { "kind": "summary", "title": "Users can belong to teams", "rules": ["related-files"],
   "nodes": [
-    { "id": "memberships", "label": "memberships", "kind": "table", "status": "new", "layer": "database", "fieldsComplete": true,
+    { "id": "memberships", "label": "memberships", "kind": "table", "status": "new", "layer": "database", "fieldsComplete": true, "summary": "Join table: which user belongs to which team.",
       "fields": [{ "name": "user_id", "type": "uuid FK users", "change": "added" }] },
-    { "id": "users", "label": "users", "kind": "table", "status": "context", "layer": "database" },
-    { "id": "teams-api", "label": "GET /users/{id}/teams", "kind": "endpoint", "status": "changed", "layer": "backend", "path": "app/api/teams.py" }
+    { "id": "users", "label": "users", "kind": "table", "status": "context", "layer": "database", "summary": "Application users; unchanged in this work, but memberships points at them." },
+    { "id": "teams-api", "label": "GET /users/{id}/teams", "kind": "endpoint", "status": "changed", "layer": "backend", "path": "app/api/teams.py", "summary": "Lists the teams a user belongs to, for the account page." }
   ],
   "edges": [{ "from": "memberships", "to": "users", "label": "user_id", "kind": "fk" }],
   "gaps": ["users: columns not read"] }
 ```
 
-- One node per table, model, file, service or endpoint, never merged: `new`, `changed`, `removed`, `config` (config/env), `context` (untouched neighbour the reader needs). Under 15; tests and docs go in `omitted`, naming each changed file by path, file name, `folder/` or glob (`"tests: test_teams.py"`); lockfiles and generated files need neither.
+- One node per table, model, file, service or endpoint, never merged: `new`, `changed`, `removed`, `config` (config/env), `context` (untouched neighbour the reader needs). Under 15; tests and docs go in `omitted`, naming each changed file by path, file name, `folder/` or glob (`"tests: test_teams.py"`); lockfiles and generated files need neither. Every node has a `summary`: one or two plain sentences on what it does, its role in the system (not what changed); the page shows it at the top of the node's panel. An `omitted` entry that says what a group is and why (`"frontend pages calling telemetry: frontend/src/pages/"`) is also drawn on the page as a dashed box; a bare `tests:` or `docs:` list stays in the page info.
 - Infrastructure: one node per resource, module or Kubernetes object, labelled as the code names it (`aws_s3_bucket.logs`, `module.vpc`, `Deployment api`), `kind` `other`, `path` the file that declares it; variables and values `config`; `terraform plan not run` goes in `gaps`. See [spec-guide.md](spec-guide.md#infrastructure).
 - `layer` required, from a small set. `kind`: `table` `enum` `model` `service` `endpoint` `component` `file` (default with `path`) `config` `other`. Migration label: `migration: <what it does>`.
 - `fields`: all you read, `change`: `added`/`removed`/`modified`; `fieldsComplete: true` only if you read the whole definition.

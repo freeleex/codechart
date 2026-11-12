@@ -1,4 +1,4 @@
-import { checkHeadline, flagged, type CheckSummary, type Mismatch } from '../terminal/check-lines.js';
+import { checkHeadlineParts, flagged, type CheckSummary, type Mismatch } from '../terminal/check-lines.js';
 import { esc, num } from './page.js';
 
 /** What each kind of mismatch means for someone reading the diagram, keyed by `Mismatch.short`. */
@@ -34,11 +34,12 @@ const meaning = (m: Mismatch): string =>
   (m.short.startsWith('marked ') ? STATUS_WHY : m.short.startsWith('field ') ? FIELD_WHY : m.short.startsWith('no mention of ') ? ARROW_WHY : '');
 
 export function checkNote(c: CheckSummary | undefined): string {
-  const line = checkHeadline(c);
-  if (!line) return '';
-  if (flagged(c)) return `<button type="button" class="check bad" aria-controls="page-info" title="Show what doesn't match and why">${esc(line)}</button>`;
-  if (c?.warnings?.length) return `<button type="button" class="check warn" aria-controls="page-info" title="Show what is worth checking">${esc(line)}</button>`;
-  return `<span class="check"${c?.diffUnchecked ? ` title="${UNCHECKED_WHY}"` : ''}>${esc(line)}</span>`;
+  const parts = checkHeadlineParts(c);
+  if (!parts.length) return '';
+  const line = parts.map((p) => `<span class="${p.tone}">${esc(p.text)}</span>`).join(' · ');
+  if (flagged(c)) return `<button type="button" class="check bad" aria-controls="page-info" title="Show what doesn't match and why">${line}</button>`;
+  if (c?.warnings?.length) return `<button type="button" class="check warn" aria-controls="page-info" title="Show what is worth checking">${line}</button>`;
+  return `<span class="check"${c?.diffUnchecked ? ` title="${UNCHECKED_WHY}"` : ''}>${line}</span>`;
 }
 
 export function checkSection(c: CheckSummary | undefined): string {

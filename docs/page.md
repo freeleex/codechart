@@ -14,6 +14,7 @@ Small diagrams stay in the agent's reply; big ones also get an interactive HTML 
 - Click a node to select it: it gets a blue glow, and everything except it and its neighbours dims. Esc or a click on the empty canvas clears it.
 - Plans that touch existing code open as two panes, Now and After plan: see [Plans](plans.md).
 - Each kind of box has its own outline and a small icon before its label: endpoint (pill, ⇄), service (round corners, ⚙), component (side rails, ▣), table (column ticks under the title, ▤), model (double line, ◉), enum (cut corners, ◇), config (tag, ⚑), file (folded corner, ≡). Anything else is a plain box. The outline's colour is only the status.
+- A group listed under *Not on map* that says what it is and why it is off the map (`frontend pages calling telemetry: frontend/src/pages/`) is also drawn as a dashed *omitted* box in its area. Click it to see the changed files the entry covers; a bare `tests:` or `docs:` list stays in the page info only.
 
 ## Status chips
 
@@ -27,7 +28,7 @@ A row under the header counts the nodes per status (`+4 new  ~5 changed  −1 re
 
 Clicking a node opens its panel:
 
-- Summary, file and fields; in a change summary, also its diff.
+- A summary paragraph at the top says what the node does (one or two sentences); then its file and fields; in a change summary, also its diff.
 - ← → buttons go back and forward through the nodes you opened.
 - ◎ zooms to the selected node.
 - *Used by* and *Uses* list the node's links; click one to jump there.
