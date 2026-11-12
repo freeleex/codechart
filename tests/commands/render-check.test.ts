@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { buildProgram, runProgram } from '../../src/program.js';
 import { repoFolder } from '../../src/render/output-path.js';
+import { gitChanges } from '../../src/rules/selection.js';
 import { repoFromTemplate } from '../helpers/sandbox.js';
 
 let tmp: string;
@@ -250,6 +251,54 @@ describe('render: map checks', () => {
   it('plans are never checked for uncovered files', async () => {
     const r = await run(['render', specFile({ ...map(node('Status', 'context', 'app/status.py')), kind: 'plan' }), '--git', '--output', 'cli']);
     expect(r.out).not.toContain('✗');
+  });
+});
+
+describe('render: --since with --git', () => {
+  const baseBranch = () => git('rev-parse', '--abbrev-ref', 'HEAD').trim();
+
+  it('a file added on the branch and edited locally stays new, so a new box passes --strict', async () => {
+    const base = baseBranch();
+    git('checkout', '-q', '-b', 'feature');
+    writeFileSync(join(repo, 'app/new.py'), 'class New:\n    pass\n');
+    git('add', 'app/new.py');
+    git('commit', '-q', '-m', 'add new');
+    writeFileSync(join(repo, 'app/new.py'), 'class New:\n    edited = True\n');
+    expect(gitChanges(repo, { since: base, git: true })).toContainEqual({ path: 'app/new.py', status: 'A' });
+    const spec = map(node('New', 'new', 'app/new.py'), node('Order', 'changed', 'app/orders.py'));
+    const r = await run(['render', specFile(spec), '--since', base, '--git', '--strict', '--output', 'cli']);
+    expect(r.out).not.toContain('✗');
+    expect(r.out).toContain('✓ 2 checked');
+    expect(r.code).toBeUndefined();
+  });
+
+  it('a file modified on the branch and deleted locally reads as removed, so a removed box passes --strict', async () => {
+    const base = baseBranch();
+    git('checkout', '-q', '-b', 'feature');
+    writeFileSync(join(repo, 'app/status.py'), 'class Status:\n    edited = True\n');
+    git('add', 'app/status.py');
+    git('commit', '-q', '-m', 'edit status');
+    rmSync(join(repo, 'app/status.py'));
+    expect(gitChanges(repo, { since: base, git: true })).toContainEqual({ path: 'app/status.py', status: 'D' });
+    const spec = map(node('Status', 'removed', 'app/status.py'), node('Order', 'changed', 'app/orders.py'));
+    const r = await run(['render', specFile(spec), '--since', base, '--git', '--strict', '--output', 'cli']);
+    expect(r.out).not.toContain('✗');
+    expect(r.out).toContain('✓ 2 checked');
+    expect(r.code).toBeUndefined();
+  });
+
+  it('a file added on the branch and deleted locally cancels out, as the range diff does', async () => {
+    const base = baseBranch();
+    git('checkout', '-q', '-b', 'feature');
+    writeFileSync(join(repo, 'app/temp.py'), 'class Temp:\n    pass\n');
+    git('add', 'app/temp.py');
+    git('commit', '-q', '-m', 'add temp');
+    rmSync(join(repo, 'app/temp.py'));
+    expect(gitChanges(repo, { since: base, git: true }).some((c) => c.path === 'app/temp.py')).toBe(false);
+    const spec = map(node('Temp', 'removed', 'app/temp.py'), node('Order', 'changed', 'app/orders.py'));
+    const r = await run(['render', specFile(spec), '--since', base, '--git', '--output', 'cli']);
+    expect(r.out).toContain('✗ 1 claim');
+    expect(r.out).toContain('Temp not in diff');
   });
 });
 

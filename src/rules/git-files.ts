@@ -343,8 +343,8 @@ export function gitUntracked(cwd: string, rels: string[]): Set<string> {
 }
 
 // A partial clone has no blobs to compare, so rename detection fails there: fall back to added and deleted.
-const withRenames = (cwd: string, args: string[], paths = true): FileChange[] => {
-  const run = (renames: string) => git(cwd, [...args, renames, ...(paths ? ['--'] : [])]);
+const withRenames = (cwd: string, args: string[], paths = true, opts: GitOpts = {}): FileChange[] => {
+  const run = (renames: string) => git(cwd, [...args, renames, ...(paths ? ['--'] : [])], opts);
   try {
     return parseNameStatus(run('--find-renames'));
   } catch {
@@ -365,6 +365,20 @@ export function gitSinceChanges(cwd: string, base: string, head = 'HEAD'): FileC
   checkRef('--since', base);
   checkRef('--head', head);
   return withRenames(cwd, ['diff', '--name-status', '-z', `${base}...${head}`]);
+}
+
+/**
+ * What changed from `from` to the working tree, with statuses (`from` may be a merge base).
+ * One diff over the whole range, so a file added in a commit and edited since is still added,
+ * and a change that cancels out is gone. Untracked files read as added, as status reports them.
+ */
+export function gitWorktreeChanges(cwd: string, from: string): FileChange[] {
+  const changes = withRenames(cwd, ['diff', '--name-status', '-z', '--ignore-submodules=dirty', from], true, { config: repoFilterOverrides(cwd) });
+  const seen = new Set(changes.map((c) => c.path));
+  for (const path of nulList(git(cwd, ['ls-files', '-z', '--others', '--exclude-standard']))) {
+    if (!seen.has(path)) changes.push({ path, status: 'A' });
+  }
+  return changes;
 }
 
 /** Files one commit changed; a merge is compared with its first parent. */

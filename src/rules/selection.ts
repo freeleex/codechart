@@ -9,6 +9,7 @@ import {
   gitParent,
   gitSinceChanges,
   gitSinceFiles,
+  gitWorktreeChanges,
   repoDiffOverrides,
   repoFilterOverrides,
   resolveCommit,
@@ -50,9 +51,12 @@ export function gitFiles(root: string | undefined, o: GitSelection, renameSource
   return files;
 }
 
-/** As `gitFiles`, with git's status for each file; a file in two selections keeps the last status. */
+/** As `gitFiles`, with git's status for each file over the whole selection. */
 export function gitChanges(root: string | undefined, o: GitSelection, renameSources = false): FileChange[] {
   if (!root) throw new Error('not a git repository (use --files)');
+  // --since with --git is one range from the merge base to the working tree, as diffRange reads it:
+  // a file added on the branch and edited since stays added, and a change that cancels out is gone.
+  if (o.since !== undefined && o.git) return gitWorktreeChanges(root, gitMergeBase(root, o.since));
   let changes: FileChange[] = [];
   if (o.since !== undefined) changes = changes.concat(gitSinceChanges(root, o.since, o.head));
   if (o.commit !== undefined) changes = changes.concat(gitCommitChanges(root, o.commit));
