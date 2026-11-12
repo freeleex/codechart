@@ -192,13 +192,16 @@ describe('the tool that runs gh/glab', () => {
   });
 
   it('ENOENT from the run maps to the same message; other failures keep the stderr', () => {
+    const win = { platform: 'win32' as const, env: { PATH: 'C:\\Tools' }, exists: (p: string) => p.endsWith('.exe') };
     const missing = makeTool({
+      ...win,
       exec: () => {
         throw Object.assign(new Error('spawnSync gh ENOENT'), { code: 'ENOENT' });
       },
     });
     expect(() => missing('gh', [])).toThrow('gh is not installed; install it or run without --pr');
     const failed = makeTool({
+      ...win,
       exec: () => {
         throw Object.assign(new Error('exit 1'), { stderr: 'boom\n' });
       },
