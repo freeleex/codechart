@@ -8,6 +8,15 @@ What's new in each codechart release. Update with `codechart update`; the [relea
 
 - Business page that explains how something works today: ask your agent to explain an area for a product owner, QA or support. One lane diagram of who does what, with every yes and no branch, then rules, odd cases and saved data in plain words. It starts from the explain map of that area (the newest one on your current branch) and is read-only: no notes or replies.
 
+### Fixed
+
+- On Windows, the `gh`, `glab`, `powershell` and `opencode` commands that codechart runs are now looked up on PATH before they run, so a file inside your repo can't stand in for one of them.
+
+### Changed
+
+- `codechart install-skill` run outside a terminal now installs only the skill and prints the flags that would add the reminder line, Claude Code hook and OpenCode plugin; before, it added them all without asking. It may edit global files (`~/.claude/CLAUDE.md`, your agents' `AGENTS.md`/`GEMINI.md`, `~/.claude/settings.json`), which the README now says up front.
+- The PR-maps workflow template for GitHub pins `actions/checkout` and `actions/setup-node` to exact commits, like this repo's own CI.
+
 ## 0.9.0 (2026-11-10)
 
 ### New
