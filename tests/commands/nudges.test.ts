@@ -125,12 +125,13 @@ describe('install-skill --reminder / --hook', () => {
     expect(existsSync(join(home, '.config', 'opencode', 'plugins', 'codechart.js'))).toBe(false);
   });
 
-  it('without a terminal, adds both', async () => {
+  it('without a terminal, adds none and prints the flags that would', async () => {
     const r = await run(['install-skill'], '', undefined);
-    expect(r.out).toContain(`reminder added: ${join(home, '.claude', 'CLAUDE.md')}\n`);
-    expect(r.out).toContain(`reminder added: ${join(home, '.config', 'opencode', 'AGENTS.md')}\n`);
-    expect(r.out).toContain('hook added');
-    expect(r.out).toContain('installed for OpenCode plugin');
+    expect(r.out).toContain('Reminder, hook and plugin not added. Run with --reminder --hook --plugin to add them.\n');
+    expect(existsSync(join(home, '.claude', 'CLAUDE.md'))).toBe(false);
+    expect(existsSync(join(home, '.config', 'opencode', 'AGENTS.md'))).toBe(false);
+    expect(existsSync(join(home, '.claude', 'settings.json'))).toBe(false);
+    expect(existsSync(join(home, '.config', 'opencode', 'plugins', 'codechart.js'))).toBe(false);
   });
 
   it('the hook is not offered when Claude Code is not picked', async () => {
