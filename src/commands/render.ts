@@ -14,7 +14,7 @@ import { defaultWidth } from '../render/terminal/render.js';
 import { privateDir, writeReviewOnly } from '../render/web/write.js';
 import { gitHead, gitMergeBase, gitParent, resolveCommit } from '../rules/git-files.js';
 import { unionOutputs, unmappedFiles } from '../rules/resolve.js';
-import { gitFiles, hasGitSelection, selectionError, type GitSelection } from '../rules/selection.js';
+import { gitChanges, hasGitSelection, selectionError, type GitSelection } from '../rules/selection.js';
 import type { FlowSpec } from '../spec/flow.js';
 import type { BusinessSpec } from '../spec/business.js';
 import type { ReleaseSpec } from '../spec/release.js';
@@ -86,7 +86,8 @@ function resolveAt(o: RenderFlags, repoRoot: string | undefined, root: string): 
 function selectedDiff(o: RenderFlags, repoRoot: string | undefined, root: string): Diff | undefined {
   if (!hasGitSelection(o)) return undefined;
   if (!repoRoot) throw new Error('--git, --commit and --since need a git repository');
-  return diffOf(gitFiles(root, o, true));
+  const changes = gitChanges(root, o, true);
+  return diffOf(changes.map((c) => c.path), changes);
 }
 
 /** Without `--svg`, the image goes to the private cache folder: a fixed path in a shared temp dir could be a planted symlink. */

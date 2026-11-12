@@ -28,7 +28,7 @@ The page has two tabs under its header, **Components** and **Flows (n)**. Compon
 - **Notes:** what would surprise a newcomer: hidden rules, odd cases, things that look wrong but are on purpose.
 - **Gaps:** what the agent did not read.
 
-Click a box for its code (the function, class or block the quoted line opens, up to 40 lines, with that line highlighted; the lines around it and the rest of a longer block open with a click, and a box with no quoted line shows the top of its file), its fields, notes and relations, and the flows that go through it. The header says `✓ 9 boxes and 12 steps checked against the code` (only boxes when there are no flows). The terminal block says `10 boxes · 2 outside · ✓ 21 checked` and a key, `○ outside · unmarked = in this area`.
+Click a box for its code (the function, class or block the quoted line opens, up to 40 lines, with that line highlighted; the lines around it and the rest of a longer block open with a click, and a box with no quoted line shows the top of its file), its fields, notes and relations, and the flows that go through it. The header says `✓ 9 boxes and 12 steps checked against the code` (only boxes when there are no flows). The terminal block says `10 boxes · 2 outside · ✓ 21 checked · 1 not checkable` (the last part only when a box has no file) and a key, `○ outside · unmarked = in this area`.
 
 ## Flows
 
@@ -58,7 +58,7 @@ Each pane has its own pan and zoom. The keys act on what is selected, in either 
 
 ## What is checked
 
-Every box in the area must name a file that exists, and the line the agent quotes must be on exactly one line of it. An outside box is checked too when it names a file; an external service has none. Every step of a flow, and every branch out of a decision, must name a line of code that exists. Something that doesn't match is marked `✗`: a box on Components, a step on its flow. Nothing is compared with a diff, so there is no *not on map* check and no *diff not checked* note. See [Why you can trust the diagram](trust.md#explain-maps).
+Every box in the area must name a file that exists, and the line the agent quotes must be on exactly one line of it. An outside box is checked too when it names a file; an external service has none, and a box without a file is counted as *not checkable*. Every step of a flow, and every branch out of a decision, must name a line of code that exists. Something that doesn't match is marked `✗`: a box on Components, a step on its flow. Nothing is compared with a diff, so there is no *not on map* check and no *diff not checked* note. See [Why you can trust the diagram](trust.md#explain-maps).
 
 ## Limits
 

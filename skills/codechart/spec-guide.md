@@ -88,11 +88,12 @@ Terraform, OpenTofu, Terragrunt, Helm, Kustomize and Kubernetes files match the 
 
 ## What `render` checks
 
-Warnings, not failures (`--strict` makes them exit 1). Each mismatch is named in a `✗` line at the top of the output.
+A `✗` mismatch fails the check and `--strict`; a `⚠` warning never fails it. Each mismatch is named at the top of the output.
 
-- **File exists:** every node with a `path`, except a summary's `removed` node (a class deleted from a file that stays) and a plan's `new` node (not built yet). A folder counts.
-- **In the diff:** in a summary rendered with `--git`, `--since` or `--commit`, every `new`, `changed` or `removed` node's file. `context` and `config` nodes are not checked against the diff.
+- **File exists:** every node with a `path`, except a summary's `removed` node (a class deleted from a file that stays) and a plan's `new` node (not built yet). A folder counts. A node without a `path` is counted as not checkable.
+- **In the diff:** in a summary rendered with `--git`, `--since` or `--commit`, every `new`, `changed` or `removed` node's file, with git's status: `new` needs a file git adds, `removed` one it deletes, and `changed` one it modifies or renames. `context` and `config` nodes are not checked against the diff.
 - **`match`:** found on exactly one line, when the file must exist.
+- **Fields and arrows (warning):** each listed field must appear in its file, and an arrow between two files should mention the other file's name. Comparison ignores case, `_` and `-`; a miss is a `⚠` warning, never a `✗`.
 
 ## Drift from the plan
 

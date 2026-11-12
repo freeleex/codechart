@@ -1,6 +1,6 @@
 # Release map
 
-A PDF of what is new in a release, in plain words, for sales and stakeholders. It shows what was already reviewed and is in main, so nobody reviews it: no questions, no notes, no Yes/No. No code, file names or ids on it, and the reader needs no access to the repo.
+A PDF of what is new in a release, in plain words, for sales and stakeholders. It shows what was already reviewed and is in main: a quick skim is enough, since every line points to merged code. No questions, no notes, no Yes/No. No code, file names or ids on it, and the reader needs no access to the repo.
 
 <img src="images/release-map.gif" alt="The PDF of a release map: a cover with the logo, product name, version and summary, then the features one after another with their journeys, rules and what is kept" width="960">
 
@@ -72,7 +72,7 @@ Before the page is drawn:
 - every sentence passes the same plain-words check as a business map: no code, file name or path, web address, setting name, secret or technical id;
 - no `questions` and no `evidence` on any item.
 
-A wrong sentence can pass every check: nobody reviews the PDF, so the agent is told to write only what it confirmed. See [Why you can trust the diagram](trust.md#release-maps).
+A wrong sentence can pass every check: a quick skim is enough, since every line points to merged code, so the agent is told to write only what it confirmed. See [Why you can trust the diagram](trust.md#release-maps).
 
 ## Limits
 

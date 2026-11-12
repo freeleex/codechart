@@ -9,16 +9,31 @@ LLMs misalign hand-drawn ASCII, so the agent only describes nodes and links as J
 ## Map claims are checked
 
 - Each node's file must exist, and a quoted line must be in it.
-- In a change summary, every new, changed or removed node must be in the git diff (`--git`, `--since <base>`, `--commit <sha>`).
-- When everything matches, the footer says `✓ 10 checked`.
+- In a change summary, every new, changed or removed node must match git, not just appear in the diff (`--git`, `--since <base>`, `--commit <sha>`): `new` needs a file git adds, `removed` one it deletes, and `changed` one it modifies or renames.
+- A listed field must appear in its file, and an arrow between two files should mention the other file's name, but the match is loose (case, `_` and `-` ignored) and a miss is only a warning.
+- When everything matches, the footer says `✓ 10 checked`. Boxes without a file are counted separately: `✓ 10 checked · 3 not checkable`.
 
-When it doesn't, the output opens with the mismatch. This one is straight from a render where the agent claimed an untouched table changed:
+When it doesn't, the output opens with the mismatch. This one is from a render where the agent claimed an untouched table changed:
 
 ```text
 ✗ 1 claim doesn't match the code: ~customers not in diff
 ```
 
-The agent is told to fix its spec, or to keep the `✗` and own up when the change really differs from its summary. `--strict` turns mismatches into a non-zero exit.
+A git-status mismatch reads the same way:
+
+```text
+✗ 1 claim doesn't match the code: +orders marked new, but modified in git
+```
+
+Warnings sit below the ✗ lines, quieter than a failed check:
+
+```text
+⚠ 2 warnings: ~orders field loyalty_points not found · ~orders → +invoices no mention of invoices
+```
+
+The agent is told to fix its spec, or to keep the `✗` and own up when the change really differs from its summary. `--strict` turns mismatches into a non-zero exit, not warnings.
+
+What is not checked: whether a label, summary or note is true, and boxes without a file, which are counted as not checkable. A matched line proves where to look, not that the box describes that code correctly.
 
 ## Plan vs built
 
@@ -62,7 +77,7 @@ Limits: a link proves where to look, not that the words are right. The check can
 
 ## Release maps
 
-A [release map](release-map.md) is a PDF nobody reviews, so it holds only what the agent confirmed in the code, the PR text or the diff. codechart checks the page's shape and words, not the facts:
+A [release map](release-map.md) is a PDF where a quick skim is enough: every line points to merged code. It holds only what the agent confirmed in the code, the PR text or the diff. codechart checks the page's shape and words, not the facts:
 
 - Every text, in every section, passes the same plain-words check as a business map, and ids must be unique across the page.
 - A spec with `questions` or `evidence` is refused: there is no owner to answer or confirm, and no *Agent's reading* tag to show.

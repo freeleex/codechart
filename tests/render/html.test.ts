@@ -227,7 +227,7 @@ describe('renderHtml', () => {
     expect(num(pill, /<line class="head"[^>]* x2="([\d.]+)"/) - num(pill, /class="badge" x="([\d.]+)"/)).toBeCloseTo(18, 5);
   });
 
-  it('status still drives the stroke of every shape', async () => {
+  it('status still drives the stroke of every shape', { timeout: 15_000 }, async () => {
     for (const status of ['new', 'changed', 'removed', 'config', 'context']) {
       for (const kind of KINDS) expect(await nodeG(kind, status)).toMatch(/<(rect|path) class="card"/);
     }

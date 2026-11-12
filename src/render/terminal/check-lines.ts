@@ -13,7 +13,11 @@ export interface Mismatch {
 export interface CheckSummary {
   checked: number;
   mismatches: Mismatch[];
+  /** Loose claims that don't fail the check: a field or an arrow the code doesn't back up. */
+  warnings?: Mismatch[];
   unit: 'node' | 'box' | 'anchor';
+  /** Boxes or nodes without a path, which the check can't look at. */
+  notCheckable?: number;
   /** An explain map with flows: how many of `checked` are steps, the rest boxes. */
   steps?: number;
   /** Changed files no node covers and `omitted` doesn't name. */
@@ -30,13 +34,15 @@ const uncoveredHead = (n: number) => `✗ ${n} changed ${n === 1 ? 'file' : 'fil
 
 export const flagged = (c: CheckSummary | undefined): boolean => Boolean(c?.mismatches.length || c?.uncovered?.length);
 
+const notCheckable = (c: CheckSummary | undefined): string => (c?.notCheckable ? ` · ${c.notCheckable} not checkable` : '');
+
 /** Appended to the footer's count line; empty when nothing could be checked. */
 export function checkTag(c: CheckSummary | undefined): string {
   const unchecked = c?.diffUnchecked ? ` · ${UNCHECKED}` : '';
-  if (!c || c.checked === 0) return unchecked;
+  if (!c || c.checked === 0) return `${notCheckable(c)}${unchecked}`;
   // A map's count line already says "nodes".
   const total = c.unit !== 'anchor' ? String(c.checked) : units(c.checked, c.unit);
-  return ` · ✓ ${c.mismatches.length ? `${c.checked - c.mismatches.length} of ` : ''}${total} checked${unchecked}`;
+  return ` · ✓ ${c.mismatches.length ? `${c.checked - c.mismatches.length} of ` : ''}${total} checked${notCheckable(c)}${unchecked}`;
 }
 
 export function itemsLine(head: string, all: string[], width: number): string {
@@ -54,6 +60,10 @@ export function alertLine(c: CheckSummary | undefined, width: number): string {
   const n = c.mismatches.length;
   if (n) lines.push(itemsLine(`✗ ${n} ${n === 1 ? "claim doesn't" : "claims don't"} match the code: `, c.mismatches.map((m) => `${flat(m.label)} ${m.short}`), width));
   if (c.uncovered?.length) lines.push(itemsLine(`${uncoveredHead(c.uncovered.length)}: `, c.uncovered.map(flat), width));
+  if (c.warnings?.length) {
+    const w = c.warnings.length;
+    lines.push(itemsLine(`⚠ ${w} ${w === 1 ? 'warning' : 'warnings'}: `, c.warnings.map((m) => `${flat(m.label)} ${flat(m.short)}`), width));
+  }
   return lines.join('\n');
 }
 
@@ -83,6 +93,7 @@ export function checkHeadline(c: CheckSummary | undefined): string {
   const of = c.steps ? `${c.checked} boxes and steps` : total;
   if (c.checked > 0) parts.push(n ? `✗ ${n} of ${of} ${n === 1 ? "doesn't" : "don't"} match the code` : `✓ ${total} checked against the code`);
   if (c.uncovered?.length) parts.push(uncoveredHead(c.uncovered.length));
+  if (c.warnings?.length) parts.push(`⚠ ${c.warnings.length} ${c.warnings.length === 1 ? 'warning' : 'warnings'}`);
   if (c.diffUnchecked) parts.push(UNCHECKED);
   return parts.join(' · ');
 }

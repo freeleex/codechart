@@ -14,19 +14,31 @@ export const MEANING: Record<string, string> = {
 const CHECK_INTRO =
   "codechart checked what the agent drew against the repo's files and, when given one, the git diff. A ✗ marks a claim the code doesn't back up:";
 
+const WARN_INTRO = "These don't fail the check: a field or arrow may be described in another way.";
+
+const STATUS_WHY =
+  'The agent says this file is new, changed or removed, but git shows a different change to it. The box may describe the change wrongly.';
+
+const FIELD_WHY = "A listed field isn't named in the file. It may be spelled differently, or the box may list a field the code doesn't have.";
+
+const ARROW_WHY = "The file at the arrow's start doesn't mention the file at its end. The link may be wrong, or the two files connect through code that names it differently.";
+
 export const UNCOVERED_WHY =
   'The diff changes these files, but no box covers them and the agent didn\'t list them under "Not on map". The map may leave out part of the change.';
 
 export const UNCHECKED_WHY =
   "Rendered without --git, --since or --commit, so codechart checked the files but not which ones this change touched.";
 
-const meaning = (m: Mismatch): string => MEANING[m.short] ?? '';
+const meaning = (m: Mismatch): string =>
+  MEANING[m.short] ??
+  (m.short.startsWith('marked ') ? STATUS_WHY : m.short.startsWith('field ') ? FIELD_WHY : m.short.startsWith('no mention of ') ? ARROW_WHY : '');
 
 export function checkNote(c: CheckSummary | undefined): string {
   const line = checkHeadline(c);
   if (!line) return '';
-  if (!flagged(c)) return `<span class="check"${c?.diffUnchecked ? ` title="${UNCHECKED_WHY}"` : ''}>${esc(line)}</span>`;
-  return `<button type="button" class="check bad" aria-controls="page-info" title="Show what doesn't match and why">${esc(line)}</button>`;
+  if (flagged(c)) return `<button type="button" class="check bad" aria-controls="page-info" title="Show what doesn't match and why">${esc(line)}</button>`;
+  if (c?.warnings?.length) return `<button type="button" class="check warn" aria-controls="page-info" title="Show what is worth checking">${esc(line)}</button>`;
+  return `<span class="check"${c?.diffUnchecked ? ` title="${UNCHECKED_WHY}"` : ''}>${esc(line)}</span>`;
 }
 
 export function checkSection(c: CheckSummary | undefined): string {
@@ -40,6 +52,12 @@ export function checkSection(c: CheckSummary | undefined): string {
   if (c?.uncovered?.length) {
     const items = c.uncovered.map((f) => `<li>${esc(f)}</li>`).join('');
     out += `<h3>Changed, not on map</h3><p class="mismatch-why">${esc(UNCOVERED_WHY)}</p><ul>${items}</ul>`;
+  }
+  if (c?.warnings?.length) {
+    const items = c.warnings
+      .map((m) => `<li class="warn-note"><b>${esc(m.label)}</b>: ${esc(m.detail)}<br><span class="mismatch-why">${esc(meaning(m))}</span></li>`)
+      .join('');
+    out += `<h3>Worth checking</h3><p class="mismatch-why">${esc(WARN_INTRO)}</p><ul>${items}</ul>`;
   }
   return out;
 }

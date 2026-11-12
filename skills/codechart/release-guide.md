@@ -1,6 +1,6 @@
 # Release map spec
 
-For step 7 of [SKILL.md](SKILL.md). `codechart render` prints the page to a PDF for sales and stakeholders. Nobody reviews it: it shows what is already in main, so every sentence is a plain-words fact you checked in the code, the PR text or the diff. `codechart schema --release` prints the JSON Schema.
+For step 7 of [SKILL.md](SKILL.md). `codechart render` prints the page to a PDF for sales and stakeholders. A quick skim is enough; every sentence points to merged code. It shows what is already in main, so every sentence is a plain-words fact you checked in the code, the PR text or the diff. `codechart schema --release` prints the JSON Schema.
 
 ## Gather
 
