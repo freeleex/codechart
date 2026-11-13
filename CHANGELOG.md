@@ -47,7 +47,7 @@ What's new in each codechart release. Update with `codechart update`; the [relea
 - `codechart install-skill` run outside a terminal now installs only the skill and prints the flags that would add the reminder line, Claude Code hook and OpenCode plugin; before, it added them all without asking. It may edit global files (`~/.claude/CLAUDE.md`, your agents' `AGENTS.md`/`GEMINI.md`, `~/.claude/settings.json`), which the README now says up front.
 - The PR-maps workflow template for GitHub pins `actions/checkout` and `actions/setup-node` to exact commits, like this repo's own CI.
 - The map check now compares each new, changed and removed box with git's own added, modified, deleted or renamed status, not just the list of changed files. It also warns, without failing, when a listed field or arrow isn't backed by the code, and says how many boxes it could not check.
-- `render` and `install-skill` now exit 2 for a bad flag value (an unknown commit or agent) and 1 for other failures, like `check` and `release-context`.
+- `render` and `install-skill` now exit 2 for a bad flag value (an unknown commit or agent) and 1 for other failures.
 
 ## 0.9.0 (2026-11-10)
 
