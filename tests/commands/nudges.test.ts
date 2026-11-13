@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { changedFiles } from '../../src/commands/hook-core.js';
 import { latestRecord } from '../../src/commands/hook-record.js';
-import { scanTurn, turnUsedCodechart } from '../../src/commands/transcript.js';
+import { scanTurn } from '../../src/commands/transcript.js';
 import { addReminder, claudeHookEvents, installClaudeHooks, REMINDER, removeClaudeHooks, removeReminder } from '../../src/commands/nudges.js';
 import { buildProgram, runProgram } from '../../src/program.js';
 import { git, gitInit, makeSandbox, removeSandbox, runCli, repoFromTemplate } from '../helpers/sandbox.js';
@@ -192,7 +192,11 @@ describe('changedFiles', () => {
   });
 });
 
-describe('turnUsedCodechart', () => {
+describe('scanTurn: diagram shown or CLI run', () => {
+  const used = (jsonl: string) => {
+    const scan = scanTurn(jsonl);
+    return scan.diagram || scan.cli;
+  };
   const line = (o: unknown) => JSON.stringify(o);
   const prompt = line({ type: 'user', message: { content: 'do it' } });
   const toolResult = line({ type: 'user', message: { content: [{ type: 'tool_result', content: 'ok' }] } });
@@ -200,20 +204,20 @@ describe('turnUsedCodechart', () => {
   const bash = (command: string) => line({ type: 'assistant', message: { content: [{ type: 'tool_use', name: 'Bash', input: { command } }] } });
 
   it('a map or flow block in this turn counts', () => {
-    expect(turnUsedCodechart([prompt, toolResult, text('**Map** _(key: …)_')].join('\n'))).toBe(true);
-    expect(turnUsedCodechart([prompt, text('**Flow** _(key: …)_')].join('\n'))).toBe(true);
+    expect(used([prompt, toolResult, text('**Map** _(key: …)_')].join('\n'))).toBe(true);
+    expect(used([prompt, text('**Flow** _(key: …)_')].join('\n'))).toBe(true);
   });
 
   it('running codechart check or render counts, even when it drew nothing', () => {
-    expect(turnUsedCodechart([prompt, bash("git diff; codechart check --git")].join('\n'))).toBe(true);
+    expect(used([prompt, bash("git diff; codechart check --git")].join('\n'))).toBe(true);
   });
 
   it('only this turn: a map before the last prompt does not count', () => {
-    expect(turnUsedCodechart([prompt, text('**Map**'), prompt, text('done')].join('\n'))).toBe(false);
+    expect(used([prompt, text('**Map**'), prompt, text('done')].join('\n'))).toBe(false);
   });
 
   it('tool results and a cut first line do not reset or break it', () => {
-    expect(turnUsedCodechart(['{"type":"assis', prompt, text('**Map**'), toolResult].join('\n'))).toBe(true);
+    expect(used(['{"type":"assis', prompt, text('**Map**'), toolResult].join('\n'))).toBe(true);
   });
 });
 
