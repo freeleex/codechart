@@ -1,7 +1,8 @@
 import { relative, resolve, sep } from 'node:path';
 import type { FlowSpec } from '../spec/flow.js';
 import type { Spec, SpecNode } from '../spec/schema.js';
-import { anchorContext, findMatch, likelyPath, load, locate, type AnchorCtx, type FlowSnippets, type Snippet } from './flow/anchors.js';
+import { anchorContext, likelyPath, load, locate, type AnchorCtx } from './flow/anchor-files.js';
+import { findMatch, type FlowSnippets, type Snippet } from './flow/anchors.js';
 import { blockOf, type Block } from './block.js';
 import { stepLabel } from './flow/tree.js';
 import { explains } from './omitted.js';

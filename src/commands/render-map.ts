@@ -1,6 +1,6 @@
 import { checkMapNodes, type MapCheck } from '../render/check.js';
 import { checkExplain, layOutFlows, type ExplainCheck } from '../render/explain-flows.js';
-import { repoPathResolver } from '../render/flow/anchors.js';
+import { repoPathResolver } from '../render/flow/anchor-files.js';
 import { compareMaps } from '../render/map-drift.js';
 import { EXPLAIN_KEY, fullMapLine, KEY, renderTerminalDetailed } from '../render/terminal/render.js';
 import { alertLine, webAlert } from '../render/terminal/check-lines.js';
