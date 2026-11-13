@@ -140,6 +140,13 @@ describe('checkMapNodes: diff', () => {
   });
 });
 
+describe('checkMapNodes: a folder with a match', () => {
+  it('is a file unreadable mismatch', () => {
+    const r = checkMapNodes(map('summary', { status: 'changed', path: 'src', match: 'export const a' }), repo, {});
+    expect(r.mismatches.map((m) => m.short)).toEqual(['file unreadable']);
+  });
+});
+
 describe('checkMapNodes: symlinks', () => {
   it.skipIf(process.platform === 'win32')('a node path that is a symlink out of the repo is a mismatch', () => {
     const outside = join(base, 'outside');
