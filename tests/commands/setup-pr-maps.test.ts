@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { makeTool } from '../../src/commands/setup-pr-maps.js';
@@ -129,6 +129,22 @@ describe('codechart setup-pr-maps', () => {
     expect(r.code).toBe(1);
     expect(r.err).toContain('not a regular file; refusing to write it');
     expect(readFileSync(join(sb.tmp, 'elsewhere'), 'utf8')).toBe('x');
+  });
+
+  it.runIf(process.platform !== 'win32')('refuses a symlinked .github or .github/workflows and writes nothing outside the repo', async () => {
+    const outside = join(sb.tmp, 'outside');
+    mkdirSync(join(outside, 'workflows'), { recursive: true });
+    symlinkSync(outside, join(sb.repo, '.github'));
+    const r = await run(['--yes']);
+    expect(r.code).toBe(1);
+    expect(r.err).toBe('codechart: .github/workflows/codechart.yml: a parent folder is a symlink; refusing to write it\n');
+    expect(readdirSync(join(outside, 'workflows'))).toEqual([]);
+    unlinkSync(join(sb.repo, '.github'));
+    mkdirSync(join(sb.repo, '.github'));
+    symlinkSync(join(outside, 'workflows'), join(sb.repo, '.github', 'workflows'));
+    const again = await run(['--yes']);
+    expect(again.err).toContain('a parent folder is a symlink; refusing to write it');
+    expect(readdirSync(join(outside, 'workflows'))).toEqual([]);
   });
 
   it('a workflow created while it asks is not overwritten', async () => {

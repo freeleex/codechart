@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
-import { closeSync, constants, lstatSync, mkdirSync, openSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { closeSync, constants, lstatSync, mkdirSync, openSync, realpathSync, writeFileSync } from 'node:fs';
+import { dirname, isAbsolute, join, relative } from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { Command, Option } from 'commander';
 import { findRepoRoot } from '../config/load.js';
@@ -30,9 +30,25 @@ function remoteOf(root: string, host: Host | undefined): Remote {
   return remote;
 }
 
+// O_NOFOLLOW only guards the last path component, so every existing parent folder is checked too.
+function refuseSymlinkParents(root: string, file: string): void {
+  const refuse = () => new Error(`${file}: a parent folder is a symlink; refusing to write it`);
+  let dir = root;
+  for (const part of dirname(file).split('/').filter((p) => p !== '.')) {
+    dir = join(dir, part);
+    try {
+      if (lstatSync(dir).isSymbolicLink()) throw refuse();
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code === 'ENOENT') return;
+      throw e;
+    }
+  }
+}
+
 function readWorkTree(root: string): (file: string) => string | undefined {
   return (file) => {
     const path = join(root, file);
+    refuseSymlinkParents(root, file);
     let text: string | undefined;
     try {
       // lstat after open catches symlinks where O_NOFOLLOW doesn't exist (Windows)
@@ -50,7 +66,10 @@ function readWorkTree(root: string): (file: string) => string | undefined {
 // New file: O_EXCL, so nothing created meanwhile gets overwritten; existing one: never through a swapped-in symlink.
 function writeWorkTree(root: string, plan: Plan): void {
   const path = join(root, plan.file);
+  refuseSymlinkParents(root, plan.file);
   mkdirSync(dirname(path), { recursive: true });
+  const inside = relative(realpathSync(root), realpathSync(dirname(path)));
+  if (inside.startsWith('..') || isAbsolute(inside)) throw new Error(`${plan.file}: a parent folder is a symlink; refusing to write it`);
   const flags = constants.O_WRONLY | constants.O_CREAT | constants.O_TRUNC | (constants.O_NOFOLLOW ?? 0) | (plan.appended ? 0 : constants.O_EXCL);
   let fd: number;
   try {
