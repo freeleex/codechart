@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { gitChangedFiles, gitDirtyHashes, gitFileDiff, repoDiffOverrides } from '../../src/rules/git-files.js';
 import { diffRange } from '../../src/rules/selection.js';
-import { repoFromTemplate } from '../helpers/sandbox.js';
+import { repoFromTemplate, runCli } from '../helpers/sandbox.js';
 
 let tmp: string;
 let repo: string;
@@ -110,5 +110,20 @@ describe('S-37 quoted names in the dirty hashes', () => {
     writeFileSync(join(repo, '"bad'), 'mine');
     const hashes = gitDirtyHashes(repo);
     expect(hashes).toMatchObject({ [traversal]: 'present', '"bad': 'present' });
+  });
+});
+
+describe('setup-pr-maps --pr before the yes', () => {
+  it.skipIf(process.platform === 'win32')('does not run the repo transport config', async () => {
+    const marker = join(tmp, 'MARK');
+    const home = join(tmp, 'home');
+    mkdirSync(home);
+    git('remote', 'add', 'origin', 'ssh://git@github.com/o/r.git');
+    git('config', 'core.sshCommand', `touch ${marker}; false`);
+    for (const confirm of [async () => false, undefined]) {
+      const r = await runCli({ cwd: repo, home, confirm }, ['setup-pr-maps', '--pr']);
+      expect(r.out).toContain('would open a pull request on o/r');
+      expect(existsSync(marker)).toBe(false);
+    }
   });
 });

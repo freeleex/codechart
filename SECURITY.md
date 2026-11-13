@@ -36,6 +36,7 @@ Details: `docs/security-review.md`.
 ## Out of scope
 
 - An agent running `git diff` or `git show` itself in an untrusted repo: that repo's `.git/config` can set `diff.external` or textconv drivers, which run commands. codechart's own git calls disable them; open untrusted repos (e.g. unpacked archives) with care.
+- `codechart setup-pr-maps --pr` and `codechart pr-sync` run git against your remote with your git transport config (ssh command, URL rewrites, credential helper). Don't run them in a checkout you didn't clone yourself. `setup-pr-maps --pr` goes online only after the yes.
 - An attacker with write access to your agents' skills folders or `~/.config/codechart`.
 - Vulnerabilities in a dev-only dependency that is not shipped in the npm tarball.
 

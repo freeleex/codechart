@@ -67,7 +67,7 @@ function writeWorkTree(root: string, plan: Plan): void {
 }
 
 function describe(plan: Plan, pr: boolean): string {
-  const what = plan.appended ? `append this job to ${plan.file}` : `add ${plan.file}`;
+  const what = pr && plan.remote.host === 'gitlab' ? `add this job to ${plan.file}` : plan.appended ? `append this job to ${plan.file}` : `add ${plan.file}`;
   const where = pr ? `open a ${plan.remote.host === 'github' ? 'pull' : 'merge'} request on ${plan.remote.path} that would ${what}` : `${what} in your work tree (not committed)`;
   const body = plan.added.trimEnd().split('\n').map((l) => `    ${l}`);
   return [`codechart setup-pr-maps would ${where}:`, '', ...body, '', ...plan.notes, ''].join('\n') + '\n';
@@ -127,13 +127,13 @@ async function setup(o: Flags, opts: CommandOptions, root: string): Promise<void
   const v = currentVersion();
   const done = () => opts.stdout(`codechart: PR maps are already set up in ${remote.path}.\n`);
   if (o.pr) {
+    const tool = opts.tool ?? defaultTool;
+    opts.stdout(describe(buildPlan(remote, v, () => undefined)!, true));
+    if (!(await agreed(o, opts))) return;
     const prepared = prepareSetupReview(root, v, remote);
     if (!prepared.plan) return done();
-    const tool = opts.tool ?? defaultTool;
     const existing = existingSetupReview(root, remote.host, tool);
     if (existing !== undefined) return opts.stdout(alreadyOpened(remote.host, existing));
-    opts.stdout(describe(prepared.plan, true));
-    if (!(await agreed(o, opts))) return;
     const url = openSetupReview(root, { ...prepared, plan: prepared.plan }, tool);
     opts.stdout(`codechart: opened ${url}\nMerge it to turn PR maps on; close it to say no.\n`);
     return;

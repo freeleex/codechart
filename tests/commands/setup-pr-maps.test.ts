@@ -180,7 +180,7 @@ describe('codechart setup-pr-maps', () => {
     const tool = (cmd: string, args: string[]) => (calls.push([cmd, ...args]), '[{"url":"https://github.com/o/r/pull/7"}]');
     const r = await run(['--pr', '--yes'], { tool });
     expect(r.err).toBe('');
-    expect(r.out).toBe(
+    expect(r.out).toContain(
       'codechart: the setup pull request already exists: https://github.com/o/r/pull/7\nMerge it to turn PR maps on, or delete the codechart/pr-maps branch and run again for a new one.\n',
     );
     expect(calls).toEqual([['gh', 'pr', 'list', '--head', SETUP_BRANCH, '--state', 'all', '--limit', '1', '--json', 'url']]);
@@ -219,7 +219,7 @@ describe('codechart setup-pr-maps', () => {
     git(sb.repo, 'config', `url.${remote}.insteadOf`, 'git@gitlab.example.com:g/r.git');
     const calls: string[][] = [];
     const r = await run(['--pr', '--yes'], { tool: (cmd: string, args: string[]) => (calls.push([cmd, ...args]), 'https://gitlab.example.com/g/r/-/merge_requests/3') });
-    expect(r.out).toContain('would open a merge request on g/r that would append this job to .gitlab-ci.yml');
+    expect(r.out).toContain('would open a merge request on g/r that would add this job to .gitlab-ci.yml');
     const ci = git(remote, 'show', `${SETUP_BRANCH}:.gitlab-ci.yml`);
     expect(ci.startsWith('test:\n  script: [make]\n\n# codechart PR maps')).toBe(true);
     expect(calls[0]!.slice(0, 7)).toEqual(['glab', 'mr', 'create', '--source-branch', SETUP_BRANCH, '--target-branch', 'main']);
