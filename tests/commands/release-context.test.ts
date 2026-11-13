@@ -21,6 +21,19 @@ interface Out {
   notes?: string[];
 }
 
+describe('codechart release-context outside a repo', () => {
+  it('says so and exits 2', async () => {
+    const sb = makeSandbox('release-context-norepo', { repo: false });
+    try {
+      const r = await runCli({ cwd: sb.tmp, home: sb.home }, ['release-context']);
+      expect(r.err).toBe('codechart: not a git repository\n');
+      expect(r.code).toBe(2);
+    } finally {
+      removeSandbox(sb.tmp);
+    }
+  });
+});
+
 describe('codechart release-context', () => {
   let sb: Sandbox;
   const commit = (msg: string, files: Record<string, string> = { [`f${Math.random()}.txt`]: 'x' }) => {
