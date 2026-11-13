@@ -317,6 +317,13 @@ describe('paths relative to the working directory', () => {
     expect(errorsOf(spec('src\\c.ts:1'))[0]).toContain('did you mean pkg/src/c.ts');
   });
 
+  it.skipIf(process.platform === 'win32')('suggests a file at its exact repo path from Windows-style input', () => {
+    mkdirSync(join(repo, 'src'), { recursive: true });
+    writeFileSync(join(repo, 'src/c.ts'), 'c\n');
+    execFileSync('git', ['add', 'src'], { cwd: repo });
+    expect(errorsOf(spec('src\\c.ts:1'))[0]).toContain('did you mean src/c.ts');
+  });
+
   it('suggests nothing when several files fit', () => {
     mkdirSync(join(repo, 'a/src'), { recursive: true });
     mkdirSync(join(repo, 'b/src'), { recursive: true });

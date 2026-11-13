@@ -1,5 +1,6 @@
 import { checkMapNodes, type MapCheck } from '../render/check.js';
 import { checkExplain, layOutFlows, type ExplainCheck } from '../render/explain-flows.js';
+import { repoPathResolver } from '../render/flow/anchors.js';
 import { compareMaps } from '../render/map-drift.js';
 import { EXPLAIN_KEY, fullMapLine, KEY, renderTerminalDetailed } from '../render/terminal/render.js';
 import { alertLine, webAlert } from '../render/terminal/check-lines.js';
@@ -49,7 +50,7 @@ export async function renderMap(spec: Spec, ctx: RenderContext): Promise<Rendere
     return { text: prBlock(spec, check, ctx.pr.imageUrl), check };
   }
   const { hidden } = selectTerminalNodes(spec, ctx.maxNodes);
-  const drift = ctx.plan?.diagram === 'map' ? compareMaps(ctx.plan, spec) : undefined;
+  const drift = ctx.plan?.diagram === 'map' ? compareMaps(ctx.plan, spec, repoPathResolver(ctx.root, ctx.at, ctx.cwd)) : undefined;
   const view = drift && { drift, now: ctx.now };
   const ghosts = drift && ctx.plan?.diagram === 'map' ? ghostsFor(drift, new Set(spec.nodes.map((n) => n.id)), ctx.plan.spec.edges) : undefined;
   const termOpts = { maxNodes: ctx.maxNodes, keyLine: !ctx.md, color: ctx.color, width: ctx.width, check, drift: view };

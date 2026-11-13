@@ -45,7 +45,7 @@ The agent draws the [explain map](explain-map.md) of the area first, then writes
 <img src="images/business-explain.png" alt="The explain page for refunds: a lane diagram of who does what with its yes and no branches, rules today with exceptions, two odd cases, and what is kept and why" width="720">
 
 - One feature per page; a bigger area is split.
-- *Checked in code* only for what the agent read; a guess is *Agent's reading, not checked in code*. What the code doesn't cover becomes a question.
+- *Checked in code* only for what the agent read; a guess is *Agent's reading, not checked in code*. What the code doesn't cover is left out, for the reader to raise with the team.
 - The page links to the explain map of that area. It uses the explain map named by `map` in the spec, else the newest one, and only looks at explain maps saved on the current git branch. One drawn on another branch is not found, even by name: pass `codechart render --tech <explain spec.json>` instead. A change map can't be used for it, nor an explain map for a change page.
 - `codechart schema --business --explain` prints the format.
 

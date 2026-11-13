@@ -12,6 +12,11 @@ What's new in each codechart release. Update with `codechart update`; the [relea
 
 ### Fixed
 
+- Plan vs built no longer calls a file "built in another file" when only its path is spelled differently (`src\db.ts`, `./src/db.ts`, or relative to the folder you ran from), on maps and on flow steps.
+- A flow anchor written Windows-style (`src\b.py:2`) for a file at its exact repo path now gets the "did you mean" hint.
+- `codechart render --tech` no longer accepts an explain map for a business change page; it says a change map is needed.
+- A path rule's `context: short` now wins over `defaults.context: full` when it is the only rule that fired.
+- The business-map docs no longer say explain pages turn gaps into questions.
 - The HTML check line keeps each claim's own colour: `✓ 15 nodes checked against the code` stays green next to a red `✗ 1 changed file not on map`; warnings are amber and `diff not checked` muted. One failed claim used to paint the whole line red.
 - On Windows, the `gh`, `glab`, `powershell` and `opencode` commands that codechart runs are now looked up on PATH before they run, so a file inside your repo can't stand in for one of them.
 

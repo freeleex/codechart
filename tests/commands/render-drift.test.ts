@@ -1,4 +1,4 @@
-import { existsSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { git, makeSandbox, removeSandbox, repoFromTemplate, runCli, type Sandbox } from '../helpers/sandbox.js';
@@ -101,6 +101,43 @@ describe('render: plan vs built drift', () => {
     const r = await summary(spec, '--output', 'cli', '--strict');
     expect(r.out).toContain('Plan vs built (plan "Invite", drawn 2h ago)\n− b  in the plan, not built · why: found a cleaner way\n    “merged”\n✗ n  built, not in the plan · no reason given');
     expect(r.code).toBe(1);
+  });
+
+  describe('run from a subfolder', () => {
+    const pkg = () => join(sb.repo, 'pkg');
+    const fromPkg = (spec: unknown, now: Date) => {
+      process.exitCode = undefined;
+      return runCli({ cwd: pkg(), home: sb.home, now: () => now, isTTY: false }, ['render', specFile(spec), '--output', 'cli']);
+    };
+    const withPkg = (rootFile: boolean) => {
+      mkdirSync(pkg());
+      writeFileSync(join(pkg(), 'b.ts'), 'one\ntwo\nthree\n');
+      if (rootFile) writeFileSync(join(sb.repo, 'b.ts'), 'one\ntwo\nthree\n');
+    };
+    const at = (id: string, path: string, status = 'new') => ({ ...node(id, status), path });
+
+    it('a cwd-relative path in the plan pairs with the repo-root path in the summary', async () => {
+      withPkg(false);
+      await fromPkg(mapSpec('plan', [at('a', 'b.ts')]), planned);
+      expect((await fromPkg(mapSpec('summary', [at('z', 'pkg/b.ts')]), built)).out).toContain('built as planned ✓');
+    });
+
+    it('stays a different file when the repo root has that file too', async () => {
+      withPkg(true);
+      await fromPkg(mapSpec('plan', [at('a', 'b.ts')]), planned);
+      const out = (await fromPkg(mapSpec('summary', [at('a', 'pkg/b.ts')]), built)).out;
+      expect(out).not.toContain('built as planned');
+      expect(out).toContain('path b.ts → pkg/b.ts');
+    });
+
+    it('flow steps pair the same way', async () => {
+      withPkg(false);
+      const link = (to: string) => [{ from: 'a', to }];
+      const first = { ...step('a', 'existing'), source: 'b.ts:1' };
+      await fromPkg(flowSpec('plan', [first, { ...step('b', 'planned'), source: 'b.ts:3' }], link('b')), planned);
+      const r = await fromPkg(flowSpec('summary', [first, { ...step('n', 'new'), source: 'pkg/b.ts:3' }], link('n')), built);
+      expect(r.out).toContain('built as planned ✓');
+    });
   });
 
   it('keeps a map plan and a flow plan apart', async () => {
