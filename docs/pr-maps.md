@@ -21,7 +21,7 @@ codechart setup-pr-maps --pr     # same, but opens a pull/merge request you merg
 It reads `origin` to tell GitHub from GitLab (`--host github|gitlab` when the URL says neither), shows the whole file and the token it uses, and writes only after you answer yes (`--yes` skips the question; agents use it after showing you the plan).
 
 - **Without `--pr`** the file lands in your work tree, uncommitted, for you to review and commit.
-- **With `--pr`** it opens a pull or merge request through `gh` or `glab` and leaves your work tree and branch alone: merge it to turn PR maps on, close it to say no. It's built on top of the remote's default branch and pushed as `codechart/pr-maps`.
+- **With `--pr`** it opens a pull or merge request through `gh` or `glab` and leaves your work tree and branch alone: merge it to turn PR maps on, close it to say no. It's built on top of the remote's default branch and pushed as `codechart/pr-maps`. Nothing goes online before your yes: the file shown first is the template for your host, and only then does codechart fetch the default branch, check whether PR maps are already set up or a setup request exists, push and open the request, using your own git transport config (ssh command, URL rewrites, credential helper), so don't run it in a checkout you didn't clone yourself.
 - **Pinned:** the CI job runs the codechart version you have installed, so an upgrade is a change you review.
 - It never overwrites a file that isn't codechart's, and a second run says it's already set up. A second `--pr` run before that request is merged pushes nothing: it links the request already open (or closed) on `codechart/pr-maps`; delete that branch to open a new one.
 
@@ -31,7 +31,7 @@ Adds `.github/workflows/codechart.yml`. It uses the built-in token, no secret to
 
 ### GitLab
 
-Appends a `codechart-map` job to `.gitlab-ci.yml` (or creates it). The job runs in the `test` stage; if your file lists `stages:` without `test`, it gets the first stage listed (not `.pre` or `.post`), and a file listing only those two needs the setup by hand. Then add a masked CI/CD variable `CODECHART_GITLAB_TOKEN`: an access token with `api` scope from a user with at least the Developer role (GitLab's job token can't edit an MR or upload files). The command prints the link to create the token and the one to add the variable. Until the variable exists the job is skipped. The image is a project upload, visible to project members. Merged-results pipelines and merge trains work.
+Appends a `codechart-map` job to `.gitlab-ci.yml` (or creates it). The job runs in the `test` stage; if your file lists `stages:` without `test`, it gets the first stage listed (not `.pre` or `.post`), and a file listing only those two needs the setup by hand. Then add a masked CI/CD variable `CODECHART_GITLAB_TOKEN`: an access token with `api` scope from a user with at least the Developer role (GitLab's job token can't edit an MR or upload files). The command prints the link to create the token and the one to add the variable. Until the variable exists the job is skipped. The job has no fork check: it runs wherever the variable is set, so don't make the variable available to pipelines that run a fork's code. The image is a project upload, visible to project members. Merged-results pipelines and merge trains work.
 
 ### By hand
 
