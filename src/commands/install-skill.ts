@@ -150,7 +150,7 @@ export function installSkillCommand(opts: CommandOptions): Command {
       const unknown = names?.find((n) => !AGENTS.some((a) => a.name === n));
       if (unknown !== undefined) {
         opts.stderr(`codechart: unknown agent '${unknown}' (known: ${NAMES})\n`);
-        process.exitCode = 1;
+        process.exitCode = 2;
         return;
       }
       let agents = names
