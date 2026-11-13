@@ -275,7 +275,7 @@ describe('ghosts and the review', () => {
     const summary = { title: 'T', kind: 'summary' as const, nodes: [n('a', 'new')], edges: [] };
     const ghosts = ghostsFor(compareMaps({ spec: plan, savedAt: '2026-11-06T10:00:00.000Z' }, summary), new Set(['a']), plan.edges);
     const withGhost = { ...summary, nodes: [...summary.nodes, ...ghosts.nodes] };
-    return renderHtml(summary, await layoutSpec(withGhost), { generatedAt: new Date('2026-11-06T12:00:00Z'), repo: 'demo' }, undefined, undefined, ghosts);
+    return renderHtml(summary, await layoutSpec(withGhost), { generatedAt: new Date('2026-11-06T12:00:00Z'), repo: 'demo' }, undefined, { ghosts });
   };
 
   it('are left out of the count and of next unreviewed', async () => {
@@ -295,7 +295,7 @@ describe('the difference chip in the browser', () => {
     const summary = { title: 'T', kind: 'summary' as const, nodes: [n('a'), n('z')], edges: [], drift: [{ node: 'z', cause: 'bug-found' as const, why: 'It broke.' }] };
     const ghosts = ghostsFor(compareMaps({ spec: plan, savedAt: '2026-11-06T10:00:00.000Z' }, summary), new Set(['a', 'z']), plan.edges);
     const layout = await layoutSpec({ ...summary, nodes: [...summary.nodes, ...ghosts.nodes] });
-    return renderHtml(summary, layout, { generatedAt: new Date('2026-11-06T12:00:00Z'), repo: 'demo' }, undefined, undefined, ghosts);
+    return renderHtml(summary, layout, { generatedAt: new Date('2026-11-06T12:00:00Z'), repo: 'demo' }, undefined, { ghosts });
   };
   const chip = () => q<HTMLElement>('#panel .drift-chip');
   const rows = () => q<HTMLElement>('#panel .drift-rows');

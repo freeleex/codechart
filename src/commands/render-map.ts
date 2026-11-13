@@ -63,7 +63,7 @@ export async function renderMap(spec: Spec, ctx: RenderContext): Promise<Rendere
     ctx.output,
     needsWeb(spec, hidden, ctx.minNodes),
     (htmlPath) => renderTerminalDetailed(spec, { ...termOpts, htmlPath }),
-    () => ctx.write(async (meta) => renderHtml(spec, await layoutSpec(withGaps(withGhosts(spec, ghosts), gaps), canvases), meta, await laidOut(check), previews(), ghosts, gaps), snapshot),
+    () => ctx.write(async (meta) => renderHtml(spec, await layoutSpec(withGaps(withGhosts(spec, ghosts), gaps), canvases), meta, await laidOut(check), { previews: previews(), ghosts, gaps }), snapshot),
   );
   if (!chosen.html) ctx.saveReview(snapshot);
   if (chosen.kind === 'web') {

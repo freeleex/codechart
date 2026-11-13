@@ -22,12 +22,12 @@ const shopLayout = await layoutSpec(shop);
 export const shopPage = renderHtml(shop, shopLayout, meta);
 /** The same map for another repo, with node diffs. */
 export const shopWith = (previews: Map<string, Preview>, repo = 'demo', repoKey?: string) =>
-  renderHtml(shop, shopLayout, { ...meta, repo, ...(repoKey && { repoKey }) }, undefined, previews);
+  renderHtml(shop, shopLayout, { ...meta, repo, ...(repoKey && { repoKey }) }, undefined, { previews });
 
 /** What a page paired with a review file carries. */
 export const change = { slug: 'shop', branch: 'feat/invoices', at: '2026-11-05T12:00:00.000Z' };
 /** The shop map as a page that takes notes. */
-export const shopNotes = (previews?: Map<string, Preview>) => renderHtml(shop, shopLayout, { ...meta, change }, undefined, previews);
+export const shopNotes = (previews?: Map<string, Preview>) => renderHtml(shop, shopLayout, { ...meta, change }, undefined, { previews });
 
 const plan = mapSpec({
   title: 'Users join teams',
