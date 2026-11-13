@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -137,6 +137,17 @@ describe('checkMapNodes: diff', () => {
   it('explains the mismatch in full for the HTML', () => {
     const r = checkMapNodes(map('summary', { status: 'changed', path: 'src/a.ts' }), repo, { diff: diffOf([]) });
     expect(r.mismatches[0]!.detail).toBe("marked changed, but src/a.ts isn't in the diff");
+  });
+});
+
+describe('checkMapNodes: symlinks', () => {
+  it.skipIf(process.platform === 'win32')('a node path that is a symlink out of the repo is a mismatch', () => {
+    const outside = join(base, 'outside');
+    mkdirSync(outside);
+    symlinkSync(outside, join(repo, 'link'));
+    const r = checkMapNodes(map('summary', { status: 'changed', path: 'link' }), repo, {});
+    expect(r.mismatches).toHaveLength(1);
+    expect(r.mismatches[0]!.detail).toContain('outside the repo');
   });
 });
 
