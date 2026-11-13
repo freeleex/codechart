@@ -5,7 +5,7 @@
 // Allowlist (may only shrink): put `// complexity-ratchet: <max> -- <reason>` in the comment block directly above the function.
 // Only outermost functions are judged (their total already includes their closures). The function may not exceed <max>; once it fits LIMIT the entry is stale and must be removed.
 import { readdirSync, readFileSync } from 'node:fs';
-import { join, relative, resolve } from 'node:path';
+import { basename, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 
@@ -92,6 +92,7 @@ function measure(sf) {
 
 const all = [];
 const problems = [];
+const ratcheted = [];
 for (const file of files(join(root, 'src'))) {
   const text = readFileSync(file, 'utf8');
   const lines = text.split('\n');
@@ -107,6 +108,8 @@ for (const file of files(join(root, 'src'))) {
     for (let i = fn.line - 2; i >= 0 && /^\s*\/\//.test(lines[i]) && !m; i--) m = /^\s*\/\/ complexity-ratchet: (\d+) -- \S/.exec(lines[i]);
     const where = `${rel}:${fn.line} ${fn.name}`;
     if (m) {
+      ratcheted.push({ file: rel, name: fn.name, incl: fn.incl });
+      all[all.length - 1].ratchet = true;
       const cap = Number(m[1]);
       if (fn.incl > cap) problems.push(`${where}: complexity ${fn.incl} exceeds ratchet ${cap}`);
       else if (fn.incl <= LIMIT) problems.push(`${where}: complexity ${fn.incl} fits ${LIMIT}; remove the ratchet entry`);
@@ -121,4 +124,12 @@ if (problems.length) {
   console.error(problems.join('\n'));
   process.exit(1);
 }
-if (!top) console.log(`complexity ok (max ${all[0]?.incl}, limit ${LIMIT})`);
+if (!top) {
+  const within = Math.max(0, ...all.filter((f) => f.outer && !f.ratchet).map((f) => f.incl));
+  const entries = ratcheted.map((r) => `${basename(r.file)} ${r.name} ${r.incl}`);
+  console.log(
+    entries.length
+      ? `complexity ok (max ${within} of limit ${LIMIT}; ${entries.length} ratchet ${entries.length === 1 ? 'entry' : 'entries'}: ${entries.join(', ')})`
+      : `complexity ok (max ${all[0]?.incl}, limit ${LIMIT})`,
+  );
+}
