@@ -6,6 +6,7 @@ import { Command, Option } from 'commander';
 import { findRepoRoot } from '../config/load.js';
 import type { CommandOptions } from '../program.js';
 import { readRegularFile } from '../read-regular.js';
+import { sanitizeText } from '../render/strip.js';
 import { gitRun } from '../pr/git.js';
 import { trustedBinary } from '../rules/git-files.js';
 import { currentVersion } from '../update/check.js';
@@ -25,7 +26,7 @@ function remoteOf(root: string, host: Host | undefined): Remote {
     throw new Error('no origin remote: PR maps need the repo on GitHub or GitLab');
   }
   const remote = parseRemote(url, host);
-  if (!remote) throw new Error(`can't tell whether ${url} is GitHub or GitLab; add --host github or --host gitlab`);
+  if (!remote) throw new Error(`can't tell whether ${sanitizeText(url)} is GitHub or GitLab; add --host github or --host gitlab`);
   return remote;
 }
 

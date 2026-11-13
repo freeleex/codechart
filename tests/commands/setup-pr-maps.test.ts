@@ -24,6 +24,14 @@ describe('parseRemote', () => {
   });
 });
 
+describe('parseRemote with hidden characters', () => {
+  it('refuses a URL with control bytes in the server or path', () => {
+    expect(parseRemote('https://github.com/o/\u001b]0;x\u0007r.git')).toBeUndefined();
+    expect(parseRemote('git@github.com:o/\u202er.git')).toBeUndefined();
+    expect(parseRemote('git@git.example.com:o/\u001br.git', 'gitlab')).toBeUndefined();
+  });
+});
+
 describe('buildPlan', () => {
   const none = () => undefined;
 
@@ -141,6 +149,15 @@ describe('codechart setup-pr-maps', () => {
     const r = await run([], { confirm: swap });
     expect(r.err).toContain('changed while codechart was running');
     expect(readFileSync(victim, 'utf8')).toBe('x');
+  });
+
+  it('an origin URL with control bytes is refused and printed clean', async () => {
+    git(sb.repo, 'remote', 'set-url', 'origin', 'https://github.com/o/\u001b]0;x\u0007r.git');
+    const r = await run(['--yes']);
+    expect(r.code).toBe(1);
+    expect(r.err).toContain("can't tell whether");
+    expect(`${r.out}${r.err}`.replace(/\n/g, '')).not.toMatch(/[\u0000-\u001f\u007f-\u009f]/);
+    expect(existsSync(workflow())).toBe(false);
   });
 
   it('a remote that is neither GitHub nor GitLab needs --host', async () => {
