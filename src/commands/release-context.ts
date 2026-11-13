@@ -65,12 +65,12 @@ function readPrs(opts: CommandOptions, root: string, numbers: number[]): { prs: 
   return { prs, notes };
 }
 
-/** Throws unless the repo has full history and no tags but on the release commit (a first release): any other tag may name an earlier release. */
+/** Throws unless the repo has full history and no tag before the release commit (a first release): any such tag may name an earlier release. */
 function noEarlierRelease(root: string, headSha: string): void {
   if (gitIsShallow(root)) throw new Error('no version tag (v*) found before HEAD in this shallow clone; fetch the full history and tags (git fetch --unshallow --tags) or pass --since <ref>');
   const tags = gitTagNames(root, 'refs/tags', 4, headSha);
   if (!tags.length) return;
-  const why = gitTagNames(root, 'refs/tags/v*', 1, headSha).length ? '' : `: the repo's tags (${tags.slice(0, 3).map(sanitizeText).join(', ')}${tags.length > 3 ? ', …' : ''}) don't start with v`;
+  const why = gitTagNames(root, 'refs/tags/v*', 1, headSha).length ? '' : `: the tags before it (${tags.slice(0, 3).map(sanitizeText).join(', ')}${tags.length > 3 ? ', …' : ''}) don't start with v`;
   throw new Error(`no version tag (v*) found before HEAD${why}; pass --since <ref>`);
 }
 
@@ -83,7 +83,7 @@ function releaseContext(o: { since?: string; head?: string }, opts: CommandOptio
   const log = gitFirstParentLog(root, sinceSha, headSha);
   const numbers = log.flatMap((e) => prNumber(e) ?? []);
   const { prs, notes } = readPrs(opts, root, numbers);
-  if (since === undefined) notes.unshift('First release: no tag before HEAD, so this lists every commit from the start.');
+  if (since === undefined) notes.unshift('First release: no tag before the release commit, so this lists every commit from the start.');
   const changes = log.map((e): Change => {
     const files = gitCommitFiles(root, e.sha);
     const n = prNumber(e);
@@ -109,7 +109,7 @@ export function releaseContextCommand(opts: CommandOptions): Command {
   const cwd = opts.cwd ?? process.cwd();
   return new Command('release-context')
     .description('list what was merged since the last release (JSON for an agent writing a release map)')
-    .option('--since <ref>', 'the previous release: a tag or commit (default: the newest v* tag before HEAD; in a repo with no tags but on HEAD, every commit)')
+    .option('--since <ref>', 'the previous release: a tag or commit (default: the newest v* tag before HEAD; with no tag before the release commit, every commit)')
     .option('--head <ref>', 'the release commit (default HEAD)')
     .action((o: { since?: string; head?: string }) => {
       try {

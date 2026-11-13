@@ -77,7 +77,8 @@ export const runTool: Tool = (command, args) => {
     return execFileSync(file, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 60_000, maxBuffer: 16 * 1024 * 1024 });
   } catch (e) {
     if ((e as NodeJS.ErrnoException).code === 'ENOENT') throw new Error(`${command} is not installed`);
-    const stderr = String((e as { stderr?: unknown }).stderr ?? '').trim().split('\n')[0];
+    // glab puts a bare ERROR banner line before the reason
+    const stderr = String((e as { stderr?: unknown }).stderr ?? '').split('\n').map((l) => l.trim()).find((l) => l && l !== 'ERROR');
     throw new Error(`${command} failed${stderr ? `: ${stderr}` : ''}`);
   }
 };

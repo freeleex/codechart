@@ -84,7 +84,7 @@ describe('codechart release-context', () => {
     expect(out.changes.map((c) => c.title)).toEqual(['base', 'second (#2)']);
     expect(out.changes[0]!.files).toEqual(['package.json']);
     expect(out.since).toBeUndefined();
-    expect(out.notes).toContain('First release: no tag before HEAD, so this lists every commit from the start.');
+    expect(out.notes).toContain('First release: no tag before the release commit, so this lists every commit from the start.');
   });
 
   it('tags but none named v*: exit 2 asking for --since, saying the tags don’t start with v', async () => {
@@ -93,7 +93,7 @@ describe('codechart release-context', () => {
     commit('second', { 'a.txt': '1' });
     const r = await run();
     expect(r.code).toBe(2);
-    expect(r.err).toBe("codechart: no version tag (v*) found before HEAD: the repo's tags (release-1) don't start with v; pass --since <ref>\n");
+    expect(r.err).toBe("codechart: no version tag (v*) found before HEAD: the tags before it (release-1) don't start with v; pass --since <ref>\n");
     expect(r.out).toBe('');
   });
 
@@ -115,15 +115,26 @@ describe('codechart release-context', () => {
     git(sb.repo, 'tag', 'latest');
     const out = await json();
     expect(out.changes.map((c) => c.title)).toEqual(['base', 'second (#2)']);
-    expect(out.notes).toContain('First release: no tag before HEAD, so this lists every commit from the start.');
+    expect(out.notes).toContain('First release: no tag before the release commit, so this lists every commit from the start.');
   });
 
-  it('v* tags on and after HEAD, none before: exit 2 asking for --since', async () => {
+  it('--head at the first tag, with later tags: still a first release', async () => {
     commit('later', { 'a.txt': '1' });
     git(sb.repo, 'tag', 'v1.1.0');
-    const r = await run(['--head', 'HEAD~1']);
-    expect(r.code).toBe(2);
-    expect(r.err).toBe('codechart: no version tag (v*) found before HEAD; pass --since <ref>\n');
+    const out = await json(['--head', 'v1.0.0']);
+    expect(out.changes.map((c) => c.title)).toEqual(['base']);
+    expect(out.notes).toContain('First release: no tag before the release commit, so this lists every commit from the start.');
+  });
+
+  it('a tag on a branch that was never merged does not block a first release', async () => {
+    git(sb.repo, 'tag', '-d', 'v1.0.0');
+    git(sb.repo, 'checkout', '-q', '-b', 'spike');
+    commit('spike', { 's.txt': '1' });
+    git(sb.repo, 'tag', 'v0.0.1-spike');
+    git(sb.repo, 'checkout', '-q', '-');
+    commit('second (#2)', { 'a.txt': '1' });
+    const out = await json();
+    expect(out.changes.map((c) => c.title)).toEqual(['base', 'second (#2)']);
   });
 
   it('rejects a bad ref', async () => {

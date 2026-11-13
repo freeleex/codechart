@@ -474,13 +474,13 @@ export function gitLatestTag(cwd: string, sha: string, pattern: string): string 
   }
 }
 
-/** Up to `max` tag names whose ref matches `pattern` (`refs/tags` for all), on any commit but `except`. */
-export function gitTagNames(cwd: string, pattern: string, max: number, except?: string): string[] {
-  return git(cwd, ['for-each-ref', '--format=%(refname:short)%09%(objectname)%09%(*objectname)', pattern])
+/** Up to `max` tag names whose ref matches `pattern` (`refs/tags` for all) on commits before `head`: reachable from it, not on it. */
+export function gitTagNames(cwd: string, pattern: string, max: number, head: string): string[] {
+  return git(cwd, ['for-each-ref', `--merged=${head}`, '--format=%(refname:short)%09%(objectname)%09%(*objectname)', pattern])
     .split('\n')
     .filter(Boolean)
     .map((l) => l.split('\t'))
-    .filter(([, sha, peeled]) => (peeled || sha) !== except)
+    .filter(([, sha, peeled]) => (peeled || sha) !== head)
     .slice(0, max)
     .map(([name]) => name!);
 }
