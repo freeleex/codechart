@@ -8,7 +8,7 @@ import type { CommandOptions } from '../program.js';
 import { readRegularFile } from '../read-regular.js';
 import { sanitizeText } from '../render/strip.js';
 import { gitRun } from '../pr/git.js';
-import { trustedBinary } from '../rules/git-files.js';
+import { trustedBinary } from '../rules/git-run.js';
 import { currentVersion } from '../update/check.js';
 import { buildPlan, existingSetupReview, openSetupReview, parseRemote, prepareSetupReview, SETUP_BRANCH, type Host, type Plan, type Remote, type Tool } from '../pr/setup.js';
 

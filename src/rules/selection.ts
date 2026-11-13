@@ -1,21 +1,6 @@
-import {
-  gitChangedChanges,
-  gitChangedFiles,
-  gitCommitChanges,
-  gitCommitFiles,
-  gitEmptyTree,
-  gitHead,
-  gitMergeBase,
-  gitParent,
-  gitSinceChanges,
-  gitSinceFiles,
-  gitWorktreeChanges,
-  repoDiffOverrides,
-  repoFilterOverrides,
-  resolveCommit,
-  type DiffRange,
-  type FileChange,
-} from './git-files.js';
+import { gitChangedChanges, gitChangedFiles, gitCommitChanges, gitCommitFiles, gitEmptyTree, gitHead, gitMergeBase, gitParent, gitSinceChanges, gitSinceFiles, gitWorktreeChanges, resolveCommit, type FileChange } from './git-files.js';
+import type { DiffRange } from './git-preview.js';
+import { repoDiffOverrides, repoFilterOverrides } from './git-run.js';
 
 export interface GitSelection {
   git?: boolean;

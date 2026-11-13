@@ -3,7 +3,9 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync }
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { gitChangedFiles, gitDirtyHashes, gitFileDiff, repoDiffOverrides } from '../../src/rules/git-files.js';
+import { gitChangedFiles, gitDirtyHashes } from '../../src/rules/git-files.js';
+import { gitFileDiff } from '../../src/rules/git-preview.js';
+import { repoDiffOverrides } from '../../src/rules/git-run.js';
 import { diffRange } from '../../src/rules/selection.js';
 import { repoFromTemplate, runCli } from '../helpers/sandbox.js';
 

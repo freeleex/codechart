@@ -4,7 +4,8 @@ import { gitRun } from './git.js';
 import { parseRemote, type Remote, type Tool } from './setup.js';
 import { BLOCK_END, BLOCK_START } from '../render/pr.js';
 import { sanitizeText } from '../render/strip.js';
-import { trustedBinary, type LogEntry } from '../rules/git-files.js';
+import { type LogEntry } from '../rules/git-log.js';
+import { trustedBinary } from '../rules/git-run.js';
 
 const MAX_DESCRIPTION = 1500;
 

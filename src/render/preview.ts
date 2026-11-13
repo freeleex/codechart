@@ -1,7 +1,8 @@
 import { lstatSync, realpathSync } from 'node:fs';
 import { dirname, join, resolve, sep } from 'node:path';
 import { readRegularFile } from '../read-regular.js';
-import { gitBlob, gitBlobs, gitBlobSizes, gitFileDiff, gitFileDiffs, gitUntracked, OutputTooLarge, plainDiffName, type DiffRange } from '../rules/git-files.js';
+import { gitBlob, gitBlobs, gitBlobSizes, gitFileDiff, gitFileDiffs, gitUntracked, plainDiffName, type DiffRange } from '../rules/git-preview.js';
+import { OutputTooLarge } from '../rules/git-run.js';
 import type { Spec } from '../spec/schema.js';
 import { IN_DIFF, repoPath, type Diff } from './check.js';
 import { clip } from './clip.js';

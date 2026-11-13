@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { checkMapNodes, diffOf } from '../../src/render/check.js';
 import { nodePreviews, parseDiff } from '../../src/render/preview.js';
-import { gitFileDiffs } from '../../src/rules/git-files.js';
+import { gitFileDiffs } from '../../src/rules/git-preview.js';
 import { diffRange, gitFiles } from '../../src/rules/selection.js';
 import type { Spec } from '../../src/spec/schema.js';
 import { repoFromTemplate } from '../helpers/sandbox.js';

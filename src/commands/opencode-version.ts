@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { isAbsolute, join } from 'node:path';
 import type { CommandOptions } from '../program.js';
-import { trustedBinary } from '../rules/git-files.js';
+import { trustedBinary } from '../rules/git-run.js';
 
 interface VersionDeps {
   platform?: NodeJS.Platform;
