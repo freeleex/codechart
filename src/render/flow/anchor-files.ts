@@ -15,7 +15,8 @@ const MAX_TOTAL_BYTES = 25 * 1024 * 1024;
 type Read = string[] | { error: string } | null;
 
 const HIDDEN = 'not shown: looks like a secret';
-export const shownLines = (path: string, lines: string[]): string[] => (looksSecret(path) || PRIVATE_KEY.test(lines.join('\n')) ? [HIDDEN] : lines.map(clip));
+/** `all`: the whole file, so a key body line is hidden even when its BEGIN line is not shown. */
+export const shownLines = (path: string, slice: string[], all: string[]): string[] => (looksSecret(path) || PRIVATE_KEY.test(all.join('\n')) ? [HIDDEN] : slice.map(clip));
 
 const escapes = (rel: string) => rel === '..' || rel.startsWith(`..${sep}`) || isAbsolute(rel);
 // .git/config (also a nested clone's) can hold a remote URL with a token.

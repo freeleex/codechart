@@ -41,7 +41,7 @@ export function findMatch(path: string, match: string, lines: string[]): Resolve
     };
   }
   const line = hits[0]!;
-  return { snippet: { source: `${path}:${line}`, startLine: line, lines: shownLines(path, [lines[line - 1]!]) } };
+  return { snippet: { source: `${path}:${line}`, startLine: line, lines: shownLines(path, [lines[line - 1]!], lines) } };
 }
 
 function resolveAnchor(source: string, match: string | undefined, c: AnchorCtx): Resolved {
@@ -74,7 +74,7 @@ function resolveAnchor(source: string, match: string | undefined, c: AnchorCtx):
     snippet: {
       source: loaded.path === path ? source : `${loaded.path}:${a}${b === undefined ? '' : `-${b}`}`,
       startLine: start,
-      lines: shownLines(loaded.path, lines.slice(start - 1, Math.min(end, start - 1 + SNIPPET_MAX_LINES))),
+      lines: shownLines(loaded.path, lines.slice(start - 1, Math.min(end, start - 1 + SNIPPET_MAX_LINES)), lines),
     },
   };
 }

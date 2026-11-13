@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { readdirSync, readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { checkMapNodes, diffOf } from '../../src/render/check.js';
@@ -136,10 +136,13 @@ describe('anchor snippets of a secret file', () => {
   const VALUE = 'sk-live-AAAABBBBCCCCDDDD1234';
   const NOTE = 'not shown: looks like a secret';
 
-  async function pageOf(spec: unknown): Promise<string> {
+  async function pageOf(spec: unknown, files: Record<string, string> = { '.env': `SECRET_KEY=${VALUE}\n` }): Promise<string> {
     const sb = makeSandbox('anchor-secret', { htmlOut: true, git: 'init' });
     try {
-      writeFileSync(join(sb.repo, '.env'), `SECRET_KEY=${VALUE}\n`);
+      for (const [name, text] of Object.entries(files)) {
+        mkdirSync(dirname(join(sb.repo, name)), { recursive: true });
+        writeFileSync(join(sb.repo, name), text);
+      }
       writeFileSync(join(sb.tmp, 'spec.json'), JSON.stringify(spec));
       const r = await runCli({ cwd: sb.repo, home: sb.home, isTTY: false }, ['render', join(sb.tmp, 'spec.json'), '--output', 'web']);
       expect(r.err).toBe('');
@@ -172,5 +175,27 @@ describe('anchor snippets of a secret file', () => {
     });
     expect(page).not.toContain(VALUE);
     expect(page).toContain(NOTE);
+  });
+
+  describe('a key body line of a PEM block in an ordinarily named file', () => {
+    const BODY = 'MIIEowIBAAKCAQEAsecretbody';
+    const notes = { 'docs/notes.txt': `# notes\n-----BEGIN RSA PRIVATE KEY-----\n${BODY}\n-----END RSA PRIVATE KEY-----\n` };
+    const stepOf = (anchor: { source: string; match?: string }) => ({
+      diagram: 'flow',
+      kind: 'plan',
+      title: 'f',
+      start: 'a',
+      steps: [{ id: 'a', label: 'read the key', type: 'end', status: 'existing', ...anchor }],
+      links: [],
+    });
+
+    it.each([
+      ['match', { source: 'docs/notes.txt', match: 'MIIEow' }],
+      ['source line', { source: 'docs/notes.txt:3' }],
+    ])('hides the body when anchored by %s', async (_, anchor) => {
+      const page = await pageOf(stepOf(anchor), notes);
+      expect(page).not.toContain(BODY);
+      expect(page).toContain(NOTE);
+    });
   });
 });
