@@ -223,6 +223,13 @@ describe('render: business explain page', () => {
     expect(outFiles().filter((n) => n.endsWith('.business.review.json'))).toEqual([]);
   });
 
+  it('--md headers the block with the explain page label', async () => {
+    await renderExplainMap();
+    const r = await renderBusiness(businessExplain(), '--md');
+    expect(r.err).toBe('');
+    expect(r.out).toMatch(/^\*\*Business explain page\*\*\n```text\nBusiness explain page: How billing works/);
+  });
+
   it('takes the explain map named by map, with or without .explain', async () => {
     await renderExplainMap();
     expect((await renderBusiness({ ...businessExplain(), map: 'how-billing-works' })).err).toBe('');
