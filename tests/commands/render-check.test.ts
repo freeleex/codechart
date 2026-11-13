@@ -121,6 +121,17 @@ describe('render: map checks', () => {
     expect(r.out).toContain('✓ 4 checked');
   });
 
+  it('a folder with a renamed file reads as modified', async () => {
+    git('checkout', '--', 'app/orders.py');
+    writeFileSync(join(repo, 'app/added.py'), 'class Added:\n    pass\n');
+    git('mv', 'app/status.py', 'app/moved.py');
+    git('add', '-A');
+    git('commit', '-q', '-m', 'move');
+    const check = async (status: string) => run(['render', specFile(map(node('App', status, 'app'))), '--commit', 'HEAD', '--output', 'cli']);
+    expect((await check('new')).out).toContain('+App marked new, but modified in git');
+    expect((await check('changed')).out).not.toContain('✗');
+  });
+
   it('a missing field is a warning that --strict does not fail', async () => {
     const spec = map(node('Order', 'changed', 'app/orders.py', { fields: [{ name: 'discount_code' }], fieldsComplete: false }));
     const r = await run(['render', specFile(spec), '--git', '--strict', '--output', 'cli']);
