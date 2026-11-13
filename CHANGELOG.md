@@ -38,7 +38,7 @@ What's new in each codechart release. Update with `codechart update`; the [relea
 - `doctor --last` and `setup-pr-maps` strip escape characters from repo text they print, and a remote URL containing them is refused.
 - `setup-pr-maps` refuses to write through a symlinked `.github` or `.github/workflows` folder.
 - `uninstall` also removes skill copies installed with `install-skill --dir`.
-- `feedback --import` reads the clipboard when stdin is empty or `/dev/null`, instead of failing with "No codechart review found".
+- `feedback --import` reads the clipboard when stdin is an empty file or `/dev/null`, instead of failing with "No codechart review found".
 - Two hook runs at the same moment no longer lose a turn's snapshot, and the hook no longer hangs when the transcript path is a pipe.
 - Conflicting flags are refused with exit 2: `doctor --fix --last`, `update --check --skills-only`, `comment --side` without a line, and `feedback --import --copy` without `--take`.
 
