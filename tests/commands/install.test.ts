@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { loadConfig } from '../../src/config/load.js';
 import { configJsonSchema } from '../../src/config/schema.js';
+import { readState, skillDirs } from '../../src/update/check.js';
 import { STEP_STATUSES } from '../../src/spec/flow.js';
 import { STATUSES } from '../../src/spec/schema.js';
 import { makeSandbox, removeSandbox, runCli } from '../helpers/sandbox.js';
@@ -260,6 +261,39 @@ describe('codechart install-skill for other agents', () => {
     expect(code).toBeUndefined();
     expect(readFileSync(join(repo, 'my-skills', 'codechart', 'SKILL.md'), 'utf8')).toBe(skill);
     expect(existsSync(skillAt('.claude', 'skills'))).toBe(false);
+  });
+
+  it('uninstall also removes a --dir copy and forgets it', async () => {
+    mkdirSync(join(home, '.claude'));
+    const custom = join(tmp, 'custom-skills', 'codechart');
+    await run(repo, ['install-skill', '--dir', join(tmp, 'custom-skills')]);
+    const cacheDir = loadConfig({ cwd: repo, home }).web.outDir;
+    expect(skillDirs(readState(cacheDir))).toEqual([custom]);
+    const r = await run(repo, ['uninstall']);
+    expect(r.out).toContain(`removed skill: ${custom}`);
+    expect(existsSync(custom)).toBe(false);
+    expect(skillDirs(readState(cacheDir))).toEqual([]);
+  });
+
+  it('uninstall leaves a skill path that is not a folder, and says so', async () => {
+    mkdirSync(join(home, '.claude', 'skills'), { recursive: true });
+    const file = join(home, '.claude', 'skills', 'codechart');
+    writeFileSync(file, 'mine');
+    const r = await run(repo, ['uninstall', '--skill']);
+    expect(r.out).toBe(`left ${file}: not a folder\n`);
+    expect(r.code).toBeUndefined();
+    expect(readFileSync(file, 'utf8')).toBe('mine');
+  });
+
+  it('uninstall reports a step that fails on stderr, exits 1 and still runs the others', async () => {
+    mkdirSync(join(home, '.claude'));
+    writeFileSync(join(home, '.claude', 'settings.json'), '{ not json');
+    await run(repo, ['install-skill', '--agent', 'claude']);
+    const r = await run(repo, ['uninstall']);
+    expect(r.err).toMatch(/^codechart: .*settings\.json/);
+    expect(r.code).toBe(1);
+    expect(r.out).toContain('removed skill:');
+    expect(r.out).not.toContain('nothing to remove');
   });
 
   it('unknown agent and no agent found fail without writing', async () => {
