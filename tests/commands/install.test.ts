@@ -298,7 +298,7 @@ describe('codechart install-skill for other agents', () => {
 
   it('unknown agent and no agent found fail without writing', async () => {
     const unknown = await run(repo, ['install-skill', '--agent', 'nope']);
-    expect(unknown.code).toBe(1);
+    expect(unknown.code).toBe(2);
     expect(unknown.err).toMatch(/^codechart: unknown agent 'nope' \(known: claude, codex, /);
     process.exitCode = undefined;
     const none = await run(repo, ['install-skill']);

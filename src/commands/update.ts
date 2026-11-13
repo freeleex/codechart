@@ -2,7 +2,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve, sep } from 'node:path';
-import { Command } from 'commander';
+import { Command, Option } from 'commander';
 import { packageFile } from '../assets.js';
 import { loadConfig } from '../config/load.js';
 import type { CommandOptions } from '../program.js';
@@ -125,7 +125,7 @@ export function updateCommand(opts: CommandOptions): Command {
   return new Command('update')
     .description('install the newest codechart with npm and refresh the skill copies, reminder lines and OpenCode plugin copy you have')
     .option('--check', 'only say whether a newer version exists')
-    .option('--skills-only', 'refresh installed skill copies, reminder lines and the OpenCode plugin copy to this version (run by update)')
+    .addOption(new Option('--skills-only', 'refresh installed skill copies, reminder lines and the OpenCode plugin copy to this version (run by update)').conflicts('check'))
     .action(async (o: { check?: boolean; skillsOnly?: boolean }) => {
       try {
         if (o.skillsOnly) return refreshInstalls(opts.home ?? homedir(), opts);

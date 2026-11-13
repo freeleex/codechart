@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { relationsHtml, relationsOf } from '../../src/render/web/tools.js';
 import { CSS } from '../../src/render/web/styles.js';
 import { click, flowPage, key, mount, node, panesPage, q, qa, shopPage, usePages } from '../helpers/page.js';
@@ -174,7 +174,9 @@ describe('Focus button and f key', () => {
     (Object.getPrototypeOf(q('.node')) as Record<string, unknown>).getBBox = () => box;
     Element.prototype.getBoundingClientRect = () => ({ width: 1000, height: 800, x: 0, y: 0, top: 0, left: 0, right: 1000, bottom: 800, toJSON: () => ({}) });
   };
-  const settle = () => new Promise((r) => setTimeout(r, 400));
+  const settle = () => vi.advanceTimersByTimeAsync(400);
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
 
   it('a labelled button next to the history arrows, disabled until a node is selected', () => {
     mount(shopPage);

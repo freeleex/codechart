@@ -1,38 +1,12 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { EXPLAIN_FILES, explain, withFlows } from '../fixtures/explain.js';
-import { git, makeSandbox, removeSandbox, repoFromTemplate, runCli, type Sandbox } from '../helpers/sandbox.js';
+import { describe, expect, it } from 'vitest';
+import { explain, withFlows } from '../fixtures/explain.js';
+import { useExplainSandbox } from '../helpers/explain-sandbox.js';
+import { git } from '../helpers/sandbox.js';
 
-let sb: Sandbox;
-
-function seed(dir: string) {
-  for (const [file, text] of Object.entries(EXPLAIN_FILES)) {
-    mkdirSync(join(dir, file, '..'), { recursive: true });
-    writeFileSync(join(dir, file), text);
-  }
-  git(dir, 'add', '.');
-  git(dir, 'commit', '-q', '-m', 'init');
-}
-
-beforeEach(() => {
-  sb = makeSandbox('explain-flows', { htmlOut: true });
-  repoFromTemplate(sb.repo, seed);
-});
-afterEach(() => removeSandbox(sb.tmp));
-
-let tick = 0;
-const run = (spec: unknown, ...args: string[]) => {
-  process.exitCode = undefined;
-  const now = new Date(2026, 10, 10, 10, 0, tick++);
-  writeFileSync(join(sb.tmp, 'explain.json'), JSON.stringify(spec));
-  return runCli({ cwd: sb.repo, home: sb.home, now: () => now, isTTY: false }, ['render', join(sb.tmp, 'explain.json'), ...args]);
-};
-
-const outDir = (): string => join(sb.out, readdirSync(sb.out)[0]!);
-const outFiles = (): string[] => (existsSync(sb.out) ? readdirSync(outDir()) : []);
+const { sb, run, outDir, outFiles, html } = useExplainSandbox('explain-flows');
 const flat = (s: string): string => s.replace(/\s+/g, ' ');
-const html = (): string => readFileSync(join(outDir(), outFiles().find((n) => n.endsWith('.html'))!), 'utf8');
 
 describe('render: explain map with flows', () => {
   it('counts boxes and steps in the page header and says which flows the page has, after the map block', async () => {

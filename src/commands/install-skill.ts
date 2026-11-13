@@ -61,7 +61,7 @@ async function chooseExtras(agents: AgentPreset[], opts: CommandOptions): Promis
     items.push({ key: 'plugin', label: 'OpenCode plugin', hint: 'ask for a diagram when a turn changed 3+ files → ~/.config/opencode/plugins/codechart.js' });
   }
   if (items.length === 0) return { reminder: true, hook: hasClaude(agents), plugin: hasOpencode(agents) };
-  // Off a terminal nobody can answer, and the extras edit global files, so only flags add them.
+  // Off a terminal nobody can answer, and the extras edit global files: without --agent or a flag none are added.
   if (!choose) {
     opts.stdout(`${notAddedLine(items.map((i) => i.key))}\n`);
     return { reminder: false, hook: false, plugin: false };
@@ -137,7 +137,7 @@ export function installSkillCommand(opts: CommandOptions): Command {
     .option('--agent <names...>', `install for these agents: ${NAMES}`)
     .option('--dir <path>', 'install into this skills folder')
     .option('--force', 'overwrite an install that is not an older codechart copy')
-    .option('--reminder', "only the reminder line in each agent's global instructions file (extras are added by default in a terminal)")
+    .option('--reminder', "only the reminder line in each agent's global instructions file (with --agent every helper is added, without it after asking in a terminal; off a terminal none)")
     .option('--no-reminder', 'skip the reminder line')
     .option('--hook', 'only the Claude Code hook that asks for a diagram after a turn that changed 3+ files without one')
     .option('--no-hook', 'skip the Claude Code hook')
@@ -150,7 +150,7 @@ export function installSkillCommand(opts: CommandOptions): Command {
       const unknown = names?.find((n) => !AGENTS.some((a) => a.name === n));
       if (unknown !== undefined) {
         opts.stderr(`codechart: unknown agent '${unknown}' (known: ${NAMES})\n`);
-        process.exitCode = 1;
+        process.exitCode = 2;
         return;
       }
       let agents = names

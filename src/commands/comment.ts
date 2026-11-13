@@ -34,6 +34,8 @@ function anchorOf(node: ReviewNode, line: number, side?: 'old' | 'new'): NonNull
   return { path: node.path ?? '', side: at, line, text: hit.text };
 }
 
+class SideNeedsLine extends Error {}
+
 function comment(target: string, words: string[], o: CommentFlags, opts: CommandOptions): void {
   const { file } = locateChange(opts, o.change);
   const body = sanitizeText(words.join(' ')).replace(/\s*\n\s*/g, ' ').trim();
@@ -41,6 +43,7 @@ function comment(target: string, words: string[], o: CommentFlags, opts: Command
   let added: { node: ReviewNode; anchor?: Note['anchor'] } | undefined;
   updateReview(file, (review) => {
     const { node, line } = resolveTarget(review, target);
+    if (line === undefined && o.side) throw new SideNeedsLine("--side needs a line: give the target as <id>:<line> or <id>:<path>:<line>");
     const anchor = line === undefined ? undefined : anchorOf(node, line, o.side);
     added = { node, anchor };
     const note: Note = {
@@ -68,5 +71,15 @@ export function commentCommand(opts: CommandOptions): Command {
     .addOption(new Option('--kind <kind>', 'comment, question or delete').choices(['comment', 'question', 'delete']).default('comment'))
     .addOption(new Option('--side <side>', 'with a line: the old (removed) or new (added) side; default new').choices(['old', 'new']))
     .option('--change <title>', 'the map with this title (or file name slug), instead of the newest one on this branch')
-    .action((target: string, words: string[], o: CommentFlags) => guarded(opts, () => comment(target, words, o, opts)));
+    .action((target: string, words: string[], o: CommentFlags) =>
+      guarded(opts, () => {
+        try {
+          comment(target, words, o, opts);
+        } catch (e) {
+          if (!(e instanceof SideNeedsLine)) throw e;
+          opts.stderr(`error: ${e.message}\n`);
+          process.exitCode = 2;
+        }
+      }),
+    );
 }

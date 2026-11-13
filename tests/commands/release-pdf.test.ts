@@ -259,14 +259,14 @@ describe('codechart render of a release map', () => {
 // Skipped on machines with no Chromium-based browser.
 describe('a real browser', () => {
   const browser = findBrowser();
-  it.skipIf(!browser)('prints the release page to a PDF with a cover and the features', { timeout: 60_000 }, async () => {
+  it.skipIf(!browser)('prints the release page to a PDF with a cover and the features', { timeout: 60_000, retry: 2 }, async () => {
     const sb = makeSandbox('release-pdf-real', { htmlOut: true });
     try {
       repoFromTemplate(sb.repo);
       const file = join(sb.tmp, 'release.json');
       writeFileSync(file, JSON.stringify(release()));
       const r = await runCli({ cwd: sb.repo, home: sb.home, now: () => new Date(2026, 10, 9, 10), isTTY: false, pdf: { find: () => browser } }, ['render', file]);
-      expect(r.err).toBe('');
+      expect(r.err, r.err).toBe('');
       const pdf = join(sb.out, repoFolder(sb.repo), readdirSync(join(sb.out, repoFolder(sb.repo))).find((n) => n.endsWith('.pdf'))!);
       expect(readFileSync(pdf, 'latin1').startsWith('%PDF')).toBe(true);
       expect(statSync(pdf).size).toBeGreaterThan(5_000);

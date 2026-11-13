@@ -77,15 +77,27 @@ function renderSelectionError(o: RenderFlags): string | undefined {
   return selectionError(o);
 }
 
+/** A bad flag value, as opposed to a failure while drawing: exits 2. */
+class UsageError extends Error {}
+
+function revision(root: string, flag: string, ref: string): string {
+  try {
+    return resolveCommit(root, flag, ref);
+  } catch (e) {
+    throw new UsageError((e as Error).message);
+  }
+}
+
 function resolveAt(o: RenderFlags, repoRoot: string | undefined, root: string): string | undefined {
   if (o.at === undefined) return undefined;
   if (!repoRoot) throw new Error('--at needs a git repository');
-  return resolveCommit(root, '--at', o.at);
+  return revision(root, '--at', o.at);
 }
 
 function selectedDiff(o: RenderFlags, repoRoot: string | undefined, root: string): Diff | undefined {
   if (!hasGitSelection(o)) return undefined;
   if (!repoRoot) throw new Error('--git, --commit and --since need a git repository');
+  if (o.commit !== undefined) revision(root, '--commit', o.commit);
   const changes = gitChanges(root, o, true);
   return diffOf(changes.map((c) => c.path), changes);
 }
@@ -225,7 +237,7 @@ export function renderCommand(opts: CommandOptions): Command {
         const message = e instanceof Error ? e.message : String(e);
         const lines = e instanceof InvalidSpec ? e.errors : message.split('\n').map((l) => `codechart: ${l}`);
         opts.stderr(lines.map((l) => `${l}\n`).join(''));
-        process.exitCode = 1;
+        process.exitCode = e instanceof UsageError ? 2 : 1;
       }
     });
 }

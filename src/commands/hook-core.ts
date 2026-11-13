@@ -29,11 +29,18 @@ function snapshot(root: string): Snapshot | undefined {
   return files && { head: gitHead(root), files };
 }
 
-function prune(dir: string, now: number) {
+function prune(dir: string, now: number, keep: string) {
   for (const f of readdirSync(dir)) {
     const p = join(dir, f);
-    const st = lstatSync(p);
-    if (st.isFile() && now - st.mtimeMs > KEEP_DAYS * 86_400_000) unlinkSync(p);
+    if (p === keep) continue;
+    const st = lstatSync(p, { throwIfNoEntry: false });
+    if (!st?.isFile() || now - st.mtimeMs <= KEEP_DAYS * 86_400_000) continue;
+    try {
+      unlinkSync(p);
+    } catch (e) {
+      // Another hook process pruned it first.
+      if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
+    }
   }
 }
 
@@ -56,9 +63,9 @@ export interface Used {
 export function saveSnapshot(dir: string, file: string, root: string, now: Date): void {
   const snap = snapshot(root);
   mkdirSync(dir, { recursive: true, mode: 0o700 });
-  prune(dir, now.getTime());
   if (snap) writeFileSync(file, JSON.stringify({ root, ...snap }), { mode: 0o600 });
   else unlinkSync(file);
+  prune(dir, now.getTime(), file);
 }
 
 function readSnapshot(file: string): (Snapshot & { root?: string }) | undefined {
