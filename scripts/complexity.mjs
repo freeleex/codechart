@@ -2,7 +2,7 @@
 // ESLint's `complexity` rule stops at the closure boundary, so logic hidden in callbacks that mutate
 // shared locals goes unseen. Usage: node scripts/complexity.mjs [--top N]
 //
-// Allowlist (may only shrink): put `// complexity-ratchet: <max> -- <reason>` in the comment block directly above the function.
+// Allowlist (empty now, may only shrink): put `// complexity-ratchet: <max> -- <reason>` in the comment block directly above the function.
 // Only outermost functions are judged (their total already includes their closures). The function may not exceed <max>; once it fits LIMIT the entry is stale and must be removed.
 import { readdirSync, readFileSync } from 'node:fs';
 import { basename, join, relative, resolve } from 'node:path';
