@@ -141,6 +141,8 @@ describe('installedBy', () => {
     expect(installedBy('/usr/lib/node_modules/codechart', '/usr/lib/node_modules')).toEqual({ npm: true });
     expect(installedBy('/home/u/.npm/_npx/1/node_modules/codechart', '/usr/lib/node_modules')).toEqual({ npm: false, hint: 'npx runs the newest codechart already; nothing to update' });
     expect(installedBy('/home/u/.local/share/pnpm/global/5/node_modules/codechart', undefined)).toMatchObject({ hint: 'update it with: pnpm add -g codechart@latest' });
+    expect(installedBy('/home/u/.bun/install/global/node_modules/codechart', undefined)).toEqual({ npm: false, hint: 'update it with: bun add -g codechart@latest' });
+    expect(installedBy('/home/u/.config/yarn/global/node_modules/codechart', undefined)).toEqual({ npm: false, hint: 'update it with: yarn global add codechart@latest' });
     expect(installedBy('/home/u/src/codechart', '/usr/lib/node_modules')).toMatchObject({ npm: false });
   });
 });

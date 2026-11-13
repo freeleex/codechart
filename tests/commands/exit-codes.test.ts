@@ -1,4 +1,4 @@
-import { writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { makeSandbox, removeSandbox, runCli, type Sandbox } from '../helpers/sandbox.js';
@@ -46,5 +46,13 @@ describe('exit 2 for usage and revision errors, 1 for other failures', () => {
     const r = await run(['install-skill', '--agent', 'nope']);
     expect(r.err).toContain("unknown agent 'nope'");
     expect(r.code).toBe(2);
+  });
+
+  it('a helper that cannot be added reports what failed and exits 1, the skill stays installed', async () => {
+    mkdirSync(join(sb.home, '.claude', 'CLAUDE.md'), { recursive: true });
+    const r = await run(['install-skill', '--agent', 'claude', '--reminder']);
+    expect(r.err).toMatch(/^codechart: reminder: .*not a regular file/);
+    expect(r.code).toBe(1);
+    expect(readFileSync(join(sb.home, '.claude', 'skills', 'codechart', 'SKILL.md'), 'utf8')).toContain('codechart');
   });
 });
