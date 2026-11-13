@@ -1,83 +1,26 @@
 // @vitest-environment happy-dom
-import { readFileSync } from 'node:fs';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { layoutSpec, PANE_CANVASES } from '../../src/render/web/layout.js';
-import { renderHtml } from '../../src/render/web/html.js';
-import { renderFlowHtml } from '../../src/render/flow/html.js';
-import { layoutFlow } from '../../src/render/flow/layout.js';
-import { validateSpec, type Spec } from '../../src/spec/schema.js';
-import { sampleFlow, sampleSnippets } from './flow-fixture.js';
+import { describe, expect, it } from 'vitest';
+import { click, flowPage, mount, panesPage, q, shopPage, usePages } from '../helpers/page.js';
 
-function mapSpec(raw: unknown): Spec {
-  const r = validateSpec(raw);
-  if (!r.ok) throw new Error(r.errors.join('\n'));
-  if (r.spec.diagram === 'flow') throw new Error('expected map spec');
-  return r.spec;
-}
+usePages();
 
-const meta = { generatedAt: new Date('2026-11-05T12:00:00Z'), repo: 'demo' };
-const shop = mapSpec(JSON.parse(readFileSync('tests/fixtures/shop.spec.json', 'utf8')));
-const page = renderHtml(shop, await layoutSpec(shop), meta);
-const plan = mapSpec({
-  title: 'Users join teams',
-  kind: 'plan',
-  nodes: [
-    { id: 'users', label: 'users', kind: 'table', status: 'changed', layer: 'database' },
-    { id: 'teams', label: 'teams', kind: 'table', status: 'new', layer: 'database' },
-    { id: 'api', label: 'GET /users', kind: 'endpoint', status: 'changed', layer: 'backend' },
-  ],
-  edges: [{ from: 'api', to: 'users', label: 'reads', kind: 'reads' }],
-});
-const panesPage = renderHtml(plan, await layoutSpec(plan, PANE_CANVASES), meta);
-const flow = sampleFlow();
-const flowPage = renderFlowHtml(flow, await layoutFlow(flow), sampleSnippets(), meta);
-
-const q = <T extends Element>(sel: string) => document.querySelector(sel) as T;
 const panel = () => q<HTMLElement>('#panel');
 const back = () => q<HTMLButtonElement>('#nav-back');
 const forward = () => q<HTMLButtonElement>('#nav-forward');
-const click = (el: Element) => el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 const open = (id: string) => click(q(`.node[data-id="${id}"]`));
 const shown = () => (panel().hidden ? 'info' : [...document.querySelectorAll('.node.selected')].map((g) => g.getAttribute('data-id'))[0]);
 const alt = (key: string) => window.dispatchEvent(new KeyboardEvent('keydown', { key, altKey: true }));
 
-// Each mount runs the page script again; drop the window listeners of the last one.
-const added: [string, EventListenerOrEventListenerObject][] = [];
-const addListener = window.addEventListener.bind(window);
-
-/** `hash` null: keep the current history entry, as a reload does. */
-function mount(html: string, hash: string | null = ''): void {
-  for (const [type, fn] of added.splice(0)) window.removeEventListener(type, fn);
-  if (hash !== null) history.replaceState(null, '', `/${hash}`);
-  document.documentElement.innerHTML = html.replace(/^[\s\S]*?<html[^>]*>/i, '').replace(/<\/html>\s*$/i, '');
-  for (const s of document.querySelectorAll('script')) if (s.type !== 'application/json') new Function(s.textContent ?? '')();
-}
-
-beforeEach(() => {
-  if (!('escape' in CSS)) {
-    (CSS as { escape?: (s: string) => string }).escape = (s) => s.replace(/([^\w-])/g, '\\$1');
-  }
-  window.addEventListener = ((type: string, fn: EventListenerOrEventListenerObject, opts?: AddEventListenerOptions) => {
-    added.push([type, fn]);
-    addListener(type, fn, opts);
-  }) as typeof window.addEventListener;
-});
-
-afterEach(() => {
-  for (const [type, fn] of added.splice(0)) window.removeEventListener(type, fn);
-  window.addEventListener = addListener;
-});
-
 describe('panel history', () => {
   it('starts on page-info with nothing to go back or forward to', () => {
-    mount(page);
+    mount(shopPage);
     expect(shown()).toBe('info');
     expect(back().disabled).toBe(true);
     expect(forward().disabled).toBe(true);
   });
 
   it('Back returns to the node you came from; Forward goes to it again', () => {
-    mount(page);
+    mount(shopPage);
     open('tbl.orders');
     open('tbl.invoices');
     expect(location.hash).toBe('#node=tbl.invoices');
@@ -95,7 +38,7 @@ describe('panel history', () => {
   });
 
   it('opening Check / gaps is a visit: Back reopens the node', () => {
-    mount(page);
+    mount(shopPage);
     open('tbl.orders');
     click(q('#info-toggle'));
     expect(shown()).toBe('info');
@@ -105,7 +48,7 @@ describe('panel history', () => {
   });
 
   it('a new visit after Back drops Forward; reopening the shown node adds nothing', () => {
-    mount(page);
+    mount(shopPage);
     open('tbl.orders');
     open('tbl.invoices');
     click(back());
@@ -117,7 +60,7 @@ describe('panel history', () => {
   });
 
   it('Alt+← and Alt+→ walk the history', () => {
-    mount(page);
+    mount(shopPage);
     open('tbl.orders');
     open('tbl.invoices');
     alt('ArrowLeft');
@@ -127,7 +70,7 @@ describe('panel history', () => {
   });
 
   it('Alt+← with nothing to go back to is left to the browser', () => {
-    mount(page);
+    mount(shopPage);
     const e = new KeyboardEvent('keydown', { key: 'ArrowLeft', altKey: true, cancelable: true });
     window.dispatchEvent(e);
     expect(e.defaultPrevented).toBe(false);
@@ -138,11 +81,11 @@ describe('panel history', () => {
   });
 
   it('after a reload Back and Forward still reach the visits around this one', () => {
-    mount(page);
+    mount(shopPage);
     open('tbl.orders');
     open('tbl.invoices');
     click(back());
-    mount(page, null);
+    mount(shopPage, false, null);
     expect(shown()).toBe('tbl.orders');
     expect(back().disabled).toBe(false);
     expect(forward().disabled).toBe(false);
@@ -151,7 +94,7 @@ describe('panel history', () => {
   });
 
   it('following a #node= link in the same tab opens that node and Back returns', () => {
-    mount(page);
+    mount(shopPage);
     open('tbl.orders');
     history.pushState(null, '', '#node=tbl.invoices');
     window.dispatchEvent(new PopStateEvent('popstate', { state: null }));
@@ -161,7 +104,7 @@ describe('panel history', () => {
   });
 
   it("the browser's own Back walks the same history", () => {
-    mount(page);
+    mount(shopPage);
     open('tbl.orders');
     open('tbl.invoices');
     history.back();
@@ -170,14 +113,14 @@ describe('panel history', () => {
   });
 
   it('a URL naming a node opens it; an unknown one opens page-info', () => {
-    mount(page, '#node=tbl.orders');
+    mount(shopPage, true, '#node=tbl.orders');
     expect(shown()).toBe('tbl.orders');
-    mount(page, '#node=nope');
+    mount(shopPage, true, '#node=nope');
     expect(shown()).toBe('info');
   });
 
   it('Back pans to the node when it is off screen', () => {
-    mount(page);
+    mount(shopPage);
     open('tbl.orders');
     open('tbl.invoices');
     const canvas = q<HTMLElement>('.canvas');
@@ -190,7 +133,7 @@ describe('panel history', () => {
   });
 
   it('without browser history the buttons still work', () => {
-    mount(page);
+    mount(shopPage);
     const push = history.pushState;
     history.pushState = () => {
       throw new Error('sandboxed');

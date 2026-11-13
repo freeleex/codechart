@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { gitBinary } from '../rules/git-files.js';
+import { gitBinary } from '../rules/git-run.js';
 
 /** Git for the PR commands, which push and fetch; the read-only helpers in rules/ turn transports off. */
 export function gitRun(cwd: string, args: string[], input?: string, env?: NodeJS.ProcessEnv): string {

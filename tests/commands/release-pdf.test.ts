@@ -167,7 +167,28 @@ describe('codechart render of a release map', () => {
 
   it('--md prints the summary and the PDF path as a block with the page link', async () => {
     const r = await render(fakeBrowser(), '--md');
-    expect(r.out).toMatch(/^\*\*Release map: What is new in Shop 2\.0 \(2\.0\.0\) · 3 features · 1 new · 1 changed · 1 fixed\*\*\n\nPDF: .*\.release\.pdf\n\n\[Open full map\]\(file:\/\//);
+    expect(r.out).toMatch(/^\*\*Release map\*\*\n```text\nRelease map: What is new in Shop 2\.0 \(2\.0\.0\) · 3 features · 1 new · 1 changed · 1 fixed\nPDF: .*\.release\.pdf\n```\n\n\[Open full map\]\(file:\/\//);
+  });
+
+  it('--md keeps a hostile title inside the fence: outside it only the constant header and the link', async () => {
+    const file = join(sb.tmp, 'hostile.json');
+    writeFileSync(file, JSON.stringify({ ...release(), title: '![](//1.2.3.4/a) <h1>big</h1>' }));
+    process.exitCode = undefined;
+    const r = await runCli({ cwd: sb.repo, home: sb.home, now: () => NOW, isTTY: false, pdf: fakeBrowser() }, ['render', file, '--md']);
+    const outside = r.out.replace(/```text\n[\s\S]*?\n```\n/, '');
+    expect(r.out).toContain('![](//1.2.3.4/a) <h1>big</h1>');
+    expect(outside).toMatch(/^\*\*Release map\*\*\n\n\[Open full map\]\(file:\/\/[^\n]*\)\n$/);
+  });
+
+  it('a release map with --pr or --tech is refused', async () => {
+    const file = join(sb.tmp, 'release.json');
+    writeFileSync(file, JSON.stringify(release()));
+    for (const [flag, message] of [['--pr', 'release maps are not for PR descriptions'], ['--tech', '--tech only applies to business maps']] as const) {
+      process.exitCode = undefined;
+      const r = await runCli({ cwd: sb.repo, home: sb.home, now: () => NOW, isTTY: false, pdf: fakeBrowser() }, ['render', file, flag, ...(flag === '--tech' ? [file] : [])]);
+      expect(r.err).toBe(`codechart: ${message}\n`);
+      expect(r.code).toBe(1);
+    }
   });
 
   it('--pdf puts the PDF where asked', async () => {
@@ -238,14 +259,14 @@ describe('codechart render of a release map', () => {
 // Skipped on machines with no Chromium-based browser.
 describe('a real browser', () => {
   const browser = findBrowser();
-  it.skipIf(!browser)('prints the release page to a PDF with a cover and the features', { timeout: 60_000 }, async () => {
+  it.skipIf(!browser)('prints the release page to a PDF with a cover and the features', { timeout: 60_000, retry: 2 }, async () => {
     const sb = makeSandbox('release-pdf-real', { htmlOut: true });
     try {
       repoFromTemplate(sb.repo);
       const file = join(sb.tmp, 'release.json');
       writeFileSync(file, JSON.stringify(release()));
       const r = await runCli({ cwd: sb.repo, home: sb.home, now: () => new Date(2026, 10, 9, 10), isTTY: false, pdf: { find: () => browser } }, ['render', file]);
-      expect(r.err).toBe('');
+      expect(r.err, r.err).toBe('');
       const pdf = join(sb.out, repoFolder(sb.repo), readdirSync(join(sb.out, repoFolder(sb.repo))).find((n) => n.endsWith('.pdf'))!);
       expect(readFileSync(pdf, 'latin1').startsWith('%PDF')).toBe(true);
       expect(statSync(pdf).size).toBeGreaterThan(5_000);

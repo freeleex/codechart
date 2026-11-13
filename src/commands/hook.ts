@@ -1,4 +1,4 @@
-import { closeSync, fstatSync, openSync, readSync } from 'node:fs';
+import { closeSync, constants, fstatSync, openSync, readSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { Argument, Command } from 'commander';
@@ -13,7 +13,8 @@ const MAX_INPUT = 1024 * 1024;
 const MAX_TRANSCRIPT_TAIL = 8 * 1024 * 1024;
 
 function readTail(file: string, max: number): string {
-  const fd = openSync(file, 'r');
+  // O_NONBLOCK: opening a FIFO with no writer would otherwise block the hook forever.
+  const fd = openSync(file, constants.O_RDONLY | constants.O_NONBLOCK);
   try {
     const st = fstatSync(fd);
     if (!st.isFile()) return '';

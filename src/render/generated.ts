@@ -1,4 +1,4 @@
-import { gitGeneratedAttr } from '../rules/git-files.js';
+import { gitGeneratedAttr } from '../rules/git-preview.js';
 
 const LOCKFILES = new Set([
   'package-lock.json',

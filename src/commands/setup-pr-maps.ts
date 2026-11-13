@@ -1,13 +1,14 @@
 import { execFileSync } from 'node:child_process';
-import { closeSync, constants, lstatSync, mkdirSync, openSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { closeSync, constants, lstatSync, mkdirSync, openSync, realpathSync, writeFileSync } from 'node:fs';
+import { dirname, isAbsolute, join, relative } from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { Command, Option } from 'commander';
 import { findRepoRoot } from '../config/load.js';
 import type { CommandOptions } from '../program.js';
 import { readRegularFile } from '../read-regular.js';
+import { sanitizeText } from '../render/strip.js';
 import { gitRun } from '../pr/git.js';
-import { trustedBinary } from '../rules/git-files.js';
+import { trustedBinary } from '../rules/git-run.js';
 import { currentVersion } from '../update/check.js';
 import { buildPlan, existingSetupReview, openSetupReview, parseRemote, prepareSetupReview, SETUP_BRANCH, type Host, type Plan, type Remote, type Tool } from '../pr/setup.js';
 
@@ -25,13 +26,29 @@ function remoteOf(root: string, host: Host | undefined): Remote {
     throw new Error('no origin remote: PR maps need the repo on GitHub or GitLab');
   }
   const remote = parseRemote(url, host);
-  if (!remote) throw new Error(`can't tell whether ${url} is GitHub or GitLab; add --host github or --host gitlab`);
+  if (!remote) throw new Error(`can't tell whether ${sanitizeText(url)} is GitHub or GitLab; add --host github or --host gitlab`);
   return remote;
+}
+
+// O_NOFOLLOW only guards the last path component, so every existing parent folder is checked too.
+function refuseSymlinkParents(root: string, file: string): void {
+  const refuse = () => new Error(`${file}: a parent folder is a symlink; refusing to write it`);
+  let dir = root;
+  for (const part of dirname(file).split('/').filter((p) => p !== '.')) {
+    dir = join(dir, part);
+    try {
+      if (lstatSync(dir).isSymbolicLink()) throw refuse();
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code === 'ENOENT') return;
+      throw e;
+    }
+  }
 }
 
 function readWorkTree(root: string): (file: string) => string | undefined {
   return (file) => {
     const path = join(root, file);
+    refuseSymlinkParents(root, file);
     let text: string | undefined;
     try {
       // lstat after open catches symlinks where O_NOFOLLOW doesn't exist (Windows)
@@ -49,7 +66,10 @@ function readWorkTree(root: string): (file: string) => string | undefined {
 // New file: O_EXCL, so nothing created meanwhile gets overwritten; existing one: never through a swapped-in symlink.
 function writeWorkTree(root: string, plan: Plan): void {
   const path = join(root, plan.file);
+  refuseSymlinkParents(root, plan.file);
   mkdirSync(dirname(path), { recursive: true });
+  const inside = relative(realpathSync(root), realpathSync(dirname(path)));
+  if (inside.startsWith('..') || isAbsolute(inside)) throw new Error(`${plan.file}: a parent folder is a symlink; refusing to write it`);
   const flags = constants.O_WRONLY | constants.O_CREAT | constants.O_TRUNC | (constants.O_NOFOLLOW ?? 0) | (plan.appended ? 0 : constants.O_EXCL);
   let fd: number;
   try {
@@ -67,7 +87,7 @@ function writeWorkTree(root: string, plan: Plan): void {
 }
 
 function describe(plan: Plan, pr: boolean): string {
-  const what = plan.appended ? `append this job to ${plan.file}` : `add ${plan.file}`;
+  const what = pr && plan.remote.host === 'gitlab' ? `add this job to ${plan.file}` : plan.appended ? `append this job to ${plan.file}` : `add ${plan.file}`;
   const where = pr ? `open a ${plan.remote.host === 'github' ? 'pull' : 'merge'} request on ${plan.remote.path} that would ${what}` : `${what} in your work tree (not committed)`;
   const body = plan.added.trimEnd().split('\n').map((l) => `    ${l}`);
   return [`codechart setup-pr-maps would ${where}:`, '', ...body, '', ...plan.notes, ''].join('\n') + '\n';
@@ -127,13 +147,13 @@ async function setup(o: Flags, opts: CommandOptions, root: string): Promise<void
   const v = currentVersion();
   const done = () => opts.stdout(`codechart: PR maps are already set up in ${remote.path}.\n`);
   if (o.pr) {
+    const tool = opts.tool ?? defaultTool;
+    opts.stdout(describe(buildPlan(remote, v, () => undefined)!, true));
+    if (!(await agreed(o, opts))) return;
     const prepared = prepareSetupReview(root, v, remote);
     if (!prepared.plan) return done();
-    const tool = opts.tool ?? defaultTool;
     const existing = existingSetupReview(root, remote.host, tool);
     if (existing !== undefined) return opts.stdout(alreadyOpened(remote.host, existing));
-    opts.stdout(describe(prepared.plan, true));
-    if (!(await agreed(o, opts))) return;
     const url = openSetupReview(root, { ...prepared, plan: prepared.plan }, tool);
     opts.stdout(`codechart: opened ${url}\nMerge it to turn PR maps on; close it to say no.\n`);
     return;

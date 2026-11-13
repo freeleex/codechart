@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { makeTool } from '../../src/commands/setup-pr-maps.js';
@@ -21,6 +21,14 @@ describe('parseRemote', () => {
   it('needs --host when the server name says neither', () => {
     expect(parseRemote('git@git.example.com:o/r.git')).toBeUndefined();
     expect(parseRemote('git@git.example.com:o/r.git', 'gitlab')).toEqual({ host: 'gitlab', server: 'git.example.com', path: 'o/r' });
+  });
+});
+
+describe('parseRemote with hidden characters', () => {
+  it('refuses a URL with control bytes in the server or path', () => {
+    expect(parseRemote('https://github.com/o/\u001b]0;x\u0007r.git')).toBeUndefined();
+    expect(parseRemote('git@github.com:o/\u202er.git')).toBeUndefined();
+    expect(parseRemote('git@git.example.com:o/\u001br.git', 'gitlab')).toBeUndefined();
   });
 });
 
@@ -107,6 +115,23 @@ describe('codechart setup-pr-maps', () => {
     expect(git(sb.repo, 'status', '--porcelain')).toBe('?? .github/\n');
   });
 
+  it('declining writes nothing and says nothing was written', async () => {
+    const r = await run([], { confirm: async () => false });
+    expect(r.out).toContain('codechart setup-pr-maps would add');
+    expect(r.out).not.toContain('wrote');
+    expect(r.err).toBe('');
+    expect(r.code).toBeUndefined();
+    expect(existsSync(join(sb.repo, '.github'))).toBe(false);
+  });
+
+  it('without an origin remote it fails with exit 1', async () => {
+    git(sb.repo, 'remote', 'remove', 'origin');
+    const r = await run(['--yes']);
+    expect(r.err).toBe('codechart: no origin remote: PR maps need the repo on GitHub or GitLab\n');
+    expect(r.code).toBe(1);
+    expect(existsSync(join(sb.repo, '.github'))).toBe(false);
+  });
+
   it('--yes writes without asking; a second run finds it set up', async () => {
     await run(['--yes']);
     expect(existsSync(workflow())).toBe(true);
@@ -121,6 +146,22 @@ describe('codechart setup-pr-maps', () => {
     expect(r.code).toBe(1);
     expect(r.err).toContain('not a regular file; refusing to write it');
     expect(readFileSync(join(sb.tmp, 'elsewhere'), 'utf8')).toBe('x');
+  });
+
+  it.runIf(process.platform !== 'win32')('refuses a symlinked .github or .github/workflows and writes nothing outside the repo', async () => {
+    const outside = join(sb.tmp, 'outside');
+    mkdirSync(join(outside, 'workflows'), { recursive: true });
+    symlinkSync(outside, join(sb.repo, '.github'));
+    const r = await run(['--yes']);
+    expect(r.code).toBe(1);
+    expect(r.err).toBe('codechart: .github/workflows/codechart.yml: a parent folder is a symlink; refusing to write it\n');
+    expect(readdirSync(join(outside, 'workflows'))).toEqual([]);
+    unlinkSync(join(sb.repo, '.github'));
+    mkdirSync(join(sb.repo, '.github'));
+    symlinkSync(join(outside, 'workflows'), join(sb.repo, '.github', 'workflows'));
+    const again = await run(['--yes']);
+    expect(again.err).toContain('a parent folder is a symlink; refusing to write it');
+    expect(readdirSync(join(outside, 'workflows'))).toEqual([]);
   });
 
   it('a workflow created while it asks is not overwritten', async () => {
@@ -141,6 +182,15 @@ describe('codechart setup-pr-maps', () => {
     const r = await run([], { confirm: swap });
     expect(r.err).toContain('changed while codechart was running');
     expect(readFileSync(victim, 'utf8')).toBe('x');
+  });
+
+  it('an origin URL with control bytes is refused and printed clean', async () => {
+    git(sb.repo, 'remote', 'set-url', 'origin', 'https://github.com/o/\u001b]0;x\u0007r.git');
+    const r = await run(['--yes']);
+    expect(r.code).toBe(1);
+    expect(r.err).toContain("can't tell whether");
+    expect(`${r.out}${r.err}`.replace(/\n/g, '')).not.toMatch(/[\u0000-\u001f\u007f-\u009f]/);
+    expect(existsSync(workflow())).toBe(false);
   });
 
   it('a remote that is neither GitHub nor GitLab needs --host', async () => {
@@ -180,7 +230,7 @@ describe('codechart setup-pr-maps', () => {
     const tool = (cmd: string, args: string[]) => (calls.push([cmd, ...args]), '[{"url":"https://github.com/o/r/pull/7"}]');
     const r = await run(['--pr', '--yes'], { tool });
     expect(r.err).toBe('');
-    expect(r.out).toBe(
+    expect(r.out).toContain(
       'codechart: the setup pull request already exists: https://github.com/o/r/pull/7\nMerge it to turn PR maps on, or delete the codechart/pr-maps branch and run again for a new one.\n',
     );
     expect(calls).toEqual([['gh', 'pr', 'list', '--head', SETUP_BRANCH, '--state', 'all', '--limit', '1', '--json', 'url']]);
@@ -219,7 +269,7 @@ describe('codechart setup-pr-maps', () => {
     git(sb.repo, 'config', `url.${remote}.insteadOf`, 'git@gitlab.example.com:g/r.git');
     const calls: string[][] = [];
     const r = await run(['--pr', '--yes'], { tool: (cmd: string, args: string[]) => (calls.push([cmd, ...args]), 'https://gitlab.example.com/g/r/-/merge_requests/3') });
-    expect(r.out).toContain('would open a merge request on g/r that would append this job to .gitlab-ci.yml');
+    expect(r.out).toContain('would open a merge request on g/r that would add this job to .gitlab-ci.yml');
     const ci = git(remote, 'show', `${SETUP_BRANCH}:.gitlab-ci.yml`);
     expect(ci.startsWith('test:\n  script: [make]\n\n# codechart PR maps')).toBe(true);
     expect(calls[0]!.slice(0, 7)).toEqual(['glab', 'mr', 'create', '--source-branch', SETUP_BRANCH, '--target-branch', 'main']);

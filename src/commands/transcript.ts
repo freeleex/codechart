@@ -46,9 +46,3 @@ export function scanTurn(jsonl: string): TurnScan {
   }
   return scan;
 }
-
-/** Whether the agent, since the last prompt, showed a diagram or ran codechart (which may have said no diagram applies). */
-export function turnUsedCodechart(jsonl: string): boolean {
-  const { diagram, cli } = scanTurn(jsonl);
-  return diagram || cli;
-}

@@ -1,6 +1,6 @@
 import { checkMapNodes, type MapCheck } from '../render/check.js';
 import { checkExplain, layOutFlows, type ExplainCheck } from '../render/explain-flows.js';
-import { repoPathResolver } from '../render/flow/anchors.js';
+import { repoPathResolver } from '../render/flow/anchor-files.js';
 import { compareMaps } from '../render/map-drift.js';
 import { EXPLAIN_KEY, fullMapLine, KEY, renderTerminalDetailed } from '../render/terminal/render.js';
 import { alertLine, webAlert } from '../render/terminal/check-lines.js';
@@ -63,7 +63,7 @@ export async function renderMap(spec: Spec, ctx: RenderContext): Promise<Rendere
     ctx.output,
     needsWeb(spec, hidden, ctx.minNodes),
     (htmlPath) => renderTerminalDetailed(spec, { ...termOpts, htmlPath }),
-    () => ctx.write(async (meta) => renderHtml(spec, await layoutSpec(withGaps(withGhosts(spec, ghosts), gaps), canvases), meta, await laidOut(check), previews(), ghosts, gaps), snapshot),
+    () => ctx.write(async (meta) => renderHtml(spec, await layoutSpec(withGaps(withGhosts(spec, ghosts), gaps), canvases), meta, await laidOut(check), { previews: previews(), ghosts, gaps }), snapshot),
   );
   if (!chosen.html) ctx.saveReview(snapshot);
   if (chosen.kind === 'web') {

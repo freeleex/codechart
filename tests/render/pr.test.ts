@@ -86,6 +86,15 @@ describe('prBlock', () => {
     expect(out).toContain('&lt;script&gt;x&lt;/script&gt;');
   });
 
+  it('a blank line or control byte in a path or file name cannot end the code span or inject Markdown', () => {
+    const spec: Spec = { title: 't', kind: 'summary', nodes: [node('a', { path: 'src/a.ts\n\n## injected\u001b[2J' })], edges: [] };
+    const out = prBlock(spec, check({ uncovered: ['a\n\n## x\u001b]0;t\u0007'] }), 'x');
+    expect(out.replace(/\n/g, '')).not.toMatch(/[\u0000-\u001f\u007f-\u009f]/);
+    expect(out).not.toMatch(/^## (x|injected)/m);
+    expect(out).toContain('`src/a.ts ## injected [2J`');
+    expect(out).toContain('`a ## x ]0;t `');
+  });
+
   it('brackets in the title cannot end the image text', () => {
     const spec: Spec = { title: 'Orders] and [x', kind: 'summary', nodes: [node('a')], edges: [] };
     expect(prBlock(spec, undefined, 'u.svg')).toContain('[![Orders\\] and \\[x](u.svg)](u.svg)');

@@ -1,6 +1,7 @@
 import { join } from 'node:path';
 import { findRepoRoot, loadConfig } from '../config/load.js';
 import type { CommandOptions } from '../program.js';
+import { sanitizeText } from '../render/strip.js';
 import { resolveRules } from '../rules/resolve.js';
 import { MIN_FILES } from './hook-core.js';
 import { latestRecord, turnsDir, type Decision, type TurnRecord } from './hook-record.js';
@@ -44,7 +45,7 @@ const hasOpencodePlugin = (home: string, opts: CommandOptions) => attempt(() => 
 
 /** Why the last turn in this repo got, or did not get, a diagram. Returns whether it could say. */
 export function explainLast(cwd: string, home: string, opts: CommandOptions): boolean {
-  const say = (line: string) => opts.stdout(`${line}\n`);
+  const say = (line: string) => opts.stdout(`${sanitizeText(line)}\n`);
   const root = findRepoRoot(cwd);
   if (!root) {
     opts.stderr('codechart: not in a git repo; run it from the repo where the diagram was missing\n');

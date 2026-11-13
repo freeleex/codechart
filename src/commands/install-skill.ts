@@ -61,7 +61,7 @@ async function chooseExtras(agents: AgentPreset[], opts: CommandOptions): Promis
     items.push({ key: 'plugin', label: 'OpenCode plugin', hint: 'ask for a diagram when a turn changed 3+ files → ~/.config/opencode/plugins/codechart.js' });
   }
   if (items.length === 0) return { reminder: true, hook: hasClaude(agents), plugin: hasOpencode(agents) };
-  // Off a terminal nobody can answer, and the extras edit global files, so only flags add them.
+  // Off a terminal nobody can answer, and the extras edit global files: without --agent or a flag none are added.
   if (!choose) {
     opts.stdout(`${notAddedLine(items.map((i) => i.key))}\n`);
     return { reminder: false, hook: false, plugin: false };
@@ -129,76 +129,84 @@ export function installCopy(dir: string, who: string, files: string[], force: bo
   return installPairs(pairs, dir, who, () => isCodechartSkill(dir), force, opts);
 }
 
-// complexity-ratchet: 39 -- install action picks agents and targets inline
-// eslint-disable-next-line max-lines-per-function -- ratchet: install action picks agents and targets inline
+/** The agents to install for; undefined when the run ends here (nothing to install, or an error already reported). */
+async function pickAgents(o: Flags, home: string, opts: CommandOptions): Promise<AgentPreset[] | undefined> {
+  const names = o.agent?.flatMap((n) => n.split(',')).map((n) => n.trim().toLowerCase()).filter(Boolean);
+  const unknown = names?.find((n) => !AGENTS.some((a) => a.name === n));
+  if (unknown !== undefined) {
+    opts.stderr(`codechart: unknown agent '${unknown}' (known: ${NAMES})\n`);
+    process.exitCode = 2;
+    return undefined;
+  }
+  let agents = names
+    ? AGENTS.filter((a) => names.includes(a.name))
+    : o.dir === undefined
+      ? AGENTS.filter((a) => existsSync(join(home, a.home)))
+      : [];
+  if (agents.length === 0 && o.dir === undefined) {
+    opts.stderr(`codechart: no agent found in ${home}; use --agent <name> (${NAMES}) or --dir <path>\n`);
+    process.exitCode = 1;
+    return undefined;
+  }
+  if (!names && agents.length > 0) {
+    const choose = opts.choose ?? terminalChoose();
+    if (choose && agents.length > 1) {
+      const found = agents;
+      const picked = await choose(
+        'Install the codechart skill for:',
+        found.map((a) => ({ label: a.label, hint: `~/${a.skills}` })),
+      );
+      if (picked === undefined) {
+        opts.stderr('codechart: cancelled, nothing installed\n');
+        process.exitCode = 1;
+        return undefined;
+      }
+      if (picked.length === 0) {
+        opts.stdout('nothing selected, nothing installed\n');
+        return undefined;
+      }
+      agents = picked.map((i) => found[i]!);
+    } else {
+      opts.stdout(`agents: ${agents.map((a) => a.label).join(', ')}\n`);
+    }
+  }
+  return agents;
+}
+
+function skillTargets(agents: AgentPreset[], home: string, files: string[], dir: string | undefined, cwd: string) {
+  const groups = skillFolders(agents);
+  // Earlier installs in other folders these agents read would go stale, so report or update them too.
+  for (const folder of new Set(agents.flatMap((a) => [a.skills, ...a.reads]))) {
+    if (groups.some((g) => g.folder === folder) || !hasAny(files.map((f) => join(home, folder, 'codechart', f)))) continue;
+    groups.push({ folder, agents: agents.filter((a) => [a.skills, ...a.reads].includes(folder)) });
+  }
+  const targets = groups.map((g) => ({ dir: join(home, g.folder, 'codechart'), who: g.agents.map((a) => a.label).join(', '), agents: g.agents }));
+  if (dir !== undefined) targets.push({ dir: join(resolve(cwd, dir), 'codechart'), who: YOUR_FOLDER, agents: [] });
+  return targets;
+}
+
 export function installSkillCommand(opts: CommandOptions): Command {
   return new Command('install-skill')
     .description('install the skill for the agents found in your home folder (or --agent / --dir)')
     .option('--agent <names...>', `install for these agents: ${NAMES}`)
     .option('--dir <path>', 'install into this skills folder')
     .option('--force', 'overwrite an install that is not an older codechart copy')
-    .option('--reminder', "only the reminder line in each agent's global instructions file (extras are added by default in a terminal)")
+    .option('--reminder', "only the reminder line in each agent's global instructions file (with --agent every helper is added, without it after asking in a terminal; off a terminal none)")
     .option('--no-reminder', 'skip the reminder line')
     .option('--hook', 'only the Claude Code hook that asks for a diagram after a turn that changed 3+ files without one')
     .option('--no-hook', 'skip the Claude Code hook')
     .option('--plugin', 'only the OpenCode plugin that asks for a diagram after a turn that changed 3+ files without one')
     .option('--no-plugin', 'skip the OpenCode plugin')
-    // eslint-disable-next-line complexity -- ratchet: install action picks agents and targets inline
     .action(async (o: Flags) => {
       const home = opts.home ?? homedir();
-      const names = o.agent?.flatMap((n) => n.split(',')).map((n) => n.trim().toLowerCase()).filter(Boolean);
-      const unknown = names?.find((n) => !AGENTS.some((a) => a.name === n));
-      if (unknown !== undefined) {
-        opts.stderr(`codechart: unknown agent '${unknown}' (known: ${NAMES})\n`);
-        process.exitCode = 1;
-        return;
-      }
-      let agents = names
-        ? AGENTS.filter((a) => names.includes(a.name))
-        : o.dir === undefined
-          ? AGENTS.filter((a) => existsSync(join(home, a.home)))
-          : [];
-      if (agents.length === 0 && o.dir === undefined) {
-        opts.stderr(`codechart: no agent found in ${home}; use --agent <name> (${NAMES}) or --dir <path>\n`);
-        process.exitCode = 1;
-        return;
-      }
-      if (!names && agents.length > 0) {
-        const choose = opts.choose ?? terminalChoose();
-        if (choose && agents.length > 1) {
-          const found = agents;
-          const picked = await choose(
-            'Install the codechart skill for:',
-            found.map((a) => ({ label: a.label, hint: `~/${a.skills}` })),
-          );
-          if (picked === undefined) {
-            opts.stderr('codechart: cancelled, nothing installed\n');
-            process.exitCode = 1;
-            return;
-          }
-          if (picked.length === 0) {
-            opts.stdout('nothing selected, nothing installed\n');
-            return;
-          }
-          agents = picked.map((i) => found[i]!);
-        } else {
-          opts.stdout(`agents: ${agents.map((a) => a.label).join(', ')}\n`);
-        }
-      }
+      const picked = await pickAgents(o, home, opts);
+      if (!picked) return;
       const files = skillFiles();
-      const groups = skillFolders(agents);
-      // Earlier installs in other folders these agents read would go stale, so report or update them too.
-      for (const folder of new Set(agents.flatMap((a) => [a.skills, ...a.reads]))) {
-        if (groups.some((g) => g.folder === folder) || !hasAny(files.map((f) => join(home, folder, 'codechart', f)))) continue;
-        groups.push({ folder, agents: agents.filter((a) => [a.skills, ...a.reads].includes(folder)) });
-      }
-      const targets = groups.map((g) => ({ dir: join(home, g.folder, 'codechart'), who: g.agents.map((a) => a.label).join(', '), agents: g.agents }));
-      if (o.dir !== undefined) targets.push({ dir: join(resolve(opts.cwd ?? process.cwd(), o.dir), 'codechart'), who: YOUR_FOLDER, agents: [] });
-      const installed = targets.filter((t) => installCopy(t.dir, t.who, files, o.force === true, opts));
+      const installed = skillTargets(picked, home, files, o.dir, opts.cwd ?? process.cwd()).filter((t) => installCopy(t.dir, t.who, files, o.force === true, opts));
       rememberOwn(installed, opts);
       // Reminder and hook only for agents that can load the skill they point to.
       const ready = new Set(installed.flatMap((t) => t.agents));
-      agents = agents.filter((a) => ready.has(a));
+      const agents = picked.filter((a) => ready.has(a));
       if (agents.length) installExtras(await pickExtras(o, agents, opts), agents, home, o.force === true, opts);
     });
 }

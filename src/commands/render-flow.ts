@@ -1,5 +1,6 @@
 import { checkFlowDiff } from '../render/check.js';
-import { repoPathResolver, type FlowSnippets } from '../render/flow/anchors.js';
+import { repoPathResolver } from '../render/flow/anchor-files.js';
+import type { FlowSnippets } from '../render/flow/anchors.js';
 import { renderFlowHtml, withGhosts } from '../render/flow/html.js';
 import { ghostsFor } from '../render/web/drift-html.js';
 import { layoutFlow } from '../render/flow/layout.js';

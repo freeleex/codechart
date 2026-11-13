@@ -1,3 +1,4 @@
+import { fstatSync, type Stats } from 'node:fs';
 import { Command, Option } from 'commander';
 import type { CommandOptions } from '../program.js';
 import { sanitizeText } from '../render/strip.js';
@@ -18,9 +19,20 @@ interface FeedbackFlags {
 
 const TOO_LONG = new Error('The pasted text is too long to be a codechart review (over 512 KB).');
 
-/** The pasted review: piped in when stdin is a pipe, else the clipboard. */
+/** Whether stdin carries data: a pipe, a socket or a non-empty file. `</dev/null`, a terminal and an empty file do not. */
+export const carriesData = (st: Pick<Stats, 'isFIFO' | 'isSocket' | 'isFile' | 'size'>): boolean => st.isFIFO() || st.isSocket() || (st.isFile() && st.size > 0);
+
+function stdinPiped(): boolean {
+  try {
+    return carriesData(fstatSync(0));
+  } catch {
+    return false;
+  }
+}
+
+/** The pasted review: piped in when stdin carries data, else the clipboard. */
 async function pastedText(opts: CommandOptions): Promise<string> {
-  const piped = opts.stdin ?? (opts.readClipboard || process.stdin.isTTY ? undefined : () => readStdin(MAX_IMPORT_BYTES, TOO_LONG));
+  const piped = opts.stdin ?? ((opts.stdinPiped ?? stdinPiped)() ? () => readStdin(MAX_IMPORT_BYTES, TOO_LONG) : undefined);
   return piped ? piped() : (opts.readClipboard ?? readClipboard)();
 }
 
@@ -111,5 +123,8 @@ export function feedbackCommand(opts: CommandOptions): Command {
     .option('--copy', 'also copy the text to the clipboard (terminals with OSC 52)')
     .addOption(new Option('--change <title>', 'the map with this title (or file name slug), instead of the newest one on this branch').conflicts('import'))
     .option('--import', 'save the review copied from the page ("Finish review") into its map first: read from stdin, else the clipboard')
-    .action((o: FeedbackFlags) => guarded(opts, () => feedback(o, opts)));
+    .action((o: FeedbackFlags, cmd: Command) => {
+      if (o.import && o.copy && !o.take) cmd.error("option '--copy' needs '--take' with '--import': without it nothing is printed to copy", { exitCode: 2 });
+      return guarded(opts, () => feedback(o, opts));
+    });
 }

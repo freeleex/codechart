@@ -22,12 +22,12 @@ const shopLayout = await layoutSpec(shop);
 export const shopPage = renderHtml(shop, shopLayout, meta);
 /** The same map for another repo, with node diffs. */
 export const shopWith = (previews: Map<string, Preview>, repo = 'demo', repoKey?: string) =>
-  renderHtml(shop, shopLayout, { ...meta, repo, ...(repoKey && { repoKey }) }, undefined, previews);
+  renderHtml(shop, shopLayout, { ...meta, repo, ...(repoKey && { repoKey }) }, undefined, { previews });
 
 /** What a page paired with a review file carries. */
 export const change = { slug: 'shop', branch: 'feat/invoices', at: '2026-11-05T12:00:00.000Z' };
 /** The shop map as a page that takes notes. */
-export const shopNotes = (previews?: Map<string, Preview>) => renderHtml(shop, shopLayout, { ...meta, change }, undefined, previews);
+export const shopNotes = (previews?: Map<string, Preview>) => renderHtml(shop, shopLayout, { ...meta, change }, undefined, { previews });
 
 const plan = mapSpec({
   title: 'Users join teams',
@@ -65,10 +65,10 @@ export const key = (k: string) => window.dispatchEvent(new KeyboardEvent('keydow
 const added: [string, EventListenerOrEventListenerObject][] = [];
 const addListener = window.addEventListener.bind(window);
 
-/** Runs the page's script in happy-dom; `fresh` false keeps the saved settings, as a reload does; `hash` is the URL's. */
-export function mount(html: string, fresh = true, hash = ''): void {
+/** Runs the page's script in happy-dom; `fresh` false keeps the saved settings, as a reload does; `hash` is the URL's, null keeps the current history entry too. */
+export function mount(html: string, fresh = true, hash: string | null = ''): void {
   for (const [type, fn] of added.splice(0)) window.removeEventListener(type, fn);
-  history.replaceState(null, '', `/${hash}`);
+  if (hash !== null) history.replaceState(null, '', `/${hash}`);
   if (fresh) localStorage.clear();
   document.documentElement.innerHTML = html.replace(/^[\s\S]*?<html[^>]*>/i, '').replace(/<\/html>\s*$/i, '');
   for (const s of document.querySelectorAll('script')) if (s.type !== 'application/json') new Function(s.textContent ?? '')();

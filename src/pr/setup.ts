@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { parse } from 'yaml';
 import { packageFile } from '../assets.js';
+import { hasHiddenChars } from '../render/strip.js';
 import { gitRun } from './git.js';
 
 export type Host = 'github' | 'gitlab';
@@ -23,6 +24,7 @@ export function parseRemote(url: string, host?: Host): Remote | undefined {
     const m = re.exec(url.trim());
     if (!m) continue;
     const server = m[1]!.toLowerCase();
+    if (hasHiddenChars(server + m[2]!)) return undefined;
     const found = host ?? (server.includes('github') ? 'github' : server.includes('gitlab') ? 'gitlab' : undefined);
     return found ? { host: found, server, path: m[2]! } : undefined;
   }

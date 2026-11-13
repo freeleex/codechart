@@ -43,7 +43,7 @@ const driftPage = async () => {
   const summary = { title: 'T', kind: 'summary' as const, nodes: [mk('a'), mk('z')], edges: [], drift: [{ node: 'z', cause: 'bug-found' as const, why: 'It broke.' }] };
   const ghosts = ghostsFor(compareMaps({ spec: plan, savedAt: '2026-11-06T10:00:00.000Z' }, summary), new Set(['a', 'z']), plan.edges);
   const layout = await layoutSpec({ ...summary, nodes: [...summary.nodes, ...ghosts.nodes] });
-  return renderHtml(summary, layout, { generatedAt: new Date('2026-11-06T12:00:00Z'), repo: 'demo', change }, undefined, undefined, ghosts);
+  return renderHtml(summary, layout, { generatedAt: new Date('2026-11-06T12:00:00Z'), repo: 'demo', change }, undefined, { ghosts });
 };
 
 describe('a page without a review file', () => {

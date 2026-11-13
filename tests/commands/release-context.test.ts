@@ -21,6 +21,19 @@ interface Out {
   notes?: string[];
 }
 
+describe('codechart release-context outside a repo', () => {
+  it('says so and exits 2', async () => {
+    const sb = makeSandbox('release-context-norepo', { repo: false });
+    try {
+      const r = await runCli({ cwd: sb.tmp, home: sb.home }, ['release-context']);
+      expect(r.err).toBe('codechart: not a git repository\n');
+      expect(r.code).toBe(2);
+    } finally {
+      removeSandbox(sb.tmp);
+    }
+  });
+});
+
 describe('codechart release-context', () => {
   let sb: Sandbox;
   const commit = (msg: string, files: Record<string, string> = { [`f${Math.random()}.txt`]: 'x' }) => {
@@ -265,12 +278,12 @@ describe('codechart release-context', () => {
 
     it('reads only the newest 50 PRs and says so', async () => {
       for (let i = 100; i < 152; i++) commit(`pr ${i} (#${i})`, { [`p${i}.txt`]: 'x' });
-      let calls = 0;
-      const out = await json(['--since', 'v1.0.0'], () => {
-        calls++;
+      const asked: number[] = [];
+      const out = await json(['--since', 'v1.0.0'], (_c, a) => {
+        asked.push(Number(a[2]));
         return JSON.stringify({ title: 't', body: 'b' });
       });
-      expect(calls).toBe(50);
+      expect(asked).toEqual(Array.from({ length: 50 }, (_, i) => 102 + i));
       expect(out.notes).toEqual(['Only the newest 50 of 53 PRs had their descriptions read.']);
     }, 60_000);
   });

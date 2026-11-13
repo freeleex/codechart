@@ -53,7 +53,7 @@ function checkLines(spec: Spec, check: MapCheck | undefined): string[] {
 }
 
 function nodeDetail(n: SpecNode, check: MapCheck | undefined): string {
-  const head = `- **${nodeName(n)}** · ${nodeWhat(n)}${n.path ? ` · \`${n.path.replace(/`/g, '')}\`` : ''}`;
+  const head = `- **${nodeName(n)}** · ${nodeWhat(n)}${n.path ? ` · \`${flat(n.path).replace(/`/g, '')}\`` : ''}`;
   const lines: string[] = [];
   const m = check?.mismatches.find((x) => x.id === n.id);
   if (m) lines.push(`✗ ${md(m.detail)}`);
@@ -66,7 +66,7 @@ function nodeDetail(n: SpecNode, check: MapCheck | undefined): string {
 const MAX_FILES = 8;
 
 const fileList = (files: string[]): string => {
-  const shown = files.slice(0, MAX_FILES).map((f) => `\`${f.replace(/`/g, '')}\``);
+  const shown = files.slice(0, MAX_FILES).map((f) => `\`${flat(f).replace(/`/g, '')}\``);
   return [...shown, ...(files.length > MAX_FILES ? [`+${files.length - MAX_FILES} more`] : [])].join(', ');
 };
 

@@ -28,6 +28,8 @@ export interface ProgramOptions {
   stderr?: (s: string) => void;
   isTTY?: boolean;
   stdin?: () => Promise<string>;
+  /** Whether stdin carries data (a pipe or a non-empty file) rather than a terminal or nothing; `feedback --import` reads the clipboard otherwise. */
+  stdinPiped?: () => boolean;
   /** The system clipboard's text, for `feedback --import` off a pipe. */
   readClipboard?: () => string;
   /** `checked`: whether items start selected (default true). */

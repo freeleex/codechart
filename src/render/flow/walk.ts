@@ -29,14 +29,7 @@ interface Walk {
   truncated: boolean;
 }
 
-/**
- * Blocks in print order: the start block, then one block per shared step (2+ links in, or the start
- * with any link in) in the order first referenced. Each step is placed once, so loops terminate.
- * Returns no blocks when the budget can't hold the start run and its first branch point.
- */
-// complexity-ratchet: 37 -- single traversal; split by node kind
-// eslint-disable-next-line max-lines-per-function -- ratchet: single traversal; split by node kind
-export function walkFlow(spec: FlowSpec, budget: number): Walk {
+function flowGraph(spec: FlowSpec) {
   const byId = new Map(spec.steps.map((s) => [s.id, s]));
   const out = new Map<string, FlowLink[]>();
   const incoming = new Map<string, number>([[spec.start, 1]]);
@@ -45,6 +38,35 @@ export function walkFlow(spec: FlowSpec, budget: number): Walk {
     incoming.set(link.to, (incoming.get(link.to) ?? 0) + 1);
   }
   const shared = new Set([...incoming].filter(([, n]) => n > 1).map(([id]) => id));
+  return { byId, out, shared };
+}
+
+/** Steps reachable from `id` and not yet seen; marks them seen. */
+function hiddenFrom(id: string, out: Map<string, FlowLink[]>, seen: Set<string>): number {
+  let hidden = 0;
+  const stack = [id];
+  while (stack.length > 0) {
+    const next = stack.pop()!;
+    if (seen.has(next)) continue;
+    seen.add(next);
+    hidden++;
+    stack.push(...(out.get(next) ?? []).map((l) => l.to));
+  }
+  return hidden;
+}
+
+function finished(spec: FlowSpec, blocks: Block[], seen: Set<string>, truncated: boolean): Walk {
+  const unreachable = spec.steps.filter((s) => !seen.has(s.id)).length;
+  return { blocks, unreachable, truncated: truncated || unreachable > 0 };
+}
+
+/**
+ * Blocks in print order: the start block, then one block per shared step (2+ links in, or the start
+ * with any link in) in the order first referenced. Each step is placed once, so loops terminate.
+ * Returns no blocks when the budget can't hold the start run and its first branch point.
+ */
+export function walkFlow(spec: FlowSpec, budget: number): Walk {
+  const { byId, out, shared } = flowGraph(spec);
   const seen = new Set<string>();
   const queue: string[] = [];
   let placed = 0;
@@ -59,16 +81,7 @@ export function walkFlow(spec: FlowSpec, budget: number): Walk {
 
   const cut = (id: string, via?: FlowLink): Item => {
     truncated = true;
-    let hidden = 0;
-    const stack = [id];
-    while (stack.length > 0) {
-      const next = stack.pop()!;
-      if (seen.has(next)) continue;
-      seen.add(next);
-      hidden++;
-      stack.push(...(out.get(next) ?? []).map((l) => l.to));
-    }
-    return { kind: 'cut', hidden, via };
+    return { kind: 'cut', hidden: hiddenFrom(id, out, seen), via };
   };
 
   const ref = (step: FlowStep, via?: FlowLink): Item => {
@@ -117,6 +130,5 @@ export function walkFlow(spec: FlowSpec, budget: number): Walk {
   for (let i = head.shared ? 1 : 0; i < queue.length; i++) {
     blocks.push({ shared: true, chain: chain(byId.get(queue[i]!)!, true) });
   }
-  const unreachable = spec.steps.filter((s) => !seen.has(s.id)).length;
-  return { blocks, unreachable, truncated: truncated || unreachable > 0 };
+  return finished(spec, blocks, seen, truncated);
 }

@@ -1,37 +1,11 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { explain, EXPLAIN_FILES } from '../fixtures/explain.js';
-import { git, makeSandbox, removeSandbox, repoFromTemplate, runCli, type Sandbox } from '../helpers/sandbox.js';
+import { describe, expect, it } from 'vitest';
+import { explain } from '../fixtures/explain.js';
+import { useExplainSandbox } from '../helpers/explain-sandbox.js';
+import { git, runCli } from '../helpers/sandbox.js';
 
-let sb: Sandbox;
-
-function seed(dir: string) {
-  for (const [file, text] of Object.entries(EXPLAIN_FILES)) {
-    mkdirSync(join(dir, file, '..'), { recursive: true });
-    writeFileSync(join(dir, file), text);
-  }
-  git(dir, 'add', '.');
-  git(dir, 'commit', '-q', '-m', 'init');
-}
-
-beforeEach(() => {
-  sb = makeSandbox('explain', { htmlOut: true });
-  repoFromTemplate(sb.repo, seed);
-});
-afterEach(() => removeSandbox(sb.tmp));
-
-let tick = 0;
-const run = (spec: unknown, ...args: string[]) => {
-  process.exitCode = undefined;
-  const now = new Date(2026, 10, 10, 10, 0, tick++);
-  writeFileSync(join(sb.tmp, 'explain.json'), JSON.stringify(spec));
-  return runCli({ cwd: sb.repo, home: sb.home, now: () => now, isTTY: false }, ['render', join(sb.tmp, 'explain.json'), ...args]);
-};
-
-const outDir = (): string => join(sb.out, readdirSync(sb.out)[0]!);
-const outFiles = (): string[] => (existsSync(sb.out) ? readdirSync(outDir()) : []);
-const html = (): string => readFileSync(join(outDir(), outFiles().find((n) => n.endsWith('.html'))!), 'utf8');
+const { sb, run, outDir, outFiles, html } = useExplainSandbox('explain');
 
 describe('render: explain map', () => {
   it('--md prints boxes without change wording, the explain key and a checked count', async () => {

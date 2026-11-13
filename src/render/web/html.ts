@@ -148,9 +148,14 @@ function pageInfo(spec: Spec, check: MapCheck | undefined, sides: boolean, ghost
 export const withGhosts = (spec: Spec, ghosts: Ghosts<SpecNode, SpecEdge> | undefined): Spec =>
   ghosts ? { ...spec, nodes: [...spec.nodes, ...ghosts.nodes], edges: [...spec.edges, ...ghosts.links] } : spec;
 
+interface MapExtras {
+  previews?: Map<string, Preview>;
+  ghosts?: Ghosts<SpecNode, SpecEdge>;
+  gaps?: readonly GapBox[];
+}
+
 /** Without `side`: the plan or summary as one picture, both states overlaid. `spec` is laid out with its ghosts. */
-// eslint-disable-next-line max-params -- the trailing previews, ghosts and gaps are optional, and only a map page passes them
-export function viewport(spec: Spec, layout: Layout, check: MapCheck | undefined, side?: Side, previews?: Map<string, Preview>, ghosts?: Ghosts<SpecNode, SpecEdge>, gaps: readonly GapBox[] = []): string {
+export function viewport(spec: Spec, layout: Layout, check: MapCheck | undefined, side?: Side, { previews, ghosts, gaps = [] }: MapExtras = {}): string {
   const drifted = itemsById(ghosts?.drift);
   const ghostIds = new Set(ghosts?.nodes.map((g) => g.id));
   const ghostEdges = new Set(ghosts?.links);
@@ -191,9 +196,22 @@ export function viewport(spec: Spec, layout: Layout, check: MapCheck | undefined
   return `${groups}${edges}${nodes}${gapNodes}`;
 }
 
+function infoLabels(explain: boolean, drift: boolean) {
+  return {
+    mismatch: {
+      label: drift ? 'Check / differences / gaps' : 'Check / gaps',
+      title: "Show what doesn't match the code, how the build differs from the plan, what is not on the map and what the agent did not read",
+    },
+    info: explain
+      ? { label: 'Gaps', title: 'Show what the agent did not read' }
+      : drift
+        ? { label: 'Differences / gaps', title: 'Show how the build differs from the plan, what is not on the map and what the agent did not read' }
+        : { label: 'Not on map / gaps', title: 'Show what is not on the map and what the agent did not read' },
+  };
+}
+
 /** `previews`: each node's diff, when the render was given one. `ghosts`: a summary's drift from its plan; `gaps`: omitted groups to draw, laid out with the spec. */
-// eslint-disable-next-line max-params -- previews, ghosts and gaps are optional, and only the map page passes them
-export function renderHtml(spec: Spec, layout: Layout, meta: HtmlMeta, check?: MapCheck | LaidOutCheck, previews?: Map<string, Preview>, ghosts?: Ghosts<SpecNode, SpecEdge>, gaps: readonly GapBox[] = []): string {
+export function renderHtml(spec: Spec, layout: Layout, meta: HtmlMeta, check?: MapCheck | LaidOutCheck, { previews, ghosts, gaps = [] }: MapExtras = {}): string {
   const sides = hasNowAfter(spec);
   const all = withGhosts(spec, ghosts);
   const drifted = itemsById(ghosts?.drift);
@@ -206,22 +224,12 @@ export function renderHtml(spec: Spec, layout: Layout, meta: HtmlMeta, check?: M
     meta,
     check,
     drift: ghosts?.drift,
-    infoButton: infoButton(check, Boolean(flowGaps(spec).length || spec.omitted?.length || drift), {
-      mismatch: {
-        label: drift ? 'Check / differences / gaps' : 'Check / gaps',
-        title: "Show what doesn't match the code, how the build differs from the plan, what is not on the map and what the agent did not read",
-      },
-      info: explain
-        ? { label: 'Gaps', title: 'Show what the agent did not read' }
-        : drift
-          ? { label: 'Differences / gaps', title: 'Show how the build differs from the plan, what is not on the map and what the agent did not read' }
-          : { label: 'Not on map / gaps', title: 'Show what is not on the map and what the agent did not read' },
-    }),
+    infoButton: infoButton(check, Boolean(flowGaps(spec).length || spec.omitted?.length || drift), infoLabels(explain, drift)),
     statuses: [...spec.nodes.map((n) => n.status), ...(flows?.views.flatMap((v) => v.spec.steps.map(() => 'existing')) ?? [])],
     explain,
     sides,
     paneKey: SIDE_KEY,
-    viewport: (side) => viewport(all, layout, check, side, previews, ghosts, gaps),
+    viewport: (side) => viewport(all, layout, check, side, { previews, ghosts, gaps }),
     aside: `${pageInfo(spec, check, sides, ghosts, meta.generatedAt)}<div id="panel" hidden></div>${all.nodes.map((n) => cardPanel(all, n, check, previews, sides, mark(drifted.get(n.id), ghostIds.has(n.id)))).join('')}${gaps.map(gapPanel).join('')}${flows ? flowPanels(flows, spec) : ''}`,
     width: layout.width,
     height: layout.height,
@@ -230,7 +238,7 @@ export function renderHtml(spec: Spec, layout: Layout, meta: HtmlMeta, check?: M
     ...(flows && {
       extraCss: VIEW_CSS,
       tabs: viewTabs(flows.views),
-      views: [{ id: COMPONENTS_VIEW, pane: 'Components', viewport: viewport(all, layout, check, undefined, previews, ghosts, gaps), width: layout.width, height: layout.height }, ...flowSections(flows, meta.change !== undefined)],
+      views: [{ id: COMPONENTS_VIEW, pane: 'Components', viewport: viewport(all, layout, check, undefined, { previews, ghosts, gaps }), width: layout.width, height: layout.height }, ...flowSections(flows, meta.change !== undefined)],
     }),
   });
 }

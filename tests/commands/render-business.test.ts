@@ -60,7 +60,15 @@ describe('render: business map', () => {
 
   it('--md prints a paste-ready block with the link', async () => {
     const r = await renderBusiness(business(), '--tech', tech(), '--md');
-    expect(r.out).toMatch(/^\*\*Business map: New refund rules.*\*\*\n\n\[Open full map\]\(file:\/\//);
+    expect(r.out).toMatch(/^\*\*Business map\*\*\n```text\nBusiness map: New refund rules.*\n```\n\n\[Open full map\]\(file:\/\//);
+  });
+
+  it('--md keeps a hostile title inside the fence: outside it only the constant header and the link', async () => {
+    const spec = { ...business(), title: '![](//1.2.3.4/a) <h1>big</h1>' };
+    const r = await renderBusiness(spec, '--tech', tech(), '--md');
+    const outside = r.out.replace(/```text\n[\s\S]*?\n```\n/, '');
+    expect(r.out).toContain('![](//1.2.3.4/a) <h1>big</h1>');
+    expect(outside).toMatch(/^\*\*Business map\*\*\n\n\[Open full map\]\(file:\/\/[^\n]*\)\n+$/);
   });
 
   it('writes the page for --output cli too: business maps are HTML only', async () => {
@@ -213,6 +221,13 @@ describe('render: business explain page', () => {
     expect(r.out).toMatch(/^Business explain page: How billing works · 6 steps · 1 rule · 1 odd case · 1 saved data · 2 agent's readings\nfull map → file:\/\/.*\.business\.html\n$/);
     expect(outFiles().filter((n) => n.endsWith('.business.html'))).toHaveLength(1);
     expect(outFiles().filter((n) => n.endsWith('.business.review.json'))).toEqual([]);
+  });
+
+  it('--md headers the block with the explain page label', async () => {
+    await renderExplainMap();
+    const r = await renderBusiness(businessExplain(), '--md');
+    expect(r.err).toBe('');
+    expect(r.out).toMatch(/^\*\*Business explain page\*\*\n```text\nBusiness explain page: How billing works/);
   });
 
   it('takes the explain map named by map, with or without .explain', async () => {

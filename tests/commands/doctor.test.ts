@@ -405,6 +405,13 @@ describe('doctor --last', () => {
     expect(r.out).not.toContain('disagree');
   });
 
+  it('file names from the record cannot put control bytes on the terminal', async () => {
+    record({ decision: 'nudged', files: ['a\u001b]0;pwned\u0007.ts', 'b.ts', 'c.ts'] });
+    const r = await run(['doctor', '--last']);
+    expect(r.out).toContain('Changed files: 3');
+    expect(r.out.replace(/\n/g, '')).not.toMatch(/[\u0000-\u001f\u007f-\u009f]/);
+  });
+
   it('outside a git repo it fails with exit 1', async () => {
     const r = await run(['doctor', '--last'], { cwd: sb.tmp });
     expect(r.err).toContain('not in a git repo');

@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { repoDiffOverrides, repoFilterOverrides } from '../../src/rules/git-files.js';
+import { repoDiffOverrides, repoFilterOverrides } from '../../src/rules/git-run.js';
 import { diffRange, gitFiles } from '../../src/rules/selection.js';
 
 const calls = vi.hoisted(() => ({ list: [] as string[][] }));

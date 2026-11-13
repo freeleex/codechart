@@ -158,7 +158,7 @@ describe('renderHtml', () => {
       const spec = loadFixture();
       spec.omitted = ['frontend pages and components calling telemetry: frontend/src/pages/'];
       const gaps = gapBoxes(spec);
-      const out = renderHtml(spec, await layoutSpec(withGaps(spec, gaps)), meta, undefined, undefined, undefined, gaps);
+      const out = renderHtml(spec, await layoutSpec(withGaps(spec, gaps)), meta, undefined, { gaps });
       expect(out).toContain('<g class="node gap" data-id="omitted-0"');
       expect(out).toContain('frontend pages and components calling telemetry');
       expect(out).toContain('<template class="card-panel" data-for="omitted-0"><div class="gap-panel">');
@@ -171,7 +171,7 @@ describe('renderHtml', () => {
       spec.omitted = ['tests: shop/tests/*'];
       const gaps = gapBoxes(spec);
       expect(gaps).toEqual([]);
-      const out = renderHtml(spec, await layoutSpec(withGaps(spec, gaps)), meta, undefined, undefined, undefined, gaps);
+      const out = renderHtml(spec, await layoutSpec(withGaps(spec, gaps)), meta, undefined, { gaps });
       expect(out).not.toContain('class="node gap"');
       expect(out).toContain('<li>tests: shop/tests/*</li>');
     });

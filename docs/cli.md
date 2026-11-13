@@ -2,6 +2,8 @@
 
 The skill calls these; you rarely need to. `codechart <command> --help` lists every option.
 
+Exit codes: 0 done; 2 a usage error (a bad or conflicting flag, an unknown agent, a revision that is not a commit); 1 any other failure, or a `--strict` / `doctor` finding. `check` and `release-context` are the exception: they exit 2 on any failure.
+
 | Command | Purpose |
 |---|---|
 | `codechart check` | Which rules apply to changed files. `--files <csv>`, `--git`, `--commit <sha>`, `--since <base>` (+ `--head <ref>`), `--matched <csv>`. On a release branch (`release.branches`, unless `release.auto` is `off`) the JSON also has `release`: `{ action: suggest\|draw\|done, branch, version?, path? }`, see [Release map](release-map.md#on-release-branches) |

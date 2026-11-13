@@ -49,6 +49,56 @@ const MAX_NODES = 500;
 const EDGE_LABEL_EXAMPLE = 'additional_training (now a list)';
 const MAX_EDGES = 1000;
 
+type Issue = (path: (string | number)[], message: string) => void;
+
+function nodeIssues(nodes: z.infer<typeof nodeSchema>[], ids: Set<string>, issue: Issue): void {
+  nodes.forEach((node, i) => {
+    if (ids.has(node.id)) issue(['nodes', i, 'id'], `duplicate "${node.id}"`);
+    ids.add(node.id);
+    if (node.kind === undefined && node.path === undefined) {
+      issue(['nodes', i, 'kind'], 'required unless path is set (then it defaults to "file")');
+    }
+    if (node.match !== undefined && node.path === undefined) {
+      issue(['nodes', i, 'match'], 'needs path set to the file the line is in');
+    }
+    if (node.fields?.length && node.fieldsComplete === undefined) {
+      issue(['nodes', i, 'fieldsComplete'], 'required when fields are listed (true if you listed every field, false if only what you saw)');
+    }
+    node.fields?.forEach((f, j) => {
+      if (f.was !== undefined && f.change !== 'modified') issue(['nodes', i, 'fields', j, 'was'], 'only with "change": "modified"');
+    });
+    for (const message of labelIssues(node.label, 'node', 'path', 'migration: add invoices')) {
+      issue(['nodes', i, 'label'], message);
+    }
+  });
+}
+
+function edgeIssues(spec: { kind: 'plan' | 'summary' | 'explain'; nodes: z.infer<typeof nodeSchema>[]; edges: z.infer<typeof edgeSchema>[] }, ids: Set<string>, issue: Issue): void {
+  const statusOf = new Map(spec.nodes.map((n) => [n.id, n.status]));
+  spec.edges.forEach((edge, i) => {
+    for (const end of ['from', 'to'] as const) {
+      if (!ids.has(edge[end])) issue(['edges', i, end], `unknown node "${edge[end]}"`);
+    }
+    const code = edge.label && codeLabelIssue(edge.label, EDGE_LABEL_EXAMPLE);
+    if (code) issue(['edges', i, 'label'], code);
+    const ends = [statusOf.get(edge.from), statusOf.get(edge.to)];
+    if (spec.kind === 'plan' && ends.includes('new') && ends.includes('removed')) {
+      issue(['edges', i], 'joins a new and a removed node, which never exist at the same time');
+    }
+    if (edge.change === undefined) return;
+    if (spec.kind !== 'plan') {
+      issue(['edges', i, 'change'], 'only in a plan');
+      return;
+    }
+    if (edge.change === 'added' && ends.includes('removed')) {
+      issue(['edges', i, 'change'], 'an edge to a removed node cannot be added');
+    }
+    if (edge.change === 'removed' && ends.includes('new')) {
+      issue(['edges', i, 'change'], 'an edge to a new node cannot be removed; leave change out');
+    }
+  });
+}
+
 const specSchema = z
   .strictObject({
     diagram: z.literal('map').optional(),
@@ -62,77 +112,13 @@ const specSchema = z
     drift: z.array(driftSchema).max(MAX_NODES).optional().describe('Summary only: how the build differs from the plan, one entry per node'),
     flows: z.array(explainFlowSchema).max(MAX_FLOWS, `at most ${MAX_FLOWS} flows; keep the main behaviours`).optional().describe('Explain map only: step-by-step behaviours of the area, shown on the page\'s Flows tab'),
   })
-  // eslint-disable-next-line max-lines-per-function -- ratchet: one superRefine; barely over
   .superRefine((spec, ctx) => {
     const issue = (path: (string | number)[], message: string) => ctx.addIssue({ code: 'custom', path, message });
     explainIssues(spec, issue);
     driftIssues(spec.kind, spec.drift?.map((d) => d.node), issue);
     const ids = new Set<string>();
-    spec.nodes.forEach((node, i) => {
-      if (ids.has(node.id)) {
-        ctx.addIssue({
-          code: 'custom',
-          path: ['nodes', i, 'id'],
-          message: `duplicate "${node.id}"`,
-        });
-      }
-      ids.add(node.id);
-      if (node.kind === undefined && node.path === undefined) {
-        ctx.addIssue({ code: 'custom', path: ['nodes', i, 'kind'], message: 'required unless path is set (then it defaults to "file")' });
-      }
-      if (node.match !== undefined && node.path === undefined) {
-        ctx.addIssue({ code: 'custom', path: ['nodes', i, 'match'], message: 'needs path set to the file the line is in' });
-      }
-      if (node.fields?.length && node.fieldsComplete === undefined) {
-        ctx.addIssue({
-          code: 'custom',
-          path: ['nodes', i, 'fieldsComplete'],
-          message: 'required when fields are listed (true if you listed every field, false if only what you saw)',
-        });
-      }
-      node.fields?.forEach((f, j) => {
-        if (f.was !== undefined && f.change !== 'modified') {
-          ctx.addIssue({ code: 'custom', path: ['nodes', i, 'fields', j, 'was'], message: 'only with "change": "modified"' });
-        }
-      });
-      for (const message of labelIssues(
-        node.label,
-        'node',
-        'path',
-        'migration: add invoices',
-      )) {
-        ctx.addIssue({ code: 'custom', path: ['nodes', i, 'label'], message });
-      }
-    });
-    const statusOf = new Map(spec.nodes.map((n) => [n.id, n.status]));
-    spec.edges.forEach((edge, i) => {
-      for (const end of ['from', 'to'] as const) {
-        if (!ids.has(edge[end])) {
-          ctx.addIssue({
-            code: 'custom',
-            path: ['edges', i, end],
-            message: `unknown node "${edge[end]}"`,
-          });
-        }
-      }
-      const code = edge.label && codeLabelIssue(edge.label, EDGE_LABEL_EXAMPLE);
-      if (code) ctx.addIssue({ code: 'custom', path: ['edges', i, 'label'], message: code });
-      const ends = [statusOf.get(edge.from), statusOf.get(edge.to)];
-      if (spec.kind === 'plan' && ends.includes('new') && ends.includes('removed')) {
-        ctx.addIssue({ code: 'custom', path: ['edges', i], message: 'joins a new and a removed node, which never exist at the same time' });
-      }
-      if (edge.change === undefined) return;
-      if (spec.kind !== 'plan') {
-        ctx.addIssue({ code: 'custom', path: ['edges', i, 'change'], message: 'only in a plan' });
-        return;
-      }
-      if (edge.change === 'added' && ends.includes('removed')) {
-        ctx.addIssue({ code: 'custom', path: ['edges', i, 'change'], message: 'an edge to a removed node cannot be added' });
-      }
-      if (edge.change === 'removed' && ends.includes('new')) {
-        ctx.addIssue({ code: 'custom', path: ['edges', i, 'change'], message: 'an edge to a new node cannot be removed; leave change out' });
-      }
-    });
+    nodeIssues(spec.nodes, ids, issue);
+    edgeIssues(spec, ids, issue);
   });
 
 type ParsedSpec = z.infer<typeof specSchema>;

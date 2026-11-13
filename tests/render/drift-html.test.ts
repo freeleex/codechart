@@ -21,7 +21,7 @@ const nodeOf = (out: string, id: string) => out.match(new RegExp(`<g class="node
 async function mapHtml(plan: Spec, summary: Spec): Promise<string> {
   const drift = compareMaps({ spec: plan, savedAt }, summary);
   const ghosts = ghostsFor(drift, new Set(summary.nodes.map((n) => n.id)), plan.edges);
-  return renderHtml(summary, await layoutSpec(withGhosts(summary, ghosts)), meta, undefined, undefined, ghosts);
+  return renderHtml(summary, await layoutSpec(withGhosts(summary, ghosts)), meta, undefined, { ghosts });
 }
 
 const plan = map('plan', [node('a', 'new'), node('gone', 'new'), node('b', 'changed', { path: 'x.ts' })], { edges: [{ from: 'a', to: 'gone' }] });
@@ -112,7 +112,7 @@ describe('ghost links under a renamed id', () => {
     const drift = compareMaps({ spec: planned, savedAt }, built);
     const ghosts = ghostsFor(drift, new Set(['a2']), planned.edges);
     expect(ghosts.links.map((l) => [l.from, l.to])).toEqual([['a2', 'gone']]);
-    const out = renderHtml(built, await layoutSpec(withGhosts(built, ghosts)), meta, undefined, undefined, ghosts);
+    const out = renderHtml(built, await layoutSpec(withGhosts(built, ghosts)), meta, undefined, { ghosts });
     expect(out).toMatch(/<g class="edge ghost" data-from="a2" data-to="gone">/);
   });
 
@@ -158,7 +158,7 @@ describe('the difference chip and the relations footer', () => {
     const planned = map('plan', [node('a', 'new'), node('b', 'changed', { path: 'x.ts' }), node('gone', 'new', { summary: 'what gone does' })]);
     const drift = compareMaps({ spec: planned, savedAt }, built);
     const ghosts = ghostsFor(drift, new Set(['a', 'b']), planned.edges);
-    const out = renderHtml(built, await layoutSpec(withGhosts(built, ghosts)), meta, undefined, new Map([['b', preview]]), ghosts);
+    const out = renderHtml(built, await layoutSpec(withGhosts(built, ghosts)), meta, undefined, { previews: new Map([['b', preview]]), ghosts });
     const b = panelOf(out, 'b');
     const at = (needle: string) => b.indexOf(needle);
     expect(b).not.toContain('class="path"');

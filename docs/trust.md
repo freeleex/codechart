@@ -70,7 +70,7 @@ Limit: a box or step proves where to look, not that its summary is right or that
 A [business map](business-map.md) is for readers who can't check the code, so more is checked before it is drawn:
 
 - Every journey, rule and saved item links to boxes that exist on the technical map, which is the latest saved one on the branch or the spec you pass with `--tech`. An item with no link, or a link to nothing, fails the render.
-- No sentence may look like code, a file name or path, a web address, a setting name, a technical id or a secret. A match fails the render with the offending word, and a secret is shown only as its first characters.
+- Every reader-visible text goes through a plain-words check that looks for wording that reads like code (backticks, `camelCase`, `snake_case`, dotted names, `name()`), a file name or path, a web address, a setting name in capitals, a hash, a technical id from the technical map, a secret, or hidden control characters. A match fails the render with the offending word, and a secret is shown only as its first characters. It checks wording, not markup: image Markdown and HTML tags pass it, and are escaped on the page. The `--md` output keeps the title inside a fenced block.
 - Each item says how sure it is: **Checked in code**, or **Agent's reading, please confirm**, which the owner answers Yes or No.
 
 A page that explains how an area works today is checked the same way, against an [explain map](explain-map.md): items link to its boxes or flow steps, and a change map is refused. The agent is told to mark *Checked in code* only for what it read, and to tell you in the reply what the code doesn't cover instead of guessing it onto the page. The page is read-only, has no questions and sends nothing back.

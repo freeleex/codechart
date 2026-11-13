@@ -309,10 +309,15 @@ describe('paths relative to the working directory', () => {
     ]);
   });
 
-  it('suggests tracked files only, and matches Windows-style input', () => {
+  it('suggests a file not yet added to git', () => {
     mkdirSync(join(repo, 'pkg/src'), { recursive: true });
     writeFileSync(join(repo, 'pkg/src/c.ts'), 'c\n');
-    expect(errorsOf(spec('src/c.ts:1'))[0]).not.toContain('did you mean');
+    expect(errorsOf(spec('src/c.ts:1'))[0]).toContain('did you mean pkg/src/c.ts');
+  });
+
+  it('matches Windows-style input in a suggestion', () => {
+    mkdirSync(join(repo, 'pkg/src'), { recursive: true });
+    writeFileSync(join(repo, 'pkg/src/c.ts'), 'c\n');
     execFileSync('git', ['add', 'pkg'], { cwd: repo });
     expect(errorsOf(spec('src\\c.ts:1'))[0]).toContain('did you mean pkg/src/c.ts');
   });

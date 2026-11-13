@@ -1,10 +1,10 @@
 import tseslint from 'typescript-eslint';
 
-// Complexity guardrails. Violations in src/ are allowlisted inline with
-// `// eslint-disable-next-line <rule> -- ratchet: <reason>`; the list may only shrink,
+// Complexity guardrails. The allowlist in src/ is empty: a violation may be allowlisted inline with
+// `// eslint-disable-next-line <rule> -- ratchet: <reason>`, but the list may only shrink,
 // and stale entries fail lint (reportUnusedDisableDirectives).
 export default tseslint.config(
-  { ignores: ['dist/', 'node_modules/', '.superpowers/', 'src/render/web/client.ts'] },
+  { ignores: ['dist/', 'node_modules/', '.*/', 'src/render/web/client.ts'] },
   ...tseslint.configs.recommended,
   { linterOptions: { reportUnusedDisableDirectives: 'error' } },
   {

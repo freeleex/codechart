@@ -83,6 +83,12 @@ describe('compareMaps', () => {
     expect(brief(compareMaps(p, s))).toEqual([['different', 'a', 'field x: int → text']]);
   });
 
+  it('a field changed differently than planned', () => {
+    const p = plan([node('a', 'changed', { fields: [{ name: 'x', type: 'int', change: 'added' }] })]);
+    const s = summary([node('a', 'changed', { fields: [{ name: 'x', type: 'int', change: 'modified' }] })]);
+    expect(brief(compareMaps(p, s))).toEqual([['different', 'a', 'field x: added → modified']]);
+  });
+
   it('matches by path when the ids differ, and keeps the plan id as an alias for reasons', () => {
     const p = plan([node('orders', 'changed', { path: 'app/orders.py' })]);
     const s = summary([node('order-model', 'changed', { path: './app/orders.py' })], { drift: [] });

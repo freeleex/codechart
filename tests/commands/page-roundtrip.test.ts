@@ -213,7 +213,7 @@ describe('page → Finish review → feedback --import', () => {
     click(q('#page-info [data-notes="gap"] .cm-btn'));
     save('add them', 'Question');
     const text = await copyFinish();
-    const r = await run(['feedback', '--import'], built, { readClipboard: () => `${text}\n` });
+    const r = await run(['feedback', '--import'], built, { stdinPiped: () => false, readClipboard: () => `${text}\n` });
     expect(r.err).toBe('✔ Imported 2 notes into "Orders"\n');
     expect(r.out).toBe('2 notes saved — 1 comment · 1 question · 0 deletes\n');
     expect(review().notes.map((n) => [n.state, n.target])).toEqual([['pending', { type: 'title' }], ['pending', { type: 'gap', text: GAP }]]);
