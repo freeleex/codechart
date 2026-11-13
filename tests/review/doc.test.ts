@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildDoc } from '../../src/review/doc.js';
 import { countsLine, feedbackText, osc52 } from '../../src/review/feedback.js';
+import { mergeNotes } from '../../src/review/merge.js';
 import { parseDoc } from '../../src/review/parse.js';
 import { api, note, review } from './fixture.js';
 
@@ -19,7 +20,8 @@ describe('buildDoc', () => {
     const doc = buildDoc(review());
     const [title, ...rest] = doc.split('\n');
     expect(title).toMatch(/^# Review: Invites by email · branch feat\/invites · drawn at \d\d:\d\d$/);
-    expect(rest.slice(0, 3).every((l) => l.startsWith('# '))).toBe(true);
+    expect(rest.slice(0, 4).every((l) => l.startsWith('# '))).toBe(true);
+    expect(rest[2]).toBe('# To go on to a new line in a note, start the next line with "  > " (two spaces first).');
     expect(doc).toContain('## invites route — src/routes/invites.ts  [api]\n@@ -10,3 +10,4 @@ router\n  10  router.post');
     expect(doc).toContain('\n- 11    const email = req.body.email\n+ 11    const { email, teamId } = req.body\n+ 12');
     expect(doc).toContain('## mailer — src/mail/invite.ts  [mailer]\n# generated file, not shown\n');
@@ -204,6 +206,26 @@ describe('parseDoc', () => {
     const doc = buildDoc(r).replace('> before', '> after').replace('> gone\n', '');
     const { notes } = parseDoc(doc, r, now);
     expect(notes).toEqual([keep, expect.objectContaining({ id: 'n4', body: 'after', at: now.toISOString() })]);
+  });
+
+  it('a multi-line note survives a save: same id and body, a diff-like line in it moves no anchor', () => {
+    const notes = [
+      note('n1', { state: 'sent', body: 'old\n+ 12  looks like a row' }),
+      note('n2', { body: 'rename this\n+ 12  also check callers\n\n  > indented', anchor: anchor('new', 11, '  const { email, teamId } = req.body') }),
+      note('n3', { body: 'whole node\n- 11  too' }),
+    ];
+    const r = review(notes);
+    const parsed = parseDoc(buildDoc(r), r, now);
+    expect(parsed.notes).toEqual([notes[2], notes[1]]);
+    expect(mergeNotes(r, parsed.notes, r).sort((a, b) => a.id.localeCompare(b.id))).toEqual(notes);
+  });
+
+  it('indented > lines under a note continue it; elsewhere they are ignored', () => {
+    const doc = edit(base, '+ 11    const {', '> one', '  > two', '  >', '  >   three', '>? next', '# x', '  > stray');
+    expect(parseDoc(doc, review(), now).notes.map((n) => [n.kind, n.body, n.anchor?.line])).toEqual([
+      ['comment', 'one\ntwo\n\n  three', 11],
+      ['question', 'next', 11],
+    ]);
   });
 
   it('sent and outdated comments are not read back', () => {

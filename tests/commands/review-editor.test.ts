@@ -5,7 +5,7 @@ import { defaultEditor, editorInvocation, withEditorArgs } from '../../src/comma
 import { makeSandbox, removeSandbox, runCli } from '../helpers/sandbox.js';
 
 const SYNTAX =
-  '-c "syntax on" -c "set ft=diff" -c "syn match codechartNote /^>.*/" -c "syn match codechartHead /^##.*/" -c "hi codechartNote ctermfg=black ctermbg=yellow guifg=black guibg=yellow" -c "hi link codechartHead Title"';
+  '-c "syntax on" -c "set ft=diff" -c "syn match codechartNote /^ *>.*/" -c "syn match codechartHead /^##.*/" -c "hi codechartNote ctermfg=black ctermbg=yellow guifg=black guibg=yellow" -c "hi link codechartHead Title"';
 
 describe('withEditorArgs', () => {
   it.each(['vi', 'vim', 'nvim', 'gvim', 'mvim', '/usr/bin/vim', '/opt/homebrew/bin/nvim', '"C:\\Program Files\\Vim\\vim91\\gvim.exe"', 'VIM.EXE'])('%s gets the highlighting arguments', (editor) => {

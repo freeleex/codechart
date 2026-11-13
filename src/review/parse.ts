@@ -13,6 +13,7 @@ export interface Parsed {
 export const normalizeEol = (s: string): string => s.replace(/\r\n?/g, '\n');
 
 const NOTE = /^>(\?|del(?=\s|$))?\s*(.*)$/;
+const MORE = /^[ \t]+> ?(.*)$/;
 const ROW = /^([ +-]) *(\d+)(?: {2}(.*))?$/;
 const KIND: Record<string, NoteKind> = { '': 'comment', '?': 'question', del: 'delete' };
 
@@ -20,6 +21,18 @@ const KIND: Record<string, NoteKind> = { '': 'comment', '?': 'question', del: 'd
 export const sameNote = (a: Note, b: Note): boolean =>
   JSON.stringify(a.target) === JSON.stringify(b.target) &&
   a.node === b.node && a.kind === b.kind && a.body === b.body && a.anchor?.line === b.anchor?.line && a.anchor?.side === b.anchor?.side;
+
+/** The document's lines, a note's continuation lines (indented `>` right under it) joined onto it; one anywhere else is dropped. */
+function joinContinuations(text: string): { raw: string; i: number; more: string[] }[] {
+  const out: { raw: string; i: number; more: string[] }[] = [];
+  normalizeEol(text).split('\n').forEach((raw, i) => {
+    const m = MORE.exec(raw);
+    const last = out.at(-1);
+    if (!m) out.push({ raw, i, more: [] });
+    else if (last && NOTE.test(last.raw)) last.more.push(m[1]!);
+  });
+  return out;
+}
 
 /** The pending notes the document holds; one equal to an existing pending note is that note. */
 export function parseDoc(text: string, review: Review, now: Date): Parsed {
@@ -30,7 +43,7 @@ export function parseDoc(text: string, review: Review, now: Date): Parsed {
   let next = lastNoteNumber(review.notes);
   let node: ReviewNode | undefined;
   let anchor: Note['anchor'];
-  normalizeEol(text).split('\n').forEach((raw, i) => {
+  joinContinuations(text).forEach(({ raw, i, more }) => {
     const at = `Line ${i + 1}`;
     if (raw.startsWith('## ')) {
       node = nodeOfHeading(raw, review.nodes);
@@ -48,7 +61,7 @@ export function parseDoc(text: string, review: Review, now: Date): Parsed {
       if (r && node) anchor = { path: node.path ?? '', side: r[1] === '-' ? 'old' : 'new', line: Number(r[2]), text: r[3] ?? '' };
       return;
     }
-    const body = sanitizeText(m[2]!).trim();
+    const body = sanitizeText([m[2]!, ...more].join('\n')).trim();
     if (!body) return;
     if (!node) {
       warnings.push(`${at}: this note isn't under a node, so it was skipped`);

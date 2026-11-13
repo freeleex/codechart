@@ -19,6 +19,10 @@ What's new in each codechart release. Update with `codechart update`; the [relea
 - The business-map docs no longer say explain pages turn gaps into questions.
 - The HTML check line keeps each claim's own colour: `✓ 15 nodes checked against the code` stays green next to a red `✗ 1 changed file not on map`; warnings are amber and `diff not checked` muted. One failed claim used to paint the whole line red.
 - On Windows, the `gh`, `glab`, `powershell` and `opencode` commands that codechart runs are now looked up on PATH before they run, so a file inside your repo can't stand in for one of them.
+- A note of several lines keeps all of them after `codechart review`: saving the editor used to keep only the first line, and a later line that looked like a diff row could move the note to another line.
+- Page notes on a gap, arrow or box whose text has a colon in it come back with their own words: the copied message now shows that colon as a dash, so the item's text can no longer end up inside the note.
+- A line in a page note that starts with `>` keeps its `>` when you import the notes. A review pasted as a quote still imports.
+- A note on a long gap in a flow imports: it used to make the whole pasted review count as damaged.
 
 ### Changed
 
