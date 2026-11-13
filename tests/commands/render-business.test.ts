@@ -60,7 +60,15 @@ describe('render: business map', () => {
 
   it('--md prints a paste-ready block with the link', async () => {
     const r = await renderBusiness(business(), '--tech', tech(), '--md');
-    expect(r.out).toMatch(/^\*\*Business map: New refund rules.*\*\*\n\n\[Open full map\]\(file:\/\//);
+    expect(r.out).toMatch(/^\*\*Business map\*\*\n```text\nBusiness map: New refund rules.*\n```\n\n\[Open full map\]\(file:\/\//);
+  });
+
+  it('--md keeps a hostile title inside the fence: outside it only the constant header and the link', async () => {
+    const spec = { ...business(), title: '![](//1.2.3.4/a) <h1>big</h1>' };
+    const r = await renderBusiness(spec, '--tech', tech(), '--md');
+    const outside = r.out.replace(/```text\n[\s\S]*?\n```\n/, '');
+    expect(r.out).toContain('![](//1.2.3.4/a) <h1>big</h1>');
+    expect(outside).toMatch(/^\*\*Business map\*\*\n\n\[Open full map\]\(file:\/\/[^\n]*\)\n+$/);
   });
 
   it('writes the page for --output cli too: business maps are HTML only', async () => {

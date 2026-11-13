@@ -34,6 +34,6 @@ function businessSummary(spec: BusinessSpec): string {
 export async function renderBusiness(spec: BusinessSpec, ctx: BusinessContext): Promise<{ text: string; html: WrittenHtml }> {
   const html = await ctx.write(async (meta) => businessPage(spec, meta), isExplain(spec) ? undefined : () => businessSnapshot(spec));
   const summary = businessSummary(spec);
-  if (ctx.md) return { text: markdownBlock(`**${summary}**`, undefined, html.file), html };
+  if (ctx.md) return { text: markdownBlock('**Business map**', summary, html.file), html };
   return { text: `${summary}\n${fullMapLine(html.file)}\n`, html };
 }

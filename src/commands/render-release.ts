@@ -55,6 +55,6 @@ export async function renderReleaseSpec(spec: ReleaseSpec, o: ReleaseFlags, opts
   if (!made) warn(`no PDF (${failure}): open ${html.file} in a browser and use Save as PDF, or set release.browser to a Chrome, Chromium, Edge or Brave path in your global config`);
   const summary = releaseSummary(spec);
   const pdfLine = made ? `PDF: ${pdf}` : undefined;
-  opts.stdout(md ? markdownBlock([`**${summary}**`, pdfLine].filter(Boolean).join('\n\n'), undefined, html.file) : `${[summary, pdfLine, fullMapLine(html.file)].filter(Boolean).join('\n')}\n`);
+  opts.stdout(md ? markdownBlock('**Release map**', [summary, pdfLine].filter(Boolean).join('\n'), html.file) : `${[summary, pdfLine, fullMapLine(html.file)].filter(Boolean).join('\n')}\n`);
   if (html.openFailed) opts.stdout(openBlockedNote(html.file, md));
 }
