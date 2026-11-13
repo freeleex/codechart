@@ -2,6 +2,7 @@ import { mkdirSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { ProgramOptions } from '../../src/program.js';
+import { carriesData } from '../../src/commands/feedback.js';
 import { repoFolder } from '../../src/render/output-path.js';
 import { gitBranch } from '../../src/rules/git-files.js';
 import { readReview, writeReview } from '../../src/review/store.js';
@@ -71,9 +72,33 @@ describe('feedback --import', () => {
   });
 
   it('reads the clipboard when nothing is piped', async () => {
-    const r = await run(['feedback', '--import'], { readClipboard: () => copied(mixed().slice(2, 3)) });
+    const r = await run(['feedback', '--import'], { stdinPiped: () => false, readClipboard: () => copied(mixed().slice(2, 3)) });
     expect(r.err).toBe('✔ Imported 1 note into "Orders"\n');
     expect(current().notes[0]).toMatchObject({ target: { type: 'gap', text: 'no retry tests' }, body: 'add them' });
+  });
+
+  it('piped text wins over the clipboard', async () => {
+    const r = await run(['feedback', '--import'], {
+      stdin: async () => copied(mixed().slice(2, 3)),
+      readClipboard: () => {
+        throw new Error('clipboard read');
+      },
+    });
+    expect(r.err).toBe('✔ Imported 1 note into "Orders"\n');
+  });
+
+  it('stdin carries data only as a pipe, a socket or a non-empty file', () => {
+    const st = (kind: 'fifo' | 'socket' | 'file' | 'char', size = 0) => ({
+      isFIFO: () => kind === 'fifo',
+      isSocket: () => kind === 'socket',
+      isFile: () => kind === 'file',
+      size,
+    });
+    expect(carriesData(st('fifo'))).toBe(true);
+    expect(carriesData(st('socket'))).toBe(true);
+    expect(carriesData(st('file', 12))).toBe(true);
+    expect(carriesData(st('file', 0))).toBe(false);
+    expect(carriesData(st('char'))).toBe(false);
   });
 
   it('--take prints the notes in plain words and marks them sent', async () => {
@@ -146,6 +171,7 @@ describe('feedback --import', () => {
 
   it('a clipboard that cannot be read points to the pipe', async () => {
     const r = await run(['feedback', '--import'], {
+      stdinPiped: () => false,
       readClipboard: () => {
         throw new Error("Can't read the clipboard here. Pipe the copied review in instead: codechart feedback --import < review.txt");
       },
