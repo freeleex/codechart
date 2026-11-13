@@ -115,6 +115,23 @@ describe('codechart setup-pr-maps', () => {
     expect(git(sb.repo, 'status', '--porcelain')).toBe('?? .github/\n');
   });
 
+  it('declining writes nothing and says nothing was written', async () => {
+    const r = await run([], { confirm: async () => false });
+    expect(r.out).toContain('codechart setup-pr-maps would add');
+    expect(r.out).not.toContain('wrote');
+    expect(r.err).toBe('');
+    expect(r.code).toBeUndefined();
+    expect(existsSync(join(sb.repo, '.github'))).toBe(false);
+  });
+
+  it('without an origin remote it fails with exit 1', async () => {
+    git(sb.repo, 'remote', 'remove', 'origin');
+    const r = await run(['--yes']);
+    expect(r.err).toBe('codechart: no origin remote: PR maps need the repo on GitHub or GitLab\n');
+    expect(r.code).toBe(1);
+    expect(existsSync(join(sb.repo, '.github'))).toBe(false);
+  });
+
   it('--yes writes without asking; a second run finds it set up', async () => {
     await run(['--yes']);
     expect(existsSync(workflow())).toBe(true);
