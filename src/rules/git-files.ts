@@ -392,7 +392,7 @@ export function gitListFiles(cwd: string, sha?: string): string[] {
   return nulList(
     sha
       ? git(cwd, ['ls-tree', '-r', '-z', '--name-only', '--full-tree', sha])
-      : git(cwd, ['ls-files', '-z', '--cached', '--full-name']),
+      : git(cwd, ['ls-files', '-z', '--cached', '--others', '--exclude-standard', '--full-name']),
   );
 }
 
