@@ -4,7 +4,7 @@ For step 7 of [SKILL.md](SKILL.md). `codechart render` prints the page to a PDF 
 
 ## Gather
 
-Run `codechart release-context` (the merged changes since the last `v*` tag, or every commit in a repo with no tags at all; `--since <tag>` to choose, and when it asks for `--since`, ask the developer which tag or commit was the last release). Read the PR text, the tech map and the diff of each change you are unsure about. Group the changes into features a customer would name; one section per feature, up to 12. Leave out chores, dependency bumps, CI and release commits unless a user can see the effect.
+Run `codechart release-context` (the merged changes since the last `v*` tag, or every commit when no tag sits before the release commit; `--since <tag>` to choose, and when it asks for `--since`, ask the developer which tag or commit was the last release). Read the PR text, the tech map and the diff of each change you are unsure about. Group the changes into features a customer would name; one section per feature, up to 12. Leave out chores, dependency bumps, CI and release commits unless a user can see the effect.
 
 ## Shape
 

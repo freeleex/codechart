@@ -474,9 +474,15 @@ export function gitLatestTag(cwd: string, sha: string, pattern: string): string 
   }
 }
 
-/** Up to `max` tag names whose ref matches `pattern` (`refs/tags` for all), on any commit. */
-export function gitTagNames(cwd: string, pattern: string, max: number): string[] {
-  return git(cwd, ['for-each-ref', `--count=${max}`, '--format=%(refname:short)', pattern]).split('\n').filter(Boolean);
+/** Up to `max` tag names whose ref matches `pattern` (`refs/tags` for all), on any commit but `except`. */
+export function gitTagNames(cwd: string, pattern: string, max: number, except?: string): string[] {
+  return git(cwd, ['for-each-ref', '--format=%(refname:short)%09%(objectname)%09%(*objectname)', pattern])
+    .split('\n')
+    .filter(Boolean)
+    .map((l) => l.split('\t'))
+    .filter(([, sha, peeled]) => (peeled || sha) !== except)
+    .slice(0, max)
+    .map(([name]) => name!);
 }
 
 export const gitIsShallow = (cwd: string): boolean => git(cwd, ['rev-parse', '--is-shallow-repository']).trim() === 'true';

@@ -84,7 +84,7 @@ describe('codechart release-context', () => {
     expect(out.changes.map((c) => c.title)).toEqual(['base', 'second (#2)']);
     expect(out.changes[0]!.files).toEqual(['package.json']);
     expect(out.since).toBeUndefined();
-    expect(out.notes).toContain('First release: the repo has no tags yet, so this lists every commit from the start.');
+    expect(out.notes).toContain('First release: no tag before HEAD, so this lists every commit from the start.');
   });
 
   it('tags but none named v*: exit 2 asking for --since, saying the tags don’t start with v', async () => {
@@ -108,8 +108,20 @@ describe('codechart release-context', () => {
     expect(r.out).toBe('');
   });
 
-  it('a v* tag only on HEAD: exit 2 asking for --since', async () => {
-    const r = await run();
+  it('tags only on HEAD: a first release, from the root commit on', async () => {
+    git(sb.repo, 'tag', '-d', 'v1.0.0');
+    commit('second (#2)', { 'a.txt': '1' });
+    git(sb.repo, 'tag', '-a', 'v1.0.0', '-m', 'first');
+    git(sb.repo, 'tag', 'latest');
+    const out = await json();
+    expect(out.changes.map((c) => c.title)).toEqual(['base', 'second (#2)']);
+    expect(out.notes).toContain('First release: no tag before HEAD, so this lists every commit from the start.');
+  });
+
+  it('v* tags on and after HEAD, none before: exit 2 asking for --since', async () => {
+    commit('later', { 'a.txt': '1' });
+    git(sb.repo, 'tag', 'v1.1.0');
+    const r = await run(['--head', 'HEAD~1']);
     expect(r.code).toBe(2);
     expect(r.err).toBe('codechart: no version tag (v*) found before HEAD; pass --since <ref>\n');
   });
