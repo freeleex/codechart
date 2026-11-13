@@ -29,12 +29,25 @@ What's new in each codechart release. Update with `codechart update`; the [relea
 - `codechart release-context` keeps the PR text it could read when one `(#N)` number isn't a PR (often an issue), and lists the skipped numbers in `notes`. After a timeout or network failure it stops asking and says which PRs were not read. On Windows, `gh` or `glab` missing from PATH is reported as not installed.
 - `codechart release-context` with no tag before the release commit (none yet, or `v1.0.0` already on it) lists every commit from the first one, for a first release; it used to ask for `--since`, which could never include the first commit. When the tags before it don't start with `v`, it still asks for `--since` and says so; in a shallow clone it asks you to fetch the full history and tags.
 - The release map docs show the real PDF and page file names.
+- `--git` now sees renames even when your git config turns rename detection off.
+- When a flow step points at a file that doesn't exist, the "did you mean" hint also offers files not yet added to git.
+- Flow steps and map boxes that point at a secret-looking file (like `.env`) show "not shown: looks like a secret" instead of the line.
+- `--md` output for business and release maps keeps the page title inside the code block, so image Markdown or HTML in a title no longer shows up in chat.
+- The map section in a PR or MR description handles file names with blank lines or escape characters safely.
+- `setup-pr-maps --pr` no longer goes online or runs your git transport config until you answer yes.
+- `doctor --last` and `setup-pr-maps` strip escape characters from repo text they print, and a remote URL containing them is refused.
+- `setup-pr-maps` refuses to write through a symlinked `.github` or `.github/workflows` folder.
+- `uninstall` also removes skill copies installed with `install-skill --dir`.
+- `feedback --import` reads the clipboard when stdin is empty or `/dev/null`, instead of failing with "No codechart review found".
+- Two hook runs at the same moment no longer lose a turn's snapshot, and the hook no longer hangs when the transcript path is a pipe.
+- Conflicting flags are refused with exit 2: `doctor --fix --last`, `update --check --skills-only`, `comment --side` without a line, and `feedback --import --copy` without `--take`.
 
 ### Changed
 
 - `codechart install-skill` run outside a terminal now installs only the skill and prints the flags that would add the reminder line, Claude Code hook and OpenCode plugin; before, it added them all without asking. It may edit global files (`~/.claude/CLAUDE.md`, your agents' `AGENTS.md`/`GEMINI.md`, `~/.claude/settings.json`), which the README now says up front.
 - The PR-maps workflow template for GitHub pins `actions/checkout` and `actions/setup-node` to exact commits, like this repo's own CI.
 - The map check now compares each new, changed and removed box with git's own added, modified, deleted or renamed status, not just the list of changed files. It also warns, without failing, when a listed field or arrow isn't backed by the code, and says how many boxes it could not check.
+- `render` and `install-skill` now exit 2 for a bad flag value (an unknown commit or agent) and 1 for other failures, like `check` and `release-context`.
 
 ## 0.9.0 (2026-11-10)
 
