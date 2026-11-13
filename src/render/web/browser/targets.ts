@@ -52,8 +52,7 @@ function nodeLabel(id: string): string {
   return flow ? `${flow}: ${label}` : label;
 }
 
-/** The page's own text for a place, e.g. "line 13 of shop/models/order.py (new)". */
-export function placeText(t: NoteTarget): string {
+function placeWords(t: NoteTarget): string {
   if ('path' in t) return `line ${t.line} of ${t.path} (${t.side})`;
   if ('node' in t) return nodeLabel(t.node);
   if ('drift' in t) return `the plan-vs-built note of ${nodeLabel(t.drift)} (${DRIFT_WORDS[t.kind]})`;
@@ -62,6 +61,9 @@ export function placeText(t: NoteTarget): string {
   if ('omitted' in t) return `the not-on-map item “${t.omitted}”`;
   return 'the title';
 }
+
+/** The page's own text for a place, e.g. "line 13 of shop/models/order.py (new)". A ": " inside would be read as the end of the place, so it becomes a dash. */
+export const placeText = (t: NoteTarget): string => placeWords(t).replace(/: /g, ' – ');
 
 /** The diff line a click on a row's number means: file from the panel's heading, side from the row's colour. */
 export function lineTarget(row: Element, nodeId: string): NoteTarget | null {

@@ -37,9 +37,15 @@ const HEAD = [
 export const isAt = (l: DiffLine, side: 'old' | 'new', line: number): boolean =>
   l.n === line && (side === 'old' ? l.kind === 'del' : l.kind === 'add' || l.kind === 'ctx');
 
+/** A body's later lines each start with `more`, so the parser joins them back and never reads one as a diff row. */
+function bodyLines(first: string, body: string, more: string): string {
+  const [head, ...rest] = body.split('\n');
+  return [`${first}${head}`, ...rest.map((l) => (l ? `${more}${l}` : more.trimEnd()))].join('\n');
+}
+
 function noteText(n: Note): string {
-  if (n.state === 'pending') return `${NOTE_MARK[n.kind]} ${n.body}`;
-  return `# ${n.state === 'sent' ? 'Already sent to your agent' : 'Outdated, the code changed'} (${n.kind}): ${n.body}`;
+  if (n.state === 'pending') return bodyLines(`${NOTE_MARK[n.kind]} `, n.body, '  > ');
+  return bodyLines(`# ${n.state === 'sent' ? 'Already sent to your agent' : 'Outdated, the code changed'} (${n.kind}): `, n.body, '#   ');
 }
 
 function row(l: DiffLine, width: number): string {
@@ -87,6 +93,6 @@ export function buildDoc(review: Review): string {
   }
   const ids = new Set(nodes.map((n) => n.id));
   const gone = notes.filter((n) => !n.target && n.node !== undefined && !ids.has(n.node));
-  if (gone.length) out.push('', '# Notes on nodes the map no longer has:', ...gone.map((n) => `# ${n.state === 'sent' ? 'Sent' : 'Outdated'} (${n.kind}) on [${n.node}]: ${n.body}`));
+  if (gone.length) out.push('', '# Notes on nodes the map no longer has:', ...gone.map((n) => bodyLines(`# ${n.state === 'sent' ? 'Sent' : 'Outdated'} (${n.kind}) on [${n.node}]: `, n.body, '#   ')));
   return sanitizeText(`${out.join('\n')}\n`);
 }

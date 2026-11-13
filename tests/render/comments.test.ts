@@ -323,8 +323,8 @@ describe('Finish review', () => {
         '2. On line 13 of shop/models/order.py (new): Question: second\n   more',
         '3. On the plan-vs-built note of orders (not built): Delete: gone',
         '4. On the arrow orders → customers (“customer_id”): Comment: a note',
-        '5. On the gap “customers: columns besides id not read”: Comment: a note',
-        '6. On the not-on-map item “tests: test_invoice_backfill.py”: Question: a note',
+        '5. On the gap “customers – columns besides id not read”: Comment: a note',
+        '6. On the not-on-map item “tests – test_invoice_backfill.py”: Question: a note',
         '7. On the title: Comment: naïve ✓',
       ].join('\n'),
     );

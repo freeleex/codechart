@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { placeText } from '../../src/render/web/browser/targets.js';
 import { importNotes, parseReviewText, type ImportPayload } from '../../src/review/import.js';
 import type { Review } from '../../src/review/schema.js';
 import { api, note, review } from './fixture.js';
@@ -91,6 +92,27 @@ describe('parseReviewText', () => {
     const crlf = pasted(p).replace(/\n/g, '\r\n');
     const quoted = pasted(p).split('\n').map((l) => `> ${l}  `).join('\n');
     for (const text of [pasted(p), crlf, quoted]) expect(parseReviewText(text).notes.map((n) => n.b)).toEqual(['one: Comment: two\nsecond\n\nfourth', '3. not an item']);
+  });
+
+  it('place text from the page never swallows the note: a gap with ": Comment: " in it', () => {
+    const t = { gap: 'Retries: Comment: none yet' };
+    const p = payload([{ t, k: 'comment', b: 'add a test' }]);
+    const text = `1. On ${placeText(t)}: Comment: add a test\n\ncodechart review · 1 note · ${token(p)}`;
+    expect(parseReviewText(text).notes.map((n) => n.b)).toEqual(['add a test']);
+  });
+
+  it("a note's own > lines are kept; only the quote every line shares, the closing line too, is taken off", () => {
+    const b = 'this line:\n> return null\nis wrong';
+    const p = payload([{ t: { title: true }, k: 'comment', b }]);
+    const quoted = (prefix: string) => pasted(p).split('\n').map((l) => `${prefix}${l}`).join('\n');
+    for (const text of [pasted(p), quoted('> '), quoted('>'), quoted('> > ')]) expect(parseReviewText(text).notes[0]!.b, text).toBe(b);
+  });
+
+  it('a flow gap led by its flow title fits: up to 2202 characters', () => {
+    const gap = (n: number) => payload([{ t: { gap: `Checkout: ${'x'.repeat(n - 10)}` }, k: 'comment', b: 'hm' }]);
+    expect(parseReviewText(pasted(gap(2100))).notes).toHaveLength(1);
+    expect(parseReviewText(pasted(gap(2202))).notes).toHaveLength(1);
+    expect(() => parseReviewText(pasted(gap(2203)))).toThrow(DAMAGED);
   });
 
   it('text that does not match the token is refused in plain words', () => {

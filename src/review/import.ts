@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { sanitizeText } from '../render/strip.js';
+import { LONG, SHORT } from '../spec/shared.js';
 import { targetExists } from './carry.js';
 import { isAt, lastNoteNumber } from './doc.js';
 import { sameNote } from './parse.js';
@@ -14,13 +15,15 @@ const DAMAGED = 'The codechart review is damaged; copy it again with "Finish rev
 const MISMATCH = 'The review text doesn\'t match its last line; copy it again with "Finish review" on the page.';
 
 const str = z.string().max(2000);
+// A flow's gap is led by its title and ": ".
+const placeStr = z.string().max(LONG + SHORT + 2);
 const target = z.union([
   z.strictObject({ node: str, path: str, side: z.enum(['old', 'new']), line: z.number().int().min(1) }),
   z.strictObject({ node: str }),
   z.strictObject({ drift: str, kind: z.enum(['missing', 'unplanned', 'different']) }),
   z.strictObject({ edge: z.strictObject({ from: str, to: str, label: str.optional() }) }),
-  z.strictObject({ gap: str }),
-  z.strictObject({ omitted: str }),
+  z.strictObject({ gap: placeStr }),
+  z.strictObject({ omitted: placeStr }),
   z.strictObject({ title: z.literal(true) }),
 ]);
 
@@ -53,8 +56,17 @@ const ITEM = /^\d+\. On /;
 
 const fromV2 = (t: z.infer<typeof tokenV2>): Token => ({ v: 1, slug: `${t.s}.business`, branch: t.b, at: '', notes: t.n.map(([node, k, r]) => ({ t: { node }, r, k: BIZ_KIND[k] })) });
 
-/** A line without quote marks and trailing spaces. */
-const unquote = (l: string): string => l.replace(/^(?:[ \t]*>)+ ?/, '').trimEnd();
+const QUOTE = /^[ \t]*>/;
+
+/** The quote marks leading a line. */
+const depth = (l: string): number => /^(?:[ \t]*>)*/.exec(l)![0].split('>').length - 1;
+
+/** A line without its first `n` quote marks, the space after them, and trailing spaces. */
+function unquote(l: string, n: number): string {
+  let s = l;
+  for (let k = 0; k < n && QUOTE.test(s); k++) s = s.replace(QUOTE, '');
+  return (s === l ? s : s.replace(/^ /, '')).trimEnd();
+}
 
 /** The body of every numbered item above the closing line, found from the last one up; undefined when one is missing, out of order or of another kind. */
 function itemBodies(lines: string[], kinds: Token['notes'][number]['k'][]): string[] | undefined {
@@ -98,7 +110,9 @@ export function parseReviewText(text: string): ImportPayload {
   } catch {
     throw new Error(DAMAGED);
   }
-  const bodies = itemBodies(lines.slice(0, at).map(unquote), decoded.notes.map((n) => n.k));
+  // The chat's quote is on every line, the closing one too; deeper marks are the note's own.
+  const quoted = depth(lines[at]!);
+  const bodies = itemBodies(lines.slice(0, at).map((l) => unquote(l, quoted)), decoded.notes.map((n) => n.k));
   if (!bodies || bodies.some((b) => !b)) throw new Error(MISMATCH);
   if (bodies.some((b) => b.length > 4000)) throw new Error(DAMAGED);
   return { ...decoded, notes: decoded.notes.map((n, i) => ({ ...n, b: bodies[i]! })) };

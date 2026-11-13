@@ -10,7 +10,7 @@ export function colorDoc(doc: string): string {
       if (l.startsWith('@@')) return SGR('36', l);
       if (l.startsWith('-')) return SGR('31', l);
       if (l.startsWith('+')) return SGR('32', l);
-      if (l.startsWith('>')) return SGR('30;43', l);
+      if (/^ *>/.test(l)) return SGR('30;43', l);
       return l;
     })
     .join('\n');

@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { hasHiddenChars } from '../render/strip.js';
 
 export const SHORT = 200;
-const LONG = 2000;
+export const LONG = 2000;
 /** Room for 1-3 plain sentences. */
 const WHY = 400;
 const PATH = 1000;

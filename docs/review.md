@@ -40,6 +40,7 @@ A very long review is copied in parts: the popup says how many notes the message
    - `> text` for a comment
    - `>? text` for a question
    - `>del text` for "delete this"
+   - `  > more` right under a note: its next line
 3. Save and quit. Quit without saving to cancel.
 
 To add one note without the editor: `codechart comment <node>[:<path>:<line>] <text>`.
