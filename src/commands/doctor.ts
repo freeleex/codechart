@@ -1,5 +1,5 @@
 import { homedir } from 'node:os';
-import { Command } from 'commander';
+import { Command, Option } from 'commander';
 import type { CommandOptions } from '../program.js';
 import { type Item, runChecks, type Section } from './doctor-checks.js';
 import { explainLast } from './doctor-last.js';
@@ -37,7 +37,7 @@ export function doctorCommand(opts: CommandOptions): Command {
   return new Command('doctor')
     .description('check that agents can find codechart (skill, reminder, hook or plugin, CLI); --fix repairs, --last explains the last turn')
     .option('--fix', 'repair what is missing or outdated (never overwrites a skill folder that is not codechart)')
-    .option('--last', "explain why the last turn in this repo did or didn't get a diagram (Claude Code, OpenCode)")
+    .addOption(new Option('--last', "explain why the last turn in this repo did or didn't get a diagram (Claude Code, OpenCode)").conflicts('fix'))
     .action(async (o: { fix?: boolean; last?: boolean }) => {
       const home = opts.home ?? homedir();
       if (o.last) {

@@ -123,5 +123,8 @@ export function feedbackCommand(opts: CommandOptions): Command {
     .option('--copy', 'also copy the text to the clipboard (terminals with OSC 52)')
     .addOption(new Option('--change <title>', 'the map with this title (or file name slug), instead of the newest one on this branch').conflicts('import'))
     .option('--import', 'save the review copied from the page ("Finish review") into its map first: read from stdin, else the clipboard')
-    .action((o: FeedbackFlags) => guarded(opts, () => feedback(o, opts)));
+    .action((o: FeedbackFlags, cmd: Command) => {
+      if (o.import && o.copy && !o.take) cmd.error("option '--copy' needs '--take' with '--import': without it nothing is printed to copy", { exitCode: 2 });
+      return guarded(opts, () => feedback(o, opts));
+    });
 }
