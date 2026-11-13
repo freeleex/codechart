@@ -59,6 +59,18 @@ describe('loadConfig', () => {
     expect(() => loadConfig({ cwd: repo, home, env: {} })).toThrow('.codechart.yaml');
   });
 
+  it('invalid YAML gives the file and the first line of the YAML error', () => {
+    repoCfg('rules: [\n  a: b\n');
+    let message = '';
+    try {
+      loadConfig({ cwd: repo, home, env: {} });
+    } catch (e) {
+      message = (e as Error).message;
+    }
+    expect(message).toMatch(/^.*\.codechart\.yaml: \S.*$/);
+    expect(message).not.toContain('\n');
+  });
+
   it('config rejects defaults.icons', () => {
     repoCfg('defaults:\n  icons: false\n');
     expect(() => loadConfig({ cwd: repo, home, env: {} })).toThrow('defaults.icons was removed');

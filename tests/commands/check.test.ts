@@ -96,6 +96,18 @@ describe('codechart check', () => {
     expect(all).not.toContain('old.txt');
   });
 
+  it('--git sees a staged rename even with diff.renames=false in the repo config', async () => {
+    const repo = makeRepo();
+    git(repo, 'config', 'diff.renames', 'false');
+    git(repo, 'config', 'status.renames', 'false');
+    git(repo, 'mv', 'old.txt', 'renamed.txt');
+    catchAll(repo);
+    const { out } = await run(repo, ['--git']);
+    const all = JSON.parse(out).pathMatches.flatMap((m: { files: string[] }) => m.files);
+    expect(all).toContain('renamed.txt');
+    expect(all).not.toContain('old.txt');
+  });
+
   it('--git outside a repo errors with exit code 2', async () => {
     const { err, code, out } = await run(tmp, ['--git']);
     expect(err).toBe('codechart: not a git repository (use --files)\n');

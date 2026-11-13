@@ -6,6 +6,7 @@ import { gitFileAt, gitListFiles } from '../../rules/git-files.js';
 import type { FlowSpec } from '../../spec/flow.js';
 import { clip } from '../clip.js';
 import { cleanPath } from '../drift.js';
+import { looksSecret, PRIVATE_KEY } from '../secret.js';
 import { hasHiddenChars } from '../strip.js';
 
 const SNIPPET_MAX_LINES = 15;
@@ -31,6 +32,9 @@ type AnchorResult = { ok: true; snippets: FlowSnippets; checked: number } | { ok
 type Resolved = { snippet: Snippet } | { error: string; field?: 'match'; missing?: { path: string; detail: string } };
 /** `null`: the file does not exist. */
 type Read = string[] | { error: string } | null;
+
+const HIDDEN = 'not shown: looks like a secret';
+const shownLines = (path: string, lines: string[]): string[] => (looksSecret(path) || PRIVATE_KEY.test(lines.join('\n')) ? [HIDDEN] : lines.map(clip));
 
 const escapes = (rel: string) => rel === '..' || rel.startsWith(`..${sep}`) || isAbsolute(rel);
 // .git/config (also a nested clone's) can hold a remote URL with a token.
@@ -110,7 +114,7 @@ export function findMatch(path: string, match: string, lines: string[]): Resolve
     };
   }
   const line = hits[0]!;
-  return { snippet: { source: `${path}:${line}`, startLine: line, lines: [clip(lines[line - 1]!)] } };
+  return { snippet: { source: `${path}:${line}`, startLine: line, lines: shownLines(path, [lines[line - 1]!]) } };
 }
 
 export interface Loaded {
@@ -266,7 +270,7 @@ function resolveAnchor(source: string, match: string | undefined, c: AnchorCtx):
     snippet: {
       source: loaded.path === path ? source : `${loaded.path}:${a}${b === undefined ? '' : `-${b}`}`,
       startLine: start,
-      lines: lines.slice(start - 1, Math.min(end, start - 1 + SNIPPET_MAX_LINES)).map(clip),
+      lines: shownLines(loaded.path, lines.slice(start - 1, Math.min(end, start - 1 + SNIPPET_MAX_LINES))),
     },
   };
 }

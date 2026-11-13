@@ -143,7 +143,7 @@ function parseNameStatus(out: string): FileChange[] {
 
 /** Each changed file in the working tree with git's status; `renameSources` adds where a rename moved from, as deleted. */
 export function gitChangedChanges(cwd: string, renameSources = false): FileChange[] {
-  const records = git(cwd, ['status', '--porcelain=v1', '-z', '-uall', '--ignore-submodules=dirty'], { config: repoFilterOverrides(cwd) }).split('\0');
+  const records = git(cwd, ['status', '--porcelain=v1', '-z', '-uall', '--renames', '--ignore-submodules=dirty'], { config: repoFilterOverrides(cwd) }).split('\0');
   const changes: FileChange[] = [];
   for (let i = 0; i < records.length; i++) {
     const rec = records[i];
@@ -392,7 +392,7 @@ export function gitListFiles(cwd: string, sha?: string): string[] {
   return nulList(
     sha
       ? git(cwd, ['ls-tree', '-r', '-z', '--name-only', '--full-tree', sha])
-      : git(cwd, ['ls-files', '-z', '--cached', '--full-name']),
+      : git(cwd, ['ls-files', '-z', '--cached', '--others', '--exclude-standard', '--full-name']),
   );
 }
 

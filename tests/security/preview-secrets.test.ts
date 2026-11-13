@@ -2,12 +2,13 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { readdirSync, readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { checkMapNodes, diffOf } from '../../src/render/check.js';
 import { nodePreviews } from '../../src/render/preview.js';
 import { diffRange, gitFiles } from '../../src/rules/selection.js';
 import type { Spec } from '../../src/spec/schema.js';
-import { repoFromTemplate } from '../helpers/sandbox.js';
+import { makeSandbox, removeSandbox, repoFromTemplate, runCli } from '../helpers/sandbox.js';
 
 let tmp: string;
 let repo: string;
@@ -128,5 +129,48 @@ describe('S-30 follow-up: a diff attribute does not lift the size cap', () => {
     const p = previewOf('big.txt');
     expect(p?.note).toBe('diff is too large (over 5 MB)');
     expect(p?.lines).toEqual([]);
+  });
+});
+
+describe('anchor snippets of a secret file', () => {
+  const VALUE = 'sk-live-AAAABBBBCCCCDDDD1234';
+  const NOTE = 'not shown: looks like a secret';
+
+  async function pageOf(spec: unknown): Promise<string> {
+    const sb = makeSandbox('anchor-secret', { htmlOut: true, git: 'init' });
+    try {
+      writeFileSync(join(sb.repo, '.env'), `SECRET_KEY=${VALUE}\n`);
+      writeFileSync(join(sb.tmp, 'spec.json'), JSON.stringify(spec));
+      const r = await runCli({ cwd: sb.repo, home: sb.home, isTTY: false }, ['render', join(sb.tmp, 'spec.json'), '--output', 'web']);
+      expect(r.err).toBe('');
+      const dir = join(sb.out, readdirSync(sb.out)[0]!);
+      return readFileSync(join(dir, readdirSync(dir).find((n) => n.endsWith('.html'))!), 'utf8');
+    } finally {
+      removeSandbox(sb.tmp);
+    }
+  }
+
+  it('a flow step source keeps the anchor but hides the line', async () => {
+    const page = await pageOf({
+      diagram: 'flow',
+      kind: 'plan',
+      title: 'f',
+      start: 'a',
+      steps: [{ id: 'a', label: 'read the key', type: 'end', status: 'existing', source: '.env:1' }],
+      links: [],
+    });
+    expect(page).not.toContain(VALUE);
+    expect(page).toContain(NOTE);
+  });
+
+  it('an explain box match keeps the anchor but hides the line', async () => {
+    const page = await pageOf({
+      title: 'e',
+      kind: 'explain',
+      nodes: [{ id: 'a', label: 'Env', kind: 'config', status: 'existing', layer: 'l', path: '.env', match: 'SECRET_KEY' }],
+      edges: [],
+    });
+    expect(page).not.toContain(VALUE);
+    expect(page).toContain(NOTE);
   });
 });
