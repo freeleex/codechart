@@ -29,6 +29,12 @@ describe('compareFlows', () => {
     expect(compareFlows(p, s).items).toEqual([]);
   });
 
+  it('pairs a renamed step whose source is spelled another way', () => {
+    const p = plan([step('a', 'existing'), step('b', 'planned', { source: './b.ts:3', match: 'x' })]);
+    const s = flow('summary', [step('a', 'existing'), step('c', 'new', { source: 'b.ts:3', match: 'x' })]);
+    expect(compareFlows(p, s).items).toEqual([]);
+  });
+
   it('a planned step nobody built is missing, with its ghost', () => {
     const ghost = step('b', 'planned');
     const d = compareFlows(plan([step('a', 'existing'), ghost]), flow('summary', [step('a', 'existing')]));

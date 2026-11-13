@@ -17,6 +17,21 @@ describe('compareMaps', () => {
     expect(d.plan).toEqual({ title: 'T', savedAt: '2026-11-06T10:00:00.000Z' });
   });
 
+  it.each([
+    ['backslashes', 'src\\db.ts', 'src/db.ts', ''],
+    ['repeated ./', './././src/db.ts', 'src/db.ts', ''],
+    ['a trailing slash', 'src/', 'src', ''],
+    ['the plan relative to the cwd', 'src/db.ts', 'packages/api/src/db.ts', 'packages/api/'],
+    ['the summary relative to the cwd', 'packages/api/src/db.ts', 'src/db.ts', 'packages/api/'],
+  ])('pairs one file spelled with %s, with no path note', (_, planned, built, prefix) => {
+    const d = compareMaps(plan([node('a', 'changed', { path: planned })]), summary([node('z', 'changed', { path: built })]), prefix);
+    expect(d.items).toEqual([]);
+  });
+
+  it('still reports a different file', () => {
+    expect(brief(compareMaps(plan([node('a', 'changed', { path: 'src/a.ts' })]), summary([node('a', 'changed', { path: 'src/b.ts' })])))).toEqual([['different', 'a', 'path src/a.ts → src/b.ts']]);
+  });
+
   it.each(['new', 'changed', 'removed', 'config'] as const)('a planned %s node nobody built is missing, with its ghost', (status) => {
     const ghost = node('a', status);
     const d = compareMaps(plan([ghost]), summary([]));

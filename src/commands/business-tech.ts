@@ -36,6 +36,7 @@ export async function loadTechBoxes(src: TechSource): Promise<TechBox[]> {
       if (spec.diagram === 'flow' || spec.kind !== 'explain') throw new Error(`--tech ${src.file}: an explain page needs an explain map (kind: "explain")`);
       return [...spec.nodes, ...(spec.flows ?? []).flatMap((f) => f.steps.map((s) => ({ id: stepKey(f.id, s.id), label: s.label })))].map(({ id, label }) => ({ id, label }));
     }
+    if (spec.diagram !== 'flow' && spec.kind === 'explain') throw new Error(`--tech ${src.file}: a change page needs a change map, not an explain map`);
     return spec.diagram === 'flow' ? spec.steps.map(({ id, label }) => ({ id, label })) : spec.nodes.map(({ id, label }) => ({ id, label }));
   }
   if (src.explain) {

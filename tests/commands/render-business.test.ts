@@ -236,6 +236,12 @@ describe('render: business explain page', () => {
     expect(r.code).toBe(1);
   });
 
+  it('refuses an explain map as the --tech of a change page', async () => {
+    const r = await renderBusiness(business(), '--tech', fileOf('explain.json', withFlows()));
+    expect(r.err).toContain('a change page needs a change map, not an explain map');
+    expect(r.code).toBe(1);
+  });
+
   it('never takes a saved change map, and tells the agent to draw the explain map first', async () => {
     await renderTech();
     const r = await renderBusiness(businessExplain());

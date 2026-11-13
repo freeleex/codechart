@@ -44,6 +44,11 @@ describe('resolveRules', () => {
     expect(resolveRules(cfg, []).toJudge).toEqual([{ rule: 'x', diagram: 'map', when: 'w', output: 'both', context: 'full' }]);
   });
 
+  it('a rule that sets context short beats defaults full when it is the only one that fired', () => {
+    const cfg: Config = { ...config, defaults: { ...config.defaults, context: 'full' }, rules: [{ name: 'm', paths: ['m/**'], context: 'short' }] };
+    expect(resolveRules(cfg, ['m/x.py']).final?.map).toMatchObject({ draw: true, context: 'short', rules: ['m'] });
+  });
+
   it('no plain rules -> final present', () => {
     const r = resolveRules(onlyPathRules, ['migrations/1.sql']);
     expect(r.toJudge).toEqual([]);

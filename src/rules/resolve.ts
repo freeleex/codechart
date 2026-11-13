@@ -133,8 +133,9 @@ function buildFlowFinal(contributions: Contribution[]): FlowFinal {
 }
 
 function buildMapFinal(config: Config, contributions: Contribution[]): MapFinal {
-  const anyFull = contributions.some((c) => c.output !== 'none' && c.context === 'full');
-  return { ...buildFlowFinal(contributions), context: anyFull ? 'full' : config.defaults.context };
+  const drawing = contributions.filter((c) => c.output !== 'none');
+  if (drawing.length === 0) return { ...buildFlowFinal(contributions), context: config.defaults.context };
+  return { ...buildFlowFinal(contributions), context: drawing.some((c) => c.context === 'full') ? 'full' : 'short' };
 }
 
 function findPlainRules(config: Config, matched: string[]): { rules: Rule[]; unknown: string[] } {

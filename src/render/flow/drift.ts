@@ -1,11 +1,11 @@
 import { isPlannedLink, isRemovedLink, type FlowSpec, type FlowStep } from '../../spec/flow.js';
-import { noteDifference, pairItems, withReasons, type Drift, type DriftItem } from '../drift.js';
+import { cleanPath, noteDifference, pairItems, withReasons, type Drift, type DriftItem } from '../drift.js';
 
 type Items = Map<string, DriftItem<FlowStep>>;
 type Pairs = Map<FlowStep, FlowStep>;
 
 const sameSpot = (plan: FlowStep, built: FlowStep): boolean =>
-  plan.source !== undefined && plan.source === built.source && (plan.match === undefined || built.match === undefined || plan.match === built.match);
+  plan.source !== undefined && built.source !== undefined && cleanPath(plan.source) === cleanPath(built.source) && (plan.match === undefined || built.match === undefined || plan.match === built.match);
 
 const NOUN: Record<FlowStep['type'], string> = { step: 'step', decision: 'decision', end: 'end step' };
 const at = (s: FlowStep) => ({ id: s.id, label: s.label, noun: NOUN[s.type] });

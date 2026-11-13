@@ -221,7 +221,7 @@ export function likelyPath(c: AnchorCtx, path: string): string {
     }
     if (c.listing.length > MAX_LISTED_FILES) c.listing = [];
   }
-  const hits = c.listing.filter((f) => f.endsWith(tail) && !hasHiddenChars(f));
+  const hits = c.listing.filter((f) => (f === tail.slice(1) || f.endsWith(tail)) && !hasHiddenChars(f));
   return hits.length === 1 ? `; did you mean ${hits[0]}` : '';
 }
 
