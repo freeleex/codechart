@@ -350,7 +350,10 @@ describe('renderTerminal', () => {
   });
 
   it('shop plain at width 80', () => {
-    expect(renderTerminal(teams, { maxNodes: 20, width: 80, color: false })).toMatchSnapshot();
+    const out = renderTerminal(teams, { maxNodes: 20, width: 80, color: false });
+    expect(out).toMatchSnapshot();
+    for (const line of out.split('\n')) expect(columns(line), line).toBeLessThanOrEqual(80);
+    expect(out).toContain('12 nodes · 4 new · 5 changed · 2 config');
   });
 
   it('blank line between layers', () => {
