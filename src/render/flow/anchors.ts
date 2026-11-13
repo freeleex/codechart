@@ -5,6 +5,7 @@ import { readRegularFile } from '../../read-regular.js';
 import { gitFileAt, gitListFiles } from '../../rules/git-files.js';
 import type { FlowSpec } from '../../spec/flow.js';
 import { clip } from '../clip.js';
+import { cleanPath } from '../drift.js';
 import { hasHiddenChars } from '../strip.js';
 
 const SNIPPET_MAX_LINES = 15;
@@ -190,6 +191,16 @@ function withCwd<T>(c: AnchorCtx, path: string, get: (p: string) => T, missing: 
     }
   }
   return { path, value: direct };
+}
+
+/** A path as `locate` finds it, repo-root relative, so one file has one spelling. */
+export function repoPathResolver(root: string, at: string | undefined, cwd: string): (path: string) => string {
+  const c = anchorContext(root, at, cwd);
+  return (path) => {
+    const clean = cleanPath(path);
+    const r = locate(c, clean);
+    return 'error' in r ? clean : r.path;
+  };
 }
 
 export function load(c: AnchorCtx, path: string): Loaded {

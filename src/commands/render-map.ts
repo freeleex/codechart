@@ -1,5 +1,6 @@
 import { checkMapNodes, type MapCheck } from '../render/check.js';
 import { checkExplain, layOutFlows, type ExplainCheck } from '../render/explain-flows.js';
+import { repoPathResolver } from '../render/flow/anchors.js';
 import { compareMaps } from '../render/map-drift.js';
 import { EXPLAIN_KEY, fullMapLine, KEY, renderTerminalDetailed } from '../render/terminal/render.js';
 import { alertLine, webAlert } from '../render/terminal/check-lines.js';
@@ -8,7 +9,6 @@ import { driftBlock } from '../render/terminal/drift-lines.js';
 import { selectTerminalNodes } from '../render/terminal/select.js';
 import { markdownBlock } from '../render/markdown.js';
 import { writeFileSync } from 'node:fs';
-import { relative, sep } from 'node:path';
 import { prBlock, renderSvg } from '../render/pr.js';
 import { nodePreviews } from '../render/preview.js';
 import { ghostsFor } from '../render/web/drift-html.js';
@@ -42,11 +42,6 @@ const checkOf = (spec: Spec, ctx: RenderContext): MapCheck | ExplainCheck => {
   return spec.flows?.length ? checkExplain(spec, ctx.root, opts) : checkMapNodes(spec, ctx.root, opts);
 };
 
-const cwdPrefix = (root: string, cwd: string): string => {
-  const rel = relative(root, cwd).split(sep).join('/');
-  return rel === '' || rel.startsWith('..') ? '' : `${rel}/`;
-};
-
 export async function renderMap(spec: Spec, ctx: RenderContext): Promise<Rendered> {
   const { root, diff } = ctx;
   const check = { ...checkOf(spec, ctx), ...(ctx.diffUnchecked && { diffUnchecked: true }) };
@@ -55,7 +50,7 @@ export async function renderMap(spec: Spec, ctx: RenderContext): Promise<Rendere
     return { text: prBlock(spec, check, ctx.pr.imageUrl), check };
   }
   const { hidden } = selectTerminalNodes(spec, ctx.maxNodes);
-  const drift = ctx.plan?.diagram === 'map' ? compareMaps(ctx.plan, spec, cwdPrefix(ctx.root, ctx.cwd)) : undefined;
+  const drift = ctx.plan?.diagram === 'map' ? compareMaps(ctx.plan, spec, repoPathResolver(ctx.root, ctx.at, ctx.cwd)) : undefined;
   const view = drift && { drift, now: ctx.now };
   const ghosts = drift && ctx.plan?.diagram === 'map' ? ghostsFor(drift, new Set(spec.nodes.map((n) => n.id)), ctx.plan.spec.edges) : undefined;
   const termOpts = { maxNodes: ctx.maxNodes, keyLine: !ctx.md, color: ctx.color, width: ctx.width, check, drift: view };

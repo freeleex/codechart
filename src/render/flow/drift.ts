@@ -4,8 +4,15 @@ import { cleanPath, noteDifference, pairItems, withReasons, type Drift, type Dri
 type Items = Map<string, DriftItem<FlowStep>>;
 type Pairs = Map<FlowStep, FlowStep>;
 
-const sameSpot = (plan: FlowStep, built: FlowStep): boolean =>
-  plan.source !== undefined && built.source !== undefined && cleanPath(plan.source) === cleanPath(built.source) && (plan.match === undefined || built.match === undefined || plan.match === built.match);
+type ResolvePath = (path: string) => string;
+
+const resolveSource = (source: string, resolvePath: ResolvePath): string => {
+  const m = /^(.+?)(:\d+(?:-\d+)?)?$/.exec(source);
+  return `${resolvePath(m?.[1] ?? source)}${m?.[2] ?? ''}`;
+};
+
+const sameSpot = (resolvePath: ResolvePath) => (plan: FlowStep, built: FlowStep): boolean =>
+  plan.source !== undefined && built.source !== undefined && resolveSource(plan.source, resolvePath) === resolveSource(built.source, resolvePath) && (plan.match === undefined || built.match === undefined || plan.match === built.match);
 
 const NOUN: Record<FlowStep['type'], string> = { step: 'step', decision: 'decision', end: 'end step' };
 const at = (s: FlowStep) => ({ id: s.id, label: s.label, noun: NOUN[s.type] });
@@ -44,8 +51,8 @@ function plannedLinks(plan: FlowSpec, summary: FlowSpec, pairs: Pairs, items: It
 }
 
 /** What the summary built against the plan's steps and planned links; labels never count. */
-export function compareFlows(plan: { spec: FlowSpec; savedAt: string }, summary: FlowSpec): Drift<FlowStep> {
-  const pairs = pairItems(plan.spec.steps, summary.steps, sameSpot);
+export function compareFlows(plan: { spec: FlowSpec; savedAt: string }, summary: FlowSpec, resolvePath: ResolvePath = cleanPath): Drift<FlowStep> {
+  const pairs = pairItems(plan.spec.steps, summary.steps, sameSpot(resolvePath));
   const items: Items = new Map();
   plannedSteps(plan.spec, pairs, items);
   builtSteps(summary, pairs, items);

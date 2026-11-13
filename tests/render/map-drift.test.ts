@@ -18,14 +18,18 @@ describe('compareMaps', () => {
   });
 
   it.each([
-    ['backslashes', 'src\\db.ts', 'src/db.ts', ''],
-    ['repeated ./', './././src/db.ts', 'src/db.ts', ''],
-    ['a trailing slash', 'src/', 'src', ''],
-    ['the plan relative to the cwd', 'src/db.ts', 'packages/api/src/db.ts', 'packages/api/'],
-    ['the summary relative to the cwd', 'packages/api/src/db.ts', 'src/db.ts', 'packages/api/'],
-  ])('pairs one file spelled with %s, with no path note', (_, planned, built, prefix) => {
-    const d = compareMaps(plan([node('a', 'changed', { path: planned })]), summary([node('z', 'changed', { path: built })]), prefix);
+    ['backslashes', 'src\\db.ts', 'src/db.ts'],
+    ['repeated ./', './././src/db.ts', 'src/db.ts'],
+    ['a trailing slash', 'src/', 'src'],
+  ])('pairs one file spelled with %s, with no path note', (_, planned, built) => {
+    const d = compareMaps(plan([node('a', 'changed', { path: planned })]), summary([node('z', 'changed', { path: built })]));
     expect(d.items).toEqual([]);
+  });
+
+  it('pairs and compares paths as the given resolver spells them', () => {
+    const resolve = (p: string) => (p === 'b.ts' ? 'pkg/b.ts' : p);
+    expect(compareMaps(plan([node('a', 'changed', { path: 'b.ts' })]), summary([node('z', 'changed', { path: 'pkg/b.ts' })]), resolve).items).toEqual([]);
+    expect(brief(compareMaps(plan([node('a', 'changed', { path: 'b.ts' })]), summary([node('a', 'changed', { path: 'c.ts' })]), resolve))).toEqual([['different', 'a', 'path b.ts → c.ts']]);
   });
 
   it('still reports a different file', () => {

@@ -1,5 +1,5 @@
 import { checkFlowDiff } from '../render/check.js';
-import type { FlowSnippets } from '../render/flow/anchors.js';
+import { repoPathResolver, type FlowSnippets } from '../render/flow/anchors.js';
 import { renderFlowHtml, withGhosts } from '../render/flow/html.js';
 import { ghostsFor } from '../render/web/drift-html.js';
 import { layoutFlow } from '../render/flow/layout.js';
@@ -16,7 +16,7 @@ import { chooseOutput, type RenderContext, type Rendered } from './choose-output
 export async function renderFlow(spec: FlowSpec, anchors: { snippets: FlowSnippets; checked: number }, ctx: RenderContext): Promise<Rendered> {
   const { snippets, checked } = anchors;
   const check = { ...checkFlowDiff(spec, snippets, checked, ctx.root, ctx.diff), ...(ctx.diffUnchecked && { diffUnchecked: true }) };
-  const drift = ctx.plan?.diagram === 'flow' ? compareFlows(ctx.plan, spec) : undefined;
+  const drift = ctx.plan?.diagram === 'flow' ? compareFlows(ctx.plan, spec, repoPathResolver(ctx.root, ctx.at, ctx.cwd)) : undefined;
   const view = drift && { drift, now: ctx.now };
   const ghosts = drift && ctx.plan?.diagram === 'flow' ? ghostsFor(drift, new Set(spec.steps.map((s) => s.id)), ctx.plan.spec.links) : undefined;
   const tree = { maxNodes: ctx.maxNodes, width: ctx.width, color: ctx.color, md: ctx.md, check, drift: view };

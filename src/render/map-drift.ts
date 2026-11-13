@@ -4,14 +4,10 @@ import { cleanPath, detailOf, noteDifference, pairItems, withReasons, type Drift
 type Items = Map<string, DriftItem<SpecNode>>;
 type Pairs = Map<SpecNode, SpecNode>;
 
-// `prefix`: the folder the command ran in, repo-relative with a trailing `/`; a path may be spelled from it or from the repo root.
-const samePath = (prefix: string, a: string, b: string): boolean => {
-  const [x, y] = [cleanPath(a), cleanPath(b)];
-  return x === y || (prefix !== '' && (prefix + x === y || x === prefix + y));
-};
+type ResolvePath = (path: string) => string;
 
-const sameSpot = (prefix: string) => (plan: SpecNode, built: SpecNode): boolean =>
-  plan.path !== undefined && built.path !== undefined && samePath(prefix, plan.path, built.path) && (plan.match === undefined || built.match === undefined || plan.match === built.match);
+const sameSpot = (resolvePath: ResolvePath) => (plan: SpecNode, built: SpecNode): boolean =>
+  plan.path !== undefined && built.path !== undefined && resolvePath(plan.path) === resolvePath(built.path) && (plan.match === undefined || built.match === undefined || plan.match === built.match);
 
 // A new node's fields are all its own; a changed one's are those marked.
 const shownFields = (node: SpecNode): Map<string, Field> =>
@@ -36,9 +32,9 @@ function fieldDifferences(plan: SpecNode, built: SpecNode): Note[] {
   return more > 0 ? [...found.slice(0, 2), { text: `+${more} more`, plain: `And ${more} more field differences.` }] : found;
 }
 
-function differences(plan: SpecNode, built: SpecNode, prefix: string): Note[] {
+function differences(plan: SpecNode, built: SpecNode, resolvePath: ResolvePath): Note[] {
   const found: Note[] = [];
-  if (plan.path !== undefined && built.path !== undefined && !samePath(prefix, plan.path, built.path)) {
+  if (plan.path !== undefined && built.path !== undefined && resolvePath(plan.path) !== resolvePath(built.path)) {
     found.push({ text: `path ${plan.path} → ${built.path}`, plain: 'It was built in another file than the plan said.', pair: { plan: `\`${plan.path}\``, built: `\`${built.path}\`` } });
   }
   if (plan.status !== built.status) found.push({ text: `status ${plan.status} → ${built.status}`, plain: 'It was built with a different status than the plan said.', pair: { plan: `\`${plan.status}\``, built: `\`${built.status}\`` } });
@@ -49,7 +45,7 @@ const noun = (n: SpecNode): string => (n.kind === 'other' ? 'node' : (n.kind ?? 
 const at = (n: SpecNode) => ({ id: n.id, label: n.label, noun: noun(n) });
 const CHANGE: Record<SpecNode['status'], DriftChange> = { new: 'add', changed: 'change', config: 'change', removed: 'remove', context: 'change', existing: 'change', outside: 'change' };
 
-function plannedNodes(plan: Spec, pairs: Pairs, items: Items, prefix: string): void {
+function plannedNodes(plan: Spec, pairs: Pairs, items: Items, resolvePath: ResolvePath): void {
   for (const p of plan.nodes) {
     if (p.status === 'context') continue;
     const b = pairs.get(p);
@@ -58,7 +54,7 @@ function plannedNodes(plan: Spec, pairs: Pairs, items: Items, prefix: string): v
       items.set(id, { id, label: p.label, noun: noun(p), change: CHANGE[p.status], kind: 'missing', ...(b ? { detail: 'left unchanged' } : { ghost: p }) });
       continue;
     }
-    const found = differences(p, b, prefix);
+    const found = differences(p, b, resolvePath);
     if (found.length) items.set(b.id, { ...at(b), kind: 'different', ...detailOf(found) });
   }
 }
@@ -81,10 +77,10 @@ function unplannedNodes(summary: Spec, pairs: Pairs, items: Items): void {
 }
 
 /** What the summary built against the plan's nodes, fields and added links; labels and notes never count. */
-export function compareMaps(plan: { spec: Spec; savedAt: string }, summary: Spec, cwdPrefix = ''): Drift<SpecNode> {
-  const pairs = pairItems(plan.spec.nodes, summary.nodes, sameSpot(cwdPrefix));
+export function compareMaps(plan: { spec: Spec; savedAt: string }, summary: Spec, resolvePath: ResolvePath = cleanPath): Drift<SpecNode> {
+  const pairs = pairItems(plan.spec.nodes, summary.nodes, sameSpot(resolvePath));
   const items: Items = new Map();
-  plannedNodes(plan.spec, pairs, items, cwdPrefix);
+  plannedNodes(plan.spec, pairs, items, resolvePath);
   addedLinks(plan.spec, summary, pairs, items);
   unplannedNodes(summary, pairs, items);
   const renamed = new Map([...pairs].filter(([p, b]) => p.id !== b.id).map(([p, b]) => [p.id, b.id]));

@@ -35,6 +35,14 @@ describe('compareFlows', () => {
     expect(compareFlows(p, s).items).toEqual([]);
   });
 
+  it('pairs steps by the source path as the given resolver spells it', () => {
+    const resolve = (p: string) => (p === 'b.ts' ? 'pkg/b.ts' : p);
+    const p = plan([step('a', 'existing'), step('b', 'planned', { source: 'b.ts:3' })]);
+    const s = flow('summary', [step('a', 'existing'), step('c', 'new', { source: 'pkg/b.ts:3' })]);
+    expect(compareFlows(p, s, resolve).items).toEqual([]);
+    expect(compareFlows(p, s).items).not.toEqual([]);
+  });
+
   it('a planned step nobody built is missing, with its ghost', () => {
     const ghost = step('b', 'planned');
     const d = compareFlows(plan([step('a', 'existing'), ghost]), flow('summary', [step('a', 'existing')]));
