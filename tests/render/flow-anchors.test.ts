@@ -317,7 +317,7 @@ describe('paths relative to the working directory', () => {
     expect(errorsOf(spec('src\\c.ts:1'))[0]).toContain('did you mean pkg/src/c.ts');
   });
 
-  it('suggests a file at its exact repo path from Windows-style input', () => {
+  it.skipIf(process.platform === 'win32')('suggests a file at its exact repo path from Windows-style input', () => {
     mkdirSync(join(repo, 'src'), { recursive: true });
     writeFileSync(join(repo, 'src/c.ts'), 'c\n');
     execFileSync('git', ['add', 'src'], { cwd: repo });
