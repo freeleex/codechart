@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { makeSandbox, removeSandbox, runCli, type Sandbox } from '../helpers/sandbox.js';
+import { git, makeSandbox, removeSandbox, runCli, type Sandbox } from '../helpers/sandbox.js';
 
 let sb: Sandbox;
 
@@ -33,6 +33,19 @@ describe('exit 2 for usage and revision errors, 1 for other failures', () => {
   it('render --at <unknown> exits 2', async () => {
     const r = await run(['render', spec(), '--at', 'nope', '--output', 'cli']);
     expect(r.err).toContain('--at nope is not a commit');
+    expect(r.code).toBe(2);
+  });
+
+  it('render --since <unknown> exits 2', async () => {
+    const r = await run(['render', spec(), '--since', 'nope', '--output', 'cli']);
+    expect(r.err).toContain('--since nope is not a commit');
+    expect(r.code).toBe(2);
+  });
+
+  it('render --since HEAD --head <unknown> exits 2', async () => {
+    git(sb.repo, 'commit', '-q', '--allow-empty', '-m', 'base');
+    const r = await run(['render', spec(), '--since', 'HEAD', '--head', 'nope', '--output', 'cli']);
+    expect(r.err).toContain('--head nope is not a commit');
     expect(r.code).toBe(2);
   });
 

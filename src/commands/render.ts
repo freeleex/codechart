@@ -98,6 +98,8 @@ function selectedDiff(o: RenderFlags, repoRoot: string | undefined, root: string
   if (!hasGitSelection(o)) return undefined;
   if (!repoRoot) throw new Error('--git, --commit and --since need a git repository');
   if (o.commit !== undefined) revision(root, '--commit', o.commit);
+  if (o.since !== undefined) revision(root, '--since', o.since);
+  if (o.head !== undefined) revision(root, '--head', o.head);
   const changes = gitChanges(root, o, true);
   return diffOf(changes.map((c) => c.path), changes);
 }
