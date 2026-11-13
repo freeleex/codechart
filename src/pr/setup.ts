@@ -82,7 +82,7 @@ export function buildPlan(remote: Remote, version: string, read: (file: string) 
   if (existing?.includes('pr-sync')) return undefined;
   if (existing !== undefined && /^codechart-map:/m.test(existing)) conflict(file);
   const stage = existing === undefined ? undefined : appendedStage(existing);
-  const job = stage === undefined ? added : added.replace(/^codechart-map:\n/m, `codechart-map:\n  stage: ${/^[\w-]+$/.test(stage) ? stage : JSON.stringify(stage)}\n`);
+  const job = stage === undefined ? added : added.replace(/^codechart-map:\n/m, `codechart-map:\n  stage: ${JSON.stringify(stage)}\n`);
   const content = existing === undefined ? job : `${existing.replace(/\n*$/, '\n')}\n${job}`;
   return { remote, file, content, added: job, appended: existing !== undefined, notes: gitlabNotes(remote) };
 }
@@ -91,7 +91,7 @@ export function buildPlan(remote: Remote, version: string, read: (file: string) 
 function appendedStage(existing: string): string | undefined {
   let stages: unknown;
   try {
-    stages = (parse(existing) as { stages?: unknown } | null)?.stages;
+    stages = (parse(existing, { logLevel: 'error' }) as { stages?: unknown } | null)?.stages;
   } catch {
     return undefined;
   }

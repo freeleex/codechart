@@ -8,6 +8,7 @@ export function gitRun(cwd: string, args: string[], input?: string, env?: NodeJS
   } catch (e) {
     const lines = String((e as { stderr?: unknown }).stderr ?? '').trim().split('\n');
     const stderr = (lines.find((l) => /^\s*(?:error:|fatal:|!)/.test(l)) ?? lines[0])!.trim();
-    throw new Error(`git ${args[0]} failed: ${stderr || (e as Error).message}`);
+    const remote = lines.find((l) => /^remote:\s*\S/.test(l))?.trim();
+    throw new Error(`git ${args[0]} failed: ${stderr || (e as Error).message}${remote && remote !== stderr ? `; ${remote}` : ''}`);
   }
 }

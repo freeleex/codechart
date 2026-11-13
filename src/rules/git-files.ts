@@ -474,6 +474,13 @@ export function gitLatestTag(cwd: string, sha: string, pattern: string): string 
   }
 }
 
+/** Up to `max` tag names whose ref matches `pattern` (`refs/tags` for all), on any commit. */
+export function gitTagNames(cwd: string, pattern: string, max: number): string[] {
+  return git(cwd, ['for-each-ref', `--count=${max}`, '--format=%(refname:short)', pattern]).split('\n').filter(Boolean);
+}
+
+export const gitIsShallow = (cwd: string): boolean => git(cwd, ['rev-parse', '--is-shallow-repository']).trim() === 'true';
+
 /** One commit of `gitFirstParentLog`. */
 export interface LogEntry {
   sha: string;
