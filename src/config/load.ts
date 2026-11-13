@@ -108,15 +108,48 @@ export interface ConfigWithSources {
   ruleSources: string[];
 }
 
-// eslint-disable-next-line complexity -- ratchet: config merge chain; split per source
-export function loadConfigWithSources(opts: LoadOptions): ConfigWithSources {
-  const env = opts.env ?? process.env;
-  const home = opts.home ?? homedir();
+function configHome(env: NodeJS.ProcessEnv, home: string): string | undefined {
   const xdg = env.XDG_CONFIG_HOME;
-  const configHome = xdg && isAbsolute(xdg) ? xdg : home ? join(home, '.config') : undefined;
+  return xdg && isAbsolute(xdg) ? xdg : home ? join(home, '.config') : undefined;
+}
+
+type SourcedFiles = { file?: ConfigFile; source: string }[];
+
+function mergeSections(files: SourcedFiles, sources: Record<string, string>): { defaults: Config['defaults']; web: Config['web'] } {
+  const defaults: Config['defaults'] = { ...BUILTIN_DEFAULTS };
+  const web: Config['web'] = {
+    outDir: '~/.cache/codechart',
+    theme: 'auto',
+    minNodes: 8,
+    keep: 20,
+    maxAgeDays: 7,
+    open: 'auto',
+  };
+  for (const key of Object.keys(defaults)) sources[`defaults.${key}`] = BUILTIN;
+  for (const key of Object.keys(web)) sources[`web.${key}`] = BUILTIN;
+  for (const { file, source } of files) {
+    Object.assign(defaults, file?.defaults);
+    Object.assign(web, file?.web);
+    for (const key of Object.keys(file?.defaults ?? {})) sources[`defaults.${key}`] = source;
+    for (const key of Object.keys(file?.web ?? {})) sources[`web.${key}`] = source;
+  }
+  return { defaults, web };
+}
+
+function builtinRulesFlag(global: ConfigFile | undefined, repo: ConfigFile | undefined, files: SourcedFiles, sources: Record<string, string>): boolean {
+  const useBuiltinRules = global?.useBuiltinRules !== false && repo?.useBuiltinRules !== false;
+  for (const { file, source } of files) {
+    if (file?.useBuiltinRules === useBuiltinRules) sources.useBuiltinRules = source;
+  }
+  return useBuiltinRules;
+}
+
+export function loadConfigWithSources(opts: LoadOptions): ConfigWithSources {
+  const home = opts.home ?? homedir();
+  const configDir = configHome(opts.env ?? process.env, home);
 
   const root = findRepoRoot(opts.cwd) ?? resolve(opts.cwd);
-  const globalPath = configHome ? join(configHome, 'codechart', 'config.yaml') : undefined;
+  const globalPath = configDir ? join(configDir, 'codechart', 'config.yaml') : undefined;
   const repoPath = join(root, '.codechart.yaml');
   const global = globalPath ? readConfigFile(globalPath) : undefined;
   const repo = dropGlobalOnly(readConfigFile(repoPath, root), repoPath, opts.warn);
@@ -127,33 +160,13 @@ export function loadConfigWithSources(opts: LoadOptions): ConfigWithSources {
     { file: repo, source: repoSource },
   ];
 
-  const defaults: Config['defaults'] = { ...BUILTIN_DEFAULTS };
-  const web: Config['web'] = {
-    outDir: '~/.cache/codechart',
-    theme: 'auto',
-    minNodes: 8,
-    keep: 20,
-    maxAgeDays: 7,
-    open: 'auto',
-  };
   const sources: Record<string, string> = {};
-  for (const key of Object.keys(defaults)) sources[`defaults.${key}`] = BUILTIN;
-  for (const key of Object.keys(web)) sources[`web.${key}`] = BUILTIN;
+  const { defaults, web } = mergeSections(files, sources);
   sources.useBuiltinRules = BUILTIN;
   sources.updateCheck = global?.updateCheck === undefined ? BUILTIN : globalSource;
-
-  for (const { file, source } of files) {
-    Object.assign(defaults, file?.defaults);
-    Object.assign(web, file?.web);
-    for (const key of Object.keys(file?.defaults ?? {})) sources[`defaults.${key}`] = source;
-    for (const key of Object.keys(file?.web ?? {})) sources[`web.${key}`] = source;
-  }
   web.outDir = resolveOutDir(web.outDir, home);
 
-  const useBuiltinRules = global?.useBuiltinRules !== false && repo?.useBuiltinRules !== false;
-  for (const { file, source } of files) {
-    if (file?.useBuiltinRules === useBuiltinRules) sources.useBuiltinRules = source;
-  }
+  const useBuiltinRules = builtinRulesFlag(global, repo, files, sources);
 
   const tagged = firstByName([
     ...(repo?.rules ?? []).map((rule) => ({ rule, source: repoSource })),
