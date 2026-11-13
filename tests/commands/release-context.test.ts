@@ -77,12 +77,14 @@ describe('codechart release-context', () => {
     expect(out.changes.map((c) => c.title)).toEqual(['one']);
   });
 
-  it('without a tag and --since: exit 2 asking for --since', async () => {
+  it('without a tag and --since: a first release, from the root commit on', async () => {
     git(sb.repo, 'tag', '-d', 'v1.0.0');
-    const r = await run();
-    expect(r.code).toBe(2);
-    expect(r.err).toContain('pass --since');
-    expect(r.out).toBe('');
+    commit('second (#2)', { 'a.txt': '1' });
+    const out = await json();
+    expect(out.changes.map((c) => c.title)).toEqual(['base', 'second (#2)']);
+    expect(out.changes[0]!.files).toEqual(['package.json']);
+    expect(out.since).toBeUndefined();
+    expect(out.notes).toContain('First release: no v* tag before HEAD, so this lists every commit from the start.');
   });
 
   it('rejects a bad ref', async () => {
@@ -167,6 +169,16 @@ describe('codechart release-context', () => {
       expect(out.changes.map((c) => c.pr)).toEqual([7, 8]);
       expect(out.changes.every((c) => !c.description && !c.map)).toBe(true);
       expect(out.notes).toEqual(['PR descriptions were not read: gh is not installed.']);
+    });
+
+    it('a number that is not a PR costs only that change its text, with a note', async () => {
+      commit('Fix crash (#15053)', { 'b.txt': '2' });
+      const out = await json([], (_c, a) => {
+        if (a[2] === '15053') throw new Error('gh failed: GraphQL: Could not resolve to a PullRequest with the number of 15053.');
+        return JSON.stringify({ title: 'Add invoices (#7)', body: 'Adds invoices.' });
+      });
+      expect(out.changes.map((c) => c.description)).toEqual(['Adds invoices.', undefined]);
+      expect(out.notes).toEqual(['PR descriptions were not read for #15053: gh failed: GraphQL: Could not resolve to a PullRequest with the number of 15053.']);
     });
 
     it('does not call the tool when no change has a PR number', async () => {

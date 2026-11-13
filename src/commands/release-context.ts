@@ -40,12 +40,19 @@ function readPrs(opts: CommandOptions, root: string, numbers: number[]): { prs: 
   const notes: string[] = [];
   const wanted = numbers.slice(-MAX_PRS);
   if (wanted.length < numbers.length) notes.push(`Only the newest ${MAX_PRS} of ${numbers.length} PRs had their descriptions read.`);
-  try {
-    for (const n of wanted) prs.set(n, fetchPr(tool, remote, n));
-  } catch (e) {
-    const why = sanitizeText((e instanceof Error ? e.message : String(e)).split('\n')[0] ?? '').replace(/\.$/, '');
-    return { prs: new Map(), notes: [`PR descriptions were not read: ${why}.`] };
+  const skipped: number[] = [];
+  let firstWhy = '';
+  for (const n of wanted) {
+    try {
+      prs.set(n, fetchPr(tool, remote, n));
+    } catch (e) {
+      const why = sanitizeText((e instanceof Error ? e.message : String(e)).split('\n')[0] ?? '').replace(/\.$/, '');
+      if (/ is not installed\b/.test(why)) return { prs: new Map(), notes: [`PR descriptions were not read: ${why}.`] };
+      skipped.push(n);
+      firstWhy ||= why;
+    }
   }
+  if (skipped.length) notes.push(`PR descriptions were not read for ${skipped.map((n) => `#${n}`).join(', ')}: ${firstWhy}.`);
   return { prs, notes };
 }
 
@@ -53,11 +60,11 @@ function releaseContext(o: { since?: string; head?: string }, opts: CommandOptio
   const headSha = resolveCommit(root, '--head', o.head ?? 'HEAD');
   // From the parent, so a release commit that is already tagged maps against the release before it.
   const since = o.since ?? gitLatestTag(root, `${headSha}^`, 'v*');
-  if (!since) throw new Error('no version tag (v*) found before HEAD; pass --since <ref>');
-  const sinceSha = resolveCommit(root, '--since', since);
+  const sinceSha = since === undefined ? undefined : resolveCommit(root, '--since', since);
   const log = gitFirstParentLog(root, sinceSha, headSha);
   const numbers = log.flatMap((e) => prNumber(e) ?? []);
   const { prs, notes } = readPrs(opts, root, numbers);
+  if (since === undefined) notes.unshift('First release: no v* tag before HEAD, so this lists every commit from the start.');
   const changes = log.map((e): Change => {
     const files = gitCommitFiles(root, e.sha);
     const n = prNumber(e);
@@ -76,14 +83,14 @@ function releaseContext(o: { since?: string; head?: string }, opts: CommandOptio
     };
   });
   const version = repoVersion(root, headSha);
-  return { since: sanitizeText(since), sinceSha, head: headSha, ...(version ? { version } : {}), changes, ...(notes.length ? { notes } : {}) };
+  return { ...(since === undefined ? {} : { since: sanitizeText(since), sinceSha }), head: headSha, ...(version ? { version } : {}), changes, ...(notes.length ? { notes } : {}) };
 }
 
 export function releaseContextCommand(opts: CommandOptions): Command {
   const cwd = opts.cwd ?? process.cwd();
   return new Command('release-context')
     .description('list what was merged since the last release (JSON for an agent writing a release map)')
-    .option('--since <ref>', 'the previous release: a tag or commit (default: the newest v* tag before HEAD)')
+    .option('--since <ref>', 'the previous release: a tag or commit (default: the newest v* tag before HEAD; without one, every commit)')
     .option('--head <ref>', 'the release commit (default HEAD)')
     .action((o: { since?: string; head?: string }) => {
       try {

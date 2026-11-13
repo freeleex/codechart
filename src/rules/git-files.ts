@@ -483,9 +483,9 @@ export interface LogEntry {
   body: string;
 }
 
-/** The first-parent commits in `since..head` (full shas), oldest first. */
-export function gitFirstParentLog(cwd: string, since: string, head: string): LogEntry[] {
-  const out = git(cwd, ['log', '--first-parent', '--reverse', '--no-color', '--no-show-signature', '--format=%H%x1f%h%x1f%cI%x1f%s%x1f%b%x1e', `${since}..${head}`, '--']);
+/** The first-parent commits in `since..head`, or all of `head`'s without `since` (full shas), oldest first. */
+export function gitFirstParentLog(cwd: string, since: string | undefined, head: string): LogEntry[] {
+  const out = git(cwd, ['log', '--first-parent', '--reverse', '--no-color', '--no-show-signature', '--format=%H%x1f%h%x1f%cI%x1f%s%x1f%b%x1e', since ? `${since}..${head}` : head, '--']);
   return out
     .split('\x1e')
     .map((r) => r.trim())

@@ -1,6 +1,7 @@
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { parse } from 'yaml';
 import { packageFile } from '../assets.js';
 import { gitRun } from './git.js';
 
@@ -80,12 +81,31 @@ export function buildPlan(remote: Remote, version: string, read: (file: string) 
   const existing = read(file);
   if (existing?.includes('pr-sync')) return undefined;
   if (existing !== undefined && /^codechart-map:/m.test(existing)) conflict(file);
-  const content = existing === undefined ? added : `${existing.replace(/\n*$/, '\n')}\n${added}`;
-  return { remote, file, content, added, appended: existing !== undefined, notes: gitlabNotes(remote) };
+  const stage = existing === undefined ? undefined : appendedStage(existing);
+  const job = stage === undefined ? added : added.replace(/^codechart-map:\n/m, `codechart-map:\n  stage: ${/^[\w-]+$/.test(stage) ? stage : JSON.stringify(stage)}\n`);
+  const content = existing === undefined ? job : `${existing.replace(/\n*$/, '\n')}\n${job}`;
+  return { remote, file, content, added: job, appended: existing !== undefined, notes: gitlabNotes(remote) };
 }
 
+/** A stage from the file's own `stages:` when it lists no `test`, the stage a job without one runs in. */
+function appendedStage(existing: string): string | undefined {
+  let stages: unknown;
+  try {
+    stages = (parse(existing) as { stages?: unknown } | null)?.stages;
+  } catch {
+    return undefined;
+  }
+  if (!Array.isArray(stages) || stages.includes('test')) return undefined;
+  // .pre and .post jobs alone make no pipeline
+  const stage = stages.find((s): s is string => typeof s === 'string' && s !== '.pre' && s !== '.post');
+  if (stage === undefined) throw new Error(`.gitlab-ci.yml lists no stage codechart's job can run in; set PR maps up by hand: ${BY_HAND}`);
+  return stage;
+}
+
+const BY_HAND = 'https://github.com/freeleex/codechart/blob/main/docs/pr-maps.md#by-hand';
+
 function conflict(file: string): never {
-  throw new Error(`${file} already exists and is not codechart's; move it or set PR maps up by hand: https://github.com/freeleex/codechart/blob/main/docs/pr-maps.md#by-hand`);
+  throw new Error(`${file} already exists and is not codechart's; move it or set PR maps up by hand: ${BY_HAND}`);
 }
 
 export const SETUP_BRANCH = 'codechart/pr-maps';
@@ -124,6 +144,22 @@ export function prepareSetupReview(root: string, version: string, remote: Remote
     }
   });
   return { defaultBranch, base, plan };
+}
+
+/** Undefined when origin has no setup branch yet; else the URL of the request opened from it, '' when gh/glab can't find one. */
+export function existingSetupReview(root: string, host: Host, tool: Tool): string | undefined {
+  if (!gitRun(root, ['ls-remote', 'origin', `refs/heads/${SETUP_BRANCH}`])) return undefined;
+  try {
+    const out =
+      host === 'github'
+        ? tool('gh', ['pr', 'list', '--head', SETUP_BRANCH, '--state', 'all', '--limit', '1', '--json', 'url'])
+        : tool('glab', ['mr', 'list', '--source-branch', SETUP_BRANCH, '--all', '--output', 'json']);
+    const [first] = JSON.parse(out) as { url?: unknown; web_url?: unknown }[];
+    const url = first?.url ?? first?.web_url;
+    return typeof url === 'string' ? url : '';
+  } catch {
+    return '';
+  }
 }
 
 /**

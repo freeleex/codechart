@@ -6,7 +6,8 @@ export function gitRun(cwd: string, args: string[], input?: string, env?: NodeJS
   try {
     return execFileSync(gitBinary(), args, { cwd, encoding: 'utf8', input, env, stdio: ['pipe', 'pipe', 'pipe'], timeout: 60_000 }).trim();
   } catch (e) {
-    const stderr = String((e as { stderr?: unknown }).stderr ?? '').trim().split('\n')[0];
+    const lines = String((e as { stderr?: unknown }).stderr ?? '').trim().split('\n');
+    const stderr = (lines.find((l) => /^\s*(?:error:|fatal:|!)/.test(l)) ?? lines[0])!.trim();
     throw new Error(`git ${args[0]} failed: ${stderr || (e as Error).message}`);
   }
 }
