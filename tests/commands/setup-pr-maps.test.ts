@@ -1,7 +1,8 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { makeTool } from '../../src/commands/setup-pr-maps.js';
+import { gitRun } from '../../src/pr/git.js';
 import { buildPlan, parseRemote, SETUP_BRANCH, type Remote } from '../../src/pr/setup.js';
 import { git, makeSandbox, removeSandbox, runCli, type Sandbox } from '../helpers/sandbox.js';
 
@@ -40,6 +41,30 @@ describe('buildPlan', () => {
     expect(plan.content.startsWith('test:\n  script: [make]\n\n# codechart PR maps')).toBe(true);
     expect(plan.content).toContain('codechart@9.9.9 pr-sync');
     expect(plan.notes.join('\n')).toContain('https://gitlab.example.com/g/sub/r/-/settings/ci_cd');
+  });
+
+  it('GitLab: a file whose stages lack test gets the job in its first real stage', () => {
+    const ci = (text: string) => (f: string) => (f === '.gitlab-ci.yml' ? text : undefined);
+    const plan = buildPlan(gl, '9.9.9', ci('stages: [.pre, build, deploy]\nb:\n  stage: build\n  script: [make]\n'))!;
+    expect(plan.added).toContain('codechart-map:\n  stage: "build"\n  image: node:22');
+    expect(plan.content).toContain('codechart-map:\n  stage: "build"\n');
+    expect(buildPlan(gl, '9.9.9', ci('stages: [build, test]\n'))!.added).not.toContain('stage:');
+    expect(buildPlan(gl, '9.9.9', ci('b:\n  script: [make]\n'))!.added).not.toContain('stage:');
+    expect(buildPlan(gl, '9.9.9', ci('stages: ["my stage"]\n'))!.added).toContain('  stage: "my stage"\n');
+    expect(buildPlan(gl, '9.9.9', ci('stages: ["123"]\n'))!.added).toContain('  stage: "123"\n');
+    expect(buildPlan(gl, '9.9.9', ci('stages: ["true"]\n'))!.added).toContain('  stage: "true"\n');
+    expect(() => buildPlan(gl, '9.9.9', ci('stages: [.pre, .post]\n'))).toThrow('.gitlab-ci.yml lists no stage codechart');
+  });
+
+  it('GitLab: reads stages past a !reference tag without printing a YAML warning', () => {
+    const warn = vi.spyOn(process, 'emitWarning').mockImplementation(() => {});
+    try {
+      const plan = buildPlan(gl, '9.9.9', (f) => (f === '.gitlab-ci.yml' ? 'stages: [build]\nb:\n  script: !reference [.x, script]\n' : undefined))!;
+      expect(plan.added).toContain('  stage: "build"\n');
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   it('nothing to do when already set up', () => {
@@ -142,6 +167,45 @@ describe('codechart setup-pr-maps', () => {
     expect(calls[0]!.join(' ')).toContain('Merge to turn PR maps on; close to say no.');
     expect(git(sb.repo, 'status', '--porcelain')).toBe('?? wip.txt\n');
     expect(existsSync(workflow())).toBe(false);
+  });
+
+  it('--pr a second time: says the setup PR exists instead of pushing again', async () => {
+    const remote = join(sb.tmp, 'remote.git');
+    git(sb.tmp, 'init', '-q', '--bare', '-b', 'main', remote);
+    git(sb.repo, 'push', '-q', remote, 'HEAD:refs/heads/main');
+    git(sb.repo, 'config', `url.${remote}.insteadOf`, 'git@github.com:o/r.git');
+    await run(['--pr', '--yes'], { tool: () => 'https://github.com/o/r/pull/7\n' });
+    const pushed = git(remote, 'rev-parse', SETUP_BRANCH);
+    const calls: string[][] = [];
+    const tool = (cmd: string, args: string[]) => (calls.push([cmd, ...args]), '[{"url":"https://github.com/o/r/pull/7"}]');
+    const r = await run(['--pr', '--yes'], { tool });
+    expect(r.err).toBe('');
+    expect(r.out).toBe(
+      'codechart: the setup pull request already exists: https://github.com/o/r/pull/7\nMerge it to turn PR maps on, or delete the codechart/pr-maps branch and run again for a new one.\n',
+    );
+    expect(calls).toEqual([['gh', 'pr', 'list', '--head', SETUP_BRANCH, '--state', 'all', '--limit', '1', '--json', 'url']]);
+    expect(git(remote, 'rev-parse', SETUP_BRANCH)).toBe(pushed);
+    const unknown = await run(['--pr', '--yes'], { tool: () => '' });
+    expect(unknown.out).toContain('the codechart/pr-maps branch already exists on origin, so the setup pull request was opened before');
+  });
+
+  it('a rejected git push says why, not just where it pushed to', () => {
+    const remote = join(sb.tmp, 'remote.git');
+    git(sb.tmp, 'init', '-q', '--bare', '-b', 'main', remote);
+    git(sb.repo, 'push', '-q', remote, 'HEAD:refs/heads/main');
+    git(sb.repo, 'commit', '-q', '--allow-empty', '-m', 'other');
+    git(sb.repo, 'push', '-q', remote, 'HEAD:refs/heads/x');
+    expect(() => gitRun(sb.repo, ['push', remote, 'HEAD~1:refs/heads/x'])).toThrow(/^git push failed: ! \[rejected\].*\(non-fast-forward\)$/);
+  });
+
+  // shell hooks need sh, which Windows runners may not run the same way
+  it.runIf(process.platform !== 'win32')('a push a server hook declines gives the hook’s reason', () => {
+    const remote = join(sb.tmp, 'remote.git');
+    git(sb.tmp, 'init', '-q', '--bare', '-b', 'main', remote);
+    writeFileSync(join(remote, 'hooks', 'pre-receive'), '#!/bin/sh\necho "GitLab: Author not a member of team" >&2\nexit 1\n', { mode: 0o755 });
+    expect(() => gitRun(sb.repo, ['push', remote, 'HEAD:refs/heads/x'])).toThrow(
+      /^git push failed: ! \[remote rejected\].*\(pre-receive hook declined\); remote: GitLab: Author not a member of team$/,
+    );
   });
 
   it('--pr on GitLab: appends the job to the default branch’s .gitlab-ci.yml and opens an MR with glab', async () => {

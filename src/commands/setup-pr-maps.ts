@@ -9,7 +9,7 @@ import { readRegularFile } from '../read-regular.js';
 import { gitRun } from '../pr/git.js';
 import { trustedBinary } from '../rules/git-files.js';
 import { currentVersion } from '../update/check.js';
-import { buildPlan, openSetupReview, parseRemote, prepareSetupReview, type Host, type Plan, type Remote, type Tool } from '../pr/setup.js';
+import { buildPlan, existingSetupReview, openSetupReview, parseRemote, prepareSetupReview, SETUP_BRANCH, type Host, type Plan, type Remote, type Tool } from '../pr/setup.js';
 
 interface Flags {
   yes?: boolean;
@@ -116,6 +116,12 @@ async function agreed(o: Flags, opts: CommandOptions): Promise<boolean> {
   return false;
 }
 
+function alreadyOpened(host: Host, url: string): string {
+  const kind = host === 'github' ? 'pull' : 'merge';
+  const what = url ? `the setup ${kind} request already exists: ${url}` : `the ${SETUP_BRANCH} branch already exists on origin, so the setup ${kind} request was opened before`;
+  return `codechart: ${what}\nMerge it to turn PR maps on, or delete the ${SETUP_BRANCH} branch and run again for a new one.\n`;
+}
+
 async function setup(o: Flags, opts: CommandOptions, root: string): Promise<void> {
   const remote = remoteOf(root, o.host);
   const v = currentVersion();
@@ -123,9 +129,12 @@ async function setup(o: Flags, opts: CommandOptions, root: string): Promise<void
   if (o.pr) {
     const prepared = prepareSetupReview(root, v, remote);
     if (!prepared.plan) return done();
+    const tool = opts.tool ?? defaultTool;
+    const existing = existingSetupReview(root, remote.host, tool);
+    if (existing !== undefined) return opts.stdout(alreadyOpened(remote.host, existing));
     opts.stdout(describe(prepared.plan, true));
     if (!(await agreed(o, opts))) return;
-    const url = openSetupReview(root, { ...prepared, plan: prepared.plan }, opts.tool ?? defaultTool);
+    const url = openSetupReview(root, { ...prepared, plan: prepared.plan }, tool);
     opts.stdout(`codechart: opened ${url}\nMerge it to turn PR maps on; close it to say no.\n`);
     return;
   }

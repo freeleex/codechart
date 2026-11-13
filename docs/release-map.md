@@ -10,7 +10,7 @@ A PDF of what is new in a release, in plain words, for sales and stakeholders. I
 > make a release map of what's in the next release
 ```
 
-The agent runs `codechart release-context` (the changes merged since the last `v*` tag), groups them into features, writes a section for each, and runs `codechart render`. It replies with the PDF path and a link to the page. Your agent never makes one on its own, except on a release branch (below), and it never goes into a PR description. When you prepare a release with it (version bump, changelog, release notes, tag) and have no release branch set up, it offers one in a single line at the end of its reply, once per conversation. For a single change, use a [business map](business-map.md).
+The agent runs `codechart release-context` (the changes merged since the last `v*` tag; with no tag before the release commit, every change from the first commit; with other tags before it, or in a shallow clone, it asks for `--since`), groups them into features, writes a section for each, and runs `codechart render`. It replies with the PDF path and a link to the page. Your agent never makes one on its own, except on a release branch (below), and it never goes into a PR description. When you prepare a release with it (version bump, changelog, release notes, tag) and have no release branch set up, it offers one in a single line at the end of its reply, once per conversation. For a single change, use a [business map](business-map.md).
 
 It only writes facts it checked in the code, the PR text or the diff. Anything it can't confirm it asks you about in the chat before rendering, or leaves out. The spec can't carry questions or an *Agent's reading* tag: a spec with either is refused.
 
@@ -31,8 +31,8 @@ On each journey, *Before* shows today's steps in plain grey and *Now* marks the 
 
 ```text
 Release map: What is new in Shop 2.0 (2.0.0) · 3 features · 1 new · 1 changed · 1 fixed
-PDF: ~/.cache/codechart/shop-1a2b3c4d/20261109-100000-v2-0-0-what-is-new-in-shop-2-0.release.pdf
-full map → file://…/20261109-100000-v2-0-0-what-is-new-in-shop-2-0.release.html
+PDF: ~/.cache/codechart/shop-1a2b3c4d/20261109-100000-v2-0-0--what-is-new-in-shop-2-0.release.pdf
+full map → file://…/20261109-100000-v2-0-0--what-is-new-in-shop-2-0.release.html
 ```
 
 - **Browser:** the first of Google Chrome, Chromium, Microsoft Edge and Brave found where they are usually installed (`/Applications` on macOS, the `PATH` on Linux, Program Files and `LOCALAPPDATA` on Windows). To use another, set `release.browser` to its absolute path in your global config. A repo config can't set it: it names a program to run.

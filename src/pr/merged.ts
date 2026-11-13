@@ -67,11 +67,18 @@ export function fetchPr(tool: Tool, remote: Remote, n: number): PrInfo {
 
 /** Runs gh or glab; its error says in a sentence why it could not. */
 export const runTool: Tool = (command, args) => {
+  let file: string;
   try {
-    return execFileSync(trustedBinary(command), args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 60_000, maxBuffer: 16 * 1024 * 1024 });
+    file = trustedBinary(command);
+  } catch {
+    throw new Error(`${command} is not installed`);
+  }
+  try {
+    return execFileSync(file, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 60_000, maxBuffer: 16 * 1024 * 1024 });
   } catch (e) {
     if ((e as NodeJS.ErrnoException).code === 'ENOENT') throw new Error(`${command} is not installed`);
-    const stderr = String((e as { stderr?: unknown }).stderr ?? '').trim().split('\n')[0];
+    // glab puts a bare ERROR banner line before the reason
+    const stderr = String((e as { stderr?: unknown }).stderr ?? '').split('\n').map((l) => l.trim()).find((l) => l && l !== 'ERROR');
     throw new Error(`${command} failed${stderr ? `: ${stderr}` : ''}`);
   }
 };

@@ -23,6 +23,12 @@ What's new in each codechart release. Update with `codechart update`; the [relea
 - Page notes on a gap, arrow or box whose text has a colon in it come back with their own words: the copied message now shows that colon as a dash, so the item's text can no longer end up inside the note.
 - A line in a page note that starts with `>` keeps its `>` when you import the notes. A review pasted as a quote still imports.
 - A note on a long gap in a flow imports: it used to make the whole pasted review count as damaged.
+- `codechart setup-pr-maps --pr` run a second time, before the setup pull request is merged, links that request instead of failing on the push.
+- A failed git push or fetch in the PR map commands says why (`! [rejected] … (non-fast-forward)`, with the server's reason when a hook declines it), not just `To <remote>`.
+- `codechart setup-pr-maps` on GitLab: when your `.gitlab-ci.yml` lists `stages:` without `test`, the appended job runs in your first stage, so the file stays valid.
+- `codechart release-context` keeps the PR text it could read when one `(#N)` number isn't a PR (often an issue), and lists the skipped numbers in `notes`. After a timeout or network failure it stops asking and says which PRs were not read. On Windows, `gh` or `glab` missing from PATH is reported as not installed.
+- `codechart release-context` with no tag before the release commit (none yet, or `v1.0.0` already on it) lists every commit from the first one, for a first release; it used to ask for `--since`, which could never include the first commit. When the tags before it don't start with `v`, it still asks for `--since` and says so; in a shallow clone it asks you to fetch the full history and tags.
+- The release map docs show the real PDF and page file names.
 
 ### Changed
 

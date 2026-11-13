@@ -77,12 +77,64 @@ describe('codechart release-context', () => {
     expect(out.changes.map((c) => c.title)).toEqual(['one']);
   });
 
-  it('without a tag and --since: exit 2 asking for --since', async () => {
+  it('without a tag and --since: a first release, from the root commit on', async () => {
     git(sb.repo, 'tag', '-d', 'v1.0.0');
+    commit('second (#2)', { 'a.txt': '1' });
+    const out = await json();
+    expect(out.changes.map((c) => c.title)).toEqual(['base', 'second (#2)']);
+    expect(out.changes[0]!.files).toEqual(['package.json']);
+    expect(out.since).toBeUndefined();
+    expect(out.notes).toContain('First release: no tag before the release commit, so this lists every commit from the start.');
+  });
+
+  it('tags but none named v*: exit 2 asking for --since, saying the tags don’t start with v', async () => {
+    git(sb.repo, 'tag', '-d', 'v1.0.0');
+    git(sb.repo, 'tag', 'release-1');
+    commit('second', { 'a.txt': '1' });
     const r = await run();
     expect(r.code).toBe(2);
-    expect(r.err).toContain('pass --since');
+    expect(r.err).toBe("codechart: no version tag (v*) found before HEAD: the tags before it (release-1) don't start with v; pass --since <ref>\n");
     expect(r.out).toBe('');
+  });
+
+  it('a shallow clone without a v* tag: exit 2 asking for full history, not a first release', async () => {
+    git(sb.repo, 'tag', '-d', 'v1.0.0');
+    commit('second', { 'a.txt': '1' });
+    const shallow = join(sb.tmp, 'shallow');
+    git(sb.tmp, 'clone', '-q', '--depth', '1', `file://${sb.repo}`, shallow);
+    const r = await runCli({ cwd: shallow, home: sb.home }, ['release-context']);
+    expect(r.code).toBe(2);
+    expect(r.err).toContain('shallow clone; fetch the full history and tags (git fetch --unshallow --tags) or pass --since <ref>');
+    expect(r.out).toBe('');
+  });
+
+  it('tags only on HEAD: a first release, from the root commit on', async () => {
+    git(sb.repo, 'tag', '-d', 'v1.0.0');
+    commit('second (#2)', { 'a.txt': '1' });
+    git(sb.repo, 'tag', '-a', 'v1.0.0', '-m', 'first');
+    git(sb.repo, 'tag', 'latest');
+    const out = await json();
+    expect(out.changes.map((c) => c.title)).toEqual(['base', 'second (#2)']);
+    expect(out.notes).toContain('First release: no tag before the release commit, so this lists every commit from the start.');
+  });
+
+  it('--head at the first tag, with later tags: still a first release', async () => {
+    commit('later', { 'a.txt': '1' });
+    git(sb.repo, 'tag', 'v1.1.0');
+    const out = await json(['--head', 'v1.0.0']);
+    expect(out.changes.map((c) => c.title)).toEqual(['base']);
+    expect(out.notes).toContain('First release: no tag before the release commit, so this lists every commit from the start.');
+  });
+
+  it('a tag on a branch that was never merged does not block a first release', async () => {
+    git(sb.repo, 'tag', '-d', 'v1.0.0');
+    git(sb.repo, 'checkout', '-q', '-b', 'spike');
+    commit('spike', { 's.txt': '1' });
+    git(sb.repo, 'tag', 'v0.0.1-spike');
+    git(sb.repo, 'checkout', '-q', '-');
+    commit('second (#2)', { 'a.txt': '1' });
+    const out = await json();
+    expect(out.changes.map((c) => c.title)).toEqual(['base', 'second (#2)']);
   });
 
   it('rejects a bad ref', async () => {
@@ -167,6 +219,30 @@ describe('codechart release-context', () => {
       expect(out.changes.map((c) => c.pr)).toEqual([7, 8]);
       expect(out.changes.every((c) => !c.description && !c.map)).toBe(true);
       expect(out.notes).toEqual(['PR descriptions were not read: gh is not installed.']);
+    });
+
+    it('a number that is not a PR costs only that change its text, with a note', async () => {
+      commit('Fix crash (#15053)', { 'b.txt': '2' });
+      const out = await json([], (_c, a) => {
+        if (a[2] === '15053') throw new Error('gh failed: GraphQL: Could not resolve to a PullRequest with the number of 15053.');
+        return JSON.stringify({ title: 'Add invoices (#7)', body: 'Adds invoices.' });
+      });
+      expect(out.changes.map((c) => c.description)).toEqual(['Adds invoices.', undefined]);
+      expect(out.notes).toEqual(['PR descriptions were not read for #15053: gh failed: GraphQL: Could not resolve to a PullRequest with the number of 15053.']);
+    });
+
+    it('stops asking after a failure that is not about one PR, and says which were not read', async () => {
+      commit('Second (#8)', { 'b.txt': '2' });
+      commit('Third (#9)', { 'c.txt': '3' });
+      const asked: string[] = [];
+      const out = await json([], (_c, a) => {
+        asked.push(a[2]!);
+        if (a[2] === '8') throw new Error('gh failed: Post "https://api.github.com/graphql": dial tcp: i/o timeout');
+        return JSON.stringify({ title: 'Add invoices (#7)', body: 'Adds invoices.' });
+      });
+      expect(asked).toEqual(['7', '8']);
+      expect(out.changes[0]!.description).toBe('Adds invoices.');
+      expect(out.notes).toEqual(['PR descriptions were not read for #8 and the 1 after it: gh failed: Post "https://api.github.com/graphql": dial tcp: i/o timeout.']);
     });
 
     it('does not call the tool when no change has a PR number', async () => {
