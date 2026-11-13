@@ -15,8 +15,8 @@ const MAX_TOTAL_BYTES = 25 * 1024 * 1024;
 type Read = string[] | { error: string } | null;
 
 const HIDDEN = 'not shown: looks like a secret';
-/** `all`: the whole file, so a key body line is hidden even when its BEGIN line is not shown. */
-export const shownLines = (path: string, slice: string[], all: string[]): string[] => (looksSecret(path) || PRIVATE_KEY.test(all.join('\n')) ? [HIDDEN] : slice.map(clip));
+/** `secret`: the name, or the file it resolves to, looks like one. `all`: the whole file, so a key body line is hidden even when its BEGIN line is not shown. */
+export const shownLines = (secret: boolean, slice: string[], all: string[]): string[] => (secret || PRIVATE_KEY.test(all.join('\n')) ? [HIDDEN] : slice.map(clip));
 
 const escapes = (rel: string) => rel === '..' || rel.startsWith(`..${sep}`) || isAbsolute(rel);
 // .git/config (also a nested clone's) can hold a remote URL with a token.
@@ -78,6 +78,18 @@ function readLines(path: string, root: string, realRoot: string, budget: Budget)
 export interface Loaded {
   path: string;
   lines: Read;
+  /** The path, or the in-repo file a symlink at it points to, looks like a secret. */
+  secret: boolean;
+}
+
+/** Where `path` really is, repo-relative; undefined when it can't be resolved or is read from git (a symlink there is only its link text). */
+function targetOf(c: AnchorCtx, path: string): string | undefined {
+  if (c.at) return undefined;
+  try {
+    return relative(c.realRoot, realpathSync(resolve(c.root, path))).split(sep).join('/');
+  } catch {
+    return undefined;
+  }
 }
 
 export interface AnchorCtx {
@@ -169,7 +181,8 @@ export function load(c: AnchorCtx, path: string): Loaded {
   const hit = c.cache.get(path);
   if (hit) return hit;
   const { path: found, value } = withCwd(c, path, (p) => read(c, p), (v) => v === null);
-  const loaded = { path: found, lines: value };
+  const target = targetOf(c, found);
+  const loaded = { path: found, lines: value, secret: looksSecret(found) || (target !== undefined && looksSecret(target)) };
   c.cache.set(path, loaded);
   return loaded;
 }

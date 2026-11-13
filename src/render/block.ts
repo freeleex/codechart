@@ -68,9 +68,9 @@ function blockRange(lines: string[], m: number): [number, number] {
   return [Math.max(0, m - WINDOW_BEFORE), Math.min(lines.length, m + WINDOW_AFTER + 1)];
 }
 
-/** Nothing for an empty file or one that looks like a secret. `matchLine`: 1-based line of the quoted text; without it the top of the file. */
-export function blockOf(path: string, lines: string[], matchLine?: number): Block | undefined {
-  if (lines.length === 0 || looksSecret(path) || PRIVATE_KEY.test(lines.join('\n'))) return undefined;
+/** Nothing for an empty file or one that looks like a secret (by `path`, or `secret` when the file it resolves to does). `matchLine`: 1-based line of the quoted text; without it the top of the file. */
+export function blockOf(path: string, lines: string[], matchLine?: number, secret = false): Block | undefined {
+  if (lines.length === 0 || secret || looksSecret(path) || PRIVATE_KEY.test(lines.join('\n'))) return undefined;
   const m = matchLine === undefined ? undefined : matchLine - 1;
   const [start, end] = m === undefined ? [0, Math.min(lines.length, BLOCK_MAX)] : blockRange(lines, m);
   const lo = Math.max(0, start - CONTEXT);

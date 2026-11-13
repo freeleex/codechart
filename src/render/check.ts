@@ -124,18 +124,18 @@ function checkNode(c: AnchorCtx, spec: Spec, node: SpecNode & { path: string }, 
     if (node.match === undefined) return { found };
     return { found, problem: { short: 'file unreadable', detail: loaded.lines?.error ?? `${where.path} does not exist` } };
   }
-  return { found, ...matchAndBlock(loaded.path, loaded.lines, node.match, explaining) };
+  return { found, ...matchAndBlock(loaded.path, loaded.lines, loaded.secret, node.match, explaining) };
 }
 
 /** The quoted line, if there is one, and for an explain box the block around it. */
-function matchAndBlock(path: string, lines: string[], needle: string | undefined, explaining: boolean): Omit<NodeCheck, 'found'> {
+function matchAndBlock(path: string, lines: string[], secret: boolean, needle: string | undefined, explaining: boolean): Omit<NodeCheck, 'found'> {
   let match: Snippet | undefined;
   if (needle !== undefined) {
-    const r = findMatch(path, needle, lines);
+    const r = findMatch(path, needle, lines, secret);
     if ('error' in r) return { problem: { short: r.error.endsWith(` not found in ${path}`) ? 'match not found' : 'match on several lines', detail: r.error } };
     match = r.snippet;
   }
-  return { match, block: explaining ? blockOf(path, lines, match?.startLine) : undefined };
+  return { match, block: explaining ? blockOf(path, lines, match?.startLine, secret) : undefined };
 }
 
 const loose = (s: string) => s.toLowerCase().replace(/[_-]/g, '');

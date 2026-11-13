@@ -27,7 +27,7 @@ function lineList(hits: number[]): string {
   return hits.length > MAX_LISTED ? `${shown} and ${hits.length - MAX_LISTED} more` : shown;
 }
 
-export function findMatch(path: string, match: string, lines: string[]): Resolved {
+export function findMatch(path: string, match: string, lines: string[], secret: boolean): Resolved {
   const needle = match.trim();
   const hits: number[] = [];
   lines.forEach((l, i) => {
@@ -41,7 +41,7 @@ export function findMatch(path: string, match: string, lines: string[]): Resolve
     };
   }
   const line = hits[0]!;
-  return { snippet: { source: `${path}:${line}`, startLine: line, lines: shownLines(path, [lines[line - 1]!], lines) } };
+  return { snippet: { source: `${path}:${line}`, startLine: line, lines: shownLines(secret, [lines[line - 1]!], lines) } };
 }
 
 function resolveAnchor(source: string, match: string | undefined, c: AnchorCtx): Resolved {
@@ -63,7 +63,7 @@ function resolveAnchor(source: string, match: string | undefined, c: AnchorCtx):
     return { error: `${source} not found (${where}; ${hint})`, missing: { path, detail: `${where} (${hint})` } };
   }
   if (!Array.isArray(lines)) return lines;
-  if (match !== undefined) return findMatch(loaded.path, match, lines);
+  if (match !== undefined) return findMatch(loaded.path, match, lines, loaded.secret);
 
   const start = Number(a);
   const end = b === undefined ? start : Number(b);
@@ -74,7 +74,7 @@ function resolveAnchor(source: string, match: string | undefined, c: AnchorCtx):
     snippet: {
       source: loaded.path === path ? source : `${loaded.path}:${a}${b === undefined ? '' : `-${b}`}`,
       startLine: start,
-      lines: shownLines(loaded.path, lines.slice(start - 1, Math.min(end, start - 1 + SNIPPET_MAX_LINES)), lines),
+      lines: shownLines(loaded.secret, lines.slice(start - 1, Math.min(end, start - 1 + SNIPPET_MAX_LINES)), lines),
     },
   };
 }

@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { readdirSync, readFileSync } from 'node:fs';
@@ -175,6 +175,57 @@ describe('anchor snippets of a secret file', () => {
     });
     expect(page).not.toContain(VALUE);
     expect(page).toContain(NOTE);
+  });
+
+  describe.skipIf(process.platform === 'win32')('a symlink with an ordinary name to a secret file', () => {
+    const pageViaLink = async (spec: unknown) => {
+      const sb = makeSandbox('anchor-secret-link', { htmlOut: true, git: 'init' });
+      try {
+        writeFileSync(join(sb.repo, '.env'), `SECRET_KEY=${VALUE}\n`);
+        symlinkSync('.env', join(sb.repo, 'config.txt'));
+        writeFileSync(join(sb.tmp, 'spec.json'), JSON.stringify(spec));
+        const r = await runCli({ cwd: sb.repo, home: sb.home, isTTY: false }, ['render', join(sb.tmp, 'spec.json'), '--output', 'web']);
+        expect(r.err).toBe('');
+        const dir = join(sb.out, readdirSync(sb.out)[0]!);
+        return readFileSync(join(dir, readdirSync(dir).find((n) => n.endsWith('.html'))!), 'utf8');
+      } finally {
+        removeSandbox(sb.tmp);
+      }
+    };
+
+    it('a flow step source hides the line', async () => {
+      const page = await pageViaLink({
+        diagram: 'flow',
+        kind: 'plan',
+        title: 'f',
+        start: 'a',
+        steps: [{ id: 'a', label: 'read the key', type: 'end', status: 'existing', source: 'config.txt:1' }],
+        links: [],
+      });
+      expect(page).not.toContain(VALUE);
+      expect(page).toContain(NOTE);
+    });
+
+    it('an explain box match hides the line and the block', async () => {
+      const page = await pageViaLink({
+        title: 'e',
+        kind: 'explain',
+        nodes: [{ id: 'a', label: 'Cfg', kind: 'config', status: 'existing', layer: 'l', path: 'config.txt', match: 'SECRET_KEY' }],
+        edges: [],
+      });
+      expect(page).not.toContain(VALUE);
+      expect(page).toContain(NOTE);
+    });
+
+    it('an explain box without match hides the block', async () => {
+      const page = await pageViaLink({
+        title: 'e',
+        kind: 'explain',
+        nodes: [{ id: 'a', label: 'Cfg', kind: 'config', status: 'existing', layer: 'l', path: 'config.txt' }],
+        edges: [],
+      });
+      expect(page).not.toContain(VALUE);
+    });
   });
 
   describe('a key body line of a PEM block in an ordinarily named file', () => {
