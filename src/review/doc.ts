@@ -30,6 +30,7 @@ const hhmm = (iso: string): string => {
 const HEAD = [
   '# Add a note on its own line under a node or a diff line:',
   '#   > text    comment        >? text   question       >del text  delete this',
+  '# To go on to a new line in a note, start the next line with "  > " (two spaces first).',
   '# Lines starting with # are ignored. Save and quit when you are done; quit without saving to cancel.',
 ];
 

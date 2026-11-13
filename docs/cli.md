@@ -31,6 +31,7 @@ Every map or flow `render` draws gets a `<same name>.review.json` in the cache f
 # Review: Orders and coupons · branch feat/coupons · drawn at 09:05
 # Add a note on its own line under a node or a diff line:
 #   > text    comment        >? text   question       >del text  delete this
+# To go on to a new line in a note, start the next line with "  > " (two spaces first).
 # Lines starting with # are ignored. Save and quit when you are done; quit without saving to cancel.
 
 ## Order — app/orders.py  [Order]

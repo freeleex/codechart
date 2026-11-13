@@ -20,7 +20,8 @@ describe('buildDoc', () => {
     const doc = buildDoc(review());
     const [title, ...rest] = doc.split('\n');
     expect(title).toMatch(/^# Review: Invites by email · branch feat\/invites · drawn at \d\d:\d\d$/);
-    expect(rest.slice(0, 3).every((l) => l.startsWith('# '))).toBe(true);
+    expect(rest.slice(0, 4).every((l) => l.startsWith('# '))).toBe(true);
+    expect(rest[2]).toBe('# To go on to a new line in a note, start the next line with "  > " (two spaces first).');
     expect(doc).toContain('## invites route — src/routes/invites.ts  [api]\n@@ -10,3 +10,4 @@ router\n  10  router.post');
     expect(doc).toContain('\n- 11    const email = req.body.email\n+ 11    const { email, teamId } = req.body\n+ 12');
     expect(doc).toContain('## mailer — src/mail/invite.ts  [mailer]\n# generated file, not shown\n');
