@@ -13,7 +13,7 @@ For the maintainer. The workflow is `.github/workflows/publish.yml`; the notes c
 
 ## A step failed
 
-- **Before anything was staged** (the `publish` job failed): fix the cause and re-run the failed jobs. If the fix is a new commit, delete the tag, push it again on the new commit and approve again. Nothing is public.
+- **Before anything was staged** (the `publish` job failed): fix the cause and re-run the failed jobs. If the fix is a new commit, release the next patch version instead: `v*` tags can't be moved or deleted. Nothing is public.
 - **Staged, not approved** (or you don't want it): reject the stage on npmjs.com, delete the draft release, and release the next patch version. Never reuse a version number.
 - **`github-release` failed or timed out**: re-run the failed jobs only. A re-run reuses the draft that exists.
 
