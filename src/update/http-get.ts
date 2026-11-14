@@ -10,7 +10,7 @@ const EMPTY = new Set([204, 205, 304]);
 export const httpsFetch = ((input: string | URL, init?: RequestInit) =>
   new Promise<Response>((resolve, reject) => {
     const signal = init?.signal;
-    const req = https.get(String(input), { headers: init?.headers as Record<string, string> | undefined, agent: false }, (res) => {
+    const req = https.get(String(input), { headers: init?.headers as Record<string, string> | undefined }, (res) => {
       const chunks: Buffer[] = [];
       let size = 0;
       res.on('data', (chunk: Buffer) => {
@@ -20,6 +20,7 @@ export const httpsFetch = ((input: string | URL, init?: RequestInit) =>
       });
       res.on('end', () => {
         const status = res.statusCode ?? 502;
+        if (status < 200 || status > 599) return reject(new Error(`status ${status}`));
         resolve(new Response(EMPTY.has(status) ? null : Buffer.concat(chunks), { status }));
       });
       res.on('error', reject);

@@ -67,4 +67,14 @@ describe('httpsFetch destroys the request', () => {
     expect(await out.json()).toEqual({ version: '1.2.3' });
     expect(req.destroyed).toBe(false);
   });
+
+  it('rejects a status outside 200-599 instead of throwing inside the end handler', async () => {
+    res.statusCode = 999;
+    const pending = httpsFetch('https://example.test/');
+    await Promise.resolve();
+    await Promise.resolve();
+    res.emit('data', Buffer.from('x'));
+    expect(() => res.emit('end')).not.toThrow();
+    await expect(pending).rejects.toThrow('status 999');
+  });
 });
