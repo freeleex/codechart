@@ -238,7 +238,7 @@ A diagram is about **2–3 extra API calls**, roughly 2–3% of a long session's
 
 ## Safe to run
 
-- No telemetry, no shell except two fixed cases: `npm` on Windows during `codechart update`, and the editor you choose with `$VISUAL` or `$EDITOR` for `codechart review`. `git` is read-only. Pages load nothing external and are saved to `~/.cache/codechart`, never to your repo. The only network calls: a daily version check, plus that version's changelog from GitHub when there's a newer one ([off with one setting](docs/install.md#updating)), and opt-in [PR maps](docs/pr-maps.md).
+- No telemetry, no shell except two fixed cases: `npm` on Windows during `codechart update`, and the editor you choose with `$VISUAL` or `$EDITOR` for `codechart review`. `git` is read-only, except the push of `setup-pr-maps --pr` and the [PR map](docs/pr-maps.md) CI job. Pages load nothing external and are saved to `~/.cache/codechart`, never to your repo. The only network calls: a daily version check, plus that version's changelog from GitHub when there's a newer one ([off with one setting](docs/install.md#updating)); `codechart update`; `release-context`, through your own `gh` or `glab`; and opt-in [PR maps](docs/pr-maps.md).
 - Audited before release across 8 areas, including untrusted repos and prompt-injected specs: [SECURITY.md](SECURITY.md) and [docs/security-review.md](docs/security-review.md).
 
 ## Configure
