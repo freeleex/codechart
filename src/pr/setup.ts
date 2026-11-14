@@ -38,8 +38,8 @@ function validPath(host: Host, path: string): boolean {
   return parts.every((p) => SEGMENT.test(p)) && (host === 'github' ? parts.length === 2 : parts.length >= 2);
 }
 
-/** The forge behind a remote URL; undefined when the host name names neither, or the path is not a repo on it. */
-export function parseRemote(url: string, host?: Host): Remote | undefined {
+/** The server, port and path of a remote URL; undefined when it is not one, or has hidden characters or an invalid server name. */
+function splitUrl(url: string): { server: string; port?: string; path: string } | undefined {
   for (const re of PATTERNS) {
     const m = re.exec(url.trim());
     if (!m) continue;
@@ -47,10 +47,24 @@ export function parseRemote(url: string, host?: Host): Remote | undefined {
     const name = rawHost.toLowerCase();
     const server = SSH_HOSTS.get(name) ?? name;
     if (hasHiddenChars(name + path) || !/^[a-z0-9.-]+$/.test(server)) return undefined;
-    const found = host ?? (server.includes('github') ? 'github' : server.includes('gitlab') ? 'gitlab' : undefined);
-    return found && validPath(found, path) ? { host: found, server, ...(port ? { port } : {}), path } : undefined;
+    return { server, ...(port ? { port } : {}), path };
   }
   return undefined;
+}
+
+const platformOf = (server: string): Host | undefined => (server.includes('github') ? 'github' : server.includes('gitlab') ? 'gitlab' : undefined);
+
+/** The forge behind a remote URL; undefined when the host name names neither, or the path is not a repo on it. */
+export function parseRemote(url: string, host?: Host): Remote | undefined {
+  const parts = splitUrl(url);
+  const found = parts && (host ?? platformOf(parts.server));
+  return parts && found && validPath(found, parts.path) ? { host: found, ...parts } : undefined;
+}
+
+/** True when a remote URL is readable but its host name names neither platform; what's wrong is then the missing --host, not the path. */
+export function hostUnrecognised(url: string): boolean {
+  const parts = splitUrl(url);
+  return parts !== undefined && platformOf(parts.server) === undefined;
 }
 
 /** What gh or glab gets as `--repo`: always naming the remote's own server, so the host it contacts is the one its tokens were checked for. gh's HOST/OWNER/REPO form has no documented port syntax, so GitHub gets none. */

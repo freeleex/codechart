@@ -224,6 +224,16 @@ describe('codechart setup-pr-maps', () => {
     expect(existsSync(workflow())).toBe(false);
   });
 
+  it('platform names in the path or user part do not make the host known: asks for --host', async () => {
+    for (const url of ['https://code.corp/acme/github-tools.git', 'https://git.corp.example:8443/gitlab/group/repo.git']) {
+      git(sb.repo, 'remote', 'set-url', 'origin', url);
+      const r = await run(['--yes']);
+      expect(r.code).toBe(1);
+      expect(r.err).toContain('add --host github or --host gitlab');
+      expect(r.err).not.toContain("can't tell which repo");
+    }
+  });
+
   it('a remote that is neither GitHub nor GitLab needs --host', async () => {
     git(sb.repo, 'remote', 'set-url', 'origin', 'git@git.example.com:o/r.git');
     const r = await run(['--yes']);

@@ -11,7 +11,7 @@ import { gitRun } from '../pr/git.js';
 import { toolEnv } from '../pr/tool-env.js';
 import { trustedBinary } from '../rules/git-run.js';
 import { currentVersion } from '../update/check.js';
-import { buildPlan, existingSetupReview, openSetupReview, parseRemote, prepareSetupReview, SETUP_BRANCH, type Host, type Plan, type Remote, type Tool } from '../pr/setup.js';
+import { buildPlan, existingSetupReview, hostUnrecognised, openSetupReview, parseRemote, prepareSetupReview, SETUP_BRANCH, type Host, type Plan, type Remote, type Tool } from '../pr/setup.js';
 
 interface Flags {
   yes?: boolean;
@@ -27,9 +27,9 @@ function remoteOf(root: string, host: Host | undefined): Remote {
     throw new Error('no origin remote: PR maps need the repo on GitHub or GitLab');
   }
   const remote = parseRemote(url, host);
-  if (!remote && (host || /github|gitlab/i.test(url))) throw new Error(`can't tell which repo ${sanitizeText(url)} names: expected owner/repo on GitHub or group/project on GitLab`);
-  if (!remote) throw new Error(`can't tell whether ${sanitizeText(url)} is GitHub or GitLab; add --host github or --host gitlab`);
-  return remote;
+  if (remote) return remote;
+  if (!host && hostUnrecognised(url)) throw new Error(`can't tell whether ${sanitizeText(url)} is GitHub or GitLab; add --host github or --host gitlab`);
+  throw new Error(`can't tell which repo ${sanitizeText(url)} names: expected owner/repo on GitHub or group/project on GitLab`);
 }
 
 // O_NOFOLLOW only guards the last path component, so every existing parent folder is checked too.
