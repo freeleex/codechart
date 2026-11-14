@@ -8,6 +8,7 @@ export const MEANING: Record<string, string> = {
   'match not found': "The agent quoted a line from this file as proof, but the file doesn't contain it. The box may describe code that isn't there.",
   'match on several lines': 'The line the agent quoted appears more than once in this file, so it does not prove which code the box means.',
   'line not found': "The agent pointed this step at a line that isn't in the file, so the step is unverified.",
+  'outside the repo': "The agent pointed this box at a path outside the repo, which codechart doesn't read, so the box isn't verified.",
   'file unreadable': "codechart couldn't read this file, so the box isn't verified.",
 };
 
