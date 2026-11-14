@@ -282,6 +282,16 @@ describe('checkMapNodes: arrow mentions', () => {
     expect(warns(files, { label: 'Customer', path: 'src/models.ts' }, { label: 'Invoice', path: 'src/models.ts' })).toEqual(['no mention of Invoice']);
   });
 
+  it('two boxes in one index file: the folder name proves nothing either', () => {
+    const files = { 'src/billing/index.ts': '// billing entry\nexport class Charge {}\n' };
+    expect(warns(files, { label: 'Charge', path: 'src/billing/index.ts' }, { label: 'Refund', path: 'src/billing/index.ts' })).toEqual(['no mention of Refund']);
+  });
+
+  it('the same file spelled two ways is still one file', () => {
+    const files = { 'src/models.ts': 'export class Customer {}\n// models\n' };
+    expect(warns(files, { label: 'Customer', path: 'src/models.ts' }, { label: 'Invoice', path: './src/models.ts' })).toEqual(['no mention of Invoice']);
+  });
+
   it('takes the last word of a "Kind name" label', () => {
     expect(warns({ 'k8s/service.yaml': 'selector:\n  app: api\n' }, { label: 'Service api', path: 'k8s/service.yaml' }, { label: 'Deployment api', path: 'k8s/deployment.yaml' })).toEqual([]);
   });
