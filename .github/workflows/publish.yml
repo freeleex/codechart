@@ -45,7 +45,7 @@ jobs:
         with:
           node-version: 22
       - run: node scripts/release-notes.mjs "${GITHUB_REF_NAME#v}" > notes.md
-      - run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file notes.md --verify-tag --draft
+      - run: gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file notes.md --verify-tag --draft
         env:
           GH_TOKEN: ${{ github.token }}
       # The staged package goes live only after the maintainer's 2FA approval; announce it only once npm serves it.
