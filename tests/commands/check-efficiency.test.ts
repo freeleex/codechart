@@ -156,13 +156,12 @@ describe('check: git selection flags', () => {
     expect(r).toMatchObject({ code: 2, out: '', err: `codechart: ${message}\n` });
   });
 
-  it('an unknown revision exits 2 with the git error', async () => {
+  it('an unknown revision exits 2 and names the flag', async () => {
     commit('a.txt');
     const commitErr = await check('--commit', 'nope');
     expect(commitErr).toMatchObject({ code: 2, out: '', err: 'codechart: --commit nope is not a commit\n' });
-    const sinceErr = await check('--since', 'nope');
-    expect(sinceErr.code).toBe(2);
-    expect(sinceErr.err).toMatch(/^codechart: git diff failed: \S/);
+    expect(await check('--since', 'nope')).toMatchObject({ code: 2, out: '', err: 'codechart: --since nope is not a commit\n' });
+    expect(await check('--since', 'HEAD', '--head', 'nope')).toMatchObject({ code: 2, out: '', err: 'codechart: --head nope is not a commit\n' });
   });
 
   it.each([

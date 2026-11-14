@@ -5,6 +5,7 @@ import type { CommandOptions } from '../program.js';
 import { type CheckResult, onlyBuiltinsToJudge, resolveRules } from '../rules/resolve.js';
 import { escapeJsonControls } from '../render/strip.js';
 import { releaseHint, type ReleaseHint } from './release-branch.js';
+import { resolveCommit } from '../rules/git-files.js';
 import { csv, gitFiles, selectionError, type GitSelection } from '../rules/selection.js';
 
 type TerseResult = Partial<CheckResult> & { judgeBuiltins?: string[]; release?: ReleaseHint };
@@ -43,6 +44,13 @@ interface CheckFlags extends GitSelection {
   matched?: string;
 }
 
+/** `--since` and `--head` name a commit as `--commit` does, so a typo reads the same instead of as git's own error. */
+function checkRevisions(root: string | undefined, o: GitSelection): void {
+  if (!root) return;
+  if (o.since !== undefined) resolveCommit(root, '--since', o.since);
+  if (o.head !== undefined) resolveCommit(root, '--head', o.head);
+}
+
 export function checkCommand(opts: CommandOptions): Command {
   const cwd = opts.cwd ?? process.cwd();
   return new Command('check')
@@ -58,6 +66,7 @@ export function checkCommand(opts: CommandOptions): Command {
       if (usage) cmd.error(usage, { exitCode: 2 });
       try {
         const root = findRepoRoot(cwd);
+        if (o.files === undefined) checkRevisions(root, o);
         const files = o.files !== undefined ? csv(o.files).map((f) => path.resolve(cwd, f)) : gitFiles(root, o);
         const config = loadConfig({ cwd, home: opts.home, env: opts.env, warn: (l) => opts.stderr(`codechart: ${l}\n`) });
         const result = resolveRules(config, files, o.matched !== undefined ? csv(o.matched) : undefined, root ?? path.resolve(cwd));
