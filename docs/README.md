@@ -21,4 +21,5 @@
 - [Design](design.md): goals, the spec contract, rules, rendering
 - [Flow design](flow-design.md): how flows are specified, anchored and drawn
 - [Efficiency](efficiency.md): measured token and call cost
+- [Releasing](releasing.md): cutting a release, what to do when a step fails, rolling back a bad one
 - [Security review](security-review.md): audit findings and guarantees ([SECURITY.md](../SECURITY.md) for the policy)
