@@ -28,7 +28,7 @@ The page has two tabs under its header, **Components** and **Flows (n)**. Compon
 - **Notes:** what would surprise a newcomer: hidden rules, odd cases, things that look wrong but are on purpose.
 - **Gaps:** what the agent did not read.
 
-Click a box for its code (the function, class or block the quoted line opens, up to 40 lines, with that line highlighted; the lines around it and the rest of a longer block open with a click, and a box with no quoted line shows the top of its file), its fields, notes and relations, and the flows that go through it. The header says `✓ 9 boxes and 12 steps checked against the code` (only boxes when there are no flows). The terminal block says `10 boxes · 2 outside · ✓ 21 checked · 1 not checkable` (the last part only when a box has no file) and a key, `○ outside · unmarked = in this area`.
+Click a box for its code (the function, class or block the quoted line opens, up to 40 lines, with that line highlighted; the lines around it and the rest of a longer block open with a click, and a box with no quoted line shows the top of its file), its fields, notes and relations, and the flows that go through it. The header says `✓ 9 boxes and 12 steps checked against the code` (only boxes when there are no flows), and ` · 1 not checkable` follows when a box has no file). The terminal block says `10 boxes · 2 outside · ✓ 21 checked · 1 not checkable` (the last part only when a box has no file) and a key, `○ outside · unmarked = in this area`.
 
 ## Flows
 
