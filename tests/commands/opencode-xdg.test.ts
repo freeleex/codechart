@@ -67,4 +67,28 @@ describe('OpenCode files with XDG_CONFIG_HOME set', () => {
     expect(existsSync(join(stray(), 'plugins', 'codechart.js'))).toBe(true);
     expect(existsSync(root())).toBe(false);
   });
+
+  describe('a copy an older codechart put under ~/.config/opencode', () => {
+    const legacySkill = () => join(stray(), 'skills', 'codechart');
+    beforeEach(async () => {
+      mkdirSync(stray(), { recursive: true });
+      await run(['install-skill', '--agent', 'opencode', '--no-plugin'], {});
+    });
+
+    it('uninstall removes its skill and reminder line too', async () => {
+      const u = (await run(['uninstall'])).out;
+      expect(u).toContain(`removed skill: ${legacySkill()}`);
+      expect(u).toContain(`removed reminder: ${join(stray(), 'AGENTS.md')}`);
+      expect(existsSync(legacySkill())).toBe(false);
+      expect(readFileSync(join(stray(), 'AGENTS.md'), 'utf8')).not.toContain('codechart');
+    });
+
+    it('update --skills-only refreshes it', async () => {
+      const file = join(legacySkill(), 'SKILL.md');
+      const current = readFileSync(file, 'utf8');
+      writeFileSync(file, `${current}\nstale\n`);
+      await run(['update', '--skills-only']);
+      expect(readFileSync(file, 'utf8')).toBe(current);
+    });
+  });
 });

@@ -45,6 +45,11 @@ export function agentsFor(env: NodeJS.ProcessEnv): AgentPreset[] {
   return AGENTS.map((a) => (a.name === 'opencode' ? { ...a, home: dir, skills: join(dir, 'skills'), instructions: join(dir, 'AGENTS.md') } : a));
 }
 
+/** OpenCode's default-path preset when `XDG_CONFIG_HOME` moved it: where an older codechart may have left a copy, which uninstall and update still handle. */
+export function legacyAgentsFor(env: NodeJS.ProcessEnv): AgentPreset[] {
+  return xdgConfig(env) ? AGENTS.filter((a) => a.name === 'opencode') : [];
+}
+
 /** A preset path as the user reads it: `~/…` when it is under home. */
 export const shown = (path: string): string => (isAbsolute(path) ? path : `~/${path}`);
 

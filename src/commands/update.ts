@@ -9,7 +9,7 @@ import type { CommandOptions } from '../program.js';
 import { NOTES_URL, fetchHighlights, notesLines } from '../update/changelog.js';
 import { httpsFetch } from '../update/http-get.js';
 import { currentVersion, fetchLatest, isNewer, readState, skillDirs, withHighlights, writeState } from '../update/check.js';
-import { agentsFor, isCodechartSkill } from './agents.js';
+import { agentsFor, isCodechartSkill, legacyAgentsFor } from './agents.js';
 import { installCopy, skillFiles } from './install-skill.js';
 import { refreshReminder } from './nudges.js';
 import { installPlugin, pluginFile, pluginState } from './opencode-plugin.js';
@@ -53,7 +53,7 @@ export const cacheDirOf = (opts: CommandOptions) => loadConfig({ cwd: opts.cwd ?
 /** Brings every codechart skill copy already installed, and reminder lines and the OpenCode plugin copy already added, up to this version. */
 function refreshInstalls(home: string, opts: CommandOptions): void {
   const files = skillFiles();
-  const agents = agentsFor(opts.env ?? process.env);
+  const agents = [...agentsFor(opts.env ?? process.env), ...legacyAgentsFor(opts.env ?? process.env)];
   const folders = [...new Set(agents.flatMap((a) => [a.skills, ...a.reads]))];
   const dirs = [
     ...folders.map((folder) => ({ dir: join(resolve(home, folder), 'codechart'), who: agents.filter((a) => [a.skills, ...a.reads].includes(folder)).map((a) => a.label).join(', ') })),
