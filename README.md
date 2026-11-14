@@ -52,18 +52,19 @@ backend
 ~ model PaymentMethod ─mirrors─▶ enum payment_method
 
 config
-+ migration: backfill invoi… ─backfills─▶ invoices
-◆ INVOICE_PREFIX ─read by─▶ migration: backfill invoices for paid orders
++ migration: backfill invoi… ─reads─────▶ INVOICE_PREFIX
+                             ─backfills─▶ invoices
+◆ INVOICE_PREFIX
 ◆ feature flag refundsEnabl… ─gates─▶ endpoint POST /orders/{id}/refund
 
-12 nodes · 4 new · 5 changed · 2 config · ✓ 10 checked
+12 nodes · 4 new · 5 changed · 2 config · ✓ 10 checked · 2 not checkable
 gaps: customers: columns besides id not read
 not on map: tests: test_invoice_backfill.py · docs: CHANGELOG.md, .env.example
 ```
 
 Open full map
 
-New things are `+`, changed ones `~`, removed ones `-`, config `◆`; anything unmarked already existed. The block is a `diff` fence, so Claude Code, OpenCode, Codex, Gemini CLI, Cursor and GitHub colour the new and removed lines on their own. Layers are grouped, every relation is drawn, and `✓ 10 checked` counts the claims checked against your files and the git diff; boxes without a file are listed separately as *not checkable*. It takes ten seconds to read, and `gaps` tells you what the agent *didn't* look at.
+New things are `+`, changed ones `~`, removed ones `-`, config `◆`; anything unmarked already existed. The block is a `diff` fence, so Claude Code, OpenCode, Codex, Gemini CLI, Cursor and GitHub colour the new and removed lines on their own. Layers are grouped, every relation is drawn, and `✓ 10 checked` counts the claims checked against your files and the git diff; boxes without a file (the two enums here) are counted separately as *not checkable*. It takes ten seconds to read, and `gaps` tells you what the agent *didn't* look at.
 
 **Open full map** opens an interactive page. Click any node for its summary, file, fields — and in a change summary, its diff, read straight from git:
 
