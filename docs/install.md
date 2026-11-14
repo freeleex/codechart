@@ -66,4 +66,4 @@ Everything checks out but a turn still got no diagram? Run `codechart doctor --l
 codechart uninstall && npm uninstall -g codechart
 ```
 
-`codechart uninstall` removes the skill, the reminder lines, the hooks and the OpenCode plugin file (`--skill`, `--reminder`, `--hook`, `--plugin` to pick some). npm can't run it for you: it has no uninstall scripts since v7. Skill folders holding other files keep them. [PR maps](pr-maps.md) live in your repos: delete their CI file there.
+`codechart uninstall` removes the skill, the reminder lines, the hooks and the OpenCode plugin file (`--skill`, `--reminder`, `--hook`, `--plugin` to pick some). npm can't run it for you: it has no uninstall scripts since v7. Skill folders holding other files keep them. It leaves your `CLAUDE.md` / `AGENTS.md` (possibly empty) and `settings.json` in place, and `~/.cache/codechart` (pages, turn records, plans) and `~/.config/codechart`: delete those by hand if you want. [PR maps](pr-maps.md) live in your repos: delete their CI file there.

@@ -43,7 +43,7 @@ An invented branch is the worst failure: it destroys the user's trust in the too
 - Anchors are read from the working tree. For a commit or branch that isn't checked out, render with `--at '<sha or branch>'` so they are read from that commit instead; otherwise lines that changed since won't resolve.
 - Required on every non-planned step and every non-planned link leaving a decision, each with its own anchor (a branch never inherits the decision's). Planned steps and links need none.
 - `render` checks every anchor against the files. A broken anchor fails the render: reread the file and fix the line, never drop the anchor or mark the step `planned` to get past it.
-- Rendered with `--git`, `--since` or `--commit`, a summary's `new` or `changed` step whose file isn't in the diff gets a `✗` line (a warning; `--strict` exits 1).
+- Rendered with `--git`, `--since` or `--commit`, a summary's `new` or `changed` step whose file isn't in the diff gets a `✗` line (the render still succeeds; `--strict` exits 1).
 - Read the code you draw: flows have no context mode, and every anchor must be a line you actually saw.
 
 ## Drift from the plan
@@ -96,7 +96,7 @@ The change added `POST /invites/{token}/accept` in `app/api/invites.py`. Every s
 }
 ```
 
-`render --md` prints this (paste your own output verbatim; the real link path comes from it):
+`render --md --git` prints this (paste your own output verbatim; the real link path comes from it):
 
 ````
 **Flow** _(key: + new  ~ changed  ? planned  ◇ decision  ⤷ shared step)_
@@ -112,7 +112,7 @@ Accept a team invite
                   ├─ yes → +return already a member
                   └─ no  → +save membership → +return joined
 
-9 steps · 9 new · 0 changed · 0 planned
+9 steps · 9 new · 0 changed · 0 planned · ✓ 15 anchors checked
 gaps: did not check what happens when two requests accept the same invite at
       once
 ```

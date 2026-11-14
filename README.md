@@ -52,18 +52,19 @@ backend
 ~ model PaymentMethod ─mirrors─▶ enum payment_method
 
 config
-+ migration: backfill invoi… ─backfills─▶ invoices
-◆ INVOICE_PREFIX ─read by─▶ migration: backfill invoices for paid orders
++ migration: backfill invoi… ─reads─────▶ INVOICE_PREFIX
+                             ─backfills─▶ invoices
+◆ INVOICE_PREFIX
 ◆ feature flag refundsEnabl… ─gates─▶ endpoint POST /orders/{id}/refund
 
-12 nodes · 4 new · 5 changed · 2 config · ✓ 10 checked
+12 nodes · 4 new · 5 changed · 2 config · ✓ 10 checked · 2 not checkable
 gaps: customers: columns besides id not read
 not on map: tests: test_invoice_backfill.py · docs: CHANGELOG.md, .env.example
 ```
 
 Open full map
 
-New things are `+`, changed ones `~`, removed ones `-`, config `◆`; anything unmarked already existed. The block is a `diff` fence, so Claude Code, OpenCode, Codex, Gemini CLI, Cursor and GitHub colour the new and removed lines on their own. Layers are grouped, every relation is drawn, and `✓ 10 checked` counts the claims checked against your files and the git diff; boxes without a file are listed separately as *not checkable*. It takes ten seconds to read, and `gaps` tells you what the agent *didn't* look at.
+New things are `+`, changed ones `~`, removed ones `-`, config `◆`; anything unmarked already existed. The block is a `diff` fence, so Claude Code, OpenCode, Codex, Gemini CLI, Cursor and GitHub colour the new and removed lines on their own. Layers are grouped, every relation is drawn, and `✓ 10 checked` counts the claims checked against your files and the git diff; boxes without a file (the two enums here) are counted separately as *not checkable*. It takes ten seconds to read, and `gaps` tells you what the agent *didn't* look at.
 
 **Open full map** opens an interactive page. Click any node for its summary, file, fields — and in a change summary, its diff, read straight from git:
 
@@ -233,11 +234,11 @@ More: [Why you can trust the diagram](docs/trust.md).
 
 ## Cost
 
-A diagram is about **2–3 extra API calls**, roughly 2–3% of a long session's usage, and nothing for trivial changes. The CLI is a 170.0 kB package. Measured runs: [Efficiency](docs/efficiency.md).
+A diagram is about **2–3 extra API calls**, roughly 2–3% of a long session's usage, and nothing for trivial changes. That figure was measured on 2026-10-28 with a skill of 7.1k chars; the skill is now 17.0k chars (about 4.2k tokens), so a diagram costs more than that, and the benchmark has not been re-run. The CLI is a 205.2 kB package. Measured runs: [Efficiency](docs/efficiency.md).
 
 ## Safe to run
 
-- No telemetry, no shell except two fixed cases: `npm` on Windows during `codechart update`, and the editor you choose with `$VISUAL` or `$EDITOR` for `codechart review`. `git` is read-only. Pages load nothing external and are saved to `~/.cache/codechart`, never to your repo. The only network calls: a daily version check, plus that version's changelog from GitHub when there's a newer one ([off with one setting](docs/install.md#updating)), and opt-in [PR maps](docs/pr-maps.md).
+- No telemetry, no shell except two fixed cases: `npm` on Windows during `codechart update`, and the editor you choose with `$VISUAL` or `$EDITOR` for `codechart review`. `git` is read-only, except the push of `setup-pr-maps --pr` and the [PR map](docs/pr-maps.md) CI job. Pages load nothing external and are saved to `~/.cache/codechart`, never to your repo. The only network calls: a daily version check, plus that version's changelog from GitHub when there's a newer one ([off with one setting](docs/install.md#updating)); `codechart update`; `release-context`, through your own `gh` or `glab`; and opt-in [PR maps](docs/pr-maps.md).
 - Audited before release across 8 areas, including untrusted repos and prompt-injected specs: [SECURITY.md](SECURITY.md) and [docs/security-review.md](docs/security-review.md).
 
 ## Configure

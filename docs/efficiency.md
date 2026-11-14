@@ -7,7 +7,7 @@ Commit refs in this doc are from pre-release history and do not resolve in this 
 ## At a glance
 
 - A diagram is about **2–3 extra API calls**. In a long session that's roughly 2–3% of your usage per diagram, and nothing for trivial changes. That's an estimate from Claude Code sessions with Sonnet; other agents and models will differ, and shorter sessions pay proportionally more ([In a real session](#in-a-real-session-estimate)).
-- The CLI is small: a 112.2 kB package, 5 runtime dependencies, and a cold start around 150 ms.
+- The CLI is small: a 205.2 kB package, 5 runtime dependencies, and a cold start around 110 ms (0.9.0, measured 2026-11-14; see Current). The token figures below predate today's larger skill, see the caveat under Token cost.
 
 ## Baseline (2026-10-28)
 
@@ -22,40 +22,40 @@ These figures were taken from disk blocks (`du`) before the later size work and 
 ## Current
 
 <!-- measure:start -->
-Measured 2026-11-03 | codechart 0.3.0 | node v25.3.0 | darwin arm64 | `npx tsx scripts/measure.ts --write`
+Measured 2026-11-14 | codechart 0.9.0 | node v25.3.0 | darwin arm64 | `npx tsx scripts/measure.ts --write`
 
 Size (`npm pack` + `npm i` of the tarball)
 
 | Metric | Value |
 |---|---|
-| Tarball packed | 73.2 kB |
-| Tarball unpacked | 233.9 kB |
-| Tarball files | 11 |
-| Installed node_modules (runtime, excl. codechart) | 15.18 MB |
+| Tarball packed | 205.2 kB |
+| Tarball unpacked | 693.1 kB |
+| Tarball files | 19 |
+| Installed node_modules (runtime, excl. codechart) | 15.37 MB |
 | - commander | 207.4 kB |
-| - elkjs | 8046.2 kB |
+| - elkjs | 8230.5 kB |
 | - picomatch | 93.8 kB |
 | - yaml | 686.3 kB |
 | - zod | 6148.9 kB |
-| Skill text (skills/codechart/*.md) | 32.0 kB |
+| Skill text (skills/codechart/*.md) | 66.1 kB |
 
 Cold start (median of 10, `node dist/cli.js`)
 
 | Command | Time |
 |---|---|
-| `--version` | 103 ms |
-| `check --files` | 108 ms |
-| `render --output web` small map | 236 ms |
-| `render --output web` large map (120 nodes) | 457 ms |
-| `render --output web` flow | 235 ms |
+| `--version` | 109 ms |
+| `check --files` | 118 ms |
+| `render --output web` small map | 266 ms |
+| `render --output web` large map (120 nodes) | 516 ms |
+| `render --output web` flow | 261 ms |
 
 HTML output size
 
 | Spec | Size |
 |---|---|
-| small map | 16.2 kB |
-| large map (120 nodes) | 111.2 kB |
-| flow | 21.3 kB |
+| small map | 100.8 kB |
+| large map (120 nodes) | 332.9 kB |
+| flow | 108.7 kB |
 
 <!-- measure:end -->
 
@@ -118,6 +118,8 @@ Dropped:
 ## Token cost
 
 Same task, same fixture, headless agent, with and without the codechart skill. N=3 per scenario per arm (24 runs). Measured 2026-10-28.
+
+> Caveat (2026-11-14): this bench was measured on 2026-10-28 with codechart 0.1.0, whose SKILL.md body was 7.1k chars. SKILL.md is now 17.0k chars (about 4.2k tokens; all skill text is 66.1 kB), so the cost per diagram is higher than the tables show. The bench has not been re-run.
 
 Method:
 - Pinned commits (e01760f, 24871a8, 81ef463) are from pre-release history, so the bench can't be re-run from the public repo as-is. Command: `npm run build && npm run bench:tokens` (`scripts/token-bench.ts`; re-aggregate stored runs with `-- --aggregate-only`). Raw stream-json per run goes to `--out` (default `.superpowers/sdd/bench/<arm>/`, gitignored; the script refuses a non-empty dir without `--force`).
@@ -241,9 +243,11 @@ Estimate: one diagram in a session like that costs 2 to 3 extra API calls × ~13
 
 "Price-weighted" counts cache reads at about 1/10 of fresh input, cache writes at about 1.25× and output at about 5×, the API's price ratios. Both measures land in the same range. How subscription plans meter usage is not public, so treat either as an approximation. Shorter sessions pay a larger share.
 
+> Caveat (2026-11-14): this bench was measured on 2026-10-28 with codechart 0.1.0, whose SKILL.md body was 7.1k chars. SKILL.md is now 17.0k chars (about 4.2k tokens; all skill text is 66.1 kB), so the cost per diagram is higher than the tables show. The bench has not been re-run. This estimate is built on the bench's numbers.
+
 ## Summary for the README
 
-Measured 2026-10-29, codechart 0.1.0, node v25.3.0, darwin arm64. Start to end of the final round.
+Measured 2026-10-29, codechart 0.1.0, node v25.3.0, darwin arm64. Start to end of the final round. These are 0.1.0 figures; the numbers for 0.9.0 are under Current.
 
 | Size | Before | After |
 |---|---|---|
@@ -273,5 +277,7 @@ Tokens and cost with vs without codechart (Sonnet, N=3, median, warm-up; tokens 
 Quality (with arm, final run, 3 runs per scenario): diagram shown, pasted verbatim, no unrendered diagram and first render ok are all 3/3 in flow, summary and plan; trivial change gets no diagram 3/3. The first run before the quality fix failed some of these (see Token trims); numbers above are after it. Differences under about 20% are within N=3 noise.
 
 Cost: a diagram answer costs about 66k to 93k more tokens and $0.04 to $0.09 more than a prose answer at Sonnet prices (median of 3 runs); a trivial change costs nothing extra.
+
+> Caveat (2026-11-14): this bench was measured on 2026-10-28 with codechart 0.1.0, whose SKILL.md body was 7.1k chars. SKILL.md is now 17.0k chars (about 4.2k tokens; all skill text is 66.1 kB), so the cost per diagram is higher than the tables show. The bench has not been re-run.
 
 In a real session (estimate, see above): a diagram costs about as much as 2 to 3 extra API calls of conversation. In a typical long feature session that is roughly 2 to 3% of usage per diagram (about 5 to 7% with a plan and a summary), and nothing for trivial changes. Shorter sessions pay a larger share.

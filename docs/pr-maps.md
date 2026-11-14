@@ -61,4 +61,4 @@ Trivial changes get no map, so their PRs get no section.
 
 ## Safety
 
-`pr-sync` is the one codechart command that talks to the network and writes outside your machine, and only in the CI job you add. Description text is escaped, the hidden spec can't break out of its comment, and only the section between its markers is replaced. Details in [SECURITY.md](../SECURITY.md).
+`pr-sync` runs only in the CI job you add; it and `setup-pr-maps --pr` (after your yes) are the only commands that write outside your machine. Every network call is listed in [SECURITY.md](../SECURITY.md). Description text is escaped, the hidden spec can't break out of its comment, and only the section between its markers is replaced. Details in [SECURITY.md](../SECURITY.md).
