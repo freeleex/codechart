@@ -69,6 +69,11 @@ describe('prBlock', () => {
     expect(out).toMatch(/<\/details>\n\n<!-- codechart spec\n\{.*\}\n-->\n<!-- codechart:end -->\n$/);
   });
 
+  it('the check line says how many boxes could not be checked', () => {
+    const out = prBlock(shop(), check({ checked: 10, notCheckable: 2 }), 'x');
+    expect(out).toContain('\n12 nodes · 4 new · 5 changed · ✓ 10 nodes checked against the code · 2 not checkable\n');
+  });
+
   it('new nodes come first in the details, context last', () => {
     const out = prBlock(shop(), undefined, 'x');
     expect(out.indexOf('**+ invoices**')).toBeLessThan(out.indexOf('**\\~ orders**'));

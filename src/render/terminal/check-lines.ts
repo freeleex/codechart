@@ -103,6 +103,7 @@ export function checkHeadlineParts(c: CheckSummary | undefined): HeadlinePart[] 
   if (c.checked > 0) {
     parts.push(n ? { text: `✗ ${n} of ${of} ${n === 1 ? "doesn't" : "don't"} match the code`, tone: 'bad' } : { text: `✓ ${total} checked against the code`, tone: 'ok' });
   }
+  if (c.notCheckable) parts.push({ text: `${c.notCheckable} not checkable`, tone: 'muted' });
   if (c.uncovered?.length) parts.push({ text: uncoveredHead(c.uncovered.length), tone: 'bad' });
   if (c.warnings?.length) parts.push({ text: `⚠ ${c.warnings.length} ${c.warnings.length === 1 ? 'warning' : 'warnings'}`, tone: 'warn' });
   if (c.diffUnchecked) parts.push({ text: UNCHECKED, tone: 'muted' });

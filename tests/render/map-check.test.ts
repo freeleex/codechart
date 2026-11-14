@@ -432,6 +432,17 @@ describe('check lines', () => {
     expect(checkHeadlineParts(warning).map((p) => p.tone)).toEqual(['ok', 'warn', 'muted']);
     expect(checkHeadlineParts(undefined)).toEqual([]);
   });
+
+  it('headline says how many boxes could not be checked, as its own muted part', () => {
+    const c = { checked: 10, mismatches: [], notCheckable: 2, unit: 'node' as const };
+    expect(checkHeadlineParts(c)).toEqual([
+      { text: '✓ 10 nodes checked against the code', tone: 'ok' },
+      { text: '2 not checkable', tone: 'muted' },
+    ]);
+    expect(checkHeadline(c)).toBe('✓ 10 nodes checked against the code · 2 not checkable');
+    expect(checkHeadlineParts({ checked: 0, mismatches: [], notCheckable: 3, unit: 'node' })).toEqual([{ text: '3 not checkable', tone: 'muted' }]);
+    expect(checkHeadlineParts({ checked: 10, mismatches: m(1), notCheckable: 1, unit: 'node' }).map((p) => p.tone)).toEqual(['bad', 'muted']);
+  });
 });
 
 describe('review findings', () => {

@@ -11,7 +11,7 @@ LLMs misalign hand-drawn ASCII, so the agent only describes nodes and links as J
 - Each node's file must exist, and a quoted line must be in it.
 - In a change summary, every new, changed or removed node must match git, not just appear in the diff (`--git`, `--since <base>`, `--commit <sha>`): `new` needs a file git adds, `removed` one it deletes, and `changed` one it modifies or renames.
 - A listed field must appear in its file (a dotted name like `access_logs.bucket` may be a nested block), and an arrow's source file should mention the other box's name or its file's name (two boxes in one file are checked by name only). The match is loose (case, `_` and `-` ignored) and a miss is only a warning.
-- When everything matches, the footer says `✓ 10 checked`. Boxes without a file are counted separately: `✓ 10 checked · 3 not checkable`.
+- When everything matches, the footer says `✓ 10 checked`. Boxes without a file are counted separately: `✓ 10 checked · 3 not checkable`. The PR or MR description and the page header say the same: `✓ 10 nodes checked against the code · 3 not checkable`.
 
 When it doesn't, the output opens with the mismatch. This one is from a render where the agent claimed an untouched table changed:
 
