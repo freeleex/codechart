@@ -1,6 +1,6 @@
 # Third-party notices
 
-## elkjs 0.12.0
+## elkjs 0.12.1
 
 Eclipse Layout Kernel compiled to JavaScript. A runtime dependency installed from npm; codechart runs it in Node to lay out HTML maps. None of its code is copied into codechart or the generated HTML.
 
