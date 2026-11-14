@@ -1,6 +1,7 @@
+import { homedir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { Command, Option } from 'commander';
-import { findRepoRoot, loadConfig } from '../config/load.js';
+import { findRepoRoot, globalConfigPath, loadConfig } from '../config/load.js';
 import { THEMES, type Config, type Diagram, type Output, type Theme } from '../config/schema.js';
 import type { CommandOptions } from '../program.js';
 import { diffOf, type Diff } from '../render/check.js';
@@ -197,7 +198,7 @@ async function renderSpec(arg: string, o: RenderFlags, opts: CommandOptions, cwd
     selection: o,
     now,
     plan: planFor(spec, target.diagram, { cacheDir: config.web.outDir, root, now, inRepo: repoRoot !== undefined }, o),
-    saveReview: (snapshot) => writeReviewOnly(snapshot, { config, root, slug, now, stderr: opts.stderr }),
+    saveReview: (snapshot) => writeReviewOnly(snapshot, { config, root, slug, now, stderr: opts.stderr, configPath: globalConfigPath(opts.env ?? process.env, opts.home ?? homedir()) }),
     write: htmlWriter({ config, root, slug, theme: o.theme, now, open: o.open }, opts),
   };
   const { text, check, html, drift } = target.diagram === 'flow' ? await renderFlow(target.spec, target, ctx) : await renderMap(target.spec, ctx);

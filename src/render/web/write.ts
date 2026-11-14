@@ -22,6 +22,8 @@ export interface HtmlWriteOptions {
   /** A newer codechart version to mention in the header. */
   update?: string;
   updateNotes?: string[];
+  /** The global config file, named when the output folder can't be written. */
+  configPath?: string;
   /** What the page showed per node, saved as the review file next to it. */
   review?: () => ReviewSnapshot;
 }
@@ -41,6 +43,19 @@ export function privateDir(dir: string): void {
   chmodSync(dir, 0o700);
 }
 
+/** The output folder can't be written; the message says what to do. */
+class DirNotWritable extends Error {}
+
+function prepareDir(dir: string, configPath: string | undefined): void {
+  try {
+    privateDir(dir);
+  } catch (e) {
+    const code = (e as NodeJS.ErrnoException).code;
+    if (code !== 'EACCES' && code !== 'EPERM') throw e;
+    throw new DirNotWritable(`can't write to ${dir} (permission denied): fix its permissions or set web.outDir in ${configPath ?? 'your global config'}`);
+  }
+}
+
 /** Never fails the render: the page or map is what the user asked for. `prune` runs once, with whether the save worked: on success inside the save, while the earlier review is still locked. */
 function saveReviewFile(dir: string, review: { file: string; html?: string }, branch: string, o: Pick<HtmlWriteOptions, 'slug' | 'now' | 'stderr'>, snapshot: () => ReviewSnapshot, prune: (saved: boolean) => void): void {
   let pruned = false;
@@ -53,16 +68,16 @@ function saveReviewFile(dir: string, review: { file: string; html?: string }, br
 }
 
 /** A map drawn without a page (terminal output) still gets its review file, where the page would have been. */
-export function writeReviewOnly(snapshot: () => ReviewSnapshot, o: Pick<HtmlWriteOptions, 'config' | 'root' | 'slug' | 'now' | 'stderr'>): void {
+export function writeReviewOnly(snapshot: () => ReviewSnapshot, o: Pick<HtmlWriteOptions, 'config' | 'root' | 'slug' | 'now' | 'stderr' | 'configPath'>): void {
   try {
     const dir = dirname(htmlOutputPath(o.config, repoFolder(o.root), o.slug, o.now));
-    privateDir(dir);
+    prepareDir(dir, o.configPath);
     const branch = gitBranch(o.root);
     // The earlier render holds the user's notes: it is not replaced by one that could not take them over.
     const prune = (saved: boolean) => pruneHtml(dir, { ...o.config.web, now: o.now, replaceSlug: saved ? o.slug : undefined, replaceBranch: branch, pageless: true });
     saveReviewFile(dir, { file: reviewFile(htmlOutputPath(o.config, repoFolder(o.root), o.slug, o.now)) }, branch, o, snapshot, prune);
   } catch (e) {
-    o.stderr(`codechart: Couldn't save review notes (${(e as Error).message})\n`);
+    o.stderr(e instanceof DirNotWritable ? `codechart: ${e.message}\n` : `codechart: Couldn't save review notes (${(e as Error).message})\n`);
   }
 }
 
@@ -74,7 +89,7 @@ export async function writeHtml(build: (meta: HtmlMeta) => Promise<string>, o: H
   const change = o.review && { slug: o.slug, branch, at: now.toISOString() };
   const html = await build({ generatedAt: now, repo: basename(o.root), repoKey: repoFolder(o.root), theme: o.theme, ...(o.update && { update: o.update, updateNotes: o.updateNotes }), ...(change && { change }) });
   const dir = dirname(file);
-  privateDir(dir);
+  prepareDir(dir, o.configPath);
   writeFileSync(file, html, { mode: 0o600 });
   // A failed save keeps the earlier page and review: they hold the user's notes.
   const prune = (saved: boolean) => pruneHtml(dir, { ...config.web, now, replaceSlug: saved ? o.slug : undefined, replaceBranch: branch });
