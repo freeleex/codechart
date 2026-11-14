@@ -24,14 +24,22 @@ function readSpecFile(file: string): string {
   }
 }
 
+const named = (source: string, e: unknown): Error => new Error(`${source}: ${(e as NodeJS.ErrnoException).code === 'ENOENT' ? 'no such file' : (e as Error).message}`);
+
 /** The JSON in a spec file, or in `stdin` for '-'; the error names where it came from. */
 export async function readSpecJson(arg: string, cwd: string, stdin: () => Promise<string>): Promise<unknown> {
   const source = arg === '-' ? 'stdin' : resolve(cwd, arg);
+  let text: string;
   try {
-    const text = arg === '-' ? await stdin() : readSpecFile(source);
-    if (Buffer.byteLength(text) > MAX_SPEC_BYTES) throw new Error(TOO_BIG);
+    text = arg === '-' ? await stdin() : readSpecFile(source);
+  } catch (e) {
+    throw named(source, e);
+  }
+  if (Buffer.byteLength(text) > MAX_SPEC_BYTES) throw named(source, new Error(TOO_BIG));
+  if (text.trim() === '') throw new Error(arg === '-' ? 'stdin is empty: pipe the spec JSON in' : `${source}: file is empty`);
+  try {
     return JSON.parse(text);
   } catch (e) {
-    throw new Error(`${source}: ${(e as Error).message}`);
+    throw named(source, e);
   }
 }

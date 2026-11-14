@@ -81,6 +81,29 @@ describe('exit 2 for usage and revision errors, 1 for other failures', () => {
     expect(r.code).toBe(1);
   });
 
+  it('a spec file that does not exist says so in plain words, exit 1', async () => {
+    const file = join(sb.tmp, 'nope.json');
+    const r = await run(['render', file, '--output', 'cli']);
+    expect(r.err).toBe(`codechart: ${file}: no such file\n`);
+    expect(r.code).toBe(1);
+  });
+
+  it('an empty stdin says to pipe the spec in, exit 1', async () => {
+    const r = await runCli({ cwd: sb.repo, home: sb.home, isTTY: false, stdin: async () => '  \n' }, ['render', '-', '--output', 'cli']);
+    expect(r.err).toBe('codechart: stdin is empty: pipe the spec JSON in\n');
+    expect(r.code).toBe(1);
+  });
+
+  it('an empty spec file is named, other JSON errors keep the parser message and the source', async () => {
+    const empty = join(sb.tmp, 'empty.json');
+    writeFileSync(empty, '');
+    expect((await run(['render', empty])).err).toBe(`codechart: ${empty}: file is empty\n`);
+    const bad = join(sb.tmp, 'bad.json');
+    writeFileSync(bad, '{"title":');
+    const r = await run(['render', bad]);
+    expect(r.err).toMatch(new RegExp(`^codechart: ${bad.replace(/[\\^$.*+?()[\]{}|]/g, '\\$&')}: .*JSON`));
+  });
+
   it('install-skill --agent <unknown> exits 2', async () => {
     const r = await run(['install-skill', '--agent', 'nope']);
     expect(r.err).toContain("unknown agent 'nope'");
