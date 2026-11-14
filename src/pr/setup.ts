@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { parse } from 'yaml';
 import { packageFile } from '../assets.js';
-import { hasHiddenChars } from '../render/strip.js';
+import { escapeJsonControls, hasHiddenChars } from '../render/strip.js';
 import { gitRun } from './git.js';
 
 export type Host = 'github' | 'gitlab';
@@ -84,7 +84,7 @@ export function buildPlan(remote: Remote, version: string, read: (file: string) 
   if (existing?.includes('pr-sync')) return undefined;
   if (existing !== undefined && /^codechart-map:/m.test(existing)) conflict(file);
   const stage = existing === undefined ? undefined : appendedStage(existing);
-  const job = stage === undefined ? added : added.replace(/^codechart-map:\n/m, `codechart-map:\n  stage: ${JSON.stringify(stage)}\n`);
+  const job = stage === undefined ? added : added.replace(/^codechart-map:\n/m, `codechart-map:\n  stage: ${escapeJsonControls(JSON.stringify(stage))}\n`);
   const content = existing === undefined ? job : `${existing.replace(/\n*$/, '\n')}\n${job}`;
   return { remote, file, content, added: job, appended: existing !== undefined, notes: gitlabNotes(remote) };
 }

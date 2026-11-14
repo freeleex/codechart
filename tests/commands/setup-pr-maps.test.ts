@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { parse } from 'yaml';
 import { makeTool } from '../../src/commands/setup-pr-maps.js';
 import { gitRun } from '../../src/pr/git.js';
 import { buildPlan, parseRemote, SETUP_BRANCH, type Remote } from '../../src/pr/setup.js';
@@ -172,6 +173,18 @@ describe('codechart setup-pr-maps', () => {
   });
 
   // symlinks need privileges on Windows runners, and O_NOFOLLOW doesn't exist there
+  it('GitLab: a C1 control byte in a stage name is escaped in the output and the written file', async () => {
+    git(sb.repo, 'remote', 'set-url', 'origin', 'git@gitlab.com:o/r.git');
+    const name = 'ab\u009bcd';
+    writeFileSync(join(sb.repo, '.gitlab-ci.yml'), `stages: [${JSON.stringify(name)}]\nb:\n  script: [make]\n`);
+    const r = await run(['--yes']);
+    const written = readFileSync(join(sb.repo, '.gitlab-ci.yml'), 'utf8');
+    expect(/[\u0080-\u009f]/.test(r.out)).toBe(false);
+    expect(/[\u0080-\u009f]/.test(written.slice(written.indexOf('codechart-map:')))).toBe(false);
+    const job = (parse(written) as Record<string, { stage?: string }>)['codechart-map']!;
+    expect(job.stage).toBe(name);
+  });
+
   it.runIf(process.platform !== 'win32')('a .gitlab-ci.yml swapped for a symlink while it asks is not written through', async () => {
     git(sb.repo, 'remote', 'set-url', 'origin', 'git@gitlab.com:o/r.git');
     const ci = join(sb.repo, '.gitlab-ci.yml');
