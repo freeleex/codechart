@@ -4,6 +4,7 @@ import { gitRun } from './git.js';
 import { parseRemote, type Remote, type Tool } from './setup.js';
 import { BLOCK_END, BLOCK_START } from '../render/pr.js';
 import { sanitizeText } from '../render/strip.js';
+import { toolEnv } from './tool-env.js';
 import { type LogEntry } from '../rules/git-log.js';
 import { trustedBinary } from '../rules/git-run.js';
 
@@ -59,15 +60,15 @@ function prInfo(title: string, body: string): PrInfo {
 export function fetchPr(tool: Tool, remote: Remote, n: number): PrInfo {
   if (remote.host === 'github') {
     const repo = remote.server === 'github.com' ? remote.path : `${remote.server}/${remote.path}`;
-    const j = JSON.parse(tool('gh', ['pr', 'view', String(n), '--repo', repo, '--json', 'title,body'])) as { title?: string; body?: string };
+    const j = JSON.parse(tool('gh', ['pr', 'view', String(n), '--repo', repo, '--json', 'title,body'], remote.server)) as { title?: string; body?: string };
     return prInfo(j.title ?? '', j.body ?? '');
   }
-  const j = JSON.parse(tool('glab', ['mr', 'view', String(n), '--repo', `https://${remote.server}/${remote.path}`, '--output', 'json'])) as { title?: string; description?: string };
+  const j = JSON.parse(tool('glab', ['mr', 'view', String(n), '--repo', `https://${remote.server}/${remote.path}`, '--output', 'json'], remote.server)) as { title?: string; description?: string };
   return prInfo(j.title ?? '', j.description ?? '');
 }
 
 /** Runs gh or glab; its error says in a sentence why it could not. */
-export const runTool: Tool = (command, args) => {
+export const runTool: Tool = (command, args, server) => {
   let file: string;
   try {
     file = trustedBinary(command);
@@ -75,7 +76,7 @@ export const runTool: Tool = (command, args) => {
     throw new Error(`${command} is not installed`);
   }
   try {
-    return execFileSync(file, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 60_000, maxBuffer: 16 * 1024 * 1024 });
+    return execFileSync(file, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 60_000, maxBuffer: 16 * 1024 * 1024, env: toolEnv(command, server, process.env) });
   } catch (e) {
     if ((e as NodeJS.ErrnoException).code === 'ENOENT') throw new Error(`${command} is not installed`);
     // glab puts a bare ERROR banner line before the reason

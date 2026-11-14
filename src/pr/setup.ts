@@ -123,7 +123,8 @@ const prBody = (plan: Plan): string =>
     ...plan.notes.map((n) => (n.startsWith('  ') ? n : `- ${n}`)),
   ].join('\n');
 
-export type Tool = (command: string, args: string[]) => string;
+/** `server` is the remote's host: gh and glab run without token variables for any host but github.com and gitlab.com. */
+export type Tool = (command: string, args: string[], server?: string) => string;
 
 export interface Prepared {
   defaultBranch: string;
@@ -149,13 +150,13 @@ export function prepareSetupReview(root: string, version: string, remote: Remote
 }
 
 /** Undefined when origin has no setup branch yet; else the URL of the request opened from it, '' when gh/glab can't find one. */
-export function existingSetupReview(root: string, host: Host, tool: Tool): string | undefined {
+export function existingSetupReview(root: string, { host, server }: Remote, tool: Tool): string | undefined {
   if (!gitRun(root, ['ls-remote', 'origin', `refs/heads/${SETUP_BRANCH}`])) return undefined;
   try {
     const out =
       host === 'github'
-        ? tool('gh', ['pr', 'list', '--head', SETUP_BRANCH, '--state', 'all', '--limit', '1', '--json', 'url'])
-        : tool('glab', ['mr', 'list', '--source-branch', SETUP_BRANCH, '--all', '--output', 'json']);
+        ? tool('gh', ['pr', 'list', '--head', SETUP_BRANCH, '--state', 'all', '--limit', '1', '--json', 'url'], server)
+        : tool('glab', ['mr', 'list', '--source-branch', SETUP_BRANCH, '--all', '--output', 'json'], server);
     const [first] = JSON.parse(out) as { url?: unknown; web_url?: unknown }[];
     const url = first?.url ?? first?.web_url;
     return typeof url === 'string' ? url : '';
@@ -183,7 +184,7 @@ export function openSetupReview(root: string, { defaultBranch, base, plan }: Pre
   }
   const out =
     plan.remote.host === 'github'
-      ? tool('gh', ['pr', 'create', '--base', defaultBranch, '--head', SETUP_BRANCH, '--title', PR_TITLE, '--body', prBody(plan)])
-      : tool('glab', ['mr', 'create', '--source-branch', SETUP_BRANCH, '--target-branch', defaultBranch, '--title', PR_TITLE, '--description', prBody(plan), '--yes']);
+      ? tool('gh', ['pr', 'create', '--base', defaultBranch, '--head', SETUP_BRANCH, '--title', PR_TITLE, '--body', prBody(plan)], plan.remote.server)
+      : tool('glab', ['mr', 'create', '--source-branch', SETUP_BRANCH, '--target-branch', defaultBranch, '--title', PR_TITLE, '--description', prBody(plan), '--yes'], plan.remote.server);
   return out.trim().split('\n').pop() ?? '';
 }

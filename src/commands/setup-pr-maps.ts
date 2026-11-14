@@ -8,6 +8,7 @@ import type { CommandOptions } from '../program.js';
 import { readRegularFile } from '../read-regular.js';
 import { sanitizeText } from '../render/strip.js';
 import { gitRun } from '../pr/git.js';
+import { toolEnv } from '../pr/tool-env.js';
 import { trustedBinary } from '../rules/git-run.js';
 import { currentVersion } from '../update/check.js';
 import { buildPlan, existingSetupReview, openSetupReview, parseRemote, prepareSetupReview, SETUP_BRANCH, type Host, type Plan, type Remote, type Tool } from '../pr/setup.js';
@@ -106,10 +107,10 @@ interface ToolDeps {
   platform?: NodeJS.Platform;
   env?: NodeJS.ProcessEnv;
   exists?: (p: string) => boolean;
-  exec?: (file: string, args: string[]) => string;
+  exec?: (file: string, args: string[], env: NodeJS.ProcessEnv) => string;
 }
 
-export const makeTool = (deps: ToolDeps = {}): Tool => (command, args) => {
+export const makeTool = (deps: ToolDeps = {}): Tool => (command, args, server) => {
   const missing = () => new Error(`${command} is not installed; install it or run without --pr`);
   let file: string;
   try {
@@ -117,9 +118,9 @@ export const makeTool = (deps: ToolDeps = {}): Tool => (command, args) => {
   } catch {
     throw missing();
   }
-  const exec = deps.exec ?? ((f: string, a: string[]) => execFileSync(f, a, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 120_000 }));
+  const exec = deps.exec ?? ((f: string, a: string[], env: NodeJS.ProcessEnv) => execFileSync(f, a, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 120_000, env }));
   try {
-    return exec(file, args);
+    return exec(file, args, toolEnv(command, server, deps.env ?? process.env));
   } catch (e) {
     if ((e as NodeJS.ErrnoException).code === 'ENOENT') throw missing();
     throw new Error(`${command} failed: ${String((e as { stderr?: unknown }).stderr ?? (e as Error).message).trim()}`);
@@ -152,7 +153,7 @@ async function setup(o: Flags, opts: CommandOptions, root: string): Promise<void
     if (!(await agreed(o, opts))) return;
     const prepared = prepareSetupReview(root, v, remote);
     if (!prepared.plan) return done();
-    const existing = existingSetupReview(root, remote.host, tool);
+    const existing = existingSetupReview(root, remote, tool);
     if (existing !== undefined) return opts.stdout(alreadyOpened(remote.host, existing));
     const url = openSetupReview(root, { ...prepared, plan: prepared.plan }, tool);
     opts.stdout(`codechart: opened ${url}\nMerge it to turn PR maps on; close it to say no.\n`);
