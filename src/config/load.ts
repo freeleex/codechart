@@ -113,6 +113,12 @@ function configHome(env: NodeJS.ProcessEnv, home: string): string | undefined {
   return xdg && isAbsolute(xdg) ? xdg : home ? join(home, '.config') : undefined;
 }
 
+/** The global config file, or undefined when there is no config folder to look in. */
+export function globalConfigPath(env: NodeJS.ProcessEnv, home: string): string | undefined {
+  const configDir = configHome(env, home);
+  return configDir ? join(configDir, 'codechart', 'config.yaml') : undefined;
+}
+
 type SourcedFiles = { file?: ConfigFile; source: string }[];
 
 function mergeSections(files: SourcedFiles, sources: Record<string, string>): { defaults: Config['defaults']; web: Config['web'] } {
@@ -146,10 +152,9 @@ function builtinRulesFlag(global: ConfigFile | undefined, repo: ConfigFile | und
 
 export function loadConfigWithSources(opts: LoadOptions): ConfigWithSources {
   const home = opts.home ?? homedir();
-  const configDir = configHome(opts.env ?? process.env, home);
 
   const root = findRepoRoot(opts.cwd) ?? resolve(opts.cwd);
-  const globalPath = configDir ? join(configDir, 'codechart', 'config.yaml') : undefined;
+  const globalPath = globalConfigPath(opts.env ?? process.env, home);
   const repoPath = join(root, '.codechart.yaml');
   const global = globalPath ? readConfigFile(globalPath) : undefined;
   const repo = dropGlobalOnly(readConfigFile(repoPath, root), repoPath, opts.warn);

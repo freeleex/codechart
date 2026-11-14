@@ -89,7 +89,7 @@ describe('checkMapNodes: file exists', () => {
   it('a path outside the repo is a mismatch, not read', () => {
     writeFileSync(join(base, 'secret.txt'), 'TOPSECRET\n');
     const r = checkMapNodes(map('summary', { status: 'context', path: '../secret.txt', match: 'TOPSECRET' }), repo);
-    expect(r.mismatches[0]).toMatchObject({ short: 'file unreadable', detail: '../secret.txt is outside the repo' });
+    expect(r.mismatches[0]).toMatchObject({ short: 'outside the repo', detail: '../secret.txt is outside the repo' });
     expect(r.matches.size).toBe(0);
   });
 

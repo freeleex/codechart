@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync, statSync, utimesSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { pruneHtml } from '../../src/render/prune.js';
@@ -77,6 +77,25 @@ describe('review store', () => {
     saveReview({ dir, file: html.replace('.html', '.review.json'), html, slug: 'invoices', branch: 'main', now: at(1), snapshot: { kind: 'map', title: 'Invoices for paid orders', nodes: [api] } });
     expect(findChange(dir, 'main', 'INVOICES for paid orders').review.change.slug).toBe('invoices');
     expect(findChange(dir, 'main', 'invoices').review.change.title).toBe('Invoices for paid orders');
+  });
+
+  it.each([['truncated', '{"version":1,"change":{"slug":"inv'], ['garbage', 'not json at all \u0000\u0001']])('findChange says a %s review file is damaged, not that there is no map', (_n, content) => {
+    const file = join(dir, '20261028-090001-invites.review.json');
+    writeFileSync(file, content);
+    expect(() => findChange(dir, 'main')).toThrow(`${file} can't be read (damaged): ask your agent to draw the map again.`);
+    expect(() => findChange(dir, 'main', 'invites')).toThrow("can't be read (damaged)");
+  });
+
+  it('a readable older review is still used next to a damaged newer one', () => {
+    save(1);
+    writeFileSync(join(dir, '20261028-090009-invites.review.json'), '{');
+    expect(findChange(dir, 'main').review.change.slug).toBe('invites');
+  });
+
+  it('a readable review of another branch next to a damaged file still reports the damage', () => {
+    save(1, { branch: 'feat' });
+    writeFileSync(join(dir, '20261028-090009-other.review.json'), '{');
+    expect(() => findChange(dir, 'main')).toThrow("can't be read (damaged)");
   });
 
   it('files that are not reviews are skipped', () => {
@@ -187,5 +206,68 @@ describe('writing review files', () => {
     writeFileSync(`${file}.1234.tmp`, '{}');
     mkdirSync(join(dir, 'sub'));
     expect(listReviews(dir, 'main')).toHaveLength(1);
+  });
+});
+
+describe('saving over a previous review', () => {
+  const lock = { waitMs: 1000, staleMs: 10_000 };
+  const base = (s: number) => {
+    const html = page(`20261028-0900${String(s).padStart(2, '0')}-invites.html`);
+    return { dir, file: html.replace('.html', '.review.json'), html, slug: 'invites', branch: 'main', now: at(s), snapshot: { kind: 'map' as const, nodes: [api, mailer] } };
+  };
+
+  it('waits for the lock on the previous file and reads its notes only then: a note saved meanwhile is carried over', () => {
+    const prevFile = save(1).replace('.html', '.review.json');
+    writeFileSync(`${prevFile}.lock`, '');
+    const next = base(2);
+    let waited = 0;
+    saveReview({
+      ...next,
+      lock: {
+        ...lock,
+        sleep: () => {
+          waited++;
+          expect(existsSync(next.file)).toBe(false);
+          writeReview(prevFile, { ...readReview(prevFile)!, notes: [note('n1', { body: 'added while saving' })] });
+          rmSync(`${prevFile}.lock`);
+        },
+      },
+    });
+    expect(waited).toBe(1);
+    expect(readReview(next.file)!.notes.map((n) => n.id)).toEqual(['n1']);
+    expect(existsSync(`${prevFile}.lock`)).toBe(false);
+  });
+
+  it('keeps the previous file locked until afterWrite is done, and releases the lock when it throws', () => {
+    const prevFile = save(1).replace('.html', '.review.json');
+    const next = base(2);
+    let heldDuring = false;
+    expect(() =>
+      saveReview({
+        ...next,
+        afterWrite: () => {
+          heldDuring = existsSync(`${prevFile}.lock`) && existsSync(next.file);
+          throw new Error('boom');
+        },
+      }),
+    ).toThrow('boom');
+    expect(heldDuring).toBe(true);
+    expect(existsSync(`${prevFile}.lock`)).toBe(false);
+  });
+
+  it('a lock that stays held fails the save and writes nothing', () => {
+    const prevFile = save(1).replace('.html', '.review.json');
+    writeFileSync(`${prevFile}.lock`, '');
+    const next = base(2);
+    expect(() => saveReview({ ...next, lock: { waitMs: 50, staleMs: 10_000 } })).toThrow('Another codechart command is saving these notes');
+    expect(existsSync(next.file)).toBe(false);
+  });
+
+  it('with no previous file there is no lock, and afterWrite still runs', () => {
+    const next = base(1);
+    let ran = false;
+    saveReview({ ...next, afterWrite: () => { ran = true; } });
+    expect(ran).toBe(true);
+    expect(readdirSync(dir).filter((n) => n.endsWith('.lock'))).toEqual([]);
   });
 });

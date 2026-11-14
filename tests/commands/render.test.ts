@@ -628,7 +628,7 @@ describe('codechart render --pr', () => {
 
   it('draws maps only', async () => {
     const r = await run(['render', specFile(sampleFlow()), '--pr']);
-    expect(r.code).toBe(1);
+    expect(r.code).toBe(2);
     expect(r.err).toContain('--pr draws maps only');
   });
 });

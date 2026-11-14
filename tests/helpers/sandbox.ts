@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { afterAll } from 'vitest';
 import { buildProgram, runProgram, type ProgramOptions } from '../../src/program.js';
 
 export interface Sandbox {
@@ -52,6 +53,9 @@ export function gitInit(dir: string): void {
 }
 
 const templates = new Map<(repo: string) => void, string>();
+const templateDirs: string[] = [];
+// process 'exit' never fires in a vitest worker, so the template folders go when the test file ends.
+afterAll(() => templateDirs.splice(0).forEach(removeTempDir));
 const noSeed = () => {};
 
 /**
@@ -62,7 +66,7 @@ export function repoFromTemplate(dir: string, seed: (repo: string) => void = noS
   let src = templates.get(seed);
   if (!src) {
     const tmp = makeTempDir('template');
-    process.once('exit', () => removeTempDir(tmp));
+    templateDirs.push(tmp);
     src = join(tmp, 'repo');
     gitInit(src);
     seed(src);

@@ -158,13 +158,13 @@ describe('render: business map', () => {
   it('refuses --pr', async () => {
     const r = await renderBusiness(business(), '--tech', tech(), '--pr');
     expect(r.err).toBe('codechart: business maps are not for PR descriptions\n');
-    expect(r.code).toBe(1);
+    expect(r.code).toBe(2);
   });
 
   it('--tech only applies to business maps', async () => {
     const r = await run(['render', tech(), '--tech', tech()]);
     expect(r.err).toBe('codechart: --tech only applies to business maps\n');
-    expect(r.code).toBe(1);
+    expect(r.code).toBe(2);
   });
 
   it('prints invalid business specs the way maps do', async () => {

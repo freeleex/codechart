@@ -44,12 +44,16 @@ export function writeReview(file: string, review: Review): void {
 interface LockTimes {
   waitMs: number;
   staleMs: number;
+  /** Replaces the wait between tries, so a test can act while the lock is held. */
+  sleep?: (ms: number) => void;
 }
+
+const DEFAULT_LOCK: LockTimes = { waitMs: 2000, staleMs: 10_000 };
 
 const sleep = (ms: number): void => void Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 
 /** Runs `fn` holding `<file>.lock` (created exclusively): a second command waits its turn, a lock older than `staleMs` is a crashed one's and goes. */
-function withLock<T>(file: string, fn: () => T, { waitMs, staleMs }: LockTimes): T {
+function withLock<T>(file: string, fn: () => T, { waitMs, staleMs, sleep: wait = sleep }: LockTimes): T {
   const lock = `${file}.lock`;
   const until = Date.now() + waitMs;
   for (;;) {
@@ -62,7 +66,7 @@ function withLock<T>(file: string, fn: () => T, { waitMs, staleMs }: LockTimes):
     const age = Date.now() - (statSync(lock, { throwIfNoEntry: false })?.mtimeMs ?? Date.now());
     if (age > staleMs) rmSync(lock, { force: true });
     else if (Date.now() > until) throw new Error('Another codechart command is saving these notes. Try again in a moment.');
-    else sleep(25);
+    else wait(25);
   }
   try {
     return fn();
@@ -72,7 +76,7 @@ function withLock<T>(file: string, fn: () => T, { waitMs, staleMs }: LockTimes):
 }
 
 /** Read, change and write the review file as one step: it is read again under the lock, so notes saved meanwhile by another command are not lost. */
-export function updateReview(file: string, change: (current: Review) => Review, times: LockTimes = { waitMs: 2000, staleMs: 10_000 }): Review {
+export function updateReview(file: string, change: (current: Review) => Review, times: LockTimes = DEFAULT_LOCK): Review {
   return withLock(
     file,
     () => {
@@ -106,20 +110,54 @@ export function listReviews(dir: string, branch: string, which: Which = 'tech'):
     });
 }
 
+/** Review files in `dir` that can't be read, newest first. */
+function unreadableReviews(dir: string): string[] {
+  try {
+    return readdirSync(dir)
+      .filter((n) => REVIEW_NAME.test(n))
+      .sort()
+      .reverse()
+      .map((n) => join(dir, n))
+      .filter((f) => readReview(f) === undefined);
+  } catch {
+    return [];
+  }
+}
+
 const sameName = (r: Review, name: string): boolean => r.change.slug === name || (r.change.title ?? r.change.slug).toLowerCase() === name.toLowerCase();
 
 /** The newest change on `branch`, or the one with this title or file name slug. `exact`: only a file name slug counts. `which`: tech maps and flows unless it says business pages. */
 export function findChange(dir: string, branch: string, name?: string, exact = false, which: Which = 'tech'): Found {
   const found = listReviews(dir, branch, which).find((f) => name === undefined || (exact ? f.review.change.slug === name : sameName(f.review, name)));
   if (found) return found;
+  const damaged = listReviews(dir, branch, which).length === 0 ? unreadableReviews(dir)[0] : undefined;
+  if (damaged) throw new Error(`${damaged} can't be read (damaged): ask your agent to draw the map again.`);
   const where = branch ? ` on branch ${branch}` : ' here';
   throw new Error(name === undefined ? `No map to review${where} yet. Ask your agent for a map first.` : `No map called "${name}"${where}. Check the title, or ask your agent to draw it.`);
 }
 
-/** Writes the review file `file`, taking over the notes of the last render of this slug on this branch. */
-export function saveReview(o: { dir: string; file: string; html?: string; slug: string; branch: string; now: Date; snapshot: ReviewSnapshot }): void {
+interface SaveOptions {
+  dir: string;
+  file: string;
+  html?: string;
+  slug: string;
+  branch: string;
+  now: Date;
+  snapshot: ReviewSnapshot;
+  /** Runs once the file is written, still holding the previous file's lock: that is where the previous render is removed. */
+  afterWrite?: () => void;
+  lock?: LockTimes;
+}
+
+/** Writes the review file `file`, taking over the notes of the last render of this slug on this branch. The previous file stays locked from reading its notes until `afterWrite` is done, so a note added meanwhile is not lost. */
+export function saveReview(o: SaveOptions): void {
+  const prev = listReviews(o.dir, o.branch, 'all').find((f) => f.review.change.slug === o.slug);
+  if (!prev) return writeNew(o, undefined);
+  withLock(prev.file, () => writeNew(o, readReview(prev.file) ?? prev.review), o.lock ?? DEFAULT_LOCK);
+}
+
+function writeNew(o: SaveOptions, prev: Review | undefined): void {
   const { slug, branch, snapshot } = o;
-  const prev = listReviews(o.dir, branch, 'all').find((f) => f.review.change.slug === slug);
   writeReview(o.file, {
     version: 1,
     change: { slug, ...(snapshot.title && { title: snapshot.title }), kind: snapshot.kind, branch, ...(o.html && { html: o.html }), renderedAt: o.now.toISOString(), ...(snapshot.range && { range: snapshot.range }) },
@@ -128,6 +166,7 @@ export function saveReview(o: { dir: string; file: string; html?: string; slug: 
     ...(snapshot.edges && { edges: snapshot.edges }),
     ...(snapshot.gaps && { gaps: snapshot.gaps }),
     ...(snapshot.omitted && { omitted: snapshot.omitted }),
-    notes: prev ? carryNotes(prev.review, snapshot.nodes, snapshot) : [],
+    notes: prev ? carryNotes(prev, snapshot.nodes, snapshot) : [],
   });
+  o.afterWrite?.();
 }
