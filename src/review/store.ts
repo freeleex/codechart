@@ -110,12 +110,28 @@ export function listReviews(dir: string, branch: string, which: Which = 'tech'):
     });
 }
 
+/** Review files in `dir` that can't be read, newest first. */
+function unreadableReviews(dir: string): string[] {
+  try {
+    return readdirSync(dir)
+      .filter((n) => REVIEW_NAME.test(n))
+      .sort()
+      .reverse()
+      .map((n) => join(dir, n))
+      .filter((f) => readReview(f) === undefined);
+  } catch {
+    return [];
+  }
+}
+
 const sameName = (r: Review, name: string): boolean => r.change.slug === name || (r.change.title ?? r.change.slug).toLowerCase() === name.toLowerCase();
 
 /** The newest change on `branch`, or the one with this title or file name slug. `exact`: only a file name slug counts. `which`: tech maps and flows unless it says business pages. */
 export function findChange(dir: string, branch: string, name?: string, exact = false, which: Which = 'tech'): Found {
   const found = listReviews(dir, branch, which).find((f) => name === undefined || (exact ? f.review.change.slug === name : sameName(f.review, name)));
   if (found) return found;
+  const damaged = listReviews(dir, branch, which).length === 0 ? unreadableReviews(dir)[0] : undefined;
+  if (damaged) throw new Error(`${damaged} can't be read (damaged): ask your agent to draw the map again.`);
   const where = branch ? ` on branch ${branch}` : ' here';
   throw new Error(name === undefined ? `No map to review${where} yet. Ask your agent for a map first.` : `No map called "${name}"${where}. Check the title, or ask your agent to draw it.`);
 }

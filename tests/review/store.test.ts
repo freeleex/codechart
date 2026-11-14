@@ -79,6 +79,25 @@ describe('review store', () => {
     expect(findChange(dir, 'main', 'invoices').review.change.title).toBe('Invoices for paid orders');
   });
 
+  it.each([['truncated', '{"version":1,"change":{"slug":"inv'], ['garbage', 'not json at all \u0000\u0001']])('findChange says a %s review file is damaged, not that there is no map', (_n, content) => {
+    const file = join(dir, '20261028-090001-invites.review.json');
+    writeFileSync(file, content);
+    expect(() => findChange(dir, 'main')).toThrow(`${file} can't be read (damaged): ask your agent to draw the map again.`);
+    expect(() => findChange(dir, 'main', 'invites')).toThrow("can't be read (damaged)");
+  });
+
+  it('a readable older review is still used next to a damaged newer one', () => {
+    save(1);
+    writeFileSync(join(dir, '20261028-090009-invites.review.json'), '{');
+    expect(findChange(dir, 'main').review.change.slug).toBe('invites');
+  });
+
+  it('a readable review of another branch next to a damaged file still reports the damage', () => {
+    save(1, { branch: 'feat' });
+    writeFileSync(join(dir, '20261028-090009-other.review.json'), '{');
+    expect(() => findChange(dir, 'main')).toThrow("can't be read (damaged)");
+  });
+
   it('files that are not reviews are skipped', () => {
     writeFileSync(join(dir, '20261028-090001-bad.review.json'), '{"version":2}');
     save(2);
