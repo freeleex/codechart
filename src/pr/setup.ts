@@ -18,13 +18,20 @@ export interface Remote {
 
 const PATTERNS = [/^[\w.-]+@([^:/]+):(.+?)(?:\.git)?\/?$/, /^(?:https?|ssh|git):\/\/(?:[^@/]+@)?([^/:]+)(?::\d+)?\/(.+?)(?:\.git)?\/?$/];
 
+// GitHub's and GitLab's official SSH-over-443 hosts are the same service as their web hosts.
+const SSH_HOSTS = new Map([
+  ['ssh.github.com', 'github.com'],
+  ['altssh.gitlab.com', 'gitlab.com'],
+]);
+
 /** The forge behind a remote URL; undefined when the host name names neither. */
 export function parseRemote(url: string, host?: Host): Remote | undefined {
   for (const re of PATTERNS) {
     const m = re.exec(url.trim());
     if (!m) continue;
-    const server = m[1]!.toLowerCase();
-    if (hasHiddenChars(server + m[2]!)) return undefined;
+    const name = m[1]!.toLowerCase();
+    const server = SSH_HOSTS.get(name) ?? name;
+    if (hasHiddenChars(name + m[2]!)) return undefined;
     const found = host ?? (server.includes('github') ? 'github' : server.includes('gitlab') ? 'gitlab' : undefined);
     return found ? { host: found, server, path: m[2]! } : undefined;
   }

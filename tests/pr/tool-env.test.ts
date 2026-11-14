@@ -56,6 +56,26 @@ echo '{"title":"t","body":"b","description":"d"}'
     expect(seen()).toEqual(TOKENS);
   });
 
+  it("GitHub's and GitLab's ssh-over-443 hosts are the real service: tokens kept, repo host is the web host", () => {
+    for (const [url, host, server] of [
+      ['ssh://git@ssh.github.com:443/o/r.git', 'github', 'github.com'],
+      ['ssh://git@altssh.gitlab.com:443/o/r.git', 'gitlab', 'gitlab.com'],
+    ] as const) {
+      const remote = parseRemote(url)!;
+      expect(remote).toEqual({ host, server, path: 'o/r' });
+      fetchPr(runTool, remote, 1);
+      expect(seen()).toEqual(TOKENS);
+      writeFileSync(log, '');
+    }
+  });
+
+  it('only those exact ssh host names count', () => {
+    for (const url of ['ssh://git@ssh.github.com.evil.example:443/o/r.git', 'git@www.github.com:o/r.git', 'git@gist.github.com:o/r.git', 'ssh://git@altssh.gitlab.com.evil.example/o/r.git']) {
+      fetchPr(runTool, parseRemote(url)!, 1);
+      expect(seen()).toEqual([]);
+    }
+  });
+
   it('setup-pr-maps --pr: the same rule applies to its tool', () => {
     const tool = makeTool();
     tool('gh', ['pr', 'list'], 'github.evil.example');
