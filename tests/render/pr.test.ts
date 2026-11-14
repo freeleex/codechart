@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { MapCheck } from '../../src/render/check.js';
 import { prBlock, renderSvg } from '../../src/render/pr.js';
+import { viewport } from '../../src/render/web/html.js';
 import { layoutSpec } from '../../src/render/web/layout.js';
 import { validateSpec, type Spec } from '../../src/spec/schema.js';
 
@@ -33,6 +34,23 @@ describe('renderSvg', () => {
     expect(svg).not.toContain('<script');
   });
 
+  it('leaves out what only works on the interactive page: the review tick boxes', async () => {
+    const spec = shop();
+    const layout = await layoutSpec(spec);
+    const svg = renderSvg(spec, layout, undefined);
+    expect(svg).toContain('class="node status-new shape-table');
+    for (const cls of ['class="tick"', 'class="tick-hit"', 'class="tick-box"', 'class="tick-mark"']) expect(svg).not.toContain(cls);
+    const page = viewport(spec, layout, undefined);
+    for (const cls of ['class="tick"', 'class="tick-hit"', 'class="tick-box"', 'class="tick-mark"']) expect(page).toContain(cls);
+  });
+
+  it('keeps the table box decoration and the edge label backgrounds', async () => {
+    const spec = shop();
+    const svg = renderSvg(spec, await layoutSpec(spec), undefined);
+    expect(svg).toContain('class="deco"');
+    expect(svg).toMatch(/<rect x="[\d.]+" y="[\d.]+" width="[\d.]+" height="12" rx="2"\/><text/);
+  });
+
   it('escapes labels', async () => {
     const spec: Spec = { title: '<t>', kind: 'summary', nodes: [node('<img src=x onerror=alert(1)>')], edges: [] };
     const svg = renderSvg(spec, await layoutSpec(spec), undefined);
@@ -49,6 +67,11 @@ describe('prBlock', () => {
     expect(out).toContain('<details><summary>Node details (12)</summary>');
     expect(out).toContain('- **+ invoices** · new table · `shop/models/invoice.py`\n  - One invoice per paid order\n  - Fields: id: uuid (PK) · + order_id');
     expect(out).toMatch(/<\/details>\n\n<!-- codechart spec\n\{.*\}\n-->\n<!-- codechart:end -->\n$/);
+  });
+
+  it('the check line says how many boxes could not be checked', () => {
+    const out = prBlock(shop(), check({ checked: 10, notCheckable: 2 }), 'x');
+    expect(out).toContain('\n12 nodes · 4 new · 5 changed · ✓ 10 nodes checked against the code · 2 not checkable\n');
   });
 
   it('new nodes come first in the details, context last', () => {

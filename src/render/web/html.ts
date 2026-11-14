@@ -65,7 +65,7 @@ function headTexts(n: SpecNode, x: number, y: number, w: number, ghost: boolean)
 }
 
 /** `flag`: the hover title of a box that doesn't match the code, else empty. `drift`: how it differs from the plan; `ghost`: the plan had it, the build lacks it. */
-function renderNode(n: SpecNode, box: Box, flag: string, fields: Field[], rev: string | undefined, mark?: { drift: DriftItem<SpecNode>; ghost: boolean }): string {
+function renderNode(n: SpecNode, box: Box, flag: string, fields: Field[], { rev, mark, plain }: { rev?: string; mark?: { drift: DriftItem<SpecNode>; ghost: boolean }; plain?: boolean }): string {
   const { drift, ghost = false } = mark ?? {};
   const flagged = flag !== '';
   const x = Math.round(box.x * 10) / 10;
@@ -93,7 +93,7 @@ function renderNode(n: SpecNode, box: Box, flag: string, fields: Field[], rev: s
     `<line class="head" x1="${x}" y1="${y + head}" x2="${x + w}" y2="${y + head}"/>` +
     headTexts(n, x, y, w, ghost) +
     lines.join('') +
-    (ghost ? '' : tickSvg(...anchors.tick)) +
+    (ghost || plain ? '' : tickSvg(...anchors.tick)) +
     (flagged ? flagMark(...anchors.flag) : '') +
     (drift ? driftMark(drift, x + w, y + height + 8) : '') +
     `</g>`
@@ -152,10 +152,12 @@ interface MapExtras {
   previews?: Map<string, Preview>;
   ghosts?: Ghosts<SpecNode, SpecEdge>;
   gaps?: readonly GapBox[];
+  /** A still picture: leaves out the controls that only work on the page. */
+  plain?: boolean;
 }
 
 /** Without `side`: the plan or summary as one picture, both states overlaid. `spec` is laid out with its ghosts. */
-export function viewport(spec: Spec, layout: Layout, check: MapCheck | undefined, side?: Side, { previews, ghosts, gaps = [] }: MapExtras = {}): string {
+export function viewport(spec: Spec, layout: Layout, check: MapCheck | undefined, side?: Side, { previews, ghosts, gaps = [], plain }: MapExtras = {}): string {
   const drifted = itemsById(ghosts?.drift);
   const ghostIds = new Set(ghosts?.nodes.map((g) => g.id));
   const ghostEdges = new Set(ghosts?.links);
@@ -175,7 +177,7 @@ export function viewport(spec: Spec, layout: Layout, check: MapCheck | undefined
   const nodes = shown
     .map((n) => {
       const b = boxes.get(n.id);
-      return b ? renderNode(n, b, flagTitle(check, n.id), side ? fieldsOn(side, n) : (n.fields ?? []), diffRev(previews?.get(n.id)), mark(drifted.get(n.id), ghostIds.has(n.id))) : '';
+      return b ? renderNode(n, b, flagTitle(check, n.id), side ? fieldsOn(side, n) : (n.fields ?? []), { rev: diffRev(previews?.get(n.id)), mark: mark(drifted.get(n.id), ghostIds.has(n.id)), plain }) : '';
     })
     .join('');
   const edges = layout.edges

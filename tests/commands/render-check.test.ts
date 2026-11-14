@@ -343,6 +343,12 @@ describe('render: diff not checked', () => {
     expect(htmlFile()).toMatch(/<span class="check" title="Rendered without --git[^"]*"><span class="ok">✓ 1 node checked against the code<\/span> · <span class="muted">diff not checked<\/span><\/span>/);
   });
 
+  it('the page header says how many boxes could not be checked, without turning the line red or amber', async () => {
+    const spec = specFile(map(node('Order', 'changed', 'app/orders.py'), { ...node('Ext', 'context', ''), path: undefined as never }));
+    await run(['render', spec, '--output', 'web', '--git']);
+    expect(htmlFile()).toContain('<span class="check"><span class="ok">✓ 1 node checked against the code</span> · <span class="muted">1 not checkable</span></span>');
+  });
+
   it('not with a diff flag, for a plan, or outside a repo', async () => {
     const summary = map(node('Order', 'changed', 'app/orders.py'));
     expect((await run(['render', specFile(summary), '--git', '--output', 'cli'])).out).not.toContain('diff not checked');
