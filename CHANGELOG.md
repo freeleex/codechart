@@ -134,6 +134,8 @@ What's new in each codechart release. Update with `codechart update`; the [relea
 
 ## 0.3.1 (2026-11-03)
 
+Not published to npm; these changes shipped in 0.4.0.
+
 ### Changed
 
 - Security review fixes; see [security review](https://github.com/freeleex/codechart/blob/main/docs/security-review.md).
