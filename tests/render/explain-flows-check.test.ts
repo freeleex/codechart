@@ -30,7 +30,7 @@ describe('checkExplain', () => {
     expect(c.mismatches[0]).toMatchObject({ id: 'flow:create/zero', label: 'Create an invoice: Is the total zero?' });
     expect(c.mismatches[0]!.detail).toContain('"Nope yes" not found');
     expect(c.mismatches[0]!.detail).toContain('"Nope no" not found');
-    expect(checkHeadline(c)).toBe("✗ 1 of 9 boxes and steps doesn't match the code");
+    expect(checkHeadline(c)).toBe("✗ 1 of 9 boxes and steps doesn't match the code · 1 not checkable");
     expect(checkTag(c)).toBe(' · ✓ 8 of 9 checked · 1 not checkable');
   });
 
