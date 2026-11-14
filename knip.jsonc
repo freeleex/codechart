@@ -6,7 +6,7 @@
   "project": ["src/**/*.ts", "scripts/**/*.{ts,mjs}"],
   // demo scripts run from a temp dir where playwright is installed on the fly (scripts/demo/*.sh)
   "ignoreDependencies": ["playwright"],
-  // created by tests to exercise non-regular-file handling
-  "ignoreBinaries": ["mkfifo"]
+  // mkfifo: tests exercise non-regular-file handling; openssl: tests make a throwaway TLS certificate (skipped when absent)
+  "ignoreBinaries": ["mkfifo", "openssl"]
   // renderTerminal is used only by tests; knip counts tests as entries, so it needs no entry here
 }
