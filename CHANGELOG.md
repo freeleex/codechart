@@ -12,6 +12,7 @@ What's new in each codechart release. Update with `codechart update`; the [relea
 
 ### Fixed
 
+- The map check no longer warns about Terraform nested blocks, references by address (`module.vpc`, `var.x`), Go packages, `index` files or two boxes in one file; it now also accepts the other box's name, not only its file name.
 - Plan vs built no longer calls a file "built in another file" when only its path is spelled differently (`src\db.ts`, `./src/db.ts`, or relative to the folder you ran from), on maps and on flow steps.
 - A flow anchor written Windows-style (`src\b.py:2`) for a file at its exact repo path now gets the "did you mean" hint.
 - `codechart render --tech` no longer accepts an explain map for a business change page; it says a change map is needed.

@@ -212,6 +212,13 @@ describe('checkMapNodes: field warnings', () => {
     expect(r.warnings).toEqual([{ id: 'n0', label: '~node0', short: 'field discount_code not found', detail: "src/fields.ts doesn't mention the field discount_code" }]);
   });
 
+  it('matches a dotted field as a nested block, parts in order', () => {
+    mkdirSync(join(repo, 'infra'));
+    writeFileSync(join(repo, 'infra/alb.tf'), 'resource "aws_lb" "api" {\n  access_logs {\n    bucket = x\n  }\n}\n');
+    const s = map('summary', { status: 'changed', path: 'infra/alb.tf', fields: [{ name: 'access_logs.bucket' }, { name: 'access_logs.missing' }], fieldsComplete: false });
+    expect(checkMapNodes(s, repo).warnings!.map((w) => w.short)).toEqual(['field access_logs.missing not found']);
+  });
+
   it('warns only in a summary, and skips a file too big to read', () => {
     writeFileSync(join(repo, 'src/fields.ts'), 'export const totalAmount = 1;\n');
     const node = { status: 'changed' as const, path: 'src/fields.ts', fields: [{ name: 'missing' }], fieldsComplete: false };
@@ -233,13 +240,68 @@ describe('checkMapNodes: arrow warnings', () => {
     ];
     const r = checkMapNodes(s, repo);
     expect(r.mismatches).toEqual([]);
-    expect(r.warnings).toEqual([{ id: 'edge-1', label: 'node0 → node2', short: 'no mention of other', detail: "src/order.ts doesn't mention other, the file src/other.ts" }]);
+    expect(r.warnings).toEqual([{ id: 'edge-1', label: 'node0 → node2', short: 'no mention of other or node2', detail: "src/order.ts doesn't mention other or node2 (the box in src/other.ts)" }]);
   });
 
   it('skips an arrow whose ends have no path', () => {
     const s = map('summary', { status: 'context', path: 'src/order.ts' }, { status: 'context', kind: 'service' });
     s.edges = [{ from: 'n0', to: 'n1', kind: 'calls' }];
     expect(checkMapNodes(s, repo).warnings).toBeUndefined();
+  });
+});
+
+describe('checkMapNodes: arrow mentions', () => {
+  const warns = (files: Record<string, string>, from: Partial<SpecNode>, to: Partial<SpecNode>) => {
+    for (const [path, text] of Object.entries(files)) {
+      mkdirSync(join(repo, path, '..'), { recursive: true });
+      writeFileSync(join(repo, path), text);
+    }
+    const s = map('summary', { ...from, status: 'context' }, { ...to, status: 'context' });
+    s.edges = [{ from: 'n0', to: 'n1', kind: 'reads' }];
+    return (checkMapNodes(s, repo).warnings ?? []).map((w) => w.short);
+  };
+
+  it.each([
+    ['a module address', 'subnets = module.vpc.public_subnets\n', 'module.vpc', 'main.tf'],
+    ['a variable address', 'days = var.log_retention_days\n', 'var.log_retention_days', 'variables.tf'],
+  ])('accepts %s for the target label', (_, text, label, file) => {
+    expect(warns({ 'infra/alb.tf': text }, { path: 'infra/alb.tf' }, { label, path: `infra/${file}` })).toEqual([]);
+  });
+
+  it('accepts a Go package-qualified call for a target in another file name', () => {
+    expect(warns({ 'handlers/orders.go': 'o, err := store.FindOrder(id)\n' }, { path: 'handlers/orders.go' }, { label: 'store.FindOrder', path: 'store/postgres.go' })).toEqual([]);
+  });
+
+  it('accepts an import of the folder for an index file', () => {
+    expect(warns({ 'src/pay.ts': "import { charge } from './billing';\n" }, { path: 'src/pay.ts' }, { label: 'charge', path: 'src/billing/index.ts' })).toEqual([]);
+  });
+
+  it('two boxes in one file: the file name proves nothing, the label does', () => {
+    const files = { 'src/models.ts': 'export class Order {}\nexport class Customer { o: Order }\n' };
+    expect(warns(files, { label: 'Customer', path: 'src/models.ts' }, { label: 'Order', path: 'src/models.ts' })).toEqual([]);
+    expect(warns(files, { label: 'Customer', path: 'src/models.ts' }, { label: 'Invoice', path: 'src/models.ts' })).toEqual(['no mention of Invoice']);
+  });
+
+  it('two boxes in one index file: the folder name proves nothing either', () => {
+    const files = { 'src/billing/index.ts': '// billing entry\nexport class Charge {}\n' };
+    expect(warns(files, { label: 'Charge', path: 'src/billing/index.ts' }, { label: 'Refund', path: 'src/billing/index.ts' })).toEqual(['no mention of Refund']);
+  });
+
+  it('the same file spelled two ways is still one file', () => {
+    const files = { 'src/models.ts': 'export class Customer {}\n// models\n' };
+    expect(warns(files, { label: 'Customer', path: 'src/models.ts' }, { label: 'Invoice', path: './src/models.ts' })).toEqual(['no mention of Invoice']);
+  });
+
+  it('takes the last word of a "Kind name" label', () => {
+    expect(warns({ 'k8s/service.yaml': 'selector:\n  app: api\n' }, { label: 'Service api', path: 'k8s/service.yaml' }, { label: 'Deployment api', path: 'k8s/deployment.yaml' })).toEqual([]);
+  });
+
+  it('still warns when the source never mentions the target', () => {
+    expect(warns({ 'api/refunds.py': 'def refund(): pass\n' }, { path: 'api/refunds.py' }, { label: 'mailer', path: 'lib/mailer.py' })).toEqual(['no mention of mailer']);
+  });
+
+  it('ignores a label shorter than 3 characters', () => {
+    expect(warns({ 'src/a.ts': 'const valid = identity(1);\n' }, { path: 'src/a.ts' }, { label: 'id', path: 'src/schema.ts' })).toEqual(['no mention of schema']);
   });
 });
 

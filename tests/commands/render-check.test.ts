@@ -156,7 +156,7 @@ describe('render: map checks', () => {
     expect(html).toContain('<span class="ok">✓ 2 nodes checked against the code</span> · <span class="warn">⚠ 2 warnings</span>');
     expect(html).toContain('<h3>Worth checking</h3>');
     expect(html).toContain("doesn&#39;t mention the field discount_code");
-    expect(html).toContain("doesn&#39;t mention other, the file app/other.py");
+    expect(html).toContain("doesn&#39;t mention other (the box in app/other.py)");
   });
 
   it('without a diff flag only checks files', async () => {
@@ -400,5 +400,37 @@ describe('render: flow checks', () => {
     const html = htmlFile();
     expect(html).toContain('✗ 1 of 2 anchors doesn&#39;t match the code');
     expect(html).toContain('aria-label="load status (changed end, doesn&#39;t match the code)"');
+  });
+});
+
+describe('render: infrastructure maps', () => {
+  const albBefore = 'resource "aws_lb" "api" {\n  internal = false\n  subnets  = module.vpc.public_subnets\n}\n';
+  const albAfter = `${albBefore.slice(0, -2)}\n  access_logs {\n    bucket  = aws_s3_bucket.logs.id\n    enabled = true\n  }\n}\n`;
+  const logs =
+    'resource "aws_s3_bucket" "logs" {\n  bucket = "shop-alb-logs"\n}\n\nresource "aws_s3_bucket_lifecycle_configuration" "logs" {\n  bucket = aws_s3_bucket.logs.id\n  rule {\n    expiration {\n      days = var.log_retention_days\n    }\n  }\n}\n';
+
+  beforeEach(() => {
+    mkdirSync(join(repo, 'infra'));
+    writeFileSync(join(repo, 'infra/main.tf'), 'module "vpc" {\n  source = "./modules/vpc"\n}\n');
+    writeFileSync(join(repo, 'infra/variables.tf'), 'variable "log_retention_days" {\n  default = 90\n}\n');
+    writeFileSync(join(repo, 'infra/alb.tf'), albBefore);
+    git('add', '.');
+    git('commit', '-q', '-m', 'network');
+    writeFileSync(join(repo, 'infra/alb.tf'), albAfter);
+    writeFileSync(join(repo, 'infra/logs.tf'), logs);
+  });
+
+  it('the demo spec renders without a warning', async () => {
+    const r = await run(['render', join(process.cwd(), 'scripts/demo/specs/infra.spec.json'), '--git', '--output', 'cli']);
+    expect(r.out).toContain('✓ 5 checked');
+    expect(r.out).not.toContain('⚠');
+  });
+
+  it("the spec guide's example renders without a warning", async () => {
+    const guide = readFileSync(join(process.cwd(), 'skills/codechart/spec-guide.md'), 'utf8');
+    const example = /```json\n(\{ "kind": "summary"[^\n]*"rules": \["infrastructure"\][\s\S]*?)```/.exec(guide)![1]!;
+    const r = await run(['render', specFile(JSON.parse(example)), '--git', '--output', 'cli']);
+    expect(r.out).toContain('✓ 3 checked');
+    expect(r.out).not.toContain('⚠');
   });
 });
