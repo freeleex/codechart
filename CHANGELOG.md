@@ -46,7 +46,7 @@ What's new in each codechart release. Update with `codechart update`; the [relea
 - With `XDG_CONFIG_HOME` set, `install-skill`, `doctor`, `update` and `uninstall` keep OpenCode's skill, reminder line and plugin together under `$XDG_CONFIG_HOME/opencode`.
 - Saving a map no longer loses a note added with `codechart comment` at the same moment.
 - `setup-pr-maps` no longer writes control characters from a GitLab stage name into its output or the file.
-- Clearer errors: a damaged review file is reported as damaged, with what to do; an output folder that can't be written names the setting to change; a missing spec file says "no such file" and an empty stdin says to pipe the spec in; `install-skill --dir` with a missing parent folder says so; a `release.browser` path that doesn't exist is named in the no-PDF message.
+- Clearer errors: a damaged review file is reported as damaged, with what to do; an output folder that can't be written names the setting to change; a missing spec file says "no such file" and an empty stdin says to pipe the spec in; `install-skill --dir` says when it can't create the folder; a `release.browser` path that doesn't exist is named in the no-PDF message.
 - `check --since` and `--head` say "is not a commit" for an unknown revision, like `--commit`.
 - A box whose path is outside the repo is labelled "outside the repo" on the check line.
 

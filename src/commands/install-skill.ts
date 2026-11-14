@@ -1,6 +1,6 @@
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 import { Command } from 'commander';
 import { packageFile } from '../assets.js';
 import { loadConfig } from '../config/load.js';
@@ -174,6 +174,21 @@ async function pickAgents(o: Flags, home: string, opts: CommandOptions): Promise
   return agents;
 }
 
+const DIR_REASONS: Record<string, string> = { EACCES: 'permission denied', EPERM: 'permission denied', ENOTDIR: 'not a folder', EEXIST: 'not a folder' };
+
+/** Creates the --dir folder; false (reported) when it can't be made. */
+function makeDir(dir: string, opts: CommandOptions): boolean {
+  try {
+    mkdirSync(resolve(opts.cwd ?? process.cwd(), dir), { recursive: true });
+    return true;
+  } catch (e) {
+    const code = (e as NodeJS.ErrnoException).code ?? 'unknown error';
+    opts.stderr(`codechart: --dir ${dir}: can't create this folder (${DIR_REASONS[code] ?? code})\n`);
+    process.exitCode = 1;
+    return false;
+  }
+}
+
 function skillTargets(agents: AgentPreset[], home: string, files: string[], dir: string | undefined, cwd: string) {
   const groups = skillFolders(agents);
   // Earlier installs in other folders these agents read would go stale, so report or update them too.
@@ -200,11 +215,7 @@ export function installSkillCommand(opts: CommandOptions): Command {
     .option('--no-plugin', 'skip the OpenCode plugin')
     .action(async (o: Flags) => {
       const home = opts.home ?? homedir();
-      if (o.dir !== undefined && !existsSync(dirname(resolve(opts.cwd ?? process.cwd(), o.dir)))) {
-        opts.stderr(`codechart: --dir ${o.dir}: folder doesn't exist\n`);
-        process.exitCode = 2;
-        return;
-      }
+      if (o.dir !== undefined && !makeDir(o.dir, opts)) return;
       const picked = await pickAgents(o, home, opts);
       if (!picked) return;
       const files = skillFiles();
