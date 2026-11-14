@@ -2,7 +2,7 @@
 
 The skill calls these; you rarely need to. `codechart <command> --help` lists every option.
 
-Exit codes: 0 done; 2 a usage error (a bad or conflicting flag, an unknown agent, a revision that is not a commit); 1 any other failure, or a `--strict` / `doctor` finding. `check` and `release-context` are the exception: they exit 2 on any failure.
+Exit codes: 0 done; 2 a usage error (a bad or conflicting flag, or one that doesn't apply to this kind of spec, an unknown agent, a revision that is not a commit); 1 any other failure, or a `--strict` / `doctor` finding. `check` and `release-context` are the exception: they exit 2 on any failure.
 
 | Command | Purpose |
 |---|---|
