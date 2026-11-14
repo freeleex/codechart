@@ -1,11 +1,11 @@
 import { lstatSync, readdirSync, rmdirSync, unlinkSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { Command } from 'commander';
 import { packageFile } from '../assets.js';
 import type { CommandOptions } from '../program.js';
 import { readState, skillDirs, writeState } from '../update/check.js';
-import { AGENTS, isCodechartSkill } from './agents.js';
+import { agentsFor, isCodechartSkill } from './agents.js';
 import { removeClaudeHooks, removeReminder } from './nudges.js';
 import { pluginFile, removePlugin } from './opencode-plugin.js';
 import { cacheDirOf } from './update.js';
@@ -41,7 +41,7 @@ function removeRecordedSkills(files: string[], opts: CommandOptions, step: (run:
 
 function removeSkills(home: string, opts: CommandOptions, step: (run: () => string | undefined) => void): void {
   const files = readdirSync(packageFile('skills/codechart'));
-  for (const folder of new Set(AGENTS.flatMap((a) => [a.skills, ...a.reads]))) step(() => removeSkill(join(home, folder, 'codechart'), files));
+  for (const folder of new Set(agentsFor(opts.env ?? process.env).flatMap((a) => [a.skills, ...a.reads]))) step(() => removeSkill(join(resolve(home, folder), 'codechart'), files));
   step(() => removeRecordedSkills(files, opts, step));
 }
 
@@ -76,9 +76,9 @@ export function uninstallCommand(opts: CommandOptions): Command {
       };
       if (all || o.skill) removeSkills(home, opts, step);
       if (all || o.reminder) {
-        for (const a of AGENTS) {
+        for (const a of agentsFor(opts.env ?? process.env)) {
           if (!a.instructions) continue;
-          const file = join(home, a.instructions);
+          const file = resolve(home, a.instructions);
           step(() => (removeReminder(file) === 'removed' ? `removed reminder: ${file}` : undefined));
         }
       }

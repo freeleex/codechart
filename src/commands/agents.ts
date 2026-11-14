@@ -1,5 +1,5 @@
 import { lstatSync } from 'node:fs';
-import { join } from 'node:path';
+import { isAbsolute, join } from 'node:path';
 import { readRegularFile } from '../read-regular.js';
 
 // User-level skills folders from each agent's docs (2026-10). `reads` lists other folders the agent also loads skills from.
@@ -31,6 +31,22 @@ export const AGENTS: AgentPreset[] = [
   { name: 'junie', label: 'Junie', home: '.junie', skills: '.junie/skills', reads: [] },
   { name: 'droid', label: 'Factory Droid', home: '.factory', skills: '.factory/skills', reads: [] },
 ];
+
+const xdgConfig = (env: NodeJS.ProcessEnv): string | undefined => (env.XDG_CONFIG_HOME && isAbsolute(env.XDG_CONFIG_HOME) ? env.XDG_CONFIG_HOME : undefined);
+
+/** OpenCode's config directory: `$XDG_CONFIG_HOME/opencode` when that is absolute, else `~/.config/opencode`. */
+export const opencodeConfigDir = (home: string, env: NodeJS.ProcessEnv): string => join(xdgConfig(env) ?? join(home, '.config'), 'opencode');
+
+/** The presets for this environment; OpenCode's paths are absolute when XDG_CONFIG_HOME moves them, so resolve them against home rather than join. */
+export function agentsFor(env: NodeJS.ProcessEnv): AgentPreset[] {
+  const xdg = xdgConfig(env);
+  if (!xdg) return AGENTS;
+  const dir = opencodeConfigDir('', env);
+  return AGENTS.map((a) => (a.name === 'opencode' ? { ...a, home: dir, skills: join(dir, 'skills'), instructions: join(dir, 'AGENTS.md') } : a));
+}
+
+/** A preset path as the user reads it: `~/…` when it is under home. */
+export const shown = (path: string): string => (isAbsolute(path) ? path : `~/${path}`);
 
 // One folder per agent, unless the agent already loads a folder chosen for an earlier one.
 export function skillFolders(agents: AgentPreset[]): { folder: string; agents: AgentPreset[] }[] {
