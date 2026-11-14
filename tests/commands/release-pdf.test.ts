@@ -187,7 +187,7 @@ describe('codechart render of a release map', () => {
       process.exitCode = undefined;
       const r = await runCli({ cwd: sb.repo, home: sb.home, now: () => NOW, isTTY: false, pdf: fakeBrowser() }, ['render', file, flag, ...(flag === '--tech' ? [file] : [])]);
       expect(r.err).toBe(`codechart: ${message}\n`);
-      expect(r.code).toBe(1);
+      expect(r.code).toBe(2);
     }
   });
 

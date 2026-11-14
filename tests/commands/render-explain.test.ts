@@ -102,14 +102,14 @@ describe('render: explain map', () => {
 
   it.each([['--git'], ['--since', 'HEAD'], ['--commit', 'HEAD'], ['--since', 'HEAD', '--head', 'HEAD']])('refuses the diff flags %s', async (...flags) => {
     const r = await run(explain(), ...flags);
-    expect(r.code).toBe(1);
+    expect(r.code).toBe(2);
     expect(r.err).toContain('do not apply to an explain map');
     expect(outFiles()).toEqual([]);
   });
 
   it('refuses --pr', async () => {
     const r = await run(explain(), '--pr');
-    expect(r.code).toBe(1);
+    expect(r.code).toBe(2);
     expect(r.err).toContain('explain maps are not for PR descriptions');
   });
 

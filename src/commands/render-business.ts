@@ -10,6 +10,7 @@ import { businessLinkIssues } from '../spec/business-links.js';
 import { loadTechBoxes } from './business-tech.js';
 import { htmlWriter } from './html-writer.js';
 import { InvalidSpec } from './spec-input.js';
+import { UsageError } from './usage-error.js';
 
 interface BusinessFlags {
   theme?: Theme;
@@ -21,7 +22,7 @@ interface BusinessFlags {
 
 /** Business maps are HTML-only: the output mode and the diff flags don't apply, and nothing triggers one on its own. */
 export async function renderBusinessSpec(spec: BusinessSpec, o: BusinessFlags, opts: CommandOptions, cwd: string): Promise<void> {
-  if (o.pr) throw new Error('business maps are not for PR descriptions');
+  if (o.pr) throw new UsageError('business maps are not for PR descriptions');
   const root = findRepoRoot(cwd) ?? resolve(cwd);
   const config = loadConfig({ cwd, home: opts.home, env: opts.env, warn: (l) => opts.stderr(`codechart: ${l}\n`) });
   const tech = await loadTechBoxes({ file: o.tech, map: spec.map, explain: isExplain(spec), cwd, outDir: config.web.outDir, root });

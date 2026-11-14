@@ -28,6 +28,7 @@ import { renderBusinessSpec } from './render-business.js';
 import { renderReleaseSpec } from './render-release.js';
 import { InvalidSpec, readSpecJson, TOO_BIG } from './spec-input.js';
 import { readStdin } from './stdin.js';
+import { UsageError } from './usage-error.js';
 
 function specOutput(config: Config, ruleNames: string[], diagram: Diagram): Output {
   const outputs = ruleNames.map((name) => {
@@ -48,9 +49,9 @@ async function readSpec(arg: string, cwd: string, stdin: () => Promise<string>):
 type Target = { diagram: 'flow'; spec: FlowSpec; snippets: FlowSnippets; checked: number } | { diagram: 'map'; spec: Spec };
 
 function targetOf(spec: Spec | FlowSpec, root: string, at: string | undefined, cwd: string, o: RenderFlags): Target {
-  if (o.tech !== undefined) throw new Error('--tech only applies to business maps');
+  if (o.tech !== undefined) throw new UsageError('--tech only applies to business maps');
   if (spec.diagram !== 'flow') return { diagram: 'map', spec };
-  if (o.pr) throw new Error('--pr draws maps only');
+  if (o.pr) throw new UsageError('--pr draws maps only');
   const anchors = checkFlowAnchors(spec, root, at, cwd);
   if (!anchors.ok) throw new InvalidSpec(anchors.errors);
   return { diagram: 'flow', spec, snippets: anchors.snippets, checked: anchors.checked };
@@ -76,9 +77,6 @@ function renderSelectionError(o: RenderFlags): string | undefined {
   if (o.commit !== undefined && (o.git || o.since !== undefined)) return '--commit does not combine with --git or --since';
   return selectionError(o);
 }
-
-/** A bad flag value, as opposed to a failure while drawing: exits 2. */
-class UsageError extends Error {}
 
 function revision(root: string, flag: string, ref: string): string {
   try {
@@ -148,15 +146,15 @@ const renderPageSpec = (spec: BusinessSpec | ReleaseSpec, o: RenderFlags, opts: 
 /** An explain map shows the code as it is, so there is no change to check and nothing to put in a PR. */
 function explainFlags(spec: Spec | FlowSpec, o: RenderFlags): void {
   if (spec.kind !== 'explain') return;
-  if (hasGitSelection(o)) throw new Error('--git, --commit, --since and --head do not apply to an explain map: it shows the code as it is (--at reads another commit)');
-  if (o.pr) throw new Error('explain maps are not for PR descriptions');
+  if (hasGitSelection(o)) throw new UsageError('--git, --commit, --since and --head do not apply to an explain map: it shows the code as it is (--at reads another commit)');
+  if (o.pr) throw new UsageError('explain maps are not for PR descriptions');
 }
 
 /** An explain map's files are named apart from a change map's of the same title. */
 const slugKind = (spec: Spec | FlowSpec, diagram: Diagram): Diagram | 'explain' => (spec.kind === 'explain' ? 'explain' : diagram);
 
 function pdfOnlyForRelease(spec: { diagram?: string }, o: RenderFlags): void {
-  if (o.pdf !== undefined && spec.diagram !== 'release') throw new Error('--pdf only applies to release maps');
+  if (o.pdf !== undefined && spec.diagram !== 'release') throw new UsageError('--pdf only applies to release maps');
 }
 
 async function renderSpec(arg: string, o: RenderFlags, opts: CommandOptions, cwd: string): Promise<void> {
