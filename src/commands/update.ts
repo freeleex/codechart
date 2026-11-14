@@ -7,6 +7,7 @@ import { packageFile } from '../assets.js';
 import { loadConfig } from '../config/load.js';
 import type { CommandOptions } from '../program.js';
 import { NOTES_URL, fetchHighlights, notesLines } from '../update/changelog.js';
+import { httpsFetch } from '../update/http-get.js';
 import { currentVersion, fetchLatest, isNewer, readState, skillDirs, withHighlights, writeState } from '../update/check.js';
 import { AGENTS, isCodechartSkill } from './agents.js';
 import { installCopy, skillFiles } from './install-skill.js';
@@ -81,11 +82,11 @@ function refreshInstalls(home: string, opts: CommandOptions): void {
 async function update(o: { check?: boolean }, opts: CommandOptions, runner: Runner): Promise<void> {
   const home = opts.home ?? homedir();
   const current = currentVersion();
-  const latest = await fetchLatest(opts.fetch ?? fetch, 10_000);
+  const latest = await fetchLatest(opts.fetch ?? httpsFetch, 10_000);
   if (!latest) throw new Error("couldn't reach the npm registry to look up the newest version");
   const cacheDir = cacheDirOf(opts);
   const state = { ...readState(cacheDir), checkedAt: opts.now?.().getTime() ?? Date.now(), latest };
-  const notes = isNewer(latest, current) ? await fetchHighlights(opts.fetch ?? fetch, current, latest, 10_000) : undefined;
+  const notes = isNewer(latest, current) ? await fetchHighlights(opts.fetch ?? httpsFetch, current, latest, 10_000) : undefined;
   writeState(cacheDir, withHighlights(state, current, latest, notes));
   if (!isNewer(latest, current)) {
     opts.stdout(`codechart ${current} is the newest version.\n`);

@@ -19,9 +19,9 @@ export function isNewer(a: string, b: string): boolean {
 }
 
 /** The newest published version, or undefined when npm doesn't answer in time. */
-export async function fetchLatest(fetchFn: typeof fetch, timeoutMs: number): Promise<string | undefined> {
+export async function fetchLatest(fetchFn: typeof fetch, timeoutMs: number, url = REGISTRY): Promise<string | undefined> {
   try {
-    const res = await fetchFn(REGISTRY, { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(timeoutMs) });
+    const res = await fetchFn(url, { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(timeoutMs) });
     if (!res.ok) return undefined;
     const version = ((await res.json()) as { version?: unknown }).version;
     return typeof version === 'string' && VERSION.test(version) ? version : undefined;
