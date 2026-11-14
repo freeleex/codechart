@@ -20,8 +20,9 @@ backend
 ~ model PaymentMethod ─mirrors─▶ enum payment_method
 
 config
-+ migration: backfill invoices for… ─backfills─▶ invoices
-◆ INVOICE_PREFIX ─read by─▶ migration: backfill invoices for paid orders
++ migration: backfill invoices for… ─reads─────▶ INVOICE_PREFIX
+                                    ─backfills─▶ invoices
+◆ INVOICE_PREFIX
 ◆ feature flag refundsEnabled ─gates─▶ endpoint POST /orders/{id}/refund
 
 12 nodes · 4 new · 5 changed · 2 config
@@ -51,8 +52,9 @@ backend
 ~ model PaymentMethod ─mirrors─▶ enum payment_method
 
 config
-+ migration: backfill invoi… ─backfills─▶ invoices
-◆ INVOICE_PREFIX ─read by─▶ migration: backfill invoices for paid orders
++ migration: backfill invoi… ─reads─────▶ INVOICE_PREFIX
+                             ─backfills─▶ invoices
+◆ INVOICE_PREFIX
 ◆ feature flag refundsEnabl… ─gates─▶ endpoint POST /orders/{id}/refund
 
 12 nodes · 4 new · 5 changed · 2 config
@@ -82,8 +84,9 @@ backend
 ~ model PaymentMethod ─mirrors─▶ enum payment_method
 
 config
-+ migration: backfill… ─backfills─▶ invoices
-◆ INVOICE_PREFIX ─read by─▶ migration: backfill invoices fo…
++ migration: backfill… ─reads─────▶ INVOICE_PREFIX
+                       ─backfills─▶ invoices
+◆ INVOICE_PREFIX
 ◆ feature flag refund… ─gates─▶ endpoint POST /orders/{id}/…
 
 12 nodes · 4 new · 5 changed · 2 config

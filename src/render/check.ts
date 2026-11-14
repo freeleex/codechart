@@ -106,7 +106,7 @@ function diffProblem(c: AnchorCtx, spec: Spec, node: SpecNode, path: string, dif
 function checkNode(c: AnchorCtx, spec: Spec, node: SpecNode & { path: string }, diff: Diff | undefined): NodeCheck {
   const needed = mustExist(spec, node);
   const where = locate(c, node.path);
-  if ('error' in where) return { problem: { short: 'file unreadable', detail: where.error } };
+  if ('error' in where) return { problem: { short: where.error.endsWith(' is outside the repo') ? 'outside the repo' : 'file unreadable', detail: where.error } };
   const found = where.found ? repoPath(c.root, where.path) : undefined;
   if (!where.found && needed) {
     const at = c.at ? ` at ${c.at.slice(0, 12)}` : '';

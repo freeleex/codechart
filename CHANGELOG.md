@@ -41,13 +41,22 @@ What's new in each codechart release. Update with `codechart update`; the [relea
 - `feedback --import` reads the clipboard when stdin is an empty file or `/dev/null`, instead of failing with "No codechart review found".
 - Two hook runs at the same moment no longer lose a turn's snapshot, and the hook no longer hangs when the transcript path is a pipe.
 - Conflicting flags are refused with exit 2: `doctor --fix --last`, `update --check --skills-only`, `comment --side` without a line, and `feedback --import --copy` without `--take`.
+- `gh` and `glab` now run without token environment variables (`GH_TOKEN`, `GITLAB_TOKEN` and similar) for a repo host other than github.com or gitlab.com, so only a login you stored for that host is used.
+- A stalled network connection no longer keeps codechart running for 10 seconds or more after the update check times out.
+- With `XDG_CONFIG_HOME` set, `install-skill`, `doctor`, `update` and `uninstall` keep OpenCode's skill, reminder line and plugin together under `$XDG_CONFIG_HOME/opencode`.
+- Saving a map no longer loses a note added with `codechart comment` at the same moment.
+- `setup-pr-maps` no longer writes control characters from a GitLab stage name into its output or the file.
+- Clearer errors: a damaged review file is reported as damaged, with what to do; an output folder that can't be written names the setting to change; a missing spec file says "no such file" and an empty stdin says to pipe the spec in; `install-skill --dir` says when it can't create the folder; a `release.browser` path that doesn't exist is named in the no-PDF message.
+- `check --since` and `--head` say "is not a commit" for an unknown revision, like `--commit`.
+- A box whose path is outside the repo is labelled "outside the repo" on the check line.
 
 ### Changed
 
-- `codechart install-skill` run outside a terminal now installs only the skill and prints the flags that would add the reminder line, Claude Code hook and OpenCode plugin; before, it added them all without asking. It may edit global files (`~/.claude/CLAUDE.md`, your agents' `AGENTS.md`/`GEMINI.md`, `~/.claude/settings.json`), which the README now says up front.
+- `codechart install-skill` run outside a terminal without `--agent` now installs only the skill and prints the flags that would add the reminder line, Claude Code hook and OpenCode plugin; before, it added them all without asking. It may edit global files (`~/.claude/CLAUDE.md`, your agents' `AGENTS.md`/`GEMINI.md`, `~/.claude/settings.json`), which the README now says up front.
 - The PR-maps workflow template for GitHub pins `actions/checkout` and `actions/setup-node` to exact commits, like this repo's own CI.
 - The map check now compares each new, changed and removed box with git's own added, modified, deleted or renamed status, not just the list of changed files. It also warns, without failing, when a listed field or arrow isn't backed by the code, and says how many boxes it could not check.
 - `render` and `install-skill` now exit 2 for a bad flag value (an unknown commit or agent) and 1 for other failures.
+- Using a flag on the wrong kind of map now exits with code 2 like other usage errors, for example `--git` on an explain map or `--pr` on a business map.
 
 ## 0.9.0 (2026-11-10)
 
@@ -133,6 +142,8 @@ What's new in each codechart release. Update with `codechart update`; the [relea
 - Each check mismatch now says in plain words what it means.
 
 ## 0.3.1 (2026-11-03)
+
+Not published to npm; these changes shipped in 0.4.0.
 
 ### Changed
 

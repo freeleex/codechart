@@ -19,6 +19,7 @@ import { uninstallCommand } from './commands/uninstall.js';
 import { loadConfig } from './config/load.js';
 import { sanitizeText } from './render/strip.js';
 import { currentVersion, updateNotice } from './update/check.js';
+import { httpsFetch } from './update/http-get.js';
 
 export interface ProgramOptions {
   cwd?: string;
@@ -66,7 +67,7 @@ async function noticeAfter(name: string, opts: ProgramOptions, stderr: (s: strin
       env: { ...process.env, ...env },
       terminal: opts.isTTY ?? (process.stdout.isTTY === true && process.stderr.isTTY === true),
       now: opts.now?.().getTime() ?? Date.now(),
-      fetch: opts.fetch ?? fetch,
+      fetch: opts.fetch ?? httpsFetch,
     });
     if (line) stderr(`${line}\n`);
   } catch {

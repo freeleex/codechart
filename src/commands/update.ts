@@ -7,8 +7,9 @@ import { packageFile } from '../assets.js';
 import { loadConfig } from '../config/load.js';
 import type { CommandOptions } from '../program.js';
 import { NOTES_URL, fetchHighlights, notesLines } from '../update/changelog.js';
+import { httpsFetch } from '../update/http-get.js';
 import { currentVersion, fetchLatest, isNewer, readState, skillDirs, withHighlights, writeState } from '../update/check.js';
-import { AGENTS, isCodechartSkill } from './agents.js';
+import { agentsFor, isCodechartSkill, legacyAgentsFor } from './agents.js';
 import { installCopy, skillFiles } from './install-skill.js';
 import { refreshReminder } from './nudges.js';
 import { installPlugin, pluginFile, pluginState } from './opencode-plugin.js';
@@ -52,9 +53,10 @@ export const cacheDirOf = (opts: CommandOptions) => loadConfig({ cwd: opts.cwd ?
 /** Brings every codechart skill copy already installed, and reminder lines and the OpenCode plugin copy already added, up to this version. */
 function refreshInstalls(home: string, opts: CommandOptions): void {
   const files = skillFiles();
-  const folders = [...new Set(AGENTS.flatMap((a) => [a.skills, ...a.reads]))];
+  const agents = [...agentsFor(opts.env ?? process.env), ...legacyAgentsFor(opts.env ?? process.env)];
+  const folders = [...new Set(agents.flatMap((a) => [a.skills, ...a.reads]))];
   const dirs = [
-    ...folders.map((folder) => ({ dir: join(home, folder, 'codechart'), who: AGENTS.filter((a) => [a.skills, ...a.reads].includes(folder)).map((a) => a.label).join(', ') })),
+    ...folders.map((folder) => ({ dir: join(resolve(home, folder), 'codechart'), who: agents.filter((a) => [a.skills, ...a.reads].includes(folder)).map((a) => a.label).join(', ') })),
     ...skillDirs(readState(cacheDirOf(opts))).map((dir) => ({ dir, who: 'your folder' })),
   ];
   for (const { dir, who } of dirs) {
@@ -67,9 +69,10 @@ function refreshInstalls(home: string, opts: CommandOptions): void {
     if (!ours) continue;
     installCopy(dir, who, files, false, opts);
   }
-  for (const a of AGENTS) {
+  for (const a of agents) {
     if (!a.instructions) continue;
-    if (refreshReminder(join(home, a.instructions)) === 'updated') opts.stdout(`reminder updated: ${join(home, a.instructions)}\n`);
+    const file = resolve(home, a.instructions);
+    if (refreshReminder(file) === 'updated') opts.stdout(`reminder updated: ${file}\n`);
   }
   const plugin = pluginFile(home, opts.env ?? process.env);
   if (pluginState(plugin) !== 'outdated') return;
@@ -81,11 +84,11 @@ function refreshInstalls(home: string, opts: CommandOptions): void {
 async function update(o: { check?: boolean }, opts: CommandOptions, runner: Runner): Promise<void> {
   const home = opts.home ?? homedir();
   const current = currentVersion();
-  const latest = await fetchLatest(opts.fetch ?? fetch, 10_000);
+  const latest = await fetchLatest(opts.fetch ?? httpsFetch, 10_000);
   if (!latest) throw new Error("couldn't reach the npm registry to look up the newest version");
   const cacheDir = cacheDirOf(opts);
   const state = { ...readState(cacheDir), checkedAt: opts.now?.().getTime() ?? Date.now(), latest };
-  const notes = isNewer(latest, current) ? await fetchHighlights(opts.fetch ?? fetch, current, latest, 10_000) : undefined;
+  const notes = isNewer(latest, current) ? await fetchHighlights(opts.fetch ?? httpsFetch, current, latest, 10_000) : undefined;
   writeState(cacheDir, withHighlights(state, current, latest, notes));
   if (!isNewer(latest, current)) {
     opts.stdout(`codechart ${current} is the newest version.\n`);

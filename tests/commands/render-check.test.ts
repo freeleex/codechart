@@ -164,6 +164,11 @@ describe('render: map checks', () => {
     expect(r.out.split('\n')[0]).toBe("✗ 1 claim doesn't match the code: Gone file missing");
   });
 
+  it('a node path outside the repo is called that on the ✗ line', async () => {
+    const r = await run(['render', specFile(map(node('Out', 'context', '../x'))), '--output', 'cli']);
+    expect(r.out.split('\n')[0]).toBe("✗ 1 claim doesn't match the code: Out outside the repo");
+  });
+
   it('a staged rename puts the old path in the diff for a removed node', async () => {
     git('mv', 'app/old.py', 'app/new.py');
     const spec = map(node('Old', 'removed', 'app/old.py'), node('New', 'changed', 'app/new.py'), node('Order', 'changed', 'app/orders.py'));

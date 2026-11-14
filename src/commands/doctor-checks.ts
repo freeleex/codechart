@@ -1,8 +1,8 @@
 import { accessSync, constants, existsSync, lstatSync, statSync } from 'node:fs';
-import { join, posix, win32 } from 'node:path';
+import { join, posix, resolve, win32 } from 'node:path';
 import type { CommandOptions } from '../program.js';
 import { currentVersion, isNewer, readState } from '../update/check.js';
-import { AGENTS, isCodechartSkill, skillFolders, type AgentPreset } from './agents.js';
+import { agentsFor, isCodechartSkill, skillFolders, type AgentPreset } from './agents.js';
 import { installCopy, skillFiles, skillIsCurrent } from './install-skill.js';
 import { addReminder, claudeHookEvents, installClaudeHooks, reminderState } from './nudges.js';
 import { installPlugin, pluginFile, pluginState } from './opencode-plugin.js';
@@ -82,7 +82,7 @@ function skillProblem(a: AgentPreset, dirs: string[], seen: Seen, item: Item): I
 }
 
 function skillItem(a: AgentPreset, target: string, home: string, files: string[], opts: CommandOptions, seen: Seen): Item {
-  const copies = [...new Set([a.skills, ...a.reads])].map((f) => join(home, f, 'codechart')).filter(present);
+  const copies = [...new Set([a.skills, ...a.reads])].map((f) => join(resolve(home, f), 'codechart')).filter(present);
   const own = copies.filter(ours);
   const install = `codechart install-skill --agent ${a.name}`;
   // The agent may load any folder it reads, so one old copy is a fault even beside a current one.
@@ -100,12 +100,12 @@ function skillItem(a: AgentPreset, target: string, home: string, files: string[]
   if (copies.length) {
     return skillProblem(a, copies, seen, { level: 'bad', text: `skill: ${copies[0]} is not the codechart skill (left alone: move it aside first)`, fix: install });
   }
-  const dir = join(home, target, 'codechart');
+  const dir = join(resolve(home, target), 'codechart');
   return skillProblem(a, [dir], seen, { level: 'bad', text: `skill: missing (${dir})`, fix: install, run: () => void installCopy(dir, a.label, files, false, opts) });
 }
 
 function reminderItem(a: AgentPreset & { instructions: string }, home: string, opts: CommandOptions): Item {
-  const file = join(home, a.instructions);
+  const file = resolve(home, a.instructions);
   const state = reminderState(file);
   if (state === 'present') return { level: 'ok', text: `reminder: ${file}` };
   const fix = `codechart install-skill --agent ${a.name} --reminder`;
@@ -176,7 +176,7 @@ function cliSection(opts: CommandOptions): Section {
 
 /** Every check, from what is on disk; nothing is changed and nothing goes online. */
 export function runChecks(home: string, opts: CommandOptions): Section[] {
-  const agents = AGENTS.filter((a) => existsSync(join(home, a.home)));
+  const agents = agentsFor(opts.env ?? process.env).filter((a) => existsSync(resolve(home, a.home)));
   const files = skillFiles();
   const folders = skillFolders(agents);
   const seen: Seen = new Map();

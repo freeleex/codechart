@@ -1,9 +1,10 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { parse } from 'yaml';
 import { makeTool } from '../../src/commands/setup-pr-maps.js';
 import { gitRun } from '../../src/pr/git.js';
-import { buildPlan, parseRemote, SETUP_BRANCH, type Remote } from '../../src/pr/setup.js';
+import { buildPlan, parseRemote, repoArg, SETUP_BRANCH, type Remote } from '../../src/pr/setup.js';
 import { git, makeSandbox, removeSandbox, runCli, type Sandbox } from '../helpers/sandbox.js';
 
 const VERSION = (JSON.parse(readFileSync('package.json', 'utf8')) as { version: string }).version;
@@ -16,6 +17,14 @@ describe('parseRemote', () => {
     expect(parseRemote('https://github.com/o/r')).toEqual(gh);
     expect(parseRemote('ssh://git@gitlab.example.com:2222/g/sub/r.git')).toEqual(gl);
     expect(parseRemote('https://gitlab.example.com/g/sub/r.git')).toEqual(gl);
+  });
+
+  it('keeps the port of http(s) remotes only; an ssh port belongs to ssh', () => {
+    expect(parseRemote('https://gitlab.corp.example:8443/g/p.git')).toEqual({ host: 'gitlab', server: 'gitlab.corp.example', port: '8443', path: 'g/p' });
+    expect(parseRemote('ssh://git@gitlab.corp.example:2222/g/p.git')).toEqual({ host: 'gitlab', server: 'gitlab.corp.example', path: 'g/p' });
+    expect(repoArg(parseRemote('https://gitlab.corp.example:8443/g/p.git')!)).toBe('https://gitlab.corp.example:8443/g/p');
+    expect(repoArg(parseRemote('ssh://git@gitlab.corp.example:2222/g/p.git')!)).toBe('https://gitlab.corp.example/g/p');
+    expect(repoArg(gh)).toBe('github.com/o/r');
   });
 
   it('needs --host when the server name says neither', () => {
@@ -172,6 +181,18 @@ describe('codechart setup-pr-maps', () => {
   });
 
   // symlinks need privileges on Windows runners, and O_NOFOLLOW doesn't exist there
+  it('GitLab: a C1 control byte in a stage name is escaped in the output and the written file', async () => {
+    git(sb.repo, 'remote', 'set-url', 'origin', 'git@gitlab.com:o/r.git');
+    const name = 'ab\u009bcd';
+    writeFileSync(join(sb.repo, '.gitlab-ci.yml'), `stages: [${JSON.stringify(name)}]\nb:\n  script: [make]\n`);
+    const r = await run(['--yes']);
+    const written = readFileSync(join(sb.repo, '.gitlab-ci.yml'), 'utf8');
+    expect(/[\u0080-\u009f]/.test(r.out)).toBe(false);
+    expect(/[\u0080-\u009f]/.test(written.slice(written.indexOf('codechart-map:')))).toBe(false);
+    const job = (parse(written) as Record<string, { stage?: string }>)['codechart-map']!;
+    expect(job.stage).toBe(name);
+  });
+
   it.runIf(process.platform !== 'win32')('a .gitlab-ci.yml swapped for a symlink while it asks is not written through', async () => {
     git(sb.repo, 'remote', 'set-url', 'origin', 'git@gitlab.com:o/r.git');
     const ci = join(sb.repo, '.gitlab-ci.yml');
@@ -188,9 +209,29 @@ describe('codechart setup-pr-maps', () => {
     git(sb.repo, 'remote', 'set-url', 'origin', 'https://github.com/o/\u001b]0;x\u0007r.git');
     const r = await run(['--yes']);
     expect(r.code).toBe(1);
-    expect(r.err).toContain("can't tell whether");
+    expect(r.err).toContain("can't tell which repo");
     expect(`${r.out}${r.err}`.replace(/\n/g, '')).not.toMatch(/[\u0000-\u001f\u007f-\u009f]/);
     expect(existsSync(workflow())).toBe(false);
+  });
+
+  it('an origin path that is not owner/repo on GitHub is refused, also with --host', async () => {
+    git(sb.repo, 'remote', 'set-url', 'origin', 'git@github.com:github.evil.example/o/r.git');
+    for (const args of [['--yes'], ['--yes', '--host', 'github']]) {
+      const r = await run(args);
+      expect(r.code).toBe(1);
+      expect(r.err).toContain("can't tell which repo git@github.com:github.evil.example/o/r.git names");
+    }
+    expect(existsSync(workflow())).toBe(false);
+  });
+
+  it('platform names in the path or user part do not make the host known: asks for --host', async () => {
+    for (const url of ['https://code.corp/acme/github-tools.git', 'https://git.corp.example:8443/gitlab/group/repo.git']) {
+      git(sb.repo, 'remote', 'set-url', 'origin', url);
+      const r = await run(['--yes']);
+      expect(r.code).toBe(1);
+      expect(r.err).toContain('add --host github or --host gitlab');
+      expect(r.err).not.toContain("can't tell which repo");
+    }
   });
 
   it('a remote that is neither GitHub nor GitLab needs --host', async () => {
@@ -215,6 +256,7 @@ describe('codechart setup-pr-maps', () => {
     expect(git(remote, 'rev-parse', `${SETUP_BRANCH}~1`)).toBe(git(remote, 'rev-parse', 'main'));
     expect(calls[0]!.slice(0, 7)).toEqual(['gh', 'pr', 'create', '--base', 'main', '--head', SETUP_BRANCH]);
     expect(calls[0]!.join(' ')).toContain('Merge to turn PR maps on; close to say no.');
+    expect(calls[0]!.slice(-2)).toEqual(['--repo', 'github.com/o/r']);
     expect(git(sb.repo, 'status', '--porcelain')).toBe('?? wip.txt\n');
     expect(existsSync(workflow())).toBe(false);
   });
@@ -233,7 +275,7 @@ describe('codechart setup-pr-maps', () => {
     expect(r.out).toContain(
       'codechart: the setup pull request already exists: https://github.com/o/r/pull/7\nMerge it to turn PR maps on, or delete the codechart/pr-maps branch and run again for a new one.\n',
     );
-    expect(calls).toEqual([['gh', 'pr', 'list', '--head', SETUP_BRANCH, '--state', 'all', '--limit', '1', '--json', 'url']]);
+    expect(calls).toEqual([['gh', 'pr', 'list', '--head', SETUP_BRANCH, '--state', 'all', '--limit', '1', '--json', 'url', '--repo', 'github.com/o/r']]);
     expect(git(remote, 'rev-parse', SETUP_BRANCH)).toBe(pushed);
     const unknown = await run(['--pr', '--yes'], { tool: () => '' });
     expect(unknown.out).toContain('the codechart/pr-maps branch already exists on origin, so the setup pull request was opened before');
@@ -274,6 +316,18 @@ describe('codechart setup-pr-maps', () => {
     expect(ci.startsWith('test:\n  script: [make]\n\n# codechart PR maps')).toBe(true);
     expect(calls[0]!.slice(0, 7)).toEqual(['glab', 'mr', 'create', '--source-branch', SETUP_BRANCH, '--target-branch', 'main']);
     expect(calls[0]!.join(' ')).toContain('CODECHART_GITLAB_TOKEN');
+    expect(calls[0]!.slice(-2)).toEqual(['--repo', 'https://gitlab.example.com/g/r']);
+  });
+
+  it('--pr on a self-hosted GitLab with an https port: glab gets the port, not :443', async () => {
+    const remote = join(sb.tmp, 'remote.git');
+    git(sb.tmp, 'init', '-q', '--bare', '-b', 'main', remote);
+    git(sb.repo, 'push', '-q', remote, 'HEAD:refs/heads/main');
+    git(sb.repo, 'remote', 'set-url', 'origin', 'https://gitlab.corp.example:8443/g/p.git');
+    git(sb.repo, 'config', `url.${remote}.insteadOf`, 'https://gitlab.corp.example:8443/g/p.git');
+    const calls: string[][] = [];
+    await run(['--pr', '--yes'], { tool: (cmd: string, args: string[]) => (calls.push([cmd, ...args]), 'https://gitlab.corp.example:8443/g/p/-/merge_requests/3') });
+    expect(calls.at(-1)!.slice(-2)).toEqual(['--repo', 'https://gitlab.corp.example:8443/g/p']);
   });
 });
 

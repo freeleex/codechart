@@ -1,4 +1,4 @@
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { Command } from 'commander';
@@ -6,7 +6,7 @@ import { packageFile } from '../assets.js';
 import { loadConfig } from '../config/load.js';
 import type { CommandOptions } from '../program.js';
 import { rememberSkillDir } from '../update/check.js';
-import { AGENTS, isCodechartSkill, skillFolders, type AgentPreset } from './agents.js';
+import { AGENTS, agentsFor, isCodechartSkill, shown, skillFolders, type AgentPreset } from './agents.js';
 import { hasAny, installPairs, sameFile } from './copy-file.js';
 import { addReminder, installClaudeHooks } from './nudges.js';
 import { installPlugin, pluginFile } from './opencode-plugin.js';
@@ -51,7 +51,7 @@ function notAddedLine(keys: (keyof Extras)[]): string {
 
 async function chooseExtras(agents: AgentPreset[], opts: CommandOptions): Promise<Extras> {
   const choose = opts.choose ?? terminalChoose();
-  const files = agents.flatMap((a) => (a.instructions ? [`~/${a.instructions}`] : []));
+  const files = agents.flatMap((a) => (a.instructions ? [shown(a.instructions)] : []));
   const items: { key: keyof Extras; label: string; hint: string }[] = [];
   if (files.length) items.push({ key: 'reminder', label: 'Reminder line', hint: `use codechart for 3+ file changes → ${files.join(', ')}` });
   if (hasClaude(agents)) {
@@ -91,7 +91,7 @@ function installExtras(extras: Extras, agents: AgentPreset[], home: string, forc
   if (extras.reminder) {
     for (const a of agents) {
       if (!a.instructions) continue;
-      const file = join(home, a.instructions);
+      const file = resolve(home, a.instructions);
       report('reminder', () => {
         const r = addReminder(file);
         return r === 'present' ? `reminder already in ${file}` : `reminder ${r}: ${file}`;
@@ -132,16 +132,17 @@ export function installCopy(dir: string, who: string, files: string[], force: bo
 /** The agents to install for; undefined when the run ends here (nothing to install, or an error already reported). */
 async function pickAgents(o: Flags, home: string, opts: CommandOptions): Promise<AgentPreset[] | undefined> {
   const names = o.agent?.flatMap((n) => n.split(',')).map((n) => n.trim().toLowerCase()).filter(Boolean);
-  const unknown = names?.find((n) => !AGENTS.some((a) => a.name === n));
+  const known = agentsFor(opts.env ?? process.env);
+  const unknown = names?.find((n) => !known.some((a) => a.name === n));
   if (unknown !== undefined) {
     opts.stderr(`codechart: unknown agent '${unknown}' (known: ${NAMES})\n`);
     process.exitCode = 2;
     return undefined;
   }
   let agents = names
-    ? AGENTS.filter((a) => names.includes(a.name))
+    ? known.filter((a) => names.includes(a.name))
     : o.dir === undefined
-      ? AGENTS.filter((a) => existsSync(join(home, a.home)))
+      ? known.filter((a) => existsSync(resolve(home, a.home)))
       : [];
   if (agents.length === 0 && o.dir === undefined) {
     opts.stderr(`codechart: no agent found in ${home}; use --agent <name> (${NAMES}) or --dir <path>\n`);
@@ -154,7 +155,7 @@ async function pickAgents(o: Flags, home: string, opts: CommandOptions): Promise
       const found = agents;
       const picked = await choose(
         'Install the codechart skill for:',
-        found.map((a) => ({ label: a.label, hint: `~/${a.skills}` })),
+        found.map((a) => ({ label: a.label, hint: shown(a.skills) })),
       );
       if (picked === undefined) {
         opts.stderr('codechart: cancelled, nothing installed\n');
@@ -173,14 +174,29 @@ async function pickAgents(o: Flags, home: string, opts: CommandOptions): Promise
   return agents;
 }
 
+const DIR_REASONS: Record<string, string> = { EACCES: 'permission denied', EPERM: 'permission denied', ENOTDIR: 'not a folder', EEXIST: 'not a folder' };
+
+/** Creates the --dir folder; false (reported) when it can't be made. */
+function makeDir(dir: string, opts: CommandOptions): boolean {
+  try {
+    mkdirSync(resolve(opts.cwd ?? process.cwd(), dir), { recursive: true });
+    return true;
+  } catch (e) {
+    const code = (e as NodeJS.ErrnoException).code ?? 'unknown error';
+    opts.stderr(`codechart: --dir ${dir}: can't create this folder (${DIR_REASONS[code] ?? code})\n`);
+    process.exitCode = 1;
+    return false;
+  }
+}
+
 function skillTargets(agents: AgentPreset[], home: string, files: string[], dir: string | undefined, cwd: string) {
   const groups = skillFolders(agents);
   // Earlier installs in other folders these agents read would go stale, so report or update them too.
   for (const folder of new Set(agents.flatMap((a) => [a.skills, ...a.reads]))) {
-    if (groups.some((g) => g.folder === folder) || !hasAny(files.map((f) => join(home, folder, 'codechart', f)))) continue;
+    if (groups.some((g) => g.folder === folder) || !hasAny(files.map((f) => join(resolve(home, folder), 'codechart', f)))) continue;
     groups.push({ folder, agents: agents.filter((a) => [a.skills, ...a.reads].includes(folder)) });
   }
-  const targets = groups.map((g) => ({ dir: join(home, g.folder, 'codechart'), who: g.agents.map((a) => a.label).join(', '), agents: g.agents }));
+  const targets = groups.map((g) => ({ dir: join(resolve(home, g.folder), 'codechart'), who: g.agents.map((a) => a.label).join(', '), agents: g.agents }));
   if (dir !== undefined) targets.push({ dir: join(resolve(cwd, dir), 'codechart'), who: YOUR_FOLDER, agents: [] });
   return targets;
 }
@@ -199,6 +215,7 @@ export function installSkillCommand(opts: CommandOptions): Command {
     .option('--no-plugin', 'skip the OpenCode plugin')
     .action(async (o: Flags) => {
       const home = opts.home ?? homedir();
+      if (o.dir !== undefined && !makeDir(o.dir, opts)) return;
       const picked = await pickAgents(o, home, opts);
       if (!picked) return;
       const files = skillFiles();

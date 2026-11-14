@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { parse } from 'yaml';
 import { packageFile } from '../assets.js';
-import { hasHiddenChars } from '../render/strip.js';
+import { escapeJsonControls, hasHiddenChars } from '../render/strip.js';
 import { gitRun } from './git.js';
 
 export type Host = 'github' | 'gitlab';
@@ -12,24 +12,63 @@ export interface Remote {
   host: Host;
   /** e.g. github.com or gitlab.example.com */
   server: string;
+  /** Of an http(s) remote only; an ssh port is ssh's. */
+  port?: string;
   /** owner/repo or group/sub/project */
   path: string;
 }
 
-const PATTERNS = [/^[\w.-]+@([^:/]+):(.+?)(?:\.git)?\/?$/, /^(?:https?|ssh|git):\/\/(?:[^@/]+@)?([^/:]+)(?::\d+)?\/(.+?)(?:\.git)?\/?$/];
+const PATTERNS = [
+  /^[\w.-]+@(?<host>[^:/]+):(?<path>.+?)(?:\.git)?\/?$/,
+  /^(?:ssh|git):\/\/(?:[^@/]+@)?(?<host>[^/:]+)(?::\d+)?\/(?<path>.+?)(?:\.git)?\/?$/,
+  /^https?:\/\/(?:[^@/]+@)?(?<host>[^/:]+)(?::(?<port>\d+))?\/(?<path>.+?)(?:\.git)?\/?$/,
+];
 
-/** The forge behind a remote URL; undefined when the host name names neither. */
-export function parseRemote(url: string, host?: Host): Remote | undefined {
+// GitHub's and GitLab's official SSH-over-443 hosts are the same service as their web hosts.
+const SSH_HOSTS = new Map([
+  ['ssh.github.com', 'github.com'],
+  ['altssh.gitlab.com', 'gitlab.com'],
+]);
+
+const SEGMENT = /^(?!\.\.?$)[\w.-]+$/;
+
+// gh reads a three-part --repo as HOST/OWNER/REPO, so a GitHub path is exactly owner/repo.
+function validPath(host: Host, path: string): boolean {
+  const parts = path.split('/');
+  return parts.every((p) => SEGMENT.test(p)) && (host === 'github' ? parts.length === 2 : parts.length >= 2);
+}
+
+/** The server, port and path of a remote URL; undefined when it is not one, or has hidden characters or an invalid server name. */
+function splitUrl(url: string): { server: string; port?: string; path: string } | undefined {
   for (const re of PATTERNS) {
     const m = re.exec(url.trim());
     if (!m) continue;
-    const server = m[1]!.toLowerCase();
-    if (hasHiddenChars(server + m[2]!)) return undefined;
-    const found = host ?? (server.includes('github') ? 'github' : server.includes('gitlab') ? 'gitlab' : undefined);
-    return found ? { host: found, server, path: m[2]! } : undefined;
+    const { host: rawHost, port, path } = m.groups as { host: string; port?: string; path: string };
+    const name = rawHost.toLowerCase();
+    const server = SSH_HOSTS.get(name) ?? name;
+    if (hasHiddenChars(name + path) || !/^[a-z0-9.-]+$/.test(server)) return undefined;
+    return { server, ...(port ? { port } : {}), path };
   }
   return undefined;
 }
+
+const platformOf = (server: string): Host | undefined => (server.includes('github') ? 'github' : server.includes('gitlab') ? 'gitlab' : undefined);
+
+/** The forge behind a remote URL; undefined when the host name names neither, or the path is not a repo on it. */
+export function parseRemote(url: string, host?: Host): Remote | undefined {
+  const parts = splitUrl(url);
+  const found = parts && (host ?? platformOf(parts.server));
+  return parts && found && validPath(found, parts.path) ? { host: found, ...parts } : undefined;
+}
+
+/** True when a remote URL is readable but its host name names neither platform; what's wrong is then the missing --host, not the path. */
+export function hostUnrecognised(url: string): boolean {
+  const parts = splitUrl(url);
+  return parts !== undefined && platformOf(parts.server) === undefined;
+}
+
+/** What gh or glab gets as `--repo`: always naming the remote's own server, so the host it contacts is the one its tokens were checked for. gh's HOST/OWNER/REPO form has no documented port syntax, so GitHub gets none. */
+export const repoArg = ({ host, server, port, path }: Remote): string => (host === 'github' ? `${server}/${path}` : `https://${server}${port ? `:${port}` : ''}/${path}`);
 
 export interface Plan {
   remote: Remote;
@@ -57,7 +96,7 @@ const GITHUB_NOTES = [
 ];
 
 function gitlabNotes(r: Remote): string[] {
-  const base = `https://${r.server}`;
+  const base = `https://${r.server}${r.port ? `:${r.port}` : ''}`;
   return [
     'Runs in merge request pipelines whose description has a codechart map section; others are left alone.',
     'Needs one masked CI/CD variable, CODECHART_GITLAB_TOKEN (GitLab’s job token can’t edit merge requests or upload files):',
@@ -84,7 +123,7 @@ export function buildPlan(remote: Remote, version: string, read: (file: string) 
   if (existing?.includes('pr-sync')) return undefined;
   if (existing !== undefined && /^codechart-map:/m.test(existing)) conflict(file);
   const stage = existing === undefined ? undefined : appendedStage(existing);
-  const job = stage === undefined ? added : added.replace(/^codechart-map:\n/m, `codechart-map:\n  stage: ${JSON.stringify(stage)}\n`);
+  const job = stage === undefined ? added : added.replace(/^codechart-map:\n/m, `codechart-map:\n  stage: ${escapeJsonControls(JSON.stringify(stage))}\n`);
   const content = existing === undefined ? job : `${existing.replace(/\n*$/, '\n')}\n${job}`;
   return { remote, file, content, added: job, appended: existing !== undefined, notes: gitlabNotes(remote) };
 }
@@ -123,7 +162,8 @@ const prBody = (plan: Plan): string =>
     ...plan.notes.map((n) => (n.startsWith('  ') ? n : `- ${n}`)),
   ].join('\n');
 
-export type Tool = (command: string, args: string[]) => string;
+/** `server` is the remote's host: gh and glab run without token variables for any host but github.com and gitlab.com. */
+export type Tool = (command: string, args: string[], server?: string) => string;
 
 export interface Prepared {
   defaultBranch: string;
@@ -149,13 +189,14 @@ export function prepareSetupReview(root: string, version: string, remote: Remote
 }
 
 /** Undefined when origin has no setup branch yet; else the URL of the request opened from it, '' when gh/glab can't find one. */
-export function existingSetupReview(root: string, host: Host, tool: Tool): string | undefined {
+export function existingSetupReview(root: string, remote: Remote, tool: Tool): string | undefined {
+  const { host, server } = remote;
   if (!gitRun(root, ['ls-remote', 'origin', `refs/heads/${SETUP_BRANCH}`])) return undefined;
   try {
     const out =
       host === 'github'
-        ? tool('gh', ['pr', 'list', '--head', SETUP_BRANCH, '--state', 'all', '--limit', '1', '--json', 'url'])
-        : tool('glab', ['mr', 'list', '--source-branch', SETUP_BRANCH, '--all', '--output', 'json']);
+        ? tool('gh', ['pr', 'list', '--head', SETUP_BRANCH, '--state', 'all', '--limit', '1', '--json', 'url', '--repo', repoArg(remote)], server)
+        : tool('glab', ['mr', 'list', '--source-branch', SETUP_BRANCH, '--all', '--output', 'json', '--repo', repoArg(remote)], server);
     const [first] = JSON.parse(out) as { url?: unknown; web_url?: unknown }[];
     const url = first?.url ?? first?.web_url;
     return typeof url === 'string' ? url : '';
@@ -183,7 +224,7 @@ export function openSetupReview(root: string, { defaultBranch, base, plan }: Pre
   }
   const out =
     plan.remote.host === 'github'
-      ? tool('gh', ['pr', 'create', '--base', defaultBranch, '--head', SETUP_BRANCH, '--title', PR_TITLE, '--body', prBody(plan)])
-      : tool('glab', ['mr', 'create', '--source-branch', SETUP_BRANCH, '--target-branch', defaultBranch, '--title', PR_TITLE, '--description', prBody(plan), '--yes']);
+      ? tool('gh', ['pr', 'create', '--base', defaultBranch, '--head', SETUP_BRANCH, '--title', PR_TITLE, '--body', prBody(plan), '--repo', repoArg(plan.remote)], plan.remote.server)
+      : tool('glab', ['mr', 'create', '--source-branch', SETUP_BRANCH, '--target-branch', defaultBranch, '--title', PR_TITLE, '--description', prBody(plan), '--yes', '--repo', repoArg(plan.remote)], plan.remote.server);
   return out.trim().split('\n').pop() ?? '';
 }

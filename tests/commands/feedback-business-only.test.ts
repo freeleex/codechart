@@ -35,7 +35,7 @@ describe('feedback in a repo that has only a business page', () => {
     for (const n of readdirSync(dir()).filter((f) => f.endsWith('.review.json') && !f.includes('.business.'))) rmSync(join(dir(), n));
     const file = join(dir(), readdirSync(dir()).find((f) => f.endsWith('.business.review.json'))!);
     const review = readReview(file)!;
-    updateReview(file, (r) => ({ ...r, notes: [{ id: 'n1', node: review.nodes[0]!.id, kind: 'comment', body: 'check the annual plans', state: 'pending', at: new Date(2026, 10, 8).toISOString() }] }));
+    updateReview({ file, review }, (r) => ({ ...r, notes: [{ id: 'n1', node: review.nodes[0]!.id, kind: 'comment', body: 'check the annual plans', state: 'pending', at: new Date(2026, 10, 8).toISOString() }] }));
     const r = await run(['feedback']);
     expect(r.err).toBe('');
     expect(r.out).toContain('check the annual plans');

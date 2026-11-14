@@ -43,7 +43,7 @@ A very long review is copied in parts: the popup says how many notes the message
    - `  > more` right under a note: its next line
 3. Save and quit. Quit without saving to cancel.
 
-To add one note without the editor: `codechart comment <node>[:<path>:<line>] <text>`.
+To add one note without the editor: `codechart comment <node>[:[<path>:]<line>] <text>`.
 
 It works for maps shown only in the terminal too.
 

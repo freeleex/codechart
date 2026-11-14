@@ -1,18 +1,16 @@
 import { existsSync, lstatSync, unlinkSync } from 'node:fs';
-import { isAbsolute, join } from 'node:path';
+import { join } from 'node:path';
 import { packageFile } from '../assets.js';
 import type { CommandOptions } from '../program.js';
 import { readRegularFile } from '../read-regular.js';
+import { opencodeConfigDir } from './agents.js';
 import { installPairs, sameFile } from './copy-file.js';
 
 // Built into dist/server.js by the legal comment in src/opencode/server.ts.
 const MARK = 'codechart OpenCode plugin';
 
 /** OpenCode auto-loads every .js file in the plugins folder of its config directory. */
-export function pluginFile(home: string, env: NodeJS.ProcessEnv): string {
-  const xdg = env.XDG_CONFIG_HOME;
-  return join(xdg && isAbsolute(xdg) ? xdg : join(home, '.config'), 'opencode', 'plugins', 'codechart.js');
-}
+export const pluginFile = (home: string, env: NodeJS.ProcessEnv): string => join(opencodeConfigDir(home, env), 'plugins', 'codechart.js');
 
 const pair = (file: string) => ({ source: packageFile('dist/server.js'), target: file });
 

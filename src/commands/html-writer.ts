@@ -1,3 +1,5 @@
+import { homedir } from 'node:os';
+import { globalConfigPath } from '../config/load.js';
 import type { Config, Theme } from '../config/schema.js';
 import type { CommandOptions } from '../program.js';
 import { writeHtml, type WriteHtml } from '../render/web/write.js';
@@ -23,6 +25,7 @@ export function htmlWriter(o: WriterOptions, opts: CommandOptions): WriteHtml {
     writeHtml(build, {
       review,
       config,
+      configPath: globalConfigPath(env, opts.home ?? homedir()),
       root: o.root,
       slug: o.slug,
       theme: o.theme ?? config.web.theme,

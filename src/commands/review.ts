@@ -47,7 +47,7 @@ async function review(o: { change?: string; print?: boolean }, opts: CommandOpti
     let saved;
     try {
       const fresh = locateChange(opts, r.change.slug, r.change.branch);
-      saved = updateReview(fresh.file, (current) => ({ ...current, notes: mergeNotes(r, parsed.notes, current) }));
+      saved = updateReview(fresh, (current) => ({ ...current, notes: mergeNotes(r, parsed.notes, current) }));
     } catch (e) {
       keep = true;
       throw new Error(`${(e as Error).message} Your notes are kept in ${file}`);

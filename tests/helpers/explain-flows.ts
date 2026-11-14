@@ -1,15 +1,20 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { afterAll } from 'vitest';
 import { checkExplain, layOutFlows } from '../../src/render/explain-flows.js';
 import { renderHtml } from '../../src/render/web/html.js';
 import { layoutSpec } from '../../src/render/web/layout.js';
 import { validateSpec } from '../../src/spec/schema.js';
 import { EXPLAIN_FILES, withFlows } from '../fixtures/explain.js';
+import { makeTempDir, removeTempDir } from './sandbox.js';
+
+const repos: string[] = [];
+afterAll(() => repos.splice(0).forEach(removeTempDir));
 
 /** A folder with the files the explain fixtures anchor to. */
 export function explainRepo(): string {
-  const repo = mkdtempSync(join(tmpdir(), 'codechart-explain-flows-'));
+  const repo = makeTempDir('explain-flows');
+  repos.push(repo);
   for (const [file, text] of Object.entries(EXPLAIN_FILES)) {
     mkdirSync(join(repo, file, '..'), { recursive: true });
     writeFileSync(join(repo, file), text);

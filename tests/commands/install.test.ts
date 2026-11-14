@@ -263,6 +263,20 @@ describe('codechart install-skill for other agents', () => {
     expect(existsSync(skillAt('.claude', 'skills'))).toBe(false);
   });
 
+  it('--dir creates missing parent folders', async () => {
+    const r = await run(repo, ['install-skill', '--dir', join(tmp, 'a', 'b')]);
+    expect(r.code).toBeUndefined();
+    expect(readFileSync(join(tmp, 'a', 'b', 'codechart', 'SKILL.md'), 'utf8')).toBe(skill);
+  });
+
+  it('--dir under a file says it can\'t create the folder, without raw system text', async () => {
+    writeFileSync(join(tmp, 'file'), 'x');
+    const target = join(tmp, 'file', 'x');
+    const r = await run(repo, ['install-skill', '--dir', target]);
+    expect(r.code).toBe(1);
+    expect(r.err).toBe(`codechart: --dir ${target}: can't create this folder (not a folder)\n`);
+  });
+
   it('uninstall also removes a --dir copy and forgets it', async () => {
     mkdirSync(join(home, '.claude'));
     const custom = join(tmp, 'custom-skills', 'codechart');
