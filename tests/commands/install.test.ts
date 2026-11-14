@@ -263,6 +263,14 @@ describe('codechart install-skill for other agents', () => {
     expect(existsSync(skillAt('.claude', 'skills'))).toBe(false);
   });
 
+  it('--dir whose parent folder is missing is a usage error, not a raw ENOENT', async () => {
+    const missing = join(tmp, 'nonexistent', 'x', 'y');
+    const r = await run(repo, ['install-skill', '--dir', missing]);
+    expect(r.code).toBe(2);
+    expect(r.err).toBe(`codechart: --dir ${missing}: folder doesn't exist\n`);
+    expect(existsSync(join(tmp, 'nonexistent'))).toBe(false);
+  });
+
   it('uninstall also removes a --dir copy and forgets it', async () => {
     mkdirSync(join(home, '.claude'));
     const custom = join(tmp, 'custom-skills', 'codechart');

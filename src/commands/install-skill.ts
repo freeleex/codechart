@@ -1,6 +1,6 @@
 import { existsSync, readdirSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { Command } from 'commander';
 import { packageFile } from '../assets.js';
 import { loadConfig } from '../config/load.js';
@@ -200,6 +200,11 @@ export function installSkillCommand(opts: CommandOptions): Command {
     .option('--no-plugin', 'skip the OpenCode plugin')
     .action(async (o: Flags) => {
       const home = opts.home ?? homedir();
+      if (o.dir !== undefined && !existsSync(dirname(resolve(opts.cwd ?? process.cwd(), o.dir)))) {
+        opts.stderr(`codechart: --dir ${o.dir}: folder doesn't exist\n`);
+        process.exitCode = 2;
+        return;
+      }
       const picked = await pickAgents(o, home, opts);
       if (!picked) return;
       const files = skillFiles();
