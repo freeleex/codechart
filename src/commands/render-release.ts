@@ -53,7 +53,8 @@ export async function renderReleaseSpec(spec: ReleaseSpec, o: ReleaseFlags, opts
   const browser = (opts.pdf?.find ?? ((configured?: string) => findBrowser({ configured, env: opts.env })))(config.release.browser);
   const failure = browser === undefined ? 'no Chromium-based browser found' : await printPdf(browser, html.file, pdf, opts.pdf?.run ?? runBrowser);
   const made = failure === undefined;
-  if (!made) warn(`no PDF (${failure}): open ${html.file} in a browser and use Save as PDF, or set release.browser to a Chrome, Chromium, Edge or Brave path in your global config`);
+  if (browser === undefined && config.release.browser !== undefined) warn(`no PDF: release.browser ${config.release.browser} doesn't exist`);
+  else if (!made) warn(`no PDF (${failure}): open ${html.file} in a browser and use Save as PDF, or set release.browser to a Chrome, Chromium, Edge or Brave path in your global config`);
   const summary = releaseSummary(spec);
   const pdfLine = made ? `PDF: ${pdf}` : undefined;
   opts.stdout(md ? markdownBlock('**Release map**', [summary, pdfLine].filter(Boolean).join('\n'), html.file) : `${[summary, pdfLine, fullMapLine(html.file)].filter(Boolean).join('\n')}\n`);

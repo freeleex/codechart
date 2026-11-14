@@ -226,6 +226,14 @@ describe('codechart render of a release map', () => {
     expect(r.out).toContain('full map → file://');
   });
 
+  it('release.browser set to a path that does not exist is named, the page is kept, exit 0', async () => {
+    writeFileSync(join(sb.home, '.config', 'codechart', 'config.yaml'), `web:\n  outDir: ${sb.out}\nrelease:\n  browser: /opt/gone-chrome\n`);
+    const r = await render({ find: () => undefined });
+    expect(r.files).toEqual(['20261109-100000-v2-0-0--what-is-new-in-shop-2-0.release.html']);
+    expect(r.err).toBe("codechart: no PDF: release.browser /opt/gone-chrome doesn't exist\n");
+    expect(r.code).toBeUndefined();
+  });
+
   it('a browser that fails: same fallback, with the reason', async () => {
     const r = await render({ find: () => '/fake/chrome', run: async () => Promise.reject(new Error('Command failed: chrome')) });
     expect(r.files.filter((f) => f.endsWith('.pdf'))).toEqual([]);
