@@ -22,7 +22,7 @@ const STATUS_WHY =
 
 const FIELD_WHY = "A listed field isn't named in the file. It may be spelled differently, or the box may list a field the code doesn't have.";
 
-const ARROW_WHY = "The file at the arrow's start doesn't mention the file at its end. The link may be wrong, or the two files connect through code that names it differently.";
+const ARROW_WHY = "The file at the arrow's start doesn't mention the box at its end, by its file name or its name. The link may be wrong, or the code refers to it some other way.";
 
 export const UNCOVERED_WHY =
   'The diff changes these files, but no box covers them and the agent didn\'t list them under "Not on map". The map may leave out part of the change.';

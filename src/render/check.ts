@@ -5,6 +5,7 @@ import { anchorContext, likelyPath, load, locate, type AnchorCtx } from './flow/
 import { findMatch, type FlowSnippets, type Snippet } from './flow/anchors.js';
 import { blockOf, type Block } from './block.js';
 import { stepLabel } from './flow/tree.js';
+import { arrowNames, loose, mentionsPath } from './check-mentions.js';
 import { explains } from './omitted.js';
 import type { ChangeStatus, FileChange } from '../rules/git-files.js';
 import type { CheckSummary, Mismatch } from './terminal/check-lines.js';
@@ -138,13 +139,6 @@ function matchAndBlock(path: string, lines: string[], secret: boolean, needle: s
   return { match, block: explaining ? blockOf(path, lines, match?.startLine, secret) : undefined };
 }
 
-const loose = (s: string) => s.toLowerCase().replace(/[_-]/g, '');
-const baseNoExt = (p: string) => {
-  const base = p.slice(p.lastIndexOf('/') + 1);
-  const dot = base.lastIndexOf('.');
-  return dot > 0 ? base.slice(0, dot) : base;
-};
-
 /** The file's text with case, `_` and `-` dropped; undefined when it can't be read (missing, a folder, too big). */
 function looseText(c: AnchorCtx, path: string): string | undefined {
   const loaded = load(c, path);
@@ -159,7 +153,7 @@ function fieldWarnings(c: AnchorCtx, spec: Spec): Mismatch[] {
     const text = looseText(c, node.path);
     if (text === undefined) continue;
     for (const field of node.fields) {
-      if (field.change === 'removed' || text.includes(loose(field.name))) continue;
+      if (field.change === 'removed' || mentionsPath(text, field.name)) continue;
       warnings.push({
         id: node.id,
         label: plainLabel(node),
@@ -171,7 +165,7 @@ function fieldWarnings(c: AnchorCtx, spec: Spec): Mismatch[] {
   return warnings;
 }
 
-/** A summary's arrows whose starting file doesn't mention the ending file's name. */
+/** A summary's arrows whose starting file doesn't mention the ending box's file or name. */
 function arrowWarnings(c: AnchorCtx, spec: Spec): Mismatch[] {
   const byId = new Map(spec.nodes.map((n) => [n.id, n]));
   const warnings: Mismatch[] = [];
@@ -181,13 +175,14 @@ function arrowWarnings(c: AnchorCtx, spec: Spec): Mismatch[] {
     if (from?.path === undefined || to?.path === undefined) continue;
     const text = looseText(c, from.path);
     if (text === undefined) continue;
-    const name = baseNoExt(to.path);
-    if (text.includes(loose(name))) continue;
+    const names = arrowNames(from, to);
+    if (!names.length || names.some((n) => text.includes(loose(n)))) continue;
+    const list = names.join(' or ');
     warnings.push({
       id: `edge-${i}`,
       label: `${plainLabel(from)} → ${plainLabel(to)}`,
-      short: `no mention of ${name}`,
-      detail: `${from.path} doesn't mention ${name}, the file ${to.path}`,
+      short: `no mention of ${list}`,
+      detail: `${from.path} doesn't mention ${list} (the box in ${to.path})`,
     });
   }
   return warnings;
