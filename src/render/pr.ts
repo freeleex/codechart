@@ -23,7 +23,7 @@ export function renderSvg(spec: Spec, layout: Layout, check: MapCheck | undefine
     `<title>${esc(spec.title)}</title><style>${CSS}</style>` +
     `<defs>${arrowMarker('arrow')}${CHANGE_ARROWS}</defs>` +
     `<rect x="${-PAD}" y="${-PAD}" width="${w}" height="${h}" style="fill:var(--bg)"/>` +
-    `${viewport(spec, layout, check)}</svg>\n`
+    `${viewport(spec, layout, check, undefined, { plain: true })}</svg>\n`
   );
 }
 

@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { MapCheck } from '../../src/render/check.js';
 import { prBlock, renderSvg } from '../../src/render/pr.js';
+import { viewport } from '../../src/render/web/html.js';
 import { layoutSpec } from '../../src/render/web/layout.js';
 import { validateSpec, type Spec } from '../../src/spec/schema.js';
 
@@ -31,6 +32,23 @@ describe('renderSvg', () => {
     expect(svg).toContain('prefers-color-scheme: dark');
     expect(svg).toContain('class="node status-new');
     expect(svg).not.toContain('<script');
+  });
+
+  it('leaves out what only works on the interactive page: the review tick boxes', async () => {
+    const spec = shop();
+    const layout = await layoutSpec(spec);
+    const svg = renderSvg(spec, layout, undefined);
+    expect(svg).toContain('class="node status-new shape-table');
+    for (const cls of ['class="tick"', 'class="tick-hit"', 'class="tick-box"', 'class="tick-mark"']) expect(svg).not.toContain(cls);
+    const page = viewport(spec, layout, undefined);
+    for (const cls of ['class="tick"', 'class="tick-hit"', 'class="tick-box"', 'class="tick-mark"']) expect(page).toContain(cls);
+  });
+
+  it('keeps the table box decoration and the edge label backgrounds', async () => {
+    const spec = shop();
+    const svg = renderSvg(spec, await layoutSpec(spec), undefined);
+    expect(svg).toContain('class="deco"');
+    expect(svg).toMatch(/<rect x="[\d.]+" y="[\d.]+" width="[\d.]+" height="12" rx="2"\/><text/);
   });
 
   it('escapes labels', async () => {
