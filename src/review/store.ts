@@ -1,5 +1,6 @@
+import { createHash } from 'node:crypto';
 import { closeSync, openSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { REVIEW_NAME } from '../render/output-path.js';
 import { carryNotes } from './carry.js';
 import { reviewSchema, type Range, type Review, type ReviewNode } from './schema.js';
@@ -50,11 +51,13 @@ interface LockTimes {
 
 const DEFAULT_LOCK: LockTimes = { waitMs: 2000, staleMs: 10_000 };
 
+/** The lock of one map on one branch: the same name whichever timestamped review file is the current one. */
+export const reviewLock = (dir: string, branch: string, slug: string): string => join(dir, `${slug}.${createHash('sha256').update(branch).digest('hex').slice(0, 16)}.lock`);
+
 const sleep = (ms: number): void => void Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 
-/** Runs `fn` holding `<file>.lock` (created exclusively): a second command waits its turn, a lock older than `staleMs` is a crashed one's and goes. */
-function withLock<T>(file: string, fn: () => T, { waitMs, staleMs, sleep: wait = sleep }: LockTimes): T {
-  const lock = `${file}.lock`;
+/** Runs `fn` holding `lock` (created exclusively): a second command waits its turn, a lock older than `staleMs` is a crashed one's and goes. */
+function withLock<T>(lock: string, fn: () => T, { waitMs, staleMs, sleep: wait = sleep }: LockTimes): T {
   const until = Date.now() + waitMs;
   for (;;) {
     try {
@@ -75,15 +78,23 @@ function withLock<T>(file: string, fn: () => T, { waitMs, staleMs, sleep: wait =
   }
 }
 
-/** Read, change and write the review file as one step: it is read again under the lock, so notes saved meanwhile by another command are not lost. */
-export function updateReview(file: string, change: (current: Review) => Review, times: LockTimes = DEFAULT_LOCK): Review {
+/** The newest readable review file of this slug on this branch, as it is on disk now. */
+const currentReview = (dir: string, branch: string, slug: string): Found | undefined => listReviews(dir, branch, 'all').find((f) => f.review.change.slug === slug);
+
+/**
+ * Read, change and write the review `found` names as one step, under its map's lock: the current file is looked up again
+ * there, so a render that replaced `found.file` meanwhile gets the change, and notes saved meanwhile are not lost.
+ */
+export function updateReview(found: Found, change: (current: Review) => Review, times: LockTimes = DEFAULT_LOCK): Review {
+  const dir = dirname(found.file);
+  const { branch, slug } = found.review.change;
   return withLock(
-    file,
+    reviewLock(dir, branch, slug),
     () => {
-      const current = readReview(file);
-      if (!current) throw new Error(`The review notes in ${file} can't be read.`);
-      const next = change(current);
-      if (next !== current) writeReview(file, next);
+      const current = currentReview(dir, branch, slug);
+      if (!current) throw new Error(`The review notes in ${found.file} can't be read.`);
+      const next = change(current.review);
+      if (next !== current.review) writeReview(current.file, next);
       return next;
     },
     times,
@@ -144,16 +155,14 @@ interface SaveOptions {
   branch: string;
   now: Date;
   snapshot: ReviewSnapshot;
-  /** Runs once the file is written, still holding the previous file's lock: that is where the previous render is removed. */
+  /** Runs once the file is written, still holding the map's lock: that is where the previous render is removed. */
   afterWrite?: () => void;
   lock?: LockTimes;
 }
 
-/** Writes the review file `file`, taking over the notes of the last render of this slug on this branch. The previous file stays locked from reading its notes until `afterWrite` is done, so a note added meanwhile is not lost. */
+/** Writes the review file `file`, taking over the notes of the last render of this slug on this branch. The map stays locked from reading those notes until `afterWrite` is done, so a note added meanwhile is not lost. */
 export function saveReview(o: SaveOptions): void {
-  const prev = listReviews(o.dir, o.branch, 'all').find((f) => f.review.change.slug === o.slug);
-  if (!prev) return writeNew(o, undefined);
-  withLock(prev.file, () => writeNew(o, readReview(prev.file) ?? prev.review), o.lock ?? DEFAULT_LOCK);
+  withLock(reviewLock(o.dir, o.branch, o.slug), () => writeNew(o, currentReview(o.dir, o.branch, o.slug)?.review), o.lock ?? DEFAULT_LOCK);
 }
 
 function writeNew(o: SaveOptions, prev: Review | undefined): void {

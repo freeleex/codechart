@@ -37,11 +37,11 @@ function anchorOf(node: ReviewNode, line: number, side?: 'old' | 'new'): NonNull
 class SideNeedsLine extends Error {}
 
 function comment(target: string, words: string[], o: CommentFlags, opts: CommandOptions): void {
-  const { file } = locateChange(opts, o.change);
+  const found = locateChange(opts, o.change);
   const body = sanitizeText(words.join(' ')).replace(/\s*\n\s*/g, ' ').trim();
   if (!body) throw new Error('The note is empty.');
   let added: { node: ReviewNode; anchor?: Note['anchor'] } | undefined;
-  updateReview(file, (review) => {
+  updateReview(found, (review) => {
     const { node, line } = resolveTarget(review, target);
     if (line === undefined && o.side) throw new SideNeedsLine("--side needs a line: give the target as <id>:<line> or <id>:<path>:<line>");
     const anchor = line === undefined ? undefined : anchorOf(node, line, o.side);

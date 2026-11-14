@@ -50,7 +50,7 @@ async function importReview(opts: CommandOptions): Promise<Found> {
   }
   const now = opts.now?.() ?? new Date();
   let result: ReturnType<typeof importNotes> | undefined;
-  const saved = updateReview(found.file, (current) => {
+  const saved = updateReview(found, (current) => {
     result = importNotes(current, payload, now);
     return result.review;
   });
@@ -101,12 +101,13 @@ function locateTitled(opts: CommandOptions, title: string): Found {
 }
 
 async function feedback(o: FeedbackFlags, opts: CommandOptions): Promise<void> {
-  const { file, review } = o.import ? await importReview(opts) : o.change === undefined ? newestChange(opts) : locateTitled(opts, o.change);
+  const found = o.import ? await importReview(opts) : o.change === undefined ? newestChange(opts) : locateTitled(opts, o.change);
+  const { review } = found;
   if (o.import && !o.take) return opts.stdout(`${countsLine(review)}\n`);
   let text = feedbackText(review);
   if (o.take) {
     // Taken under the lock from the notes as they are now, so a note added meanwhile is neither lost nor marked sent unprinted.
-    updateReview(file, (current) => {
+    updateReview(found, (current) => {
       text = feedbackText(current);
       return text === undefined ? current : { ...current, notes: current.notes.map((n) => (n.state === 'pending' ? { ...n, state: 'sent' as const } : n)) };
     });
