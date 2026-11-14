@@ -11,15 +11,18 @@ const TOKENS = ['GH_ENTERPRISE_TOKEN', 'GITHUB_ENTERPRISE_TOKEN', 'GH_TOKEN', 'G
 describe.skipIf(process.platform === 'win32')('gh and glab environment per host', () => {
   let dir: string;
   let log: string;
+  let argsLog: string;
 
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), 'codechart-toolenv-'));
     log = join(dir, 'seen.txt');
+    argsLog = join(dir, 'args.txt');
     const script = `#!/bin/sh
 for v in ${TOKENS.join(' ')}; do
   eval "val=\\\${$v-__unset__}"
   [ "$val" = "__unset__" ] || echo "$v" >> '${log}'
 done
+echo "$*" >> '${argsLog}'
 echo '{"title":"t","body":"b","description":"d"}'
 `;
     for (const name of ['gh', 'glab']) {
@@ -27,6 +30,7 @@ echo '{"title":"t","body":"b","description":"d"}'
       chmodSync(join(dir, name), 0o755);
     }
     writeFileSync(log, '');
+    writeFileSync(argsLog, '');
     vi.stubEnv('PATH', `${dir}:${process.env.PATH ?? ''}`);
     for (const t of TOKENS) vi.stubEnv(t, `fake_${t.toLowerCase()}`);
   });
@@ -37,6 +41,36 @@ echo '{"title":"t","body":"b","description":"d"}'
   });
 
   const seen = () => readFileSync(log, 'utf8').split('\n').filter(Boolean);
+  const repoArgs = () => readFileSync(argsLog, 'utf8').split('\n').filter(Boolean).map((l) => /--repo (\S+)/.exec(l)?.[1]);
+
+  it('a GitHub path naming another host is refused: gh never gets a --repo with that host, nor the tokens', () => {
+    for (const url of ['git@github.com:github.evil.example/o/r.git', 'https://github.com/github.evil.example/o/r.git', 'git@github.com:o/r/extra.git', 'git@github.com:/o/r.git']) {
+      const remote = parseRemote(url);
+      if (remote) fetchPr(runTool, remote, 1);
+      expect(remote).toBeUndefined();
+    }
+    expect(repoArgs()).toEqual([]);
+    expect(seen()).toEqual([]);
+  });
+
+  it('github.com owner/repo: --repo names github.com itself, tokens kept', () => {
+    fetchPr(runTool, parseRemote('git@github.com:o/r.git')!, 1);
+    expect(repoArgs()).toEqual(['github.com/o/r']);
+    expect(seen()).toEqual(TOKENS);
+  });
+
+  it('GitLab nested groups still work on gitlab.com and self-managed hosts', () => {
+    fetchPr(runTool, parseRemote('https://gitlab.com/group/sub/repo.git')!, 1);
+    expect(seen()).toEqual(TOKENS);
+    fetchPr(runTool, parseRemote('git@gitlab.example.com:group/sub/repo.git')!, 1);
+    expect(repoArgs()).toEqual(['https://gitlab.com/group/sub/repo', 'https://gitlab.example.com/group/sub/repo']);
+  });
+
+  it('a GitLab path that tries to name another host is refused', () => {
+    for (const url of ['git@gitlab.com://evil.example/o/r.git', 'ssh://git@gitlab.com/@evil.example/o/r.git', 'git@gitlab.com:evil.example:8080/o/r.git', 'git@gitlab.com:o/../../evil.example/r.git', 'git@gitlab.com:\\\\evil.example/o/r.git', 'git@gitlab.com:o.git']) {
+      expect(parseRemote(url)).toBeUndefined();
+    }
+  });
 
   it('release-context: a look-alike GitHub host gets none of the token variables', () => {
     const remote = parseRemote('git@github.evil.example:o/r.git')!;

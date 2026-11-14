@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { specInDescription } from './description.js';
 import { gitRun } from './git.js';
-import { parseRemote, type Remote, type Tool } from './setup.js';
+import { parseRemote, repoArg, type Remote, type Tool } from './setup.js';
 import { BLOCK_END, BLOCK_START } from '../render/pr.js';
 import { sanitizeText } from '../render/strip.js';
 import { toolEnv } from './tool-env.js';
@@ -59,11 +59,10 @@ function prInfo(title: string, body: string): PrInfo {
 /** Reads PR/MR `n` with gh or glab, in the repo `remote` names; throws when the tool can't. */
 export function fetchPr(tool: Tool, remote: Remote, n: number): PrInfo {
   if (remote.host === 'github') {
-    const repo = remote.server === 'github.com' ? remote.path : `${remote.server}/${remote.path}`;
-    const j = JSON.parse(tool('gh', ['pr', 'view', String(n), '--repo', repo, '--json', 'title,body'], remote.server)) as { title?: string; body?: string };
+    const j = JSON.parse(tool('gh', ['pr', 'view', String(n), '--repo', repoArg(remote), '--json', 'title,body'], remote.server)) as { title?: string; body?: string };
     return prInfo(j.title ?? '', j.body ?? '');
   }
-  const j = JSON.parse(tool('glab', ['mr', 'view', String(n), '--repo', `https://${remote.server}/${remote.path}`, '--output', 'json'], remote.server)) as { title?: string; description?: string };
+  const j = JSON.parse(tool('glab', ['mr', 'view', String(n), '--repo', repoArg(remote), '--output', 'json'], remote.server)) as { title?: string; description?: string };
   return prInfo(j.title ?? '', j.description ?? '');
 }
 

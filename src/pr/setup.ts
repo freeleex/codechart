@@ -24,19 +24,30 @@ const SSH_HOSTS = new Map([
   ['altssh.gitlab.com', 'gitlab.com'],
 ]);
 
-/** The forge behind a remote URL; undefined when the host name names neither. */
+const SEGMENT = /^(?!\.\.?$)[\w.-]+$/;
+
+// gh reads a three-part --repo as HOST/OWNER/REPO, so a GitHub path is exactly owner/repo.
+function validPath(host: Host, path: string): boolean {
+  const parts = path.split('/');
+  return parts.every((p) => SEGMENT.test(p)) && (host === 'github' ? parts.length === 2 : parts.length >= 2);
+}
+
+/** The forge behind a remote URL; undefined when the host name names neither, or the path is not a repo on it. */
 export function parseRemote(url: string, host?: Host): Remote | undefined {
   for (const re of PATTERNS) {
     const m = re.exec(url.trim());
     if (!m) continue;
     const name = m[1]!.toLowerCase();
     const server = SSH_HOSTS.get(name) ?? name;
-    if (hasHiddenChars(name + m[2]!)) return undefined;
+    if (hasHiddenChars(name + m[2]!) || !/^[a-z0-9.-]+$/.test(server)) return undefined;
     const found = host ?? (server.includes('github') ? 'github' : server.includes('gitlab') ? 'gitlab' : undefined);
-    return found ? { host: found, server, path: m[2]! } : undefined;
+    return found && validPath(found, m[2]!) ? { host: found, server, path: m[2]! } : undefined;
   }
   return undefined;
 }
+
+/** What gh or glab gets as `--repo`: always naming the remote's own server, so the host it contacts is the one its tokens were checked for. */
+export const repoArg = ({ host, server, path }: Remote): string => (host === 'github' ? `${server}/${path}` : `https://${server}/${path}`);
 
 export interface Plan {
   remote: Remote;
@@ -157,13 +168,14 @@ export function prepareSetupReview(root: string, version: string, remote: Remote
 }
 
 /** Undefined when origin has no setup branch yet; else the URL of the request opened from it, '' when gh/glab can't find one. */
-export function existingSetupReview(root: string, { host, server }: Remote, tool: Tool): string | undefined {
+export function existingSetupReview(root: string, remote: Remote, tool: Tool): string | undefined {
+  const { host, server } = remote;
   if (!gitRun(root, ['ls-remote', 'origin', `refs/heads/${SETUP_BRANCH}`])) return undefined;
   try {
     const out =
       host === 'github'
-        ? tool('gh', ['pr', 'list', '--head', SETUP_BRANCH, '--state', 'all', '--limit', '1', '--json', 'url'], server)
-        : tool('glab', ['mr', 'list', '--source-branch', SETUP_BRANCH, '--all', '--output', 'json'], server);
+        ? tool('gh', ['pr', 'list', '--head', SETUP_BRANCH, '--state', 'all', '--limit', '1', '--json', 'url', '--repo', repoArg(remote)], server)
+        : tool('glab', ['mr', 'list', '--source-branch', SETUP_BRANCH, '--all', '--output', 'json', '--repo', repoArg(remote)], server);
     const [first] = JSON.parse(out) as { url?: unknown; web_url?: unknown }[];
     const url = first?.url ?? first?.web_url;
     return typeof url === 'string' ? url : '';
@@ -191,7 +203,7 @@ export function openSetupReview(root: string, { defaultBranch, base, plan }: Pre
   }
   const out =
     plan.remote.host === 'github'
-      ? tool('gh', ['pr', 'create', '--base', defaultBranch, '--head', SETUP_BRANCH, '--title', PR_TITLE, '--body', prBody(plan)], plan.remote.server)
-      : tool('glab', ['mr', 'create', '--source-branch', SETUP_BRANCH, '--target-branch', defaultBranch, '--title', PR_TITLE, '--description', prBody(plan), '--yes'], plan.remote.server);
+      ? tool('gh', ['pr', 'create', '--base', defaultBranch, '--head', SETUP_BRANCH, '--title', PR_TITLE, '--body', prBody(plan), '--repo', repoArg(plan.remote)], plan.remote.server)
+      : tool('glab', ['mr', 'create', '--source-branch', SETUP_BRANCH, '--target-branch', defaultBranch, '--title', PR_TITLE, '--description', prBody(plan), '--yes', '--repo', repoArg(plan.remote)], plan.remote.server);
   return out.trim().split('\n').pop() ?? '';
 }

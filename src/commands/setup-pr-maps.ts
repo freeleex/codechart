@@ -27,6 +27,7 @@ function remoteOf(root: string, host: Host | undefined): Remote {
     throw new Error('no origin remote: PR maps need the repo on GitHub or GitLab');
   }
   const remote = parseRemote(url, host);
+  if (!remote && (host || /github|gitlab/i.test(url))) throw new Error(`can't tell which repo ${sanitizeText(url)} names: expected owner/repo on GitHub or group/project on GitLab`);
   if (!remote) throw new Error(`can't tell whether ${sanitizeText(url)} is GitHub or GitLab; add --host github or --host gitlab`);
   return remote;
 }

@@ -200,7 +200,7 @@ describe('codechart release-context', () => {
         return JSON.stringify({ title: 'Invoices, with a longer title', body });
       };
       const out = await json([], tool);
-      expect(calls).toEqual([['gh', 'pr', 'view', '7', '--repo', 'o/r', '--json', 'title,body']]);
+      expect(calls).toEqual([['gh', 'pr', 'view', '7', '--repo', 'github.com/o/r', '--json', 'title,body']]);
       const [c] = out.changes;
       expect(c!.map).toEqual(spec);
       expect(c!.prTitle).toBe('Invoices, with a longer title');

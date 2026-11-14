@@ -201,8 +201,18 @@ describe('codechart setup-pr-maps', () => {
     git(sb.repo, 'remote', 'set-url', 'origin', 'https://github.com/o/\u001b]0;x\u0007r.git');
     const r = await run(['--yes']);
     expect(r.code).toBe(1);
-    expect(r.err).toContain("can't tell whether");
+    expect(r.err).toContain("can't tell which repo");
     expect(`${r.out}${r.err}`.replace(/\n/g, '')).not.toMatch(/[\u0000-\u001f\u007f-\u009f]/);
+    expect(existsSync(workflow())).toBe(false);
+  });
+
+  it('an origin path that is not owner/repo on GitHub is refused, also with --host', async () => {
+    git(sb.repo, 'remote', 'set-url', 'origin', 'git@github.com:github.evil.example/o/r.git');
+    for (const args of [['--yes'], ['--yes', '--host', 'github']]) {
+      const r = await run(args);
+      expect(r.code).toBe(1);
+      expect(r.err).toContain("can't tell which repo git@github.com:github.evil.example/o/r.git names");
+    }
     expect(existsSync(workflow())).toBe(false);
   });
 
@@ -228,6 +238,7 @@ describe('codechart setup-pr-maps', () => {
     expect(git(remote, 'rev-parse', `${SETUP_BRANCH}~1`)).toBe(git(remote, 'rev-parse', 'main'));
     expect(calls[0]!.slice(0, 7)).toEqual(['gh', 'pr', 'create', '--base', 'main', '--head', SETUP_BRANCH]);
     expect(calls[0]!.join(' ')).toContain('Merge to turn PR maps on; close to say no.');
+    expect(calls[0]!.slice(-2)).toEqual(['--repo', 'github.com/o/r']);
     expect(git(sb.repo, 'status', '--porcelain')).toBe('?? wip.txt\n');
     expect(existsSync(workflow())).toBe(false);
   });
@@ -246,7 +257,7 @@ describe('codechart setup-pr-maps', () => {
     expect(r.out).toContain(
       'codechart: the setup pull request already exists: https://github.com/o/r/pull/7\nMerge it to turn PR maps on, or delete the codechart/pr-maps branch and run again for a new one.\n',
     );
-    expect(calls).toEqual([['gh', 'pr', 'list', '--head', SETUP_BRANCH, '--state', 'all', '--limit', '1', '--json', 'url']]);
+    expect(calls).toEqual([['gh', 'pr', 'list', '--head', SETUP_BRANCH, '--state', 'all', '--limit', '1', '--json', 'url', '--repo', 'github.com/o/r']]);
     expect(git(remote, 'rev-parse', SETUP_BRANCH)).toBe(pushed);
     const unknown = await run(['--pr', '--yes'], { tool: () => '' });
     expect(unknown.out).toContain('the codechart/pr-maps branch already exists on origin, so the setup pull request was opened before');
@@ -287,6 +298,7 @@ describe('codechart setup-pr-maps', () => {
     expect(ci.startsWith('test:\n  script: [make]\n\n# codechart PR maps')).toBe(true);
     expect(calls[0]!.slice(0, 7)).toEqual(['glab', 'mr', 'create', '--source-branch', SETUP_BRANCH, '--target-branch', 'main']);
     expect(calls[0]!.join(' ')).toContain('CODECHART_GITLAB_TOKEN');
+    expect(calls[0]!.slice(-2)).toEqual(['--repo', 'https://gitlab.example.com/g/r']);
   });
 });
 
