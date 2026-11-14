@@ -221,6 +221,18 @@ describe('codechart release-context', () => {
       expect(out.changes.at(-1)!.description).toBe('y body');
     });
 
+    it('keeps the port of an https GitLab origin in --repo', async () => {
+      git(sb.repo, 'remote', 'set-url', 'origin', 'https://gitlab.corp.example:8443/g/p.git');
+      commit('Merge branch x', { 'b.txt': '2' });
+      git(sb.repo, 'commit', '-q', '--amend', '-m', 'Add y', '-m', 'See merge request g/p!9');
+      const calls: string[][] = [];
+      await json([], (c, a) => {
+        calls.push([c, ...a]);
+        return JSON.stringify({ title: 'Add y', description: 'y body' });
+      });
+      expect(calls.at(-1)).toEqual(['glab', 'mr', 'view', '9', '--repo', 'https://gitlab.corp.example:8443/g/p', '--output', 'json']);
+    });
+
     it('falls back to git alone, with a note, when the tool fails; calls it once', async () => {
       commit('Another (#8)', { 'b.txt': '2' });
       let calls = 0;

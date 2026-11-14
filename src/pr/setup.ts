@@ -12,11 +12,17 @@ export interface Remote {
   host: Host;
   /** e.g. github.com or gitlab.example.com */
   server: string;
+  /** Of an http(s) remote only; an ssh port is ssh's. */
+  port?: string;
   /** owner/repo or group/sub/project */
   path: string;
 }
 
-const PATTERNS = [/^[\w.-]+@([^:/]+):(.+?)(?:\.git)?\/?$/, /^(?:https?|ssh|git):\/\/(?:[^@/]+@)?([^/:]+)(?::\d+)?\/(.+?)(?:\.git)?\/?$/];
+const PATTERNS = [
+  /^[\w.-]+@(?<host>[^:/]+):(?<path>.+?)(?:\.git)?\/?$/,
+  /^(?:ssh|git):\/\/(?:[^@/]+@)?(?<host>[^/:]+)(?::\d+)?\/(?<path>.+?)(?:\.git)?\/?$/,
+  /^https?:\/\/(?:[^@/]+@)?(?<host>[^/:]+)(?::(?<port>\d+))?\/(?<path>.+?)(?:\.git)?\/?$/,
+];
 
 // GitHub's and GitLab's official SSH-over-443 hosts are the same service as their web hosts.
 const SSH_HOSTS = new Map([
@@ -37,17 +43,18 @@ export function parseRemote(url: string, host?: Host): Remote | undefined {
   for (const re of PATTERNS) {
     const m = re.exec(url.trim());
     if (!m) continue;
-    const name = m[1]!.toLowerCase();
+    const { host: rawHost, port, path } = m.groups as { host: string; port?: string; path: string };
+    const name = rawHost.toLowerCase();
     const server = SSH_HOSTS.get(name) ?? name;
-    if (hasHiddenChars(name + m[2]!) || !/^[a-z0-9.-]+$/.test(server)) return undefined;
+    if (hasHiddenChars(name + path) || !/^[a-z0-9.-]+$/.test(server)) return undefined;
     const found = host ?? (server.includes('github') ? 'github' : server.includes('gitlab') ? 'gitlab' : undefined);
-    return found && validPath(found, m[2]!) ? { host: found, server, path: m[2]! } : undefined;
+    return found && validPath(found, path) ? { host: found, server, ...(port ? { port } : {}), path } : undefined;
   }
   return undefined;
 }
 
-/** What gh or glab gets as `--repo`: always naming the remote's own server, so the host it contacts is the one its tokens were checked for. */
-export const repoArg = ({ host, server, path }: Remote): string => (host === 'github' ? `${server}/${path}` : `https://${server}/${path}`);
+/** What gh or glab gets as `--repo`: always naming the remote's own server, so the host it contacts is the one its tokens were checked for. gh's HOST/OWNER/REPO form has no documented port syntax, so GitHub gets none. */
+export const repoArg = ({ host, server, port, path }: Remote): string => (host === 'github' ? `${server}/${path}` : `https://${server}${port ? `:${port}` : ''}/${path}`);
 
 export interface Plan {
   remote: Remote;
@@ -75,7 +82,7 @@ const GITHUB_NOTES = [
 ];
 
 function gitlabNotes(r: Remote): string[] {
-  const base = `https://${r.server}`;
+  const base = `https://${r.server}${r.port ? `:${r.port}` : ''}`;
   return [
     'Runs in merge request pipelines whose description has a codechart map section; others are left alone.',
     'Needs one masked CI/CD variable, CODECHART_GITLAB_TOKEN (GitLab’s job token can’t edit merge requests or upload files):',

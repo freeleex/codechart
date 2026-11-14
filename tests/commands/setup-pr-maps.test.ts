@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { parse } from 'yaml';
 import { makeTool } from '../../src/commands/setup-pr-maps.js';
 import { gitRun } from '../../src/pr/git.js';
-import { buildPlan, parseRemote, SETUP_BRANCH, type Remote } from '../../src/pr/setup.js';
+import { buildPlan, parseRemote, repoArg, SETUP_BRANCH, type Remote } from '../../src/pr/setup.js';
 import { git, makeSandbox, removeSandbox, runCli, type Sandbox } from '../helpers/sandbox.js';
 
 const VERSION = (JSON.parse(readFileSync('package.json', 'utf8')) as { version: string }).version;
@@ -17,6 +17,14 @@ describe('parseRemote', () => {
     expect(parseRemote('https://github.com/o/r')).toEqual(gh);
     expect(parseRemote('ssh://git@gitlab.example.com:2222/g/sub/r.git')).toEqual(gl);
     expect(parseRemote('https://gitlab.example.com/g/sub/r.git')).toEqual(gl);
+  });
+
+  it('keeps the port of http(s) remotes only; an ssh port belongs to ssh', () => {
+    expect(parseRemote('https://gitlab.corp.example:8443/g/p.git')).toEqual({ host: 'gitlab', server: 'gitlab.corp.example', port: '8443', path: 'g/p' });
+    expect(parseRemote('ssh://git@gitlab.corp.example:2222/g/p.git')).toEqual({ host: 'gitlab', server: 'gitlab.corp.example', path: 'g/p' });
+    expect(repoArg(parseRemote('https://gitlab.corp.example:8443/g/p.git')!)).toBe('https://gitlab.corp.example:8443/g/p');
+    expect(repoArg(parseRemote('ssh://git@gitlab.corp.example:2222/g/p.git')!)).toBe('https://gitlab.corp.example/g/p');
+    expect(repoArg(gh)).toBe('github.com/o/r');
   });
 
   it('needs --host when the server name says neither', () => {
@@ -299,6 +307,17 @@ describe('codechart setup-pr-maps', () => {
     expect(calls[0]!.slice(0, 7)).toEqual(['glab', 'mr', 'create', '--source-branch', SETUP_BRANCH, '--target-branch', 'main']);
     expect(calls[0]!.join(' ')).toContain('CODECHART_GITLAB_TOKEN');
     expect(calls[0]!.slice(-2)).toEqual(['--repo', 'https://gitlab.example.com/g/r']);
+  });
+
+  it('--pr on a self-hosted GitLab with an https port: glab gets the port, not :443', async () => {
+    const remote = join(sb.tmp, 'remote.git');
+    git(sb.tmp, 'init', '-q', '--bare', '-b', 'main', remote);
+    git(sb.repo, 'push', '-q', remote, 'HEAD:refs/heads/main');
+    git(sb.repo, 'remote', 'set-url', 'origin', 'https://gitlab.corp.example:8443/g/p.git');
+    git(sb.repo, 'config', `url.${remote}.insteadOf`, 'https://gitlab.corp.example:8443/g/p.git');
+    const calls: string[][] = [];
+    await run(['--pr', '--yes'], { tool: (cmd: string, args: string[]) => (calls.push([cmd, ...args]), 'https://gitlab.corp.example:8443/g/p/-/merge_requests/3') });
+    expect(calls.at(-1)!.slice(-2)).toEqual(['--repo', 'https://gitlab.corp.example:8443/g/p']);
   });
 });
 
