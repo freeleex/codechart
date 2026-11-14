@@ -13,10 +13,12 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        node: [22, 24]
+        node: [22, 24, 26]
         include:
           - os: windows-latest
             node: 22
+          - os: ubuntu-latest
+            node: 22.12.0
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -29,6 +31,39 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm test
       - run: npm run build
+
+  packed-cli:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm pack --silent
+      - run: npm i --prefix "$RUNNER_TEMP/p" ./codechart-*.tgz
+        shell: bash
+      # The installed copy, run with every user-level folder pointed at an empty one.
+      - shell: bash
+        run: |
+          set -e
+          home="$RUNNER_TEMP/home"
+          mkdir -p "$home" "$RUNNER_TEMP/skills" "$RUNNER_TEMP/repo"
+          export HOME="$home" USERPROFILE="$home" XDG_CONFIG_HOME="$home/config" XDG_CACHE_HOME="$home/cache"
+          codechart() { node "$RUNNER_TEMP/p/node_modules/codechart/dist/cli.js" "$@"; }
+          codechart --version
+          codechart install-skill --dir "$RUNNER_TEMP/skills"
+          cd "$RUNNER_TEMP/repo"
+          git init -q
+          echo hello > a.txt
+          codechart check --files a.txt
 
   quality:
     runs-on: ubuntu-latest
