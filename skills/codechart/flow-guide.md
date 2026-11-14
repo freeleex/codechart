@@ -96,7 +96,7 @@ The change added `POST /invites/{token}/accept` in `app/api/invites.py`. Every s
 }
 ```
 
-`render --md` prints this (paste your own output verbatim; the real link path comes from it):
+`render --md --git` prints this (paste your own output verbatim; the real link path comes from it):
 
 ````
 **Flow** _(key: + new  ~ changed  ? planned  ◇ decision  ⤷ shared step)_
@@ -112,7 +112,7 @@ Accept a team invite
                   ├─ yes → +return already a member
                   └─ no  → +save membership → +return joined
 
-9 steps · 9 new · 0 changed · 0 planned
+9 steps · 9 new · 0 changed · 0 planned · ✓ 15 anchors checked
 gaps: did not check what happens when two requests accept the same invite at
       once
 ```
